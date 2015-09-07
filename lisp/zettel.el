@@ -25,10 +25,22 @@
 (defvar zettel-base-format (first zettel-filename-format)
   "The format of the base numerical component of Zettel's name.")
 
+(defvar zettel-numerus-currens-regexp
+  "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
+  "The regular expression that matches numerus currens like 261-cabf.")
+
+(defvar zettel-date-regexp
+  "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
+  "The regular expression that matches ISO 8601-like date/time expression.")
+
+(defvar zettel-bibkey-regexp
+  "\\([[:alpha:]]+[[:digit:]]\\{4\\}[[:alpha:]]*\\)\\>"
+  "The regular expression that matches my bibkeys.")
+
 (defun zettel-p (file)
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
-  (or (string-match zettel-filename-regexp (file-name-base file))
+  (or (string-match zettel-numerus-currens-regexp (file-name-base file))
       (string-match zettel-date-regexp (file-name-base file))))
 
 ;; Enable zettel-mode for files that match the pattern
@@ -55,30 +67,31 @@
 (setq deft-strip-title-regexp "\\(\\+.*$\\|^\\(title: +\\)\\)")
 (setq deft-use-filename-as-title nil)
 
-(defvar zettel-filename-regexp
-  "\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*"
-  "The regular expression that matches filenames like 261-cabf.")
-
-(defvar zettel-date-regexp
-  "\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
-  "The regular expression that matches ISO 8601-like date/time expression.")
-
-(defvar zettel-indent-title-column 12
+(defvar zettel-indent-title-column 15
   "The column number where the Zettel title (without the numerus
 currens) will be indented to.")
 
 (defun zettel-separate-deft-file-title (orig-fun &rest args)
   "Replace the first slash of with enough spaces to justify the actual title."
   (let* ((title (apply orig-fun args))
-         (numerus-length (if (string-match zettel-filename-regexp title)
-                             (match-end 0)
-                             zettel-indent-title-column)))
-    ;; Strip the § before the numerus currens
-    (setq title (replace-regexp-in-string "§" "" title))
+         (numerus-length (cond ((or (string-match zettel-numerus-currens-regexp title)
+                                    (string-match zettel-date-regexp title))
+                                ;; Strip the § before the numerus currens, if exists
+                                (let ((match-end (match-end 0)))
+                                  (cond ((string-match "§" title)
+                                         (setq title (replace-regexp-in-string "§" "" title))
+                                         (- match-end 1))
+                                        (t
+                                         match-end))))
+                               ((string-match zettel-bibkey-regexp title)
+                                ;; There is no § in this case, so just find the end of the match
+                                (match-end 0))
+                               (t
+                                0))))
     ;; Replace the ". " in the first title (following § + numerus currens) with indentation
     (replace-regexp-in-string
      "\\(\\. \\).*\\'"
-     (make-string (max 0 (- zettel-indent-title-column numerus-length)) ?\s)
+     (make-string (- zettel-indent-title-column numerus-length) ?\s)
      title nil nil 1)))
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
@@ -442,24 +455,24 @@ of which are strings."
   "Returns NIL if the slug is not a Zettel slug, and otherwise
 returns a list of two elements: the number and letters part of
 the slug."
-  (when (string-match zettel-filename-regexp slug)
+  (when (string-match zettel-numerus-currens-regexp slug)
     (list (match-string 1 slug) (match-string 3 slug))))
 
 (defun zettel-slug-number (slug)
   "Returns the number part of the slug."
-  (when (string-match zettel-filename-regexp slug)
+  (when (string-match zettel-numerus-currens-regexp slug)
     (match-string 1 slug)))
 
 (defun zettel-slug-letters (slug)
   "Returns the letters part of the slug as a string."
-  (when (string-match zettel-filename-regexp slug)
+  (when (string-match zettel-numerus-currens-regexp slug)
     (match-string 3 slug)))
 
 (defun zettel-split-slug (slug)
   "Returns the slug in its split form as a vector: 234-abc ->
 #('234' 'a' 'b''c')."
   (when (zettel-slug-p slug))
-  (when (string-match zettel-filename-regexp slug)
+  (when (string-match zettel-numerus-currens-regexp slug)
     (let ((number (match-string 1 slug))
           (letters (split-string (match-string 3 slug) "" t)))
       (apply #'vector number letters))))
