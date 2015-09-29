@@ -40,8 +40,9 @@
 (defun zettel-p (file)
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
-  (or (string-match zettel-numerus-currens-regexp (file-name-base file))
-      (string-match zettel-date-regexp (file-name-base file))))
+  (when file
+    (or (string-match zettel-numerus-currens-regexp (file-name-base file))
+        (string-match zettel-date-regexp (file-name-base file)))))
 
 ;; Enable zettel-mode for files that match the pattern
 (add-hook 'markdown-mode-hook
