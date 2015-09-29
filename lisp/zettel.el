@@ -178,6 +178,46 @@ taken into account."
             (setq j (1+ j)))
           (format zettel-base-format j))))))
 
+(defun zettel-random-unused-slug ()
+  "Returns a random unused slug for the Zettelkasten in ZETTEL-DIRECTORY.
+
+Limitation: Only regards saved files. An unsaved buffers are not
+taken into account."
+  (save-excursion
+    (let ((buffer (get-buffer-create "*Zettel Unused Slug*")))
+      (with-current-buffer buffer
+        ;; Populate the buffer with results of the find
+        (cd zettel-directory)
+        (call-process "/usr/bin/find" nil t nil "-L" "-name" "[0-9][0-9][0-9]*.txt")
+        ;; Replace './001.txt' or './dir/001-acc.txt' with '001'
+        (goto-char (point-min))
+        (while (re-search-forward "^.*/\\([0-9]\\{3\\}\\).*\.txt" nil t)
+          (replace-match "\\1"))
+        ;; Remove any non-numeric text files, since would screw things up
+        (goto-char (point-min))
+        (while (re-search-forward "^[^0-9]+$" nil t)
+          (delete-region (line-beginning-position)
+                         (save-excursion
+                           (forward-line 1)
+                           (point))))
+        ;; Sort the buffer
+        (sort-lines nil (point-min) (point-max))
+        ;; Find the next slug number by processing the list of slugs we created
+        ;; into a list of numbers, and then generate random numbers until we
+        ;; come upon one that doesn't exist in the list.
+        (let ((numbers
+               (apply #'vector
+                      (mapcar #'string-to-number
+                              (delete-dups (split-string (buffer-string)))))))
+          ;; Don't need the buffer any more
+          (kill-buffer buffer)
+          ;; Generate a random number that doesn't occur in the list.
+          (setq j (random 1000))
+          (while (find j numbers)
+            (setq j (random 1000)))
+          ;; Return a formatted slug
+          (format zettel-base-format j))))))
+
 (defun zettel-timestamp-slug ()
   "Returns a timestamp in the form YYYYMMDDTHHmm to use as the slug."
   (format-time-string "%Y%m%dT%H%M"))
@@ -190,7 +230,7 @@ taken into account."
 ;; C-c C-S-n, on the other hand, will create a new Zettel with unused numerus currens
 (define-key deft-mode-map (kbd "C-c C-S-n")
   (commandify
-   (deft-new-file-named (zettel-unused-slug))))
+   (deft-new-file-named (zettel-random-unused-slug))))
 
 (defun zettel-rename-with-unused-slug ()
   "Rename the current file and buffer to an unused filename
