@@ -1,4 +1,4 @@
-;;;; -*- mode: lisp -*-
+;;;; -*- mode: emacs-lisp -*-
 ;;;; -----------------------------------------------------------------------------
 ;;;;        Author: Roderick Hoybach <hoybach-code@diachronic.net>
 ;;;;   Description: Zettelkasten implementation based on Deft and Markdown
@@ -26,11 +26,11 @@
   "The format of the base numerical component of Zettel's name.")
 
 (defvar zettel-numerus-currens-regexp
-  "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
+  "^§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
   "The regular expression that matches numerus currens like 261-cabf.")
 
 (defvar zettel-date-regexp
-  "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
+  "^§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
   "The regular expression that matches ISO 8601-like date/time expression.")
 
 (defvar zettel-bibkey-regexp
@@ -72,28 +72,29 @@
   "The column number where the Zettel title (without the numerus
 currens) will be indented to.")
 
-(defun zettel-separate-deft-file-title (orig-fun &rest args)
+(defun zettel-separate-deft-file-title (orig-fun file-name)
   "Replace the first slash of with enough spaces to justify the actual title."
-  (let* ((title (apply orig-fun args))
-         (numerus-length (cond ((or (string-match zettel-numerus-currens-regexp title)
-                                    (string-match zettel-date-regexp title))
-                                ;; Strip the § before the numerus currens, if exists
-                                (let ((match-end (match-end 0)))
-                                  (cond ((string-match "§" title)
-                                         (setq title (replace-regexp-in-string "§" "" title))
-                                         (- match-end 1))
-                                        (t
-                                         match-end))))
-                               ((string-match zettel-bibkey-regexp title)
-                                ;; There is no § in this case, so just find the end of the match
-                                (match-end 0))
-                               (t
-                                0))))
-    ;; Replace the ". " in the first title (following § + numerus currens) with indentation
-    (replace-regexp-in-string
-     "\\(\\. \\).*\\'"
-     (make-string (- zettel-indent-title-column numerus-length) ?\s)
-     title nil nil 1)))
+  (when (zettel-p file-name)
+   (let* ((title (funcall orig-fun file-name))
+          (numerus-length (cond ((or (string-match zettel-numerus-currens-regexp title)
+                                     (string-match zettel-date-regexp title))
+                                 ;; Strip the § before the numerus currens, if exists
+                                 (let ((match-end (match-end 0)))
+                                   (cond ((string-match "§" title)
+                                          (setq title (replace-regexp-in-string "§" "" title))
+                                          (- match-end 1))
+                                         (t
+                                          match-end))))
+                                ((string-match zettel-bibkey-regexp title)
+                                 ;; There is no § in this case, so just find the end of the match
+                                 (match-end 0))
+                                (t
+                                 0))))
+     ;; Replace the ". " in the first title (following § + numerus currens) with indentation
+     (replace-regexp-in-string
+      "\\(\\. \\).*\\'"
+      (make-string (- zettel-indent-title-column numerus-length) ?\s)
+      title nil nil 1))))
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
 
