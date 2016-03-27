@@ -17,8 +17,9 @@
   :keymap zettel-mode-map
   :require 'deft)
 
-(defvar zettel-directory (in-home-dir "doc/zettel/")
+(defvar zettel-directory nil            ; should be set on each computer
   "My central Zettelkasten directory.")
+
 (defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
   "A list of elements of the Zettel filename as FORMAT control
   sequences.")
@@ -26,11 +27,11 @@
   "The format of the base numerical component of Zettel's name.")
 
 (defvar zettel-numerus-currens-regexp
-  "^§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
+  "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
   "The regular expression that matches numerus currens like 261-cabf.")
 
 (defvar zettel-date-regexp
-  "^§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
+  "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
   "The regular expression that matches ISO 8601-like date/time expression.")
 
 (defvar zettel-bibkey-regexp
@@ -261,7 +262,8 @@ RENAME-FILE-AND-BUFFER."
         (goto-char (point-min))
         (let ((new-date (format-time-string "%Y-%m-%d"))
               old-date)
-          (cond ((save-excursion (re-search-forward (concat "^modified: +" zettel-date-regexp) nil t))
+          (cond ((save-excursion
+                   (re-search-forward (concat "^modified: +" zettel-date-regexp) nil t))
                  (setq old-date (match-string 1))
                  (when (and (not (string-equal old-date new-date))
                             (y-or-n-p "Update the modified date? "))
