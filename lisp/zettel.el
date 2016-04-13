@@ -94,7 +94,8 @@ currens) will be indented to.")
      ;; Replace the ". " in the first title (following § + numerus currens) with indentation
      (replace-regexp-in-string
       "\\(\\. \\).*\\'"
-      (make-string (- zettel-indent-title-column numerus-length) ?\s)
+      (let ((diff (- zettel-indent-title-column numerus-length)))
+        (make-string (or diff 0) ?\s))
       title nil nil 1))))
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
