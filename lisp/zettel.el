@@ -42,8 +42,17 @@
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
   (when file
-    (or (string-match zettel-numerus-currens-regexp (file-name-base file))
-        (string-match zettel-date-regexp (file-name-base file)))))
+    (or (string-match (concat "^" zettel-numerus-currens-regexp) (file-name-base file))
+        (string-match (concat "^" zettel-date-regexp) (file-name-base file)))))
+
+(defun backup-file-name-p (file)
+  "Return non-nil if FILE is a backup file name (numeric or not)
+OR if FILE is a hidden dot-file.
+
+Redefining the standard function so that temporary dot-files are
+not listed by Deft."
+  (or (string-match "\\`\\." file)
+      (string-match "~\\'" file)))
 
 ;; Enable zettel-mode for files that match the pattern
 (add-hook 'markdown-mode-hook
@@ -95,7 +104,7 @@ currens) will be indented to.")
      (replace-regexp-in-string
       "\\(\\. \\).*\\'"
       (let ((diff (- zettel-indent-title-column numerus-length)))
-        (make-string (or diff 0) ?\s))
+        (make-string (max diff 0) ?\s))
       title nil nil 1))))
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
