@@ -42,8 +42,8 @@
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
   (when file
-    (or (string-match (concat "^" zettel-numerus-currens-regexp) (file-name-base file))
-        (string-match (concat "^" zettel-date-regexp) (file-name-base file)))))
+    (or (string-match zettel-numerus-currens-regexp (file-name-base file))
+        (string-match zettel-date-regexp (file-name-base file)))))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
@@ -51,7 +51,7 @@ OR if FILE is a hidden dot-file.
 
 Redefining the standard function so that temporary dot-files are
 not listed by Deft."
-  (or (string-match "\\`\\." file)
+  (or (string-match "\\`\\." (file-name-nondirectory file))
       (string-match "~\\'" file)))
 
 ;; Enable zettel-mode for files that match the pattern
@@ -75,7 +75,7 @@ not listed by Deft."
 ;;-----------------------------------------------------------------------------
 
 ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
-(setq deft-strip-title-regexp "\\(\\+.*$\\|^\\(title: +\\)\\)")
+(setq deft-strip-title-regexp "^\\(title: +\\)")
 (setq deft-use-filename-as-title nil)
 
 (defvar zettel-indent-title-column 15
