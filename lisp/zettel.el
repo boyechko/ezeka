@@ -671,6 +671,8 @@ argument is given."
            (new-child-slug (zettel-slug-next-unused-sibling
                             (zettel-slug-first-child slug))))
       (zettel-store-link)
+      (when (= arg 4)
+        (insert "[[" new-child-slug "]]"))
       (find-file (deft-absolute-filename new-child-slug)))))
 
 (defun zettel-new-sibling ()
