@@ -42,8 +42,9 @@
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
   (when file
-    (or (string-match zettel-numerus-currens-regexp (file-name-base file))
-        (string-match zettel-date-regexp (file-name-base file)))))
+    (and (string-equal (file-name-extension file) deft-extension)
+     (or (string-match zettel-numerus-currens-regexp (file-name-base file))
+         (string-match zettel-date-regexp (file-name-base file))))))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
