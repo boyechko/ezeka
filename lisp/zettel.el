@@ -328,20 +328,26 @@ on the first line with the Zettel title string."
 (defvar zettel-stored-links-history '()
   "History of the links stored with ZETTEL-STORE-LINK.")
 (defvar zettel-link-inserted-into nil
-  "Stores the slug of the document into which a link was inserted
+  "Stores the file name of the document into which a link was inserted
 with ZETTEL-INSERT-LINK-INTRUSIVE or ZETTEL-INSERT-LINK, allowing
 for creation of backlinks.")
+
+(defun zettel-link-slug (link &optional inserting-into)
+  "Returns the slug of the given link (a filename). If
+INSERTING-INTO is given, returns a slug relative to the file
+specified there."
+  ;; TODO: inserting-into is ignored at the moment 
+  (file-name-sans-extension (file-name-base link)))
 
 (defun zettel-store-link ()
   "Store the link to the given Zettel, also putting it into the
 window system's clipboard."
   (interactive)
-  (let ((link (deft-base-filename
-                  (if (string-equal (buffer-name) "*Deft*")
-                      (widget-get (widget-at (point)) :tag)
-                      (if buffer-file-name
-                          buffer-file-name
-                          (message "No file to store a link to."))))))
+  (let ((link (if (string-equal (buffer-name) "*Deft*")
+                  (widget-get (widget-at (point)) :tag)
+                  (if buffer-file-name
+                      buffer-file-name 
+                      (message "No file to store a link to.")))))
     (x-set-selection 'clipboard link)
     (push link zettel-stored-links)))
 
@@ -356,14 +362,17 @@ prefix argument, inserts the last link."
       (4  (setq arg 1))
       (16 (setq arg 2))))
   (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
-         (insert (concat "[[" (nth (1- arg) zettel-stored-links-history) "]]")))
+         (insert (concat "[["
+                         (zettel-link-slug
+                          (nth (1- arg) zettel-stored-links-history))
+                         "]]")))
         (zettel-stored-links
          ;; Save the link in link history
          (push (first zettel-stored-links) zettel-stored-links-history)
          ;; Save the current file's slug for possible backlinking
-         (setq zettel-link-inserted-into (deft-base-filename buffer-file-name))
+         (setq zettel-link-inserted-into buffer-file-name)
          (insert
-          (concat "[[" (pop zettel-stored-links) "]]")))))
+          (concat "[[" (zettel-link-slug (pop zettel-stored-links)) "]]")))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like ZETTEL-INSERT-LINK, but also opens the Zettel of the link
@@ -374,7 +383,8 @@ for easy back-linking."
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
       ;; (zettel-store-link)
-      (deft-open-file (deft-absolute-filename link-to-insert) t t))))
+      ;; Opens the linked file in a new window, but does not switch to it.
+      (deft-open-file link-to-insert t nil))))
 
 (defun zettel-insert-backlink (arg)
   "Like ZETTEL-INSERT-LINK, but instead of popping a link from
@@ -382,7 +392,9 @@ ZETTEL-STORED-LINKS, inserts the link in ZETTEL-INSERTED-LINK-INTO,
 if set."
   (interactive "P")
   (cond (zettel-link-inserted-into
-         (insert (concat "[[" zettel-link-inserted-into "]]"))
+         (insert (concat "[["
+                         (zettel-link-slug zettel-link-inserted-into)
+                         "]]"))
          (setq zettel-link-inserted-into nil))
         (t
          (message "No backlink to insert."))))
