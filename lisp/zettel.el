@@ -583,6 +583,14 @@ If EXCLUSIVE is T, don't include the Zettel itself."
       (when parent
         (find-file (deft-absolute-filename parent))))))
 
+(defun zettel-insert-parent-link ()
+  "Insert a link to the parent of the current zettel."
+  (interactive)
+  (when (zettel-p buffer-file-name)
+    (let ((parent (zettel-slug-parent (deft-base-filename buffer-file-name))))
+      (when parent
+        (insert (concat "[[" parent "]]"))))))
+
 (defcustom zettel-loop-siblings t
   "When T, commands 'zettel-next-sibling' and
 'zettel-prev-sibling' will loop over the list of siblings.")
@@ -694,6 +702,7 @@ argument is given."
   )
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-parent)
+(define-key zettel-mode-map (kbd "C-c C-^") 'zettel-insert-parent-link)
 (define-key zettel-mode-map (kbd "C-c C-n") 'zettel-next-sibling)
 (define-key zettel-mode-map (kbd "C-c C-p") 'zettel-prev-sibling)
 
