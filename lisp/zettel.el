@@ -87,21 +87,23 @@ currens) will be indented to.")
   "Replace the first slash of with enough spaces to justify the actual title."
   (let ((title (funcall orig-fun file-name)))
     (if (zettel-p file-name)
-        (let ((numerus-length (cond ((or (string-match zettel-numerus-currens-regexp title)
-                                         (string-match zettel-date-regexp title))
-                                     ;; Strip the § before the numerus currens, if exists
-                                     (let ((match-end (match-end 0)))
-                                       (cond ((string-match "§" title)
-                                              (setq title (replace-regexp-in-string "§" "" title))
-                                              (- match-end 1))
-                                             (t
-                                              match-end))))
-                                    ((string-match zettel-bibkey-regexp title)
-                                     ;; There is no §, so just find the end of the match
-                                     (match-end 0))
-                                    (t
-                                     0))))
-          ;; Replace the ". " in the first title (following § + numerus currens) with indentation
+        (let ((numerus-length
+               (cond ((or (string-match zettel-numerus-currens-regexp title)
+                          (string-match zettel-date-regexp title))
+                      ;; Strip the § before the numerus currens, if exists
+                      (let ((match-end (match-end 0)))
+                        (cond ((string-match "§" title)
+                               (setq title (replace-regexp-in-string "§" "" title))
+                               (- match-end 1))
+                              (t
+                               match-end))))
+                     ((string-match zettel-bibkey-regexp title)
+                      ;; There is no §, so just find the end of the match
+                      (match-end 0))
+                     (t
+                      0))))
+          ;; Replace the ". " in the first title (following § + numerus currens)
+          ;; with indentation.
           (replace-regexp-in-string
            "\\(\\. \\).*\\'"
            (let ((diff (- zettel-indent-title-column numerus-length)))
@@ -125,7 +127,8 @@ the filter string with the subtree."
           (push subtree deft-filter-regexp))
       (deft-refresh-filter))))
 
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-filter-add-subtree) ; was: deft-find-file
+;; Was: deft-find-file
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-filter-add-subtree)
 
 (defun deft-add-section-sign-to-filter-increment ()
   "Inserts the Unicode section sign: §."
@@ -470,7 +473,8 @@ named after the given bibliographic key."
   (interactive
    (list (read-string "Create bibliography file for key: ")))
   (let ((expanded
-         (expand-file-name (concat bib-key zettel-bibliography-extension) zettel-bibliography-directory)))
+         (expand-file-name (concat bib-key zettel-bibliography-extension)
+                           zettel-bibliography-directory)))
     (find-file-other-window expanded)))
 
 ;; Keybindings
@@ -566,7 +570,8 @@ If EXCLUSIVE is T, don't include the Zettel itself."
     (when letters
       (let ((sibling-regex
              (if exclusive
-                 (format "%s-%s[^%s]$" number (substring letters 0 -1) (substring letters -1))
+                 (format "%s-%s[^%s]$" number (substring letters 0 -1)
+                         (substring letters -1))
                  (format "%s-%s[a-z]$" number (substring letters 0 -1)))))
         (cond (letters
                (sort (mapcar #'deft-base-filename
@@ -617,7 +622,6 @@ siblings as a loop."
                          nil)))
                  (next-sibling (when next-sibling-pos
                                  (elt siblings next-sibling-pos))))
-            ;; (message "POS: %d, N: %d, NEXT: %d, NS: %s" pos n next-sibling-pos next-sibling)
             (if next-sibling
                 (find-file (deft-absolute-filename next-sibling))
                 (message "No other siblings.")))
