@@ -18,7 +18,7 @@
   :require 'deft)
 
 (defvar zettel-directory nil            ; should be set on each computer
-  "My central Zettelkasten directory.")
+  "The central Zettelkasten directory under which to look for unused slugs.")
 
 (defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
   "A list of elements of the Zettel filename as FORMAT control
@@ -485,17 +485,57 @@ named after the given bibliographic key."
 ;; By default, MARKDOWN-CONVERT-WIKI-LINK-TO-FILENAME concatenates the file
 ;; extension of the current buffer's file to the link name when you press C-c
 ;; C-o over something like [[bib/Key2015.bib]], so it ends up opening
-;; Key2015.bib.txt. This work-around removes the extra extension.
+;; Key2015.bib.txt. The markdown-cwltf-fix-link removes the extra extension,
+;; among other things.
 ;;
 ;; Unfortunately, MARKDOWN-FOLLOW-WIKI-LINK also "ensure[s] that the new buffer
-;; remains in `markdown-mode'", so I need yet another work-around to fix that.
+;; remains in `markdown-mode'", so I need yet another work-around to fix that:
+;; markdown-fwl-set-auto-mode.
 ;;
 
-(defun markdown-cwltf-dont-clobber-extension (orig-fun name)
-  "If NAME already has an extension, don't clobber it by adding
-the current buffer file's extension."
-  (let ((result (funcall orig-fun name)))
-    (save-match-data
+(defun markdown-fwl-set-auto-mode (&rest args)
+  "After advice for `markdown-follow-wiki-link'. Reverses the
+default behavir of ensuring that the buffer is in markdown mode,
+and instead sets it back to the mode it `wants to be'."
+  (set-auto-mode t))
+
+(advice-add 'markdown-follow-wiki-link :after #'markdown-fwl-set-auto-mode)
+
+(defun zettel-right-directory (numerus-currens)
+  "Finds the right directory for the numerus currens provided."
+  (when (stringp numerus-currens)
+    (let ((result
+           (case (elt numerus-currens 0)
+             (?0 "000-099")
+             (?1 "100-199")
+             (?2 "200-299")
+             (?3 "300-399")
+             (?4 "400-499")
+             (?5 "500-599")
+             (?6 "600-699")
+             (?7 "700-799")
+             (?8 "800-899")
+             (?9 "900-999"))))
+      (when result
+        (file-name-as-directory result)))))
+
+(defun zettel-full-path (numerus-currens)
+  "Returns the full path in zettel-directory to the given numerus currens."
+  (expand-file-name (concat numerus-currens "." deft-extension)
+   (expand-file-name (zettel-right-directory numerus-currens) zettel-directory)))
+
+(defun markdown-cwltf-fix-link (orig-fun name)
+  "Advice for `markdown-convert-wiki-link-to-filename', combining
+both the not clobbering of extension and also finding the right
+directory directory for the Zettel so that the links can be found
+across multiple directories within ZETTEL-DIRECTORY."
+  (save-match-data
+    (let* ((name
+            (if (and (string-match (concat "^" zettel-numerus-currens-regexp) name)
+                     (buffer-file-name))
+                (zettel-full-path name)
+                name))
+           (result (funcall orig-fun name)))
       (if (string-match "\\.\\w+$" name)
           (let ((orig-ext (match-string 0 name)))
             (if (string-match (concat orig-ext "\\(\\.\\w+\\)$") result)
@@ -504,15 +544,7 @@ the current buffer file's extension."
           result))))
 
 (advice-add 'markdown-convert-wiki-link-to-filename
-            :around #'markdown-cwltf-dont-clobber-extension)
-
-(defun markdown-fwl-set-auto-mode (&rest args)
-  "Reverses MARKDOWN-FOLLOW-WIKI-LINK's ensuring that the buffer
-is in markdown mode, and instead sets it back to the mode it
-`wants to be'."
-  (set-auto-mode t))
-
-(advice-add 'markdown-follow-wiki-link :after #'markdown-fwl-set-auto-mode)
+            :around #'markdown-cwltf-fix-link)
 
 ;;-----------------------------------------------------------------------------
 ;; Moving between Zettel
@@ -573,12 +605,22 @@ If EXCLUSIVE is T, don't include the Zettel itself."
                  (format "%s-%s[^%s]$" number (substring letters 0 -1)
                          (substring letters -1))
                  (format "%s-%s[a-z]$" number (substring letters 0 -1)))))
-        (cond (letters
-               (sort (mapcar #'deft-base-filename
-                             (remove-if-not #'(lambda (x) (string-match sibling-regex x))
-                                            deft-all-files
-                                            :key #'deft-base-filename))
-                     #'string-lessp)))))))
+        (if letters
+            (sort
+             (mapcar #'deft-base-filename
+                     (remove-if-not #'(lambda (x) (string-match sibling-regex x))
+                                    deft-all-files
+                                    :key #'deft-base-filename))
+             #'string-lessp))))))
+
+(defun zettel-absolute-filename (slug &optional directory)
+  "Return an absolute filename to file named SLUG. If DIRECTORY
+is given, gives a filename in relation to that directory;
+otherwise, relies on DEFT-DIRECTORY. Always assumes `deft-extension`.
+
+See also `deft-absolute-filename`."
+  (expand-file-name (concat slug "." deft-extension)
+                    (or directory deft-directory)))
 
 (defun zettel-find-parent ()
   "Opens the current Zettel's parent."
@@ -586,7 +628,9 @@ If EXCLUSIVE is T, don't include the Zettel itself."
   (when (zettel-p buffer-file-name)
     (let ((parent (zettel-slug-parent (deft-base-filename buffer-file-name))))
       (when parent
-        (find-file (deft-absolute-filename parent))))))
+        (find-file
+         (zettel-absolute-filename parent
+                                   (file-name-directory buffer-file-name)))))))
 
 (defun zettel-insert-parent-link ()
   "Insert a link to the parent of the current zettel."
