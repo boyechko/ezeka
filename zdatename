@@ -1,8 +1,10 @@
 #!/usr/bin/bash
-# Outputs the date name (YYYYMMDDThhmm) for the given file
+# Outputs the date name (YYYYMMDDThhmm) for the given file, combining the
+# created date with time of last modification
 
 fname=$1
-ext=${fname#*.}
+bname=$(basename $fname)
+ext=${bname#*.}
 
 created=`grep '^created:' $fname`
 if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
@@ -10,12 +12,9 @@ if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
     month=${BASH_REMATCH[2]}
     day=${BASH_REMATCH[3]}
 
-    modified=`stat $fname | grep '^Modify:'`
-    if [[ $modified =~ Modify:.*([0-9]{2}):([0-9]{2}):[0-9]{2}\.[0-9]{9} ]]; then
-        hour=${BASH_REMATCH[1]}
-        minute=${BASH_REMATCH[2]}
-
-        echo "${year}${month}${day}T${hour}${minute}.$ext"
+    modified=$(date -d @$(stat -c'%Y' "$@") "+%H%M")
+    if [[ $modified != "" ]]; then
+        echo "${year}${month}${day}T${modified}.$ext"
     else
         echo "No modification time"
         exit 1
