@@ -26,25 +26,21 @@
 (defvar zettel-base-format (first zettel-filename-format)
   "The format of the base numerical component of Zettel's name.")
 
-(defvar zettel-numerus-currens-regexp
+(defvar zettel-regexp-numerus-currens
   "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
   "The regular expression that matches numerus currens like 261-cabf.")
 
-(defvar zettel-date-regexp
+(defvar zettel-regexp-date
   "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
   "The regular expression that matches ISO 8601-like date/time expression.")
-
-(defvar zettel-bibkey-regexp
-  "\\([[:alpha:]]+[[:digit:]]\\{4\\}[[:alpha:]]*\\)\\>"
-  "The regular expression that matches my bibkeys.")
 
 (defun zettel-p (file)
   "Returns non-NIL if the file is a Zettel."
   (interactive "f")
   (when file
     (and (string-equal (file-name-extension file) deft-extension)
-     (or (string-match zettel-numerus-currens-regexp (file-name-base file))
-         (string-match zettel-date-regexp (file-name-base file))))))
+     (or (string-match zettel-regexp-numerus-currens (file-name-base file))
+         (string-match zettel-regexp-date (file-name-base file))))))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
@@ -88,20 +84,16 @@ currens) will be indented to.")
   (let ((title (funcall orig-fun file-name)))
     (if (zettel-p file-name)
         (let ((numerus-length
-               (cond ((or (string-match zettel-numerus-currens-regexp title)
-                          (string-match zettel-date-regexp title))
-                      ;; Strip the § before the numerus currens, if exists
-                      (let ((match-end (match-end 0)))
-                        (cond ((string-match "§" title)
-                               (setq title (replace-regexp-in-string "§" "" title))
-                               (- match-end 1))
-                              (t
-                               match-end))))
-                     ((string-match zettel-bibkey-regexp title)
-                      ;; There is no §, so just find the end of the match
-                      (match-end 0))
-                     (t
-                      0))))
+               (if (or (string-match zettel-regexp-numerus-currens title)
+                       (string-match zettel-regexp-date title))
+                   ;; Strip the § before the numerus currens, if exists
+                   (let ((match-end (match-end 0)))
+                     (cond ((string-match "§" title)
+                            (setq title (replace-regexp-in-string "§" "" title))
+                            (- match-end 1))
+                           (t
+                            match-end)))
+                   0)))
           ;; Replace the ". " in the first title (following § + numerus currens)
           ;; with indentation.
           (replace-regexp-in-string
@@ -246,8 +238,9 @@ taken into account."
 
 ;; C-c C-S-n, on the other hand, will create a new Zettel with unused numerus currens
 (define-key deft-mode-map (kbd "C-c C-S-n")
-  (commandify
-   (deft-new-file-named (zettel-random-unused-slug))))
+  (lambda ()
+    (interactive)
+    (deft-new-file-named (zettel-random-unused-slug))))
 
 (defun zettel-rename-with-unused-slug ()
   "Rename the current file and buffer to an unused filename
@@ -278,14 +271,14 @@ RENAME-FILE-AND-BUFFER."
         (let ((new-date (format-time-string "%Y-%m-%d"))
               old-date)
           (cond ((save-excursion
-                   (re-search-forward (concat "^modified: +" zettel-date-regexp) nil t))
+                   (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
                  (setq old-date (match-string 1))
                  (when (and (not (string-equal old-date new-date))
                             (y-or-n-p "Update the modified date? "))
                    (message "Updating metadata modified date in %s from %s to %s."
                             buffer-file-name old-date new-date)
                    (replace-match (format-time-string "%Y-%m-%d") nil t nil 1)))
-                ((re-search-forward (concat "^created: +" zettel-date-regexp) nil t)
+                ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
                  (setq old-date (match-string 1))
                  (when (and (not (string-equal old-date new-date))
                             (y-or-n-p "Add modified date? "))
@@ -531,7 +524,7 @@ directory directory for the Zettel so that the links can be found
 across multiple directories within ZETTEL-DIRECTORY."
   (save-match-data
     (let* ((name
-            (if (and (string-match (concat "^" zettel-numerus-currens-regexp) name)
+            (if (and (string-match (concat "^" zettel-regexp-numerus-currens) name)
                      (buffer-file-name))
                 (zettel-full-path name)
                 name))
@@ -559,24 +552,24 @@ of which are strings."
   "Returns NIL if the slug is not a Zettel slug, and otherwise
 returns a list of two elements: the number and letters part of
 the slug."
-  (when (string-match zettel-numerus-currens-regexp slug)
+  (when (string-match zettel-regexp-numerus-currens slug)
     (list (match-string 1 slug) (match-string 3 slug))))
 
 (defun zettel-slug-number (slug)
   "Returns the number part of the slug."
-  (when (string-match zettel-numerus-currens-regexp slug)
+  (when (string-match zettel-regexp-numerus-currens slug)
     (match-string 1 slug)))
 
 (defun zettel-slug-letters (slug)
   "Returns the letters part of the slug as a string."
-  (when (string-match zettel-numerus-currens-regexp slug)
+  (when (string-match zettel-regexp-numerus-currens slug)
     (match-string 3 slug)))
 
 (defun zettel-split-slug (slug)
   "Returns the slug in its split form as a vector: 234-abc ->
 #('234' 'a' 'b''c')."
   (when (zettel-slug-p slug))
-  (when (string-match zettel-numerus-currens-regexp slug)
+  (when (string-match zettel-regexp-numerus-currens slug)
     (let ((number (match-string 1 slug))
           (letters (split-string (match-string 3 slug) "" t)))
       (apply #'vector number letters))))
