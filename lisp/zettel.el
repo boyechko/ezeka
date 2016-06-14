@@ -511,11 +511,6 @@ and instead sets it back to the mode it `wants to be'."
       (when result
         (file-name-as-directory result)))))
 
-(defun zettel-full-path (numerus-currens)
-  "Returns the full path in zettel-directory to the given numerus currens."
-  (expand-file-name (concat numerus-currens "." deft-extension)
-   (expand-file-name (zettel-right-directory numerus-currens) zettel-directory)))
-
 (defun markdown-cwltf-fix-link (orig-fun name)
   "Advice for `markdown-convert-wiki-link-to-filename', combining
 both the not clobbering of extension and also finding the right
@@ -525,7 +520,7 @@ across multiple directories within ZETTEL-DIRECTORY."
     (let* ((name
             (if (and (string-match (concat "^" zettel-regexp-numerus-currens) name)
                      (buffer-file-name))
-                (zettel-full-path name)
+                (zettel-absolute-filename name)
                 name))
            (result (funcall orig-fun name)))
       (if (string-match "\\.\\w+$" name)
@@ -605,14 +600,24 @@ If EXCLUSIVE is T, don't include the Zettel itself."
                                     :key #'deft-base-filename))
              #'string-lessp))))))
 
-(defun zettel-absolute-filename (slug &optional directory)
-  "Return an absolute filename to file named SLUG. If DIRECTORY
-is given, gives a filename in relation to that directory;
-otherwise, relies on DEFT-DIRECTORY. Always assumes `deft-extension`.
+(defun zettel-absolute-filename (slug &optional extension)
+  "Return an absolute filename to file named SLUG with optional EXTENSION.
+If the slug is a numerus currens, makes sure to locate it in the
+right split-up directory. Otherwise, relies on `deft-directory'.
+If EXTENSION is not given, `deft-extension' is assumed.
 
-See also `deft-absolute-filename`."
-  (expand-file-name (concat slug "." deft-extension)
-                    (or directory deft-directory)))
+This function replaces `deft-absolute-filename' for zettels."
+  (expand-file-name
+   (concat slug "." (or extension deft-extension))
+   (if (string-match (concat "^" zettel-regexp-numerus-currens) slug)
+       (expand-file-name (zettel-right-directory slug) zettel-directory)
+       deft-directory)))
+
+(defun deft-absolute-filename-around (orig-fun &rest args)
+  "Replaces the default `deft-absolute-filename' with
+`zettel-absolute-filename'."
+  (apply #'zettel-absolute-filename args))
+(advice-add 'deft-absolute-filename :around 'deft-absolute-filename-around)
 
 (defun zettel-find-parent ()
   "Opens the current Zettel's parent."
