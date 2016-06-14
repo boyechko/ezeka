@@ -439,14 +439,13 @@ Adds an 'oldname' tag with the previous name."
         (forward-paragraph)
         (narrow-to-region (point-min) (point))
         (goto-char (point-min))
-        (when (re-search-forward
-               "title: +§\\([0-9]\\{3\\}[a-z-]*\\|[0-9]\\{8\\}T[0-9]\\{4\\}\\)\\.")
+        (when (re-search-forward "title: §*\\([a-z0-9-]+\\)\\.")
           (setq oldname (match-string 1))
           (replace-match (deft-base-filename buffer-file-name) t nil nil 1)
           (forward-paragraph)
           (forward-line 1)
           (insert (concat "oldname: " oldname))
-          (newline))))))
+          (open-line 1))))))
 
 ;;-----------------------------------------------------------------------------
 ;; Bibliography
