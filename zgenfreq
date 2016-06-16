@@ -1,0 +1,47 @@
+#!/bin/bash
+# Usage: zetgenfreq <frequency-file>
+
+if [ $# -ne 1 ]; then
+    echo "Usage: zetgenfreq <frequency-file>"
+    exit 127
+fi
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+allzettel=$zetteldir/auto/all-zettel.txt
+freqfile="$1"
+excludefile=/tmp/all-zettel.$$.exclude
+
+cat > $excludefile <<EOF
+created
+title
+modified
+oldname
+EOF
+
+# Create frequency file if it doesn't exist
+if [[ ! -e $freqfile ]]; then
+    touch $freqfile
+fi
+
+# If frequency file is newer than allzettel file (or it doesn't exist), recreate
+# the latter
+if [[ $freqfile -nt $allzettel ]]; then
+    shopt -s globstar
+    cd $zetteldir
+    cat **/*.txt > $allzettel
+fi
+
+# Doesn't do Unicode very well
+# tr -c '[:alnum:]' '[\n*]' < $1 | awk 'NF'
+
+sed -r -e 's/[.,:;?!(){}:@«»*"#\/_”`|]/ /g' -e 's/\[/ /g' -e 's/\]/ /g' < $allzettel |
+    sed -e 's/\s/\n/g' |
+    tr '[:upper:]' '[:lower:]' |
+    grep -E '.{5}' |            # matches only words of 5+ characters
+    fgrep -v -w -f $excludefile |
+    fgrep -v -w -f /usr/share/groff/current/eign |
+    sort | uniq -c | sort -nr | sed -re 's/\s+//' > $freqfile
+
+## Cleanup
+rm -f $excludefile
+

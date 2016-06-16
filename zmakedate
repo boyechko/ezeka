@@ -1,0 +1,67 @@
+#!/usr/bin/bash
+# Easy way to rename zettel files; relies on ~/bin/zdatename
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+limbodir=$zetteldir/limbo
+techdir=$zetteldir/tech
+personaldir=$zetteldir/personal
+
+function usage() {
+    echo "Usage: zmakedate [-t|--time <HHMM>] [-m|--move limbo|tech|personal] <zettel-file>"
+}
+
+moveto="."
+fname=
+time=
+while [ "$1" != "" ]; do
+    case $1 in
+        -m | --move )
+            shift
+            if [[ "$1" == "limbo" ]]; then
+                moveto=$limbodir
+            elif [[ "$1" == "tech" ]]; then
+                moveto=$techdir
+            elif [[ "$1" == "personal" ]]; then
+                moveto=$personaldir
+            else
+                echo "Error: Unknown move destination ($1); giving up"
+                exit 1
+            fi
+            ;;
+        -t | --time )
+            shift
+            time=$1
+            ;;
+        -h | --help )
+            usage
+            exit
+            ;;
+        * )
+            fname="$1"
+    esac
+    shift
+done
+
+if [[ -z "$time" ]]; then
+    #
+    # If time is provided, only try that one, and give up if it exists.
+    #
+    datename=$(zdatename -t "$time" "$fname")
+    if [[ -e "$moveto/$datename" ]]; then
+        echo "Error: Note `$moveto/$datename` already exists"
+        exit 1
+    fi
+else
+    #
+    # Otherwise, try 0000, and if that fails, the modification time.
+    #
+    datename=$(zdatename "$fname")
+    if [[ -e "$moveto/$datename" ]]; then
+        regdatename=$datename
+        datename=$(zdatename -m "$fname")
+        if [[ -e "$moveto/$datename" ]]; then
+            echo "Error: Both regular ($regdatename) and modified ($datename) files exist"
+            exit 1
+        fi
+    fi
+hg mv --verbose "$fname" "$moveto/$datename"
