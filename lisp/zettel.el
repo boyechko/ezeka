@@ -18,7 +18,19 @@
   :require 'deft)
 
 (defvar zettel-directory nil            ; should be set on each computer
-  "The central Zettelkasten directory under which to look for unused slugs.")
+  "The central Zettelkasten directory housing all the sub-Zettelkasten.")
+
+(defun in-zettel-dir (&optional relative-path)
+  "Returns absolute pathname of the given pathspec relative to
+the Zettel directory."
+  (expand-file-name (or relative-path "") zettel-directory))
+
+(defvar zettel-sub-kasten
+  `(("main"     . ,(in-zettel-dir "main/"))
+    ("limbo"    . ,(in-zettel-dir "limbo/"))
+    ("personal" . ,(in-zettel-dir "personal/"))
+    ("tech"     . ,(in-zettel-dir "tech/")))
+  "An alist of various sub-Zettelkasten into pathnames.")
 
 (defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
   "A list of elements of the Zettel filename as FORMAT control
@@ -147,7 +159,7 @@ the filter string with the subtree."
     slug))
 
 (defun zettel-unused-slug ()
-  "Returns the next unused slug for the Zettelkasten in ZETTEL-DIRECTORY.
+  "Returns the next unused slug for the Zettelkasten in the main Zettelkasten.
 
 Limitation: Only regards saved files. An unsaved buffers are not
 taken into account."
@@ -155,7 +167,7 @@ taken into account."
     (let ((buffer (get-buffer-create "*Zettel Unused Slug*")))
       (with-current-buffer buffer
         ;; Populate the buffer with results of the find
-        (cd zettel-directory)
+        (cd (cdr (assoc "main" zettel-sub-kasten)))
         (call-process "/usr/bin/find" nil t nil "-L" "-name" "[0-9][0-9][0-9]*.txt")
         ;; Replace './001.txt' or './dir/001-acc.txt' with '001'
         (goto-char (point-min))
@@ -183,12 +195,12 @@ taken into account."
           ;; Since the vector is sorted and only has unique elements, we can find
           ;; any holes simply by making sure the element is the same as the index.
           (while (and (< j (length numbers))
-                  (= j (aref numbers j)))
+                      (= j (aref numbers j)))
             (setq j (1+ j)))
           (format zettel-base-format j))))))
 
 (defun zettel-random-unused-slug ()
-  "Returns a random unused slug for the Zettelkasten in ZETTEL-DIRECTORY.
+  "Returns a random unused slug for the Zettelkasten in the main Zettelkasten.
 
 Limitation: Only regards saved files. An unsaved buffers are not
 taken into account."
@@ -196,7 +208,7 @@ taken into account."
     (let ((buffer (get-buffer-create "*Zettel Unused Slug*")))
       (with-current-buffer buffer
         ;; Populate the buffer with results of the find
-        (cd zettel-directory)
+        (cd (cdr (assoc "main" zettel-sub-kasten)))
         (call-process "/usr/bin/find" nil t nil "-L" "-name" "[0-9][0-9][0-9]*.txt")
         ;; Replace './001.txt' or './dir/001-acc.txt' with '001'
         (goto-char (point-min))
@@ -447,6 +459,8 @@ Adds an 'oldname' tag with the previous name."
           (insert (concat "oldname: " oldname))
           (open-line 1))))))
 
+(define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
+
 ;;-----------------------------------------------------------------------------
 ;; Bibliography
 ;;-----------------------------------------------------------------------------
@@ -512,17 +526,26 @@ and instead sets it back to the mode it `wants to be'."
         (file-name-as-directory result)))))
 
 (defun markdown-cwltf-fix-link (orig-fun name)
-  "Advice for `markdown-convert-wiki-link-to-filename', combining
-both the not clobbering of extension and also finding the right
-directory directory for the Zettel so that the links can be found
-across multiple directories within ZETTEL-DIRECTORY."
+  "Advice for `markdown-convert-wiki-link-to-filename',
+completely overriding the originall functionality. It combines
+the not clobbering of extension, finding the right directory
+directory for the Zettel so that the links can be found across
+multiple directories within the main Zettelkasten, and also
+handling 'subkasten:' notation."
   (save-match-data
-    (let* ((name
-            (if (and (string-match (concat "^" zettel-regexp-numerus-currens) name)
-                     (buffer-file-name))
-                (zettel-absolute-filename name)
-                name))
-           (result (funcall orig-fun name)))
+    (let ((result
+           (cond ((string-match (concat "^" zettel-regexp-numerus-currens) name)
+                  ;; name is a numerus currens
+                  (zettel-absolute-filename name))
+                 ((string-match "[[:alpha:]]+:[[:alnum:]]+" name)
+                  ;; name is a 'subkasten:zettel' link
+                  (let* ((split (split-string name ":"))
+                         (subkasten (first split))
+                         (name-only (second split)))
+                   (expand-file-name (concat name-only "." deft-extension)
+                                     (cdr (assoc subkasten zettel-sub-kasten)))))
+                 (t
+                  (funcall orig-fun name)))))
       (if (string-match "\\.\\w+$" name)
           (let ((orig-ext (match-string 0 name)))
             (if (string-match (concat orig-ext "\\(\\.\\w+\\)$") result)
@@ -610,7 +633,8 @@ This function replaces `deft-absolute-filename' for zettels."
   (expand-file-name
    (concat slug "." (or extension deft-extension))
    (if (string-match (concat "^" zettel-regexp-numerus-currens) slug)
-       (expand-file-name (zettel-right-directory slug) zettel-directory)
+       (expand-file-name (zettel-right-directory slug)
+                         (cdr (assoc "main" zettel-sub-kasten)))
        deft-directory)))
 
 (defun deft-absolute-filename-around (orig-fun &rest args)
@@ -626,8 +650,7 @@ This function replaces `deft-absolute-filename' for zettels."
     (let ((parent (zettel-slug-parent (deft-base-filename buffer-file-name))))
       (when parent
         (find-file
-         (zettel-absolute-filename parent
-                                   (file-name-directory buffer-file-name)))))))
+         (zettel-absolute-filename parent))))))
 
 (defun zettel-insert-parent-link ()
   "Insert a link to the parent of the current zettel."
