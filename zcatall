@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+azfile=$zetteldir/auto/all-zettel.txt
+
+shopt -s globstar
+cd $zetteldir
+cat **/*.txt > $azfile
