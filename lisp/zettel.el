@@ -459,8 +459,6 @@ Adds an 'oldname' tag with the previous name."
           (insert (concat "oldname: " oldname))
           (open-line 1))))))
 
-(define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
-
 ;;-----------------------------------------------------------------------------
 ;; Bibliography
 ;;-----------------------------------------------------------------------------
@@ -592,15 +590,19 @@ the slug."
       (apply #'vector number letters))))
 
 ;; TODO: Tired, needs a rewrite.
-(defun zettel-slug-parent (slug)
-  "Returns the slug's parent, or NIL if could not figure out."
-  (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
-    (when number
-      (case (length letters)
-        (0 nil)
-        (1 number)
-        (t (concat number "-" (substring letters 0 -1)))))))
+(defun zettel-slug-ancestor (slug &optional n)
+  "Returns the slug's ancestor, or NIL if could not figure out.
+With the optional N, try to find the Nth ancestor (i.e.
+grandparent if N is 2, an so on), returning the most remote
+ancestor that could find."
+  (let ((n (if (integerp n) (abs n) 1)))
+   (multiple-value-bind (number letters)
+       (zettel-slug-p slug)
+     (when number
+       (cond ((zerop (length letters)) nil)
+             ((<= (length letters) n) number)
+             (t
+              (concat number "-" (substring letters 0 (- n)))))))))
 
 (defun zettel-slug-siblings (slug &optional exclusive)
   "Returns a list of the Zettel's siblings, inclusive. If the
@@ -643,22 +645,24 @@ This function replaces `deft-absolute-filename' for zettels."
   (apply #'zettel-absolute-filename args))
 (advice-add 'deft-absolute-filename :around 'deft-absolute-filename-around)
 
-(defun zettel-find-parent ()
-  "Opens the current Zettel's parent."
-  (interactive)
+(defun zettel-find-ancestor (n)
+  "Opens the current Zettel's ancestor. With a prefix argument, try
+to find the Nth ancestor."
+  (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((parent (zettel-slug-parent (deft-base-filename buffer-file-name))))
-      (when parent
+    (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
+      (when ancestor
         (find-file
-         (zettel-absolute-filename parent))))))
+         (zettel-absolute-filename ancestor))))))
 
-(defun zettel-insert-parent-link ()
-  "Insert a link to the parent of the current zettel."
-  (interactive)
+(defun zettel-insert-ancestor-link (n)
+  "Insert a link to the ancestor of the current zettel. With a
+prefix argument, try to find Nth ancestor."
+  (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((parent (zettel-slug-parent (deft-base-filename buffer-file-name))))
-      (when parent
-        (insert (concat "[[" parent "]]"))))))
+    (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
+      (when ancestor
+        (insert (concat "[[" ancestor "]]"))))))
 
 (defcustom zettel-loop-siblings t
   "When T, commands 'zettel-next-sibling' and
@@ -756,22 +760,34 @@ siblings as a loop."
 current one, inserting a link to it at point unless universal
 argument is given."
   (interactive "p")
+  (deft-cache-update-all)
   (when (zettel-p buffer-file-name)
     (let* ((slug (deft-base-filename buffer-file-name))
            (new-child-slug (zettel-slug-next-unused-sibling
                             (zettel-slug-first-child slug))))
       (zettel-store-link)
-      (when (= arg 4)
+      (unless (= arg 4)
         (insert "[[" new-child-slug "]]"))
-      (find-file (deft-absolute-filename new-child-slug)))))
+      (find-file-other-window (deft-absolute-filename new-child-slug)))))
 
 (defun zettel-new-sibling ()
   "Creates a new Zettel at the same level as current one."
   )
 
-(define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-parent)
-(define-key zettel-mode-map (kbd "C-c C-^") 'zettel-insert-parent-link)
-(define-key zettel-mode-map (kbd "C-c C-n") 'zettel-next-sibling)
-(define-key zettel-mode-map (kbd "C-c C-p") 'zettel-prev-sibling)
+;;;-----------------------------------------------------------------------------
+;;; Key Bindings
+;;;
+;;; According to key binding conventions, the only bindings reserved for minor
+;;; modes are "Sequences consisting of C-c followed by any other punctuation
+;;; character" than {, }, <, >, : or ;, which are reserved for major modes.
+;;;-----------------------------------------------------------------------------
+
+(define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
+
+(define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
+(define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
+(define-key zettel-mode-map (kbd "C-c .") 'zettel-new-child)
+(define-key zettel-mode-map (kbd "C-c ]") 'zettel-next-sibling)
+(define-key zettel-mode-map (kbd "C-c [") 'zettel-prev-sibling)
 
 (provide 'zettel)
