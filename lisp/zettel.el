@@ -26,11 +26,8 @@ the Zettel directory."
   (expand-file-name (or relative-path "") zettel-directory))
 
 (defvar zettel-sub-kasten
-  `(("main"     . ,(in-zettel-dir "main/"))
-    ("limbo"    . ,(in-zettel-dir "limbo/"))
-    ("personal" . ,(in-zettel-dir "personal/"))
-    ("tech"     . ,(in-zettel-dir "tech/")))
-  "An alist of various sub-Zettelkasten into pathnames.")
+  nil
+  "An alist of translating various sub-Zettelkasten into pathnames.")
 
 (defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
   "A list of elements of the Zettel filename as FORMAT control
