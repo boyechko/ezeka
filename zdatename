@@ -5,8 +5,33 @@
 # used instead. Alternatively, with --time/-t, one can manually specify a time
 # to use.
 
+# If debug=1, print debug messages
+debug=
+
 function usage() {
     echo "Usage: zdatename [--modified|-m] [-time|-t <HHMM>] <zettel-file>"
+}
+
+# Returns success (0) if there is no modified line in the file, and the creation
+# date is the same as the date of the last modification.
+#
+# mod_is_creation(file, created-date [as "YYYY-mm-dd"])
+function mod_is_creation {
+    created_line=`grep '^created:' "$1"`
+    modified_line=`grep '^modified:' "$1"`
+    if [[ -z "$modified" && $created_line =~ created:.+([0-9-]{10}) ]]; then
+        credate=${BASH_REMATCH[1]}
+        moddate=$(date -d @$(stat -c'%Y' "$fname") "+%Y-%m-%d")
+        if [[ $debug -eq 1 ]]; then echo "DEBUG: credate = $credate, moddate = $moddate"; fi
+        
+        if [[ "$credate" == "$moddate" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        return 1
+    fi
 }
 
 # Process command line options
@@ -15,13 +40,16 @@ time=
 fname=
 
 while [ "$1" != "" ]; do
-    case $1 in
+    case "$1" in
+        -d | --debug )
+            debug=1
+            ;;
         -m | --modified )
             modified=1
             ;;
         -t | --time )
             shift
-            time=$1
+            time="$1"
             if [[ ! "$time" =~ ^[0-9]{4}$ ]]; then
                 echo "Error: Time must be in the form of HHMM"
                 exit 1
@@ -42,7 +70,7 @@ if [[ -z "$fname" ]]; then
     exit 1
 fi
 
-bname=$(basename $fname)
+bname=$(basename "$fname")
 ext=${bname#*.}
 
 created=`grep '^created:' $fname`
@@ -52,8 +80,16 @@ if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
     day=${BASH_REMATCH[3]}
 
     if [[ "$time" ]]; then
+        # If time is given, use that.
+        if [[ debug -eq 1 ]]; then echo "DEBUG: Time is provided"; fi
+        
         echo "${year}${month}${day}T${time}.$ext"
-    elif [[ $modified -eq 1 ]]; then
+    elif mod_is_creation "$fname" "$year-$month-$day" || [[ $modified -eq 1 ]]; then
+        # If file doesn't have a modified line and the last modification date is
+        # the same as the created date, _OR_ if --modified is specified, use the
+        # last change time.
+        if [[ debug -eq 1 ]]; then echo "DEBUG: Mod is creation OR --modified specified"; fi
+        
         modtime=$(date -d @$(stat -c'%Y' "$fname") "+%H%M")
         if [[ $modtime != "" ]]; then
             echo "${year}${month}${day}T${modtime}.$ext"
@@ -62,6 +98,7 @@ if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
             exit 1
         fi
     else
+        if [[ debug -eq 1 ]]; then echo "DEBUG: Just using 0000"; fi
         echo "${year}${month}${day}T0000.$ext"
     fi
 else

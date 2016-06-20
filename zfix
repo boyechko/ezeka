@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+
+hgtimestamp=$HOME/Dropbox/Doc/zettel/.hgtimestamp
+file="$1"
+
+if [[ $(grep -E '^modified:' $file) =~ ^modified:[[:space:]]+([0-9-]{10}) ||
+    $(grep -E '^created:' $file) =~ ^created:[[:space:]]+([0-9-]{10}) ]]; then
+    moddate=$(date -d @$(stat -c'%Y' "$file") "+%Y-%m-%d")
+    #echo "File 'modified' line: ${BASH_REMATCH[1]}, file modification date: $moddate"
+    if [[ "${BASH_REMATCH[1]}" == "$moddate" ]]; then
+        echo "File's modification date and modified line match, skipping"
+        exit 0
+    fi
+fi
+
+# sample: "tech/363-d.txt": {"timestamp": 1436311993.0},
+time=$(grep $(grep "oldname" "$file" | awk -e '{ print $2 ".txt" }') $hgtimestamp)
+if [[ "$time" =~ ([0-9]{10})\.[0-9] ]]; then
+    echo "Success! Retouching $file to $(date -d@${BASH_REMATCH[1]} '+%Y-%m-%d %H:%M')"
+    touch -d "@${BASH_REMATCH[1]}" "$file"
+fi

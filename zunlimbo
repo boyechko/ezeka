@@ -42,7 +42,7 @@ function right_directory () {
 # Have to be in $ZETTELDIR, otherwise Mercurial could complain about nested repos
 cd "$ZETTELDIR"
 
-numcur="$2"
+numcur="${2%%.*}"
 file="$1"
 ext=${file##*.}
 if [[ $# -ne 2 ]]; then
@@ -55,7 +55,6 @@ elif [[ ! -e $file ]]; then
     fi
 fi
 
-echo "file = $file, $\# = $#"
 rightdir=$(right_directory $numcur)
 
 echo "hg mv $file $rightdir/$numcur.$ext"

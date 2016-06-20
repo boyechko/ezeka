@@ -7,12 +7,14 @@ techdir=$zetteldir/tech
 personaldir=$zetteldir/personal
 
 function usage() {
-    echo "Usage: zmakedate [-t|--time <HHMM>] [-m|--move limbo|tech|personal] <zettel-file>"
+    echo "Usage: zmakedate [-t|--time <HHMM>] [-m|--move limbo|tech|personal] [-r|--retouch] <zettel-file>"
 }
 
 moveto="."
 fname=
 time=
+retouch=
+origmodtime=
 while [ "$1" != "" ]; do
     case $1 in
         -m | --move )
@@ -32,6 +34,10 @@ while [ "$1" != "" ]; do
             shift
             time=$1
             ;;
+        -r | --retouch )
+            retouch=1
+            origmodtime=$(stat -c'%Y' "$fname")
+            ;;
         -h | --help )
             usage
             exit
@@ -42,7 +48,7 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if [[ -z "$time" ]]; then
+if [[ "$time" ]]; then
     #
     # If time is provided, only try that one, and give up if it exists.
     #
@@ -64,4 +70,9 @@ else
             exit 1
         fi
     fi
+fi
 hg mv --verbose "$fname" "$moveto/$datename"
+
+if [[ "$retouch" ]]; then
+    touch -d"@$origmodtime" "$moveto/$datename"
+else
