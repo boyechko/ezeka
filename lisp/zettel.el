@@ -344,6 +344,21 @@ specified there."
   ;; TODO: inserting-into is ignored at the moment 
   (file-name-sans-extension (file-name-base link)))
 
+(defun zettel-link (file &optional include-title)
+  "Returns a markdown-formatted link to the file, including the
+link title when INCLUDE-TITLE is true."
+  (if include-title
+      ;; FIX: This is very hacky, since assumes there will be at least two
+      ;; spaces separating the zettel number from its title.
+      (let ((title
+             (second
+              (split-string (deft-file-title file) "[[:space:]]\\{2,\\}"))))
+        (format "[[%s]] %s%s"
+                (zettel-link-slug file)
+                (downcase (substring title 0 1))
+                (substring title 1)))
+      (format "[[%s]]" (zettel-link-slug file))))
+
 (defun zettel-store-link ()
   "Store the link to the given Zettel, also putting it into the
 window system's clipboard."
@@ -359,25 +374,18 @@ window system's clipboard."
 ;; Could ask for description with C-u
 (defun zettel-insert-link (arg)
   "Insert the top link from ZETTEL-STORED-LINKS. If called with
-prefix argument, inserts the last link."
-  (interactive "P")
-  ;; Convert C-u prefix arguments to list element numbers
-  (when (and arg (listp arg))
-    (case (first arg)
-      (4  (setq arg 1))
-      (16 (setq arg 2))))
+prefix argument, inserts the link title as well. If called with a
+numeric argument, insert Nth previous link."
+  (interactive "p")
   (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
-         (insert (concat "[["
-                         (zettel-link-slug
-                          (nth (1- arg) zettel-stored-links-history))
-                         "]]")))
+         (insert (zettel-link (nth (1- arg) zettel-stored-links-history))))
         (zettel-stored-links
-         ;; Save the link in link history
-         (push (first zettel-stored-links) zettel-stored-links-history)
-         ;; Save the current file's slug for possible backlinking
-         (setq zettel-link-inserted-into buffer-file-name)
-         (insert
-          (concat "[[" (zettel-link-slug (pop zettel-stored-links)) "]]")))))
+         (let ((link (pop zettel-stored-links)))
+           ;; Save the link in link history
+           (push link zettel-stored-links-history)
+           ;; Save the current file's slug for possible backlinking
+           (setq zettel-link-inserted-into buffer-file-name)
+           (insert (zettel-link link (consp arg)))))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like ZETTEL-INSERT-LINK, but also opens the Zettel of the link
@@ -387,9 +395,11 @@ for easy back-linking."
   (when zettel-stored-links
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
-      ;; (zettel-store-link)
-      ;; Opens the linked file in a new window, but does not switch to it.
-      (deft-open-file link-to-insert t nil))))
+      ;; If the linked file doesn't already have a link to the current one,
+      ;; opens the linked file in a new window, but does not switch to it.
+      (when (string-match (zettel-link buffer-file-name)
+                          (deft-file-contents link-to-insert))
+        (deft-open-file link-to-insert t nil)))))
 
 (defun zettel-insert-backlink (arg)
   "Like ZETTEL-INSERT-LINK, but instead of popping a link from
@@ -397,9 +407,7 @@ ZETTEL-STORED-LINKS, inserts the link in ZETTEL-INSERTED-LINK-INTO,
 if set."
   (interactive "P")
   (cond (zettel-link-inserted-into
-         (insert (concat "[["
-                         (zettel-link-slug zettel-link-inserted-into)
-                         "]]"))
+         (insert (zettel-link zettel-link-inserted-into (consp arg)))
          (setq zettel-link-inserted-into nil))
         (t
          (message "No backlink to insert."))))
@@ -408,6 +416,7 @@ if set."
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
+(define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
 
 ;;-----------------------------------------------------------------------------
