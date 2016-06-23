@@ -2,7 +2,7 @@
 ;;;; -----------------------------------------------------------------------------
 ;;;;        Author: Roderick Hoybach <hoybach-code@diachronic.net>
 ;;;;   Description: Zettelkasten implementation based on Deft and Markdown
-;;;;  Date Created: 31 August 2015, 21:01:43
+;;;;  Date Created: 2015-06-31
 ;;;;      Comments: 
 ;;;; -----------------------------------------------------------------------------
 
@@ -425,6 +425,7 @@ if set."
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
 (define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
+(define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
 
 ;;-----------------------------------------------------------------------------
 ;; Renaming
@@ -471,6 +472,72 @@ Adds an 'oldname' tag with the previous name."
           (forward-line 1)
           (insert (concat "oldname: " oldname))
           (open-line 1))))))
+
+(defun zettel-batch-update-titles ()
+  "Runs `zettel-match-title-to-filename' on all the
+`deft-current-files'."
+  (interactive)
+  (dolist (zettel deft-current-files)
+    (find-file zettel)
+    (zettel-match-title-to-filename)))
+
+(defun zettel-goto-next-missing-link ()
+  "Moves the point to the first instance of a missing link based
+on its font lock properties."
+  (interactive)
+  (let* ((from
+          (if (and (markdown-wiki-link-p)
+                   (not (file-exists-p
+                         (markdown-convert-wiki-link-to-filename
+                          (markdown-wiki-link-link)))))
+              (progn (forward-sexp) (point))
+              (point-min)))
+         (loc (text-property-any
+               from (point-max)
+               'font-lock-face 'markdown-missing-link-face)))
+    (if loc
+        (goto-char loc)
+        (message "No missing links"))))
+
+(defun zettel-filter-for-link-at-point ()
+  "Modifies the Deft filter to look for the Zettel linked with
+the link at point. If there is only one match, opens the note in
+another window."
+  (interactive)
+  (push (buffer-file-name) zettel-stored-links)
+  (when (markdown-wiki-link-p)
+    (let ((link (markdown-wiki-link-link))
+          (deft-incremental-search nil))
+      (deft-filter (concat "oldname: " link "$") t)
+      (unless deft-current-files
+        (deft-filter (concat "§" link ".") t))
+      (cond ((= (length deft-current-files) 1)
+             (deft-open-file (first deft-current-files) t t))
+            ((null deft-current-files)
+             (message "No notes with current or old name matching `%s'" link))
+            (t
+             (switch-to-buffer-other-window deft-buffer))))))
+
+(defun zettel-replace-link-at-point (arg)
+  "Replaces the link at point with the stored link. With a prefix
+argument, or if there are no stored links, replaces with the
+backlink."
+  (interactive "P")
+  (when (markdown-wiki-link-p)
+    (let ((alias (markdown-wiki-link-alias))
+          (link  (markdown-wiki-link-link)))
+      (save-excursion
+        (kill-sexp)
+        (cond ((or (eql arg '(4))
+                   (not zettel-stored-links))
+               (unless (string-equal link alias) (insert alias " "))
+               (zettel-insert-backlink nil))
+              ((integerp arg)
+               (unless (string-equal link alias) (insert alias " "))
+               (zettel-insert-link-intrusive arg))
+              (t
+               (unless (string-equal link alias) (insert alias " "))
+               (zettel-insert-link-intrusive nil)))))))
 
 ;;-----------------------------------------------------------------------------
 ;; Bibliography
@@ -802,5 +869,8 @@ argument is given."
 (define-key zettel-mode-map (kbd "C-c .") 'zettel-new-child)
 (define-key zettel-mode-map (kbd "C-c ]") 'zettel-next-sibling)
 (define-key zettel-mode-map (kbd "C-c [") 'zettel-prev-sibling)
+
+(define-key zettel-mode-map (kbd "C-c /") 'zettel-goto-next-missing-link)
+(define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 
 (provide 'zettel)
