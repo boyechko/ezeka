@@ -332,7 +332,7 @@ on the first line with the Zettel title string."
   "A stack of links stored with ZETTEL-STORE-LINK.")
 (defvar zettel-stored-links-history '()
   "History of the links stored with ZETTEL-STORE-LINK.")
-(defvar zettel-link-inserted-into nil
+(defvar zettel-link-backlink nil
   "Stores the file name of the document into which a link was inserted
 with ZETTEL-INSERT-LINK-INTRUSIVE or ZETTEL-INSERT-LINK, allowing
 for creation of backlinks.")
@@ -371,44 +371,51 @@ window system's clipboard."
     (x-set-selection 'clipboard link)
     (push link zettel-stored-links)))
 
-;; Could ask for description with C-u
-(defun zettel-insert-link (arg)
-  "Insert the top link from ZETTEL-STORED-LINKS. If called with
+(defun zettel-insert-link (arg &optional dont-backlink)
+  "Insert the top link from `zettel-stored-links'. If called with
 prefix argument, inserts the link title as well. If called with a
-numeric argument, insert Nth previous link."
+numeric argument, insert Nth previous link. If DONT-BACKLINK is
+true, don't store backlink."
   (interactive "p")
   (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
-         (insert (zettel-link (nth (1- arg) zettel-stored-links-history))))
+         (insert (zettel-link
+                  (nth (1- arg) zettel-stored-links-history)
+                  buffer-file-name)))
         (zettel-stored-links
          (let ((link (pop zettel-stored-links)))
            ;; Save the link in link history
            (push link zettel-stored-links-history)
            ;; Save the current file's slug for possible backlinking
-           (setq zettel-link-inserted-into buffer-file-name)
-           (insert (zettel-link link (consp arg)))))))
+           (unless dont-backlink
+             (setq zettel-link-backlink buffer-file-name))
+           (insert (zettel-link link (consp arg) buffer-file-name))))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like ZETTEL-INSERT-LINK, but also opens the Zettel of the link
-inserted, and adds the current Zettel to the ZETTEL-STORED-LINKS
-for easy back-linking."
+inserted if it doesn't already have a backlink, and adds the
+current Zettel to the ZETTEL-STORED-LINKS for easy back-linking."
   (interactive "P")
   (when zettel-stored-links
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
       ;; If the linked file doesn't already have a link to the current one,
       ;; opens the linked file in a new window, but does not switch to it.
-      (when (string-match (zettel-link buffer-file-name)
-                          (deft-file-contents link-to-insert))
-        (deft-open-file link-to-insert t nil)))))
+      (cond ((string-match (regexp-quote (zettel-link buffer-file-name))
+                           (deft-file-contents link-to-insert))
+             (message "The linked note %s has a backlink to %s already."
+                      (file-name-base link-to-insert)
+                      (file-name-base buffer-file-name)))
+            (t
+             (deft-open-file link-to-insert t t))))))
 
 (defun zettel-insert-backlink (arg)
   "Like ZETTEL-INSERT-LINK, but instead of popping a link from
 ZETTEL-STORED-LINKS, inserts the link in ZETTEL-INSERTED-LINK-INTO,
 if set."
   (interactive "P")
-  (cond (zettel-link-inserted-into
-         (insert (zettel-link zettel-link-inserted-into (consp arg)))
-         (setq zettel-link-inserted-into nil))
+  (cond (zettel-link-backlink
+         (insert (zettel-link zettel-link-backlink (consp arg)))
+         (setq zettel-link-backlink nil))
         (t
          (message "No backlink to insert."))))
 
