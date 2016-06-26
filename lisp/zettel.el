@@ -156,86 +156,37 @@ the filter string with the subtree."
       (setq file (deft-absolute-filename slug)))
     slug))
 
-(defun zettel-unused-slug ()
-  "Returns the next unused slug for the Zettelkasten in the main Zettelkasten.
+(defun zettel-used-slugs ()
+  "Returns a list -- sorted and with no duplicates -- of used slugs."
+  (delete-dups
+   (sort (mapcar #'(lambda (file)
+                     (when (string-match
+                            (format "/\\([0-9]\\{3\\}\\)\\(-[a-z]+\\)*\.%s$"
+                                    deft-extension)
+                            file)
+                       (string-to-number (match-string 1 file))))
+                 deft-all-files)
+         #'<)))
 
-Limitation: Only regards saved files. An unsaved buffers are not
-taken into account."
-  (save-excursion
-    (let ((buffer (get-buffer-create "*Zettel Unused Slug*")))
-      (with-current-buffer buffer
-        ;; Populate the buffer with results of the find
-        (cd (cdr (assoc "main" zettel-sub-kasten)))
-        (call-process "/usr/bin/find" nil t nil "-L" "-name" "[0-9][0-9][0-9]*.txt")
-        ;; Replace './001.txt' or './dir/001-acc.txt' with '001'
-        (goto-char (point-min))
-        (while (re-search-forward "^.*/\\([0-9]\\{3\\}\\).*\.txt" nil t)
-          (replace-match "\\1"))
-        ;; Remove any non-numeric text files, since would screw things up
-        (goto-char (point-min))
-        (while (re-search-forward "^[^0-9]+$" nil t)
-          (delete-region (line-beginning-position)
-                         (save-excursion
-                           (forward-line 1)
-                           (point))))
-        ;; Sort the buffer
-        (sort-lines nil (point-min) (point-max))
-        ;; Find the next slug number by processing the list of slugs we created
-        ;; into a list of numbers, and then finding either a "hole" or the next
-        ;; unused number
-        (let ((numbers
-               (apply #'vector
-                      (mapcar #'string-to-number
-                              (delete-dups (split-string (buffer-string))))))
-              (j 0))
-          ;; Don't need the buffer any more
-          (kill-buffer buffer)
-          ;; Since the vector is sorted and only has unique elements, we can find
-          ;; any holes simply by making sure the element is the same as the index.
-          (while (and (< j (length numbers))
-                      (= j (aref numbers j)))
-            (setq j (1+ j)))
-          (format zettel-base-format j))))))
+(defun zettel-next-unused-slug ()
+  "Returns the next unused slug, relying on `deft-all-files'."
+  (let ((numbers (apply #'vector (zettel-used-slugs)))
+        (j 0))
+    ;; Since the vector is sorted and only has unique elements, we can find
+    ;; any holes simply by making sure the element is the same as the index.
+    (while (and (< j (length numbers))
+                (= j (aref numbers j)))
+      (setq j (1+ j)))
+    (format zettel-base-format j)))
 
 (defun zettel-random-unused-slug ()
-  "Returns a random unused slug for the Zettelkasten in the main Zettelkasten.
-
-Limitation: Only regards saved files. An unsaved buffers are not
-taken into account."
-  (save-excursion
-    (let ((buffer (get-buffer-create "*Zettel Unused Slug*")))
-      (with-current-buffer buffer
-        ;; Populate the buffer with results of the find
-        (cd (cdr (assoc "main" zettel-sub-kasten)))
-        (call-process "/usr/bin/find" nil t nil "-L" "-name" "[0-9][0-9][0-9]*.txt")
-        ;; Replace './001.txt' or './dir/001-acc.txt' with '001'
-        (goto-char (point-min))
-        (while (re-search-forward "^.*/\\([0-9]\\{3\\}\\).*\.txt" nil t)
-          (replace-match "\\1"))
-        ;; Remove any non-numeric text files, since would screw things up
-        (goto-char (point-min))
-        (while (re-search-forward "^[^0-9]+$" nil t)
-          (delete-region (line-beginning-position)
-                         (save-excursion
-                           (forward-line 1)
-                           (point))))
-        ;; Sort the buffer
-        (sort-lines nil (point-min) (point-max))
-        ;; Find the next slug number by processing the list of slugs we created
-        ;; into a list of numbers, and then generate random numbers until we
-        ;; come upon one that doesn't exist in the list.
-        (let ((numbers
-               (apply #'vector
-                      (mapcar #'string-to-number
-                              (delete-dups (split-string (buffer-string)))))))
-          ;; Don't need the buffer any more
-          (kill-buffer buffer)
-          ;; Generate a random number that doesn't occur in the list.
-          (setq j (random 1000))
-          (while (find j numbers)
-            (setq j (random 1000)))
-          ;; Return a formatted slug
-          (format zettel-base-format j))))))
+  "Returns a random unused slug, relying on `deft-all-files'."
+  (let ((numbers (zettel-used-slugs))
+        (j (random 1000)))
+    ;; Generate a random number that doesn't occur in the list.
+    (while (find j numbers)
+      (setq j (random 1000)))
+    (format zettel-base-format j)))
 
 (defun zettel-timestamp-slug ()
   "Returns a timestamp in the form YYYYMMDDTHHmm to use as the slug."
@@ -247,17 +198,18 @@ taken into account."
   '(defalias 'deft-unused-slug 'zettel-timestamp-slug))
 
 ;; C-c C-S-n, on the other hand, will create a new Zettel with unused numerus currens
-(define-key deft-mode-map (kbd "C-c C-S-n")
-  (lambda ()
-    (interactive)
-    (deft-new-file-named (zettel-random-unused-slug))))
+(defun deft-new-unused-zettel ()
+  "Create a new Zettel with unused numerus currens."
+  (interactive)
+  (deft-new-file-named (zettel-random-unused-slug)))
+(define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
 
 (defun zettel-rename-with-unused-slug ()
   "Rename the current file and buffer to an unused filename
-slug (short name) in DEFT-DIRECTORY with DEFT-EXTENSION. Based on
-RENAME-FILE-AND-BUFFER."
+slug (short name) in `deft-directory' with `deft-extension'.
+Based on `rename-file-and-buffer'."
   (interactive)
-  (rename-file-and-buffer (concat (zettel-unused-slug) "." deft-extension)))
+  (rename-file-and-buffer (concat (zettel-next-unused-slug) "." deft-extension)))
 
 ;;
 ;; Automatically update the date in the title line
