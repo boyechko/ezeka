@@ -91,26 +91,27 @@ currens) will be indented to.")
 (defun zettel-separate-deft-file-title (orig-fun file-name)
   "Replace the first slash of with enough spaces to justify the actual title."
   (let ((title (funcall orig-fun file-name)))
-    (if (zettel-p file-name)
-        (let ((numerus-length
-               (if (or (string-match zettel-regexp-numerus-currens title)
-                       (string-match zettel-regexp-date title))
-                   ;; Strip the § before the numerus currens, if exists
-                   (let ((match-end (match-end 0)))
-                     (cond ((string-match "§" title)
-                            (setq title (replace-regexp-in-string "§" "" title))
-                            (- match-end 1))
-                           (t
-                            match-end)))
-                   0)))
-          ;; Replace the ". " in the first title (following § + numerus currens)
-          ;; with indentation.
-          (replace-regexp-in-string
-           "\\(\\. \\).*\\'"
-           (let ((diff (- zettel-indent-title-column numerus-length)))
-             (make-string (max diff 0) ?\s))
-           title nil nil 1))
-        title)))
+    (when title
+      (if (zettel-p file-name)
+          (let ((numerus-length
+                 (if (or (string-match zettel-regexp-numerus-currens title)
+                         (string-match zettel-regexp-date title))
+                     ;; Strip the § before the numerus currens, if exists
+                     (let ((match-end (match-end 0)))
+                       (cond ((string-match "§" title)
+                              (setq title (replace-regexp-in-string "§" "" title))
+                              (- match-end 1))
+                             (t
+                              match-end)))
+                     0)))
+            ;; Replace the ". " in the first title (following § + numerus currens)
+            ;; with indentation.
+            (replace-regexp-in-string
+             "\\(\\. \\).*\\'"
+             (let ((diff (- zettel-indent-title-column numerus-length)))
+               (make-string (max diff 0) ?\s))
+             title nil nil 1))
+          title))))
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
 
@@ -283,14 +284,16 @@ RENAME-FILE-AND-BUFFER."
                    (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
                  (setq old-date (match-string 1))
                  (when (and (not (string-equal old-date new-date))
-                            (y-or-n-p "Update the modified date? "))
+                            (y-or-n-p (format "Saving %s. Update the modified date? "
+                                              (file-name-base buffer-file-name))))
                    (message "Updating metadata modified date in %s from %s to %s."
                             buffer-file-name old-date new-date)
                    (replace-match (format-time-string "%Y-%m-%d") nil t nil 1)))
                 ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
                  (setq old-date (match-string 1))
                  (when (and (not (string-equal old-date new-date))
-                            (y-or-n-p "Add modified date? "))
+                            (y-or-n-p (format "Saving %s. Add modified date? "
+                                              (file-name-base buffer-file-name))))
                    (message "Adding metadata modified date in %s (created on %s)."
                             buffer-file-name old-date)
                    (insert (format "\nmodified: %s" new-date))))
@@ -337,27 +340,44 @@ on the first line with the Zettel title string."
 with ZETTEL-INSERT-LINK-INTRUSIVE or ZETTEL-INSERT-LINK, allowing
 for creation of backlinks.")
 
-(defun zettel-link-slug (link &optional inserting-into)
-  "Returns the slug of the given link (a filename). If
-INSERTING-INTO is given, returns a slug relative to the file
-specified there."
-  ;; TODO: inserting-into is ignored at the moment 
-  (file-name-sans-extension (file-name-base link)))
+(defun zettel-link-slug (file &optional inserting-into)
+  "Returns the slug of the given file. If INSERTING-INTO is
+given, returns a slug relative to the file specified there."
+  (let ((base-slug (file-name-base file)))
+    (cond ((not inserting-into)
+           base-slug)
+          ((string-equal (file-name-directory file)
+                         (file-name-directory inserting-into))
+           base-slug)
+          (t
+           (let* ((dir (car (last (split-string
+                                   (file-name-directory file) "/" t))))
+                  (keyval (assoc dir zettel-sub-kasten)))
+             (if keyval
+                 (concat (car keyval) ":" base-slug)
+                 base-slug))))))
 
-(defun zettel-link (file &optional include-title)
+(defun unguillemet (string)
+  "Replaces the guillemets in the string with underscores."
+  (replace-regexp-in-string "[«»]" "_" string))
+
+(defun zettel-link (file &optional include-title inserting-into)
   "Returns a markdown-formatted link to the file, including the
-link title when INCLUDE-TITLE is true."
-  (if include-title
-      ;; FIX: This is very hacky, since assumes there will be at least two
-      ;; spaces separating the zettel number from its title.
-      (let ((title
-             (second
-              (split-string (deft-file-title file) "[[:space:]]\\{2,\\}"))))
-        (format "[[%s]] %s%s"
-                (zettel-link-slug file)
-                (downcase (substring title 0 1))
-                (substring title 1)))
-      (format "[[%s]]" (zettel-link-slug file))))
+link title when INCLUDE-TITLE is true. If INSERTING-INTO is
+given, attemps to include the correct form of a link."
+  (let ((link-text (zettel-link-slug file inserting-into)))
+    (if include-title
+        ;; FIX: This is very hacky, since assumes there will be at least two
+        ;; spaces separating the zettel number from its title.
+        (let ((title
+               (unguillemet
+                (second
+                 (split-string (deft-file-title file) "[[:space:]]\\{2,\\}")))))
+          (format "[[%s]] %s%s"
+                  link-text
+                  (downcase (substring title 0 1))
+                  (substring title 1)))
+        (format "[[%s]]" link-text))))
 
 (defun zettel-store-link ()
   "Store the link to the given Zettel, also putting it into the
@@ -377,6 +397,9 @@ prefix argument, inserts the link title as well. If called with a
 numeric argument, insert Nth previous link. If DONT-BACKLINK is
 true, don't store backlink."
   (interactive "p")
+  ;; Save the current Zettel and update the deft cache.
+  (save-buffer)
+  (deft-cache-update-file buffer-file-name)
   (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
          (insert (zettel-link
                   (nth (1- arg) zettel-stored-links-history)
@@ -398,6 +421,8 @@ current Zettel to the ZETTEL-STORED-LINKS for easy back-linking."
   (when zettel-stored-links
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
+      (unless (deft-file-contents link-to-insert)
+        (deft-cache-update-file link-to-insert))
       ;; If the linked file doesn't already have a link to the current one,
       ;; opens the linked file in a new window, but does not switch to it.
       (cond ((string-match (regexp-quote (zettel-link buffer-file-name))
@@ -528,7 +553,10 @@ backlink."
           (link  (markdown-wiki-link-link)))
       (save-excursion
         (kill-sexp)
-        (cond ((or (eql arg '(4))
+        (cond ((equal arg '(16))               
+               (unless (string-equal link alias) (insert alias " "))
+               (insert "[[" link "]]"))
+              ((or (equal arg '(4))
                    (not zettel-stored-links))
                (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-backlink nil))
@@ -539,9 +567,19 @@ backlink."
                (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-link-intrusive nil)))))))
 
-;;-----------------------------------------------------------------------------
-;; Bibliography
-;;-----------------------------------------------------------------------------
+(defun zettel-copy-relative-filename (arg)
+  "Copies the relative (to `zettel-directory') filename of the
+current Zettel."
+  (interactive "p")
+  (when (zettel-p buffer-file-name)
+    (kill-new
+     (if (eql arg 4)
+         (file-name-nondirectory buffer-file-name)
+         (file-relative-name buffer-file-name zettel-directory)))))
+
+;;;-----------------------------------------------------------------------------
+;;; Bibliography
+;;;-----------------------------------------------------------------------------
 
 (defvar zettel-bibliography-directory
   (concat deft-base-directory "bib/")
@@ -872,5 +910,6 @@ argument is given."
 
 (define-key zettel-mode-map (kbd "C-c /") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
+(define-key zettel-mode-map (kbd "C-c *") 'zettel-copy-relative-filename)
 
 (provide 'zettel)
