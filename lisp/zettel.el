@@ -775,11 +775,11 @@ This function replaces `deft-absolute-filename' for zettels."
                          (cdr (assoc "main" zettel-sub-kasten)))
        deft-directory)))
 
-(defun deft-absolute-filename-around (orig-fun &rest args)
+(defun deft-absolute-filename--around (orig-fun &rest args)
   "Replaces the default `deft-absolute-filename' with
 `zettel-absolute-filename'."
   (apply #'zettel-absolute-filename args))
-(advice-add 'deft-absolute-filename :around 'deft-absolute-filename-around)
+(advice-add 'deft-absolute-filename :around 'deft-absolute-filename--around)
 
 (defun zettel-find-ancestor (n)
   "Opens the current Zettel's ancestor. With a prefix argument, try
@@ -798,16 +798,16 @@ prefix argument, try to find Nth ancestor."
   (when (zettel-p buffer-file-name)
     (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
       (when ancestor
-        (insert (concat "[[" ancestor "]]"))))))
+        (insert (zettel-link ancestor))))))
 
 (defcustom zettel-loop-siblings t
-  "When T, commands 'zettel-next-sibling' and
-'zettel-prev-sibling' will loop over the list of siblings.")
+  "When T, commands `zettel-next-sibling' and
+`zettel-prev-sibling' will loop over the list of siblings.")
 
 (defun zettel-next-sibling (&optional n)
   "Opens the current Zettel's next Nth sibling (if any).
 
-If 'zettel-loop-siblings' is set to T, treats the list of
+If `zettel-loop-siblings' is set to T, treats the list of
 siblings as a loop."
   (interactive "p")
   (when (zettel-p buffer-file-name)
@@ -827,14 +827,14 @@ siblings as a loop."
                  (next-sibling (when next-sibling-pos
                                  (elt siblings next-sibling-pos))))
             (if next-sibling
-                (find-file (deft-absolute-filename next-sibling))
+                (find-file (zettel-absolute-filename next-sibling))
                 (message "No other siblings.")))
           (message "This Zettel has no siblings.")))))
 
 (defun zettel-prev-sibling (&optional n)
   "Opens the current Zettel's previous Nth sibling (if any).
 
-If 'zettel-loop-siblings' is set to T, treats the list of
+If `zettel-loop-siblings' is set to T, treats the list of
 siblings as a loop."
   (interactive "p")
   (zettel-next-sibling (- (abs (or n 1)))))
@@ -864,14 +864,31 @@ siblings as a loop."
     (when letters
       (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
              (next-letter
-              (first (sort
-                      (set-difference alphabet
-                                      (mapcar #'(lambda (s)
-                                                  (let ((sl (zettel-slug-letters s)))
-                                                    (elt sl (- (length sl) 1))))
-                                              (zettel-slug-siblings slug)))
-                      #'<))))
+              (set-difference alphabet
+                              (mapcar #'(lambda (s)
+                                          (let ((sl (zettel-slug-letters s)))
+                                            (elt sl (- (length sl) 1))))
+                                      (zettel-slug-siblings slug)))))
         (setf (elt letters (- (length letters) 1)) next-letter)
+        (zettel-slug number letters)))))
+
+(defun zettel-slug-random-unused-sibling (slug)
+  "Returns a random unused sibling of the given slug."
+  (multiple-value-bind (number letters)
+      (zettel-slug-p slug)
+    (when letters
+      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
+             (unused-siblings
+              (sort
+               (set-difference alphabet
+                               (mapcar #'(lambda (s)
+                                           (let ((sl (zettel-slug-letters s)))
+                                             (elt sl (- (length sl) 1))))
+                                       (zettel-slug-siblings slug)))
+               #'<))
+             (random-letter (elt unused-siblings
+                                 (random (length unused-siblings)))))
+        (setf (elt letters (- (length letters) 1)) random-letter)
         (zettel-slug number letters)))))
 
 (defun zettel-slug-numeric (slug)
@@ -899,11 +916,11 @@ argument is given."
   (deft-cache-update-all)
   (when (zettel-p buffer-file-name)
     (let* ((slug (deft-base-filename buffer-file-name))
-           (new-child-slug (zettel-slug-next-unused-sibling
+           (new-child-slug (zettel-slug-random-unused-sibling
                             (zettel-slug-first-child slug))))
       (zettel-store-link)
       (unless (= arg 4)
-        (insert "[[" new-child-slug "]]"))
+        (insert (zettel-link new-child-slug)))
       (find-file-other-window (deft-absolute-filename new-child-slug)))))
 
 (defun zettel-new-sibling ()
