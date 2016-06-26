@@ -581,27 +581,54 @@ current Zettel."
 ;;; Bibliography
 ;;;-----------------------------------------------------------------------------
 
-(defvar zettel-bibliography-directory
-  (concat deft-base-directory "bib/")
-  "Directory where individual bibliographic entries are stored.")
+(defconst rb-markdown-regex-citation-key
+  "\\(\\[\\)\\(#\\)\\([^]]+\\)\\(\\]\\)\\(:.*\\)*"
+  "Regular expression for a citation key [#CiteKey].
+Group 1 matches the opening square bracket.
+Group 2 matches the hash sign.
+Group 3 matches the text inside the square brackets.
+Group 4 matches the closing square bracket.
+Group 5 matches the citation definition (if present).")
 
-(defvar zettel-bibliography-extension
-  ".bib"
-  "The extension appended to the key when creating a new entry.")
+(defun rb-markdown-citation-key-p ()
+  "Returns non-nil when `point' is at a citation key."
+  (let ((case-fold-search nil))
+    (and (not (markdown-wiki-link-p))
+         (thing-at-point-looking-at rb-markdown-regex-citation-key))))
 
-(defun zettel-edit-bibliographic-entry (bib-key)
-  "Visists or creates a file in ZETTEL-BIBLIOGRAPHY-DIRECTORY
-named after the given bibliographic key."
-  (interactive
-   (list (read-string "Create bibliography file for key: ")))
-  (let ((expanded
-         (expand-file-name (concat bib-key zettel-bibliography-extension)
-                           zettel-bibliography-directory)))
-    (find-file-other-window expanded)))
+(defun rb-markdown-citation-key-key ()
+  "Returns the citation key of the key at point (relies on match
+data from `rb-markdown-regex-citation-key')."
+  (when (thing-at-point-looking-at rb-markdown-regex-citation-key)
+    (match-string-no-properties 3)))
 
-;; Keybindings
-(define-key deft-mode-map (kbd "C-c C-S-b") 'zettel-edit-bibliographic-entry)
-(define-key zettel-mode-map (kbd "C-c C-S-b") 'zettel-edit-bibliographic-entry)
+(defun rb-markdown-follow-citation-key-at-point (arg)
+  "Opens the citation key at point in the default bibliography.
+With prefix argument ARG, open the file in other window."
+  (interactive "P")
+  (let ((key (rb-markdown-citation-key-key)))
+    (funcall (if (equal arg '(4))
+                 #'find-file-other-window
+                 #'find-file)
+             (first reftex-default-bibliography))
+    (bibtex-search-entry key)))
+
+(defun rb-markdown-follow-thing-at-point (orig-fun arg)
+  "Around advice for `markdown-follow-thing-at-point' that adds
+support for following citations."
+  (cond ((markdown-link-p)
+         (markdown-follow-link-at-point))
+        ((markdown-wiki-link-p)
+         (markdown-follow-wiki-link-at-point arg))
+        ((rb-markdown-citation-key-p)
+         (rb-markdown-follow-citation-key-at-point arg))
+        (t
+         (error "Nothing to follow at point"))))
+(advice-add 'markdown-follow-thing-at-point :around #'rb-markdown-follow-thing-at-point)
+
+;;;-----------------------------------------------------------------------------
+;;; Wiki Links
+;;;-----------------------------------------------------------------------------
 
 ;;
 ;; By default, MARKDOWN-CONVERT-WIKI-LINK-TO-FILENAME concatenates the file
