@@ -279,9 +279,9 @@ on the first line with the Zettel title string."
 
 (advice-add 'deft-new-file-named :around #'zettel-title-in-deft-new-file)
 
-;;-----------------------------------------------------------------------------
-;; Storing zettel links
-;;-----------------------------------------------------------------------------
+;;;-----------------------------------------------------------------------------
+;;; Storing Zettel Links
+;;;-----------------------------------------------------------------------------
 
 (defvar zettel-stored-links '()
   "A stack of links stored with ZETTEL-STORE-LINK.")
@@ -318,18 +318,29 @@ given, returns a slug relative to the file specified there."
 link title when INCLUDE-TITLE is true. If INSERTING-INTO is
 given, attemps to include the correct form of a link."
   (let ((link-text (zettel-link-slug file inserting-into)))
-    (if include-title
-        ;; FIX: This is very hacky, since assumes there will be at least two
-        ;; spaces separating the zettel number from its title.
-        (let ((title
-               (unguillemet
-                (second
-                 (split-string (deft-file-title file) "[[:space:]]\\{2,\\}")))))
-          (format "[[%s]] %s%s"
-                  link-text
-                  (downcase (substring title 0 1))
-                  (substring title 1)))
-        (format "[[%s]]" link-text))))
+    (cond (include-title
+           ;; Make sure cache is updated for the linked file
+           (deft-cache-file file)
+           ;; FIX: This is very hacky, since assumes there will be at least two
+           ;; spaces separating the zettel number from its title.
+           (let ((title
+                  (unguillemet
+                   (second
+                    (split-string (deft-file-title file) "[[:space:]]\\{2,\\}")))))
+             (format "[[%s]] %s" link-text title)))
+          (t
+           (format "[[%s]]" link-text)))))
+
+(defun zettel-link-insert-with-spaces (file &optional include-title inserting-into)
+  "A wrapper around `zettel-link' that inserts the link with
+appropriate spaces around."
+  (cl-flet ((spacep (char)
+              "Returns T if the character is some kind of a space."
+              (when char
+                (string-match-p "[[:space:]]" (char-to-string char)))))
+    (unless (spacep (char-before)) (insert " "))
+    (insert (zettel-link file include-title inserting-into))
+    (unless (spacep (char-after)) (insert " "))))
 
 (defun zettel-store-link ()
   "Store the link to the given Zettel, also putting it into the
@@ -353,9 +364,9 @@ true, don't store backlink."
   (save-buffer)
   (deft-cache-update-file buffer-file-name)
   (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
-         (insert (zettel-link
-                  (nth (1- arg) zettel-stored-links-history)
-                  buffer-file-name)))
+         (zettel-link-insert-with-spaces
+          (nth (1- arg) zettel-stored-links-history)
+          buffer-file-name))
         (zettel-stored-links
          (let ((link (pop zettel-stored-links)))
            ;; Save the link in link history
@@ -363,7 +374,7 @@ true, don't store backlink."
            ;; Save the current file's slug for possible backlinking
            (unless dont-backlink
              (setq zettel-link-backlink buffer-file-name))
-           (insert (zettel-link link (consp arg) buffer-file-name))))))
+           (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like ZETTEL-INSERT-LINK, but also opens the Zettel of the link
@@ -386,12 +397,12 @@ current Zettel to the ZETTEL-STORED-LINKS for easy back-linking."
              (deft-open-file link-to-insert t t))))))
 
 (defun zettel-insert-backlink (arg)
-  "Like ZETTEL-INSERT-LINK, but instead of popping a link from
-ZETTEL-STORED-LINKS, inserts the link in ZETTEL-INSERTED-LINK-INTO,
-if set."
+  "Like `zettel-insert-link', but instead of popping a link from
+`zettel-stored-links', inserts the link in
+`zettel-link-backlink', if set."
   (interactive "P")
   (cond (zettel-link-backlink
-         (insert (zettel-link zettel-link-backlink (consp arg)))
+         (zettel-link-insert-with-spaces zettel-link-backlink (consp arg))
          (setq zettel-link-backlink nil))
         (t
          (message "No backlink to insert."))))
@@ -507,7 +518,7 @@ backlink."
         (kill-sexp)
         (cond ((equal arg '(16))               
                (unless (string-equal link alias) (insert alias " "))
-               (insert "[[" link "]]"))
+               (zettel-link-insert-with-spaces link))
               ((or (equal arg '(4))
                    (not zettel-stored-links))
                (unless (string-equal link alias) (insert alias " "))
@@ -798,7 +809,7 @@ prefix argument, try to find Nth ancestor."
   (when (zettel-p buffer-file-name)
     (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
       (when ancestor
-        (insert (zettel-link ancestor))))))
+        (zettel-link-insert-with-spaces ancestor)))))
 
 (defcustom zettel-loop-siblings t
   "When T, commands `zettel-next-sibling' and
@@ -920,7 +931,7 @@ argument is given."
                             (zettel-slug-first-child slug))))
       (zettel-store-link)
       (unless (= arg 4)
-        (insert (zettel-link new-child-slug)))
+        (zettel-link-insert-with-spaces new-child-slug))
       (find-file-other-window (deft-absolute-filename new-child-slug)))))
 
 (defun zettel-new-sibling ()
