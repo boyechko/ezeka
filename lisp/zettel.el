@@ -343,15 +343,18 @@ appropriate spaces around."
     (unless (spacep (char-after)) (insert " "))))
 
 (defun zettel-store-link ()
-  "Store the link to the given Zettel, also putting it into the
-window system's clipboard."
+  "Store the link 1) to the Deft file at point if in *Deft*
+buffer, or 2) to the markdown wiki link if at a markdown wiki
+link, or 3) to the file in current buffer."
   (interactive)
-  (let ((link (if (string-equal (buffer-name) "*Deft*")
-                  (widget-get (widget-at (point)) :tag)
-                  (if buffer-file-name
-                      buffer-file-name 
-                      (message "No file to store a link to.")))))
-    (x-set-selection 'clipboard link)
+  (let ((link (cond ((equal major-mode 'deft-mode)
+                     (widget-get (widget-at (point)) :tag))
+                    ((markdown-wiki-link-p)
+                     (zettel-absolute-filename (markdown-wiki-link-link)))
+                    (buffer-file-name
+                     buffer-file-name)
+                    (t
+                     (message "No file to store a link to.")))))
     (push link zettel-stored-links)))
 
 (defun zettel-insert-link (arg &optional dont-backlink)
