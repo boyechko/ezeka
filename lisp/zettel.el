@@ -182,10 +182,10 @@ the filter string with the subtree."
 (defun zettel-random-unused-slug ()
   "Returns a random unused slug, relying on `deft-all-files'."
   (let ((numbers (zettel-used-slugs))
-        (j (random 1000)))
+        (j (random 200)))               ; doing 200 to try to fill in existing gaps
     ;; Generate a random number that doesn't occur in the list.
     (while (find j numbers)
-      (setq j (random 1000)))
+      (setq j (random 200)))
     (format zettel-base-format j)))
 
 (defun zettel-timestamp-slug ()
@@ -600,13 +600,15 @@ support for following citations."
 ;; Add a kind of RefTeX support to markdown
 (eval-after-load "markdown-mode"
   '(define-key markdown-mode-map (kbd "C-c \\")
-     (cmd
-      (let ((reftex-cite-format
-             '((?\r . "[][#%l]")
-               (?b . "[#%l]: %A. _%t_. %r: %u, %y. %h.")
-               (?c . "[#%l]: %A. \"%t\". _%b_. Eds. %e. %r: %u, %y. %p. %h.")
-               (?j . "[#%l]: %A. \"%t.\" _%j_ %v.%n (%y): %p. %h."))))
-        (reftex-citation)))))
+    (cmd
+     (let ((reftex-cite-format
+            '((?\r . "[][#%l]")
+              (?b . "[#%l]: %A. _%t_. %r: %u, %y. %h.")
+              (?c . "[#%l]: %A. \"%t\". _%b_. Eds. %e. %r: %u, %y. %p. %h.")
+              (?j . "[#%l]: %A. \"%t.\" _%j_ %v.%n (%y): %p. %h.")
+              (?t . "%A, »%t« (%y)")
+              (?T . "%A, \"%t\" (%y)"))))
+       (reftex-citation)))))
 
 ;;
 ;; Pre-insert the previously referenced key when using `reftex-citation'
@@ -630,6 +632,20 @@ instead of running `reftex-get-bibkey-default'."
       (apply orig-fun args)))
 (advice-add 'reftex-get-bibkey-default
             :around #'reftex-get-bibkey-default--return-last-citation)
+
+(defun zettel-kill-ring-save-link-title ()
+  "Save the title of the wiki link at point or the buffer to kill
+ring."
+  (interactive)
+  (let ((file (cond ((markdown-wiki-link-p)
+                     (zettel-absolute-filename (markdown-wiki-link-link)))
+                    ((zettel-p buffer-file-name)
+                     buffer-file-name))))
+    (deft-cache-file file)
+    (kill-new
+     (unguillemet
+      (second
+       (split-string (deft-file-title file) "[[:space:]]\\{2,\\}"))))))
 
 ;;;-----------------------------------------------------------------------------
 ;;; Wiki Links
@@ -960,6 +976,7 @@ argument is given."
 (define-key zettel-mode-map (kbd "C-c /") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 (define-key zettel-mode-map (kbd "C-c *") 'zettel-copy-relative-filename)
+(define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 
 ;; Set the citation key in `rb-reftex-last-citation'.
 (define-key markdown-mode-map (kbd "C-c |")
