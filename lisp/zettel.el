@@ -168,24 +168,36 @@ the filter string with the subtree."
                  deft-all-files)
          #'<)))
 
-(defun zettel-next-unused-slug ()
-  "Returns the next unused slug, relying on `deft-all-files'."
-  (let ((numbers (apply #'vector (zettel-used-slugs)))
-        (j 0))
-    ;; Since the vector is sorted and only has unique elements, we can find
-    ;; any holes simply by making sure the element is the same as the index.
-    (while (and (< j (length numbers))
-                (= j (aref numbers j)))
-      (setq j (1+ j)))
-    (format zettel-base-format j)))
+(defcustom zettel-new-numerus-currens-method 'random
+  "How new numeri currenses are created: RANDOM or NEXT are
+acceptable."
+  :type 'symbol)
 
-(defun zettel-random-unused-slug ()
-  "Returns a random unused slug, relying on `deft-all-files'."
-  (let ((numbers (zettel-used-slugs))
-        (j (random 200)))               ; doing 200 to try to fill in existing gaps
-    ;; Generate a random number that doesn't occur in the list.
-    (while (find j numbers)
-      (setq j (random 200)))
+(defcustom zettel-new-child-method 'random
+  "How new children are created: RANDOM or NEXT are acceptable."
+  :type 'symbol)
+
+(defcustom zettel-new-numerus-currens-random-limit 200
+  "Upper limit for generating random numeri currenses; exclusive."
+  :type 'integer)
+
+(defun zettel-next-unused-slug ()
+  "Returns the next unused slug, relying on `deft-all-files'.
+Respects the metnod in `zettel-new-numerus-currens-method'."
+  (let ((used (zettel-used-slugs))
+        (j 0))
+    (case zettel-new-numerus-currens-method
+      (random
+       ;; Generate a random number that doesn't occur in the list.
+       (while (find j used)
+         (setq j (random zettel-new-numerus-currens-random-limit))))
+      (next
+       (let ((used (apply #'vector used)))
+         ;; Since the vector is sorted and only has unique elements, we can find
+         ;; any holes simply by making sure the element is the same as the index.
+         (while (and (< j (length numbers))
+                     (= j (aref numbers j)))
+           (setq j (1+ j))))))
     (format zettel-base-format j)))
 
 (defun zettel-timestamp-slug ()
@@ -197,11 +209,12 @@ the filter string with the subtree."
 (eval-after-load "deft"
   '(defalias 'deft-unused-slug 'zettel-timestamp-slug))
 
-;; C-c C-S-n, on the other hand, will create a new Zettel with unused numerus currens
+;; C-c C-S-n, on the other hand, will create a new Zettel with unused numerus
+;; currens
 (defun deft-new-unused-zettel ()
   "Create a new Zettel with unused numerus currens."
   (interactive)
-  (deft-new-file-named (zettel-random-unused-slug)))
+  (deft-new-file-named (zettel-next-unused-slug)))
 (define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
 
 (defun zettel-rename-with-unused-slug ()
@@ -888,22 +901,8 @@ siblings as a loop."
           (t nil))))
 
 (defun zettel-slug-next-unused-sibling (slug)
-  "Returns the first unused sibling of the given slug."
-  (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
-    (when letters
-      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
-             (next-letter
-              (set-difference alphabet
-                              (mapcar #'(lambda (s)
-                                          (let ((sl (zettel-slug-letters s)))
-                                            (elt sl (- (length sl) 1))))
-                                      (zettel-slug-siblings slug)))))
-        (setf (elt letters (- (length letters) 1)) next-letter)
-        (zettel-slug number letters)))))
-
-(defun zettel-slug-random-unused-sibling (slug)
-  "Returns a random unused sibling of the given slug."
+  "Returns the next unused sibling of the given slug, or NIL if
+there are none. Respects `zettel-new-child-method'."
   (multiple-value-bind (number letters)
       (zettel-slug-p slug)
     (when letters
@@ -915,11 +914,18 @@ siblings as a loop."
                                            (let ((sl (zettel-slug-letters s)))
                                              (elt sl (- (length sl) 1))))
                                        (zettel-slug-siblings slug)))
-               #'<))
-             (random-letter (elt unused-siblings
-                                 (random (length unused-siblings)))))
-        (setf (elt letters (- (length letters) 1)) random-letter)
-        (zettel-slug number letters)))))
+               #'<)))
+        (when unused-siblings
+          (case zettel-new-child-method
+            (random
+             (let ((random-letter
+                    (elt unused-siblings (random (length unused-siblings)))))
+               (setf (elt letters (- (length letters) 1)) random-letter)
+               (zettel-slug number letters)))
+            (next
+             (setf (elt letters (- (length letters) 1))
+                   (first unused-siblings))))
+          (zettel-slug number letters))))))
 
 (defun zettel-slug-numeric (slug)
   "Converts the given alphanumer slug into its numeric version (a list)."
@@ -938,6 +944,23 @@ siblings as a loop."
                                (rest numeric-slug))
                        'string)))
 
+(defmacro zettel-slug-next-child (slug)
+  "Generate a new available child of the given SLUG, respecting
+`zettel-new-child-method'."
+  `(zettel-slug-next-unused-sibling
+    (zettel-slug-first-child ,slug)))
+
+(defun zettel-show-new-child (slug)
+  "Show a new child, and save the slug in the kill ring."
+  (interactive
+   (let ((slug (if (zettel-p buffer-file-name)
+                   (deft-base-filename buffer-file-name)
+                   (read-string "Slug: " nil))))
+     (list slug)))
+  (let ((new-child (zettel-slug-next-child slug)))
+    (message "New child: %s" new-child)
+    (kill-new new-child)))
+
 (defun zettel-new-child (arg)
   "Creates a new Zettel at the next branching level of the
 current one, inserting a link to it at point unless universal
@@ -946,8 +969,7 @@ argument is given."
   (deft-cache-update-all)
   (when (zettel-p buffer-file-name)
     (let* ((slug (deft-base-filename buffer-file-name))
-           (new-child-slug (zettel-slug-random-unused-sibling
-                            (zettel-slug-first-child slug))))
+           (new-child-slug (zettel-slug-next-child slug)))
       (zettel-store-link)
       (unless (= arg 4)
         (zettel-link-insert-with-spaces new-child-slug))
