@@ -783,26 +783,26 @@ ancestor that could find."
              (t
               (concat number "-" (substring letters 0 (- n)))))))))
 
-(defun zettel-slug-siblings (slug &optional exclusive)
-  "Returns a list of the Zettel's siblings, inclusive. If the
-Zettel is a top-level one, returns NIL.
-
-If EXCLUSIVE is T, don't include the Zettel itself."
+(defun zettel-slug-children (slug)
+  "Returns a list of the slugs of Zettel's children. If the Zettel doesn't
+have any children, returns NIL."
   (multiple-value-bind (number letters)
       (zettel-slug-p slug)
-    (when letters
-      (let ((sibling-regex
-             (if exclusive
-                 (format "%s-%s[^%s]$" number (substring letters 0 -1)
-                         (substring letters -1))
-                 (format "%s-%s[a-z]$" number (substring letters 0 -1)))))
-        (if letters
-            (sort
-             (mapcar #'deft-base-filename
-                     (remove-if-not #'(lambda (x) (string-match sibling-regex x))
-                                    deft-all-files
-                                    :key #'deft-base-filename))
-             #'string-lessp))))))
+    (let ((children-regex (format "%s-%s[a-z]$" number (or letters ""))))
+      (sort
+       (mapcar #'deft-base-filename
+               (remove-if-not #'(lambda (x) (string-match children-regex x))
+                              deft-all-files
+                              :key #'deft-base-filename))
+       #'string-lessp))))
+
+(defun zettel-slug-siblings (slug)
+  "Returns a list of the Zettel's siblings, inclusive. If the
+Zettel is a top-level one, or it doesn't have any siblings,
+returns NIL."
+  (let ((parent (zettel-slug-ancestor slug)))
+    (when parent
+      (zettel-slug-children parent))))
 
 (defun zettel-absolute-filename (slug &optional extension)
   "Return an absolute filename to file named SLUG with optional EXTENSION.
@@ -900,33 +900,6 @@ siblings as a loop."
           (number (zettel-slug number "a"))
           (t nil))))
 
-(defun zettel-slug-next-unused-sibling (slug)
-  "Returns the next unused sibling of the given slug, or NIL if
-there are none. Respects `zettel-new-child-method'."
-  (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
-    (when letters
-      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
-             (unused-siblings
-              (sort
-               (set-difference alphabet
-                               (mapcar #'(lambda (s)
-                                           (let ((sl (zettel-slug-letters s)))
-                                             (elt sl (- (length sl) 1))))
-                                       (zettel-slug-siblings slug)))
-               #'<)))
-        (when unused-siblings
-          (case zettel-new-child-method
-            (random
-             (let ((random-letter
-                    (elt unused-siblings (random (length unused-siblings)))))
-               (setf (elt letters (- (length letters) 1)) random-letter)
-               (zettel-slug number letters)))
-            (next
-             (setf (elt letters (- (length letters) 1))
-                   (first unused-siblings))))
-          (zettel-slug number letters))))))
-
 (defun zettel-slug-numeric (slug)
   "Converts the given alphanumer slug into its numeric version (a list)."
   (multiple-value-bind (number letters)
@@ -944,11 +917,69 @@ there are none. Respects `zettel-new-child-method'."
                                (rest numeric-slug))
                        'string)))
 
-(defmacro zettel-slug-next-child (slug)
+(defun zettel-slug-new-sibling (slug)
+  "Returns the next unused sibling of the given slug, or NIL if
+there are none. Respects `zettel-new-child-method'."
+  )
+
+(defun pronounceablep (letters next)
+  "Returns NIL if NEXT is not pronounceable after LETTERS."
+  (cl-flet ((lastn (seq n)
+              "Returns last N members of SEQ, or nil if it's too
+              short."
+              (when (<= n (length seq))
+                (subseq seq (- n))))
+            (clusterp (str)
+              (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
+                            "ch" "cl" "ff" "gh" "gl" "ll" "mn" "ph" "ps"
+                            "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
+                            "st" "th")))
+            (vowelp (ch) (member ch '("a" "e" "i" "o" "u")))
+            (consonantp (ch) (not (vowelp ch))))
+    (let* ((next (if (characterp next) (char-to-string next) next))
+           (prev (lastn letters 1))
+           (cluster (concat prev next)))
+      (when (or (not letters)
+                (clusterp cluster)
+                (and (vowelp prev) (consonantp next))
+                (and (consonantp prev) (vowelp next)))
+        t))))
+
+(defun zettel-snc--pronounceable (number letters unused-letters)
+  "Helper function for `zettel-slug-new-child', which generates a
+pronounceable new random child of the slug (NUMBERS + LETTERS)
+among UNUSED-LETTERS."
+  (cl-flet ((random-elt (sequence)
+              "Return a random element of SEQUENCE."
+              (when (sequencep sequence)
+                (elt sequence (random (length sequence))))))
+    (let ((random-letter (random-elt unused-letters)))
+      (while (not (pronounceablep letters random-letter))
+        (setq random-letter (random-elt unused-letters)))
+      (zettel-slug number
+                   (concat letters (char-to-string random-letter))))))
+
+(defun zettel-slug-new-child (slug)
   "Generate a new available child of the given SLUG, respecting
 `zettel-new-child-method'."
-  `(zettel-slug-next-unused-sibling
-    (zettel-slug-first-child ,slug)))
+  (multiple-value-bind (number letters)
+      (zettel-slug-p slug)
+    (when letters
+      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
+             (used-letters (mapcar #'(lambda (s)
+                                       (string-to-char
+                                        (substring
+                                         (zettel-slug-letters s) -1)))
+                                   (zettel-slug-children slug)))
+             (unused-letters
+              (sort (set-difference alphabet used-letters) #'<)))
+        (when unused-letters
+          (case zettel-new-child-method
+            (random
+             (zettel-snc--pronounceable number letters unused-letters))
+            (next
+             (setf (elt letters (- (length letters) 1))
+                   (first unused-letters)))))))))
 
 (defun zettel-show-new-child (slug)
   "Show a new child, and save the slug in the kill ring."
@@ -957,7 +988,7 @@ there are none. Respects `zettel-new-child-method'."
                    (deft-base-filename buffer-file-name)
                    (read-string "Slug: " nil))))
      (list slug)))
-  (let ((new-child (zettel-slug-next-child slug)))
+  (let ((new-child (zettel-slug-new-child slug)))
     (message "New child: %s" new-child)
     (kill-new new-child)))
 
@@ -969,11 +1000,14 @@ argument is given."
   (deft-cache-update-all)
   (when (zettel-p buffer-file-name)
     (let* ((slug (deft-base-filename buffer-file-name))
-           (new-child-slug (zettel-slug-next-child slug)))
-      (zettel-store-link)
-      (unless (= arg 4)
-        (zettel-link-insert-with-spaces new-child-slug))
-      (find-file-other-window (deft-absolute-filename new-child-slug)))))
+           (new-child-slug (zettel-slug-new-child slug)))
+      (cond (new-child-slug
+             (zettel-store-link)
+             (unless (= arg 4)
+               (zettel-link-insert-with-spaces new-child-slug))
+             (find-file-other-window (deft-absolute-filename new-child-slug)))
+            (t
+             (message "There are no unused children."))))))
 
 (defun zettel-new-sibling ()
   "Creates a new Zettel at the same level as current one."
