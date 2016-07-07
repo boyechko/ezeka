@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+
+cd $zetteldir
+find ./ -type f -name "$1*.txt" | sed -e 's!^\./!!' | sort

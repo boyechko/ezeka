@@ -2,8 +2,8 @@
 # Usage: zetgenfreq <frequency-file>
 
 zetteldir=$HOME/Dropbox/Doc/zettel
-allzettel="$zetteldir/auto/all-zettel.txt"
-freqfile="$zetteldir/auto/zettel-word-frequency.txt"
+allzettel="$zetteldir/auto/all-zettel.dat"
+freqfile="$zetteldir/auto/word-frequency.dat"
 excludefile=/tmp/all-zettel.$$.exclude
 
 cat > $excludefile <<EOF
@@ -11,6 +11,7 @@ created
 title
 modified
 oldname
+first-reading
 EOF
 
 # Create frequency file if it doesn't exist

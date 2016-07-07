@@ -1,0 +1,41 @@
+#!/usr/bin/bash
+
+function usage() {
+    echo "Usage: zlimbo <slug> -- rename Zettel to date/time and move it into limbo"
+    exit 1
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+# Process command line options
+slug=
+time=
+while [ "$1" != "" ]; do
+    case "$1" in
+        -t | --time )
+            shift
+            time="$1"
+            ;;
+        * )
+            slug="$1"
+    esac
+    shift
+done
+
+echo "Files with links to $slug:"
+echo "--------------------------"
+zlinksto $slug
+
+echo "Zettel matching $slug:"
+echo "--------------------------"
+zfind $slug
+echo -e "\n"
+
+if [[ "$time" ]]; then
+    zmakedate -t $time -m limbo "$slug"
+else
+    zmakedate -m limbo "$slug"
+fi

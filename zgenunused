@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+# Generates a list of unused Zettel numbers in $zetteldir
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+unusedfile=$zetteldir/auto/unused-numbers.txt
+usedfile=/tmp/zgaps-used.$$
+allfile=/tmp/zgaps-all.$$
+
+cd $zetteldir/main
+find -L -name "[0-9][0-9][0-9]*.txt" |
+    sed -re 's!^.*/([0-9]{3}).*\.txt!\1!g' |
+    sort -n |
+    uniq > $usedfile
+printf "%03d\n" $(seq 1 999) > $allfile
+
+comm -2 -3 $allfile $usedfile > $unusedfile
+
+# Cleanup
+rm -f $usedfile $allfile

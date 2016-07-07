@@ -1,0 +1,59 @@
+#!/usr/bin/bash
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: zmove <old-slug> <new-slug>"
+    exit 1
+fi
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+
+old="$1"
+oldfull=
+if [[ "$old" =~ ^[0-9]{3}[a-z-]*$ ]]; then
+    oldfull="$(zdirectory $old)/$old.txt"
+elif [[ -e "$old" ]]; then
+    oldfull=$old
+    old=$(basename -s .txt $old)
+else
+    echo "zmove: Unable to figure out what file '$1' is"
+    exit 1
+fi
+oldfull="${oldfull##$zetteldir/}"
+
+# Figure out where to move to
+new="$2"
+newfull=
+if [[ "$new" =~ ^[0-9]{3}[a-z-]*$ ]]; then
+    newfull="$(zdirectory $new)/$new.txt"
+elif [[ "$new" =~ \.txt$ ]]; then
+    # FIX: Hack, assumes that if a file has extension, then treat as fully
+    # qualified.
+    newfull=$new
+    new=$(basename -s .txt $new)
+else
+    echo "zmove: Unable to figure out what file '$2' is"
+    exit 1
+fi
+newfull="${newfull##$zetteldir/}"
+
+echo "zmove: Press [Enter] to move $oldfull to $newfull..."
+read
+
+# Move the files themselves
+cd $zetteldir
+hg mv $oldfull $newfull
+if [[ $? -ne 0 ]]; then
+    echo "zmove: Mercurial could not move the file; aborting"
+    exit 1
+fi
+
+# Change the title and add oldname, and then retouch to original modtime
+sed -i -e "s/§$old\\./§$new\\./" $newfull
+gawk -i inplace "NR==1,/^$/{sub(/^$/, \"oldname: ${old}\\n\")} 1" $newfull
+zfix $newfull
+
+# Find and replace all wiki links to $old with $new
+echo "zmove: Find and replace all wiki links to $old with $new..."
+links=$(zlinksto $old)
+echo "$links"
+echo "$links" | zchangelinks

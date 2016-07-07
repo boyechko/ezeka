@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+
+zetteldir=$HOME/Dropbox/Doc/zettel/
+freqfile=$zetteldir/auto/word-frequency.dat
+allfile=$zetteldir/auto/all-zettel.dat
+
+if [[ $# -eq 1 ]]; then
+    grep -E -i '^[0-9]+ '"$1" $freqfile
+else
+    grep -c -E '\<'"$*" $allfile
+fi

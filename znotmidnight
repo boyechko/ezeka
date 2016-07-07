@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+
+while read line
+do
+    #fname=$(echo $line | sed -e 's/^A //')
+    fname=$line
+    time=$(printf "%02d%02d" $(shuf -i 8-23 -n 1) $(shuf -i 0-59 -n 1)
+    hg mv --verbose "$fname" "$(echo $fname | sed -e 's/T0000/T'${time}/)"
+done

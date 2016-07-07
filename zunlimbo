@@ -11,34 +11,6 @@ function usage() {
     exit 1
 }    
 
-function right_directory () {
-    justnum=${1%%-*};
-    if [ "$justnum" -ge 000 -a "$justnum" -le 099 ]; then
-        echo "$MAINDIR/000-099"
-    elif [ "$justnum" -ge 100 -a "$justnum" -le 199 ]; then
-        echo "$MAINDIR/100-199"
-    elif [ "$justnum" -ge 200 -a "$justnum" -le 299 ]; then
-        echo "$MAINDIR/200-299"
-    elif [ "$justnum" -ge 300 -a "$justnum" -le 399 ]; then
-        echo "$MAINDIR/300-399"
-    elif [ "$justnum" -ge 400 -a "$justnum" -le 499 ]; then
-        echo "$MAINDIR/400-499"
-    elif [ "$justnum" -ge 500 -a "$justnum" -le 599 ]; then
-        echo "$MAINDIR/500-599"
-    elif [ "$justnum" -ge 600 -a "$justnum" -le 699 ]; then
-        echo "$MAINDIR/600-699"
-    elif [ "$justnum" -ge 700 -a "$justnum" -le 799 ]; then
-        echo "$MAINDIR/700-799"
-    elif [ "$justnum" -ge 800 -a "$justnum" -le 899 ]; then
-        echo "$MAINDIR/800-899"
-    elif [ "$justnum" -ge 900 -a "$justnum" -le 999 ]; then
-        echo "$MAINDIR/900-999"
-    else
-        echo "Unable to find right directory" &>2;
-        exit 1;
-    fi
-}
-
 # Have to be in $ZETTELDIR, otherwise Mercurial could complain about nested repos
 cd "$ZETTELDIR"
 
@@ -55,13 +27,13 @@ elif [[ ! -e $file ]]; then
     fi
 fi
 
-rightdir=$(right_directory $numcur)
+rightdir=$(zdirectory $numcur)
 
 echo "hg mv $file $rightdir/$numcur.$ext"
 move=$(hg mv $file $rightdir/$numcur.$ext)
 if [[ $? -eq 0 ]]; then
     # Succcess
-    echo "Moved $1 to $rightdir/$2.$ext"
+    echo "Moved $file to $rightdir/$numcur.$ext"
 elif [[ $? -eq 255 ]]; then
     # File untracked, revert to normal move
     mv $file $rightdir/$numcur.$ext;

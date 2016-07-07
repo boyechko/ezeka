@@ -1,21 +1,89 @@
 #!/usr/bin/bash
 
 hgtimestamp=$HOME/Dropbox/Doc/zettel/.hgtimestamp
-file="$1"
 
+function usage() {
+    echo "Usage: zfix [--fromname|-f] [--oldname|-o slug] <zettel-file>"
+}
+
+function pprint_date() {
+    echo -n $(date -d"$1" '+%Y-%m-%d %H:%M')
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+# Process command line options
+file=
+basename=
+fromname=
+oldname=
+while [ "$1" != "" ]; do
+    case "$1" in
+        -f | --fromname )
+            fromname=1
+            ;;
+        -o | --oldname )
+            shift
+            oldname=$1
+            ;;
+        * )
+            file="$1"
+            basename=$(basename "$file")
+    esac
+    shift
+done
+
+# Get the modified and created dates from the file
 if [[ $(grep -E '^modified:' $file) =~ ^modified:[[:space:]]+([0-9-]{10}) ||
     $(grep -E '^created:' $file) =~ ^created:[[:space:]]+([0-9-]{10}) ]]; then
     moddate=$(date -d @$(stat -c'%Y' "$file") "+%Y-%m-%d")
-    #echo "File 'modified' line: ${BASH_REMATCH[1]}, file modification date: $moddate"
+    #echo "zfix: File 'modified' line: ${BASH_REMATCH[1]}, file modification date: $moddate"
+    
     if [[ "${BASH_REMATCH[1]}" == "$moddate" ]]; then
-        echo "File's modification date and modified line match, skipping"
+        echo "zfix: $basename: File's modification date and modified line match, skipping"
         exit 0
     fi
 fi
 
-# sample: "tech/363-d.txt": {"timestamp": 1436311993.0},
-time=$(grep $(grep "oldname" "$file" | awk -e '{ print $2 ".txt" }') $hgtimestamp)
-if [[ "$time" =~ ([0-9]{10})\.[0-9] ]]; then
-    echo "Success! Retouching $file to $(date -d@${BASH_REMATCH[1]} '+%Y-%m-%d %H:%M')"
-    touch -d "@${BASH_REMATCH[1]}" "$file"
+touchtime=
+if [[ $fromname -eq 1 ]]; then
+    if [[ "$file" =~ ([0-9]{8})T[0-9]{4} ]]; then
+        echo "zfix: $basename: Using filename date: ${BASH_REMATCH[1]}"
+        touchtime="${BASH_REMATCH[1]}"
+    else
+        echo "zfix: $basename: Can't parse filename to get time"
+    fi
+else
+    # Get the timestamp, either for $file or for its $oldname
+    #
+    # sample line from .hgtimestamp:
+    #       "tech/363-d.txt": {"timestamp": 1436311993.0},
+    timestamp=$(grep "[\"/]$basename" $hgtimestamp)
+    if [[ ! "$timestamp" && ! "$oldname" ]]; then
+        # No timestamp, and oldname is not given, so try to figure it out ourselves
+        if [[ "$file" ]] && grep -q "oldname" "$file"; then
+            # Oldname found in file, see if can get timestamp from it
+            oldname=$(grep "oldname" "$file" | tail -n1 | awk -e '{ print $2 ".txt" }')
+
+            timestamp=$(grep "[\"/]$oldname" $hgtimestamp)
+        else
+            echo "zfix: $basename: No timestamp for the file, and no oldname"
+            exit 1
+        fi
+    fi
+
+    # See if timestamp is valid
+    if [[ "$timestamp" =~ ([0-9]{10})\.[0-9]+},*$ ]]; then
+        touchtime="@${BASH_REMATCH[1]}"
+    else
+        echo "zfix: $basename: Timestamp ($timestamp) is invalid; oldname = $oldname"
+        exit 1
+    fi
 fi
+
+echo -n "zfix: $basename: Retouching to $(pprint_date $touchtime)..."
+touch -d "$touchtime" "$file"
+echo "Done"

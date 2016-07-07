@@ -9,7 +9,7 @@
 debug=
 
 function usage() {
-    echo "Usage: zdatename [--modified|-m] [-time|-t <HHMM>] <zettel-file>"
+    echo "Usage: zdatename [--modified|-m] [--changed|-c] [--random|-r] [-time|-t <HHMM>] <zettel-file>"
 }
 
 # Returns success (0) if there is no modified line in the file, and the creation
@@ -36,6 +36,8 @@ function mod_is_creation {
 
 # Process command line options
 modified=
+changed=
+random=
 time=
 fname=
 
@@ -46,6 +48,12 @@ while [ "$1" != "" ]; do
             ;;
         -m | --modified )
             modified=1
+            ;;
+        -c | --changed )
+            changed=1;
+            ;;
+        -r | --random )
+            random=1;
             ;;
         -t | --time )
             shift
@@ -84,6 +92,15 @@ if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
         if [[ debug -eq 1 ]]; then echo "DEBUG: Time is provided"; fi
         
         echo "${year}${month}${day}T${time}.$ext"
+    elif [[ $changed -eq 1 ]]; then
+        # If --changed is specified, try the time of last status change.
+        if [[ debug -eq 1 ]]; then echo "DEBUG: --changed specified"; fi
+        changetime=$(date -d @$(stat -c'%Z' "$fname") "+%H%M")
+        echo "${year}${month}${day}T${changetime}.$ext"
+    elif [[ $random -eq 1 ]]; then
+        if [[ debug -eq 1 ]]; then echo "DEBUG: Using a random time between 08:00 and 23:59"; fi
+        random=$(printf "%02d%02d" $(shuf -i 8-23 -n 1) $(shuf -i 0-59 -n 1))
+        echo "${year}${month}${day}T${random}.$ext"
     elif mod_is_creation "$fname" "$year-$month-$day" || [[ $modified -eq 1 ]]; then
         # If file doesn't have a modified line and the last modification date is
         # the same as the created date, _OR_ if --modified is specified, use the
@@ -91,14 +108,9 @@ if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
         if [[ debug -eq 1 ]]; then echo "DEBUG: Mod is creation OR --modified specified"; fi
         
         modtime=$(date -d @$(stat -c'%Y' "$fname") "+%H%M")
-        if [[ $modtime != "" ]]; then
-            echo "${year}${month}${day}T${modtime}.$ext"
-        else
-            echo "Error: No modification time."
-            exit 1
-        fi
+        echo "${year}${month}${day}T${modtime}.$ext"
     else
-        if [[ debug -eq 1 ]]; then echo "DEBUG: Just using 0000"; fi
+        if [[ debug -eq 1 ]]; then echo "DEBUG: Using 0000 for time"; fi
         echo "${year}${month}${day}T0000.$ext"
     fi
 else

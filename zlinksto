@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+
+zetteldir=$HOME/Dropbox/Doc/zettel
+
+cd $zetteldir
+grep --include='*.txt' -lRE "[|[]${1}]]" *
