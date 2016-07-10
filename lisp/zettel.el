@@ -441,7 +441,7 @@ current Zettel to the ZETTEL-STORED-LINKS for easy back-linking."
   (let (old-filename new-filename old-name new-name)
     (setq old-filename (widget-get (widget-at) :tag))
     (when old-filename
-      (setq old-name (deft-base-filename old-filename))
+      (setq old-name (file-name-base old-filename))
       (setq new-name (read-string
                       (concat "Rename " old-name " to (without extension): ")
                       old-name))
@@ -471,7 +471,7 @@ Adds an 'oldname' tag with the previous name."
         (goto-char (point-min))
         (when (re-search-forward "title: §*\\([a-z0-9-]+\\)\\.")
           (setq oldname (match-string 1))
-          (replace-match (deft-base-filename buffer-file-name) t nil nil 1)
+          (replace-match (file-name-base buffer-file-name) t nil nil 1)
           (forward-paragraph)
           (forward-line 1)
           (insert (concat "oldname: " oldname))
@@ -790,10 +790,10 @@ have any children, returns NIL."
       (zettel-slug-p slug)
     (let ((children-regex (format "%s-%s[a-z]$" number (or letters ""))))
       (sort
-       (mapcar #'deft-base-filename
+       (mapcar #'file-name-base
                (remove-if-not #'(lambda (x) (string-match children-regex x))
                               deft-all-files
-                              :key #'deft-base-filename))
+                              :key #'file-name-base))
        #'string-lessp))))
 
 (defun zettel-slug-siblings (slug)
@@ -829,7 +829,7 @@ This function replaces `deft-absolute-filename' for zettels."
 to find the Nth ancestor."
   (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
+    (let ((ancestor (zettel-slug-ancestor (file-name-base buffer-file-name) n)))
       (when ancestor
         (find-file
          (zettel-absolute-filename ancestor))))))
@@ -839,7 +839,7 @@ to find the Nth ancestor."
 prefix argument, try to find Nth ancestor."
   (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((ancestor (zettel-slug-ancestor (deft-base-filename buffer-file-name) n)))
+    (let ((ancestor (zettel-slug-ancestor (file-name-base buffer-file-name) n)))
       (when ancestor
         (zettel-link-insert-with-spaces ancestor)))))
 
@@ -854,7 +854,7 @@ If `zettel-loop-siblings' is set to T, treats the list of
 siblings as a loop."
   (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let* ((slug (deft-base-filename buffer-file-name))
+    (let* ((slug (file-name-base buffer-file-name))
            (siblings (zettel-slug-siblings slug))
            (length (length siblings)))
       (if (> length 1)
@@ -890,7 +890,7 @@ siblings as a loop."
      (deft-absolute-filename
          (completing-read "Choose sibling: "
                           (zettel-slug-siblings
-                           (deft-base-filename buffer-file-name)))))))
+                           (file-name-base buffer-file-name)))))))
 
 (defun zettel-slug-first-child (slug)
   "Returns a new slug that would be a first child of the given one."
