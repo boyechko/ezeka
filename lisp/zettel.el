@@ -924,25 +924,28 @@ there are none. Respects `zettel-new-child-method'."
 
 (defun pronounceablep (letters next)
   "Returns NIL if NEXT is not pronounceable after LETTERS."
-  (cl-flet ((lastn (seq n)
-              "Returns last N members of SEQ, or nil if it's too
+  (cl-flet* ((lastn (seq n)
+                    "Returns last N members of SEQ, or nil if it's too
               short."
-              (when (<= n (length seq))
-                (subseq seq (- n))))
-            (clusterp (str)
-              (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
-                            "ch" "cl" "ff" "gh" "gl" "ll" "mn" "ph" "ps"
-                            "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
-                            "st" "th")))
-            (vowelp (ch) (member ch '("a" "e" "i" "o" "u")))
-            (consonantp (ch) (not (vowelp ch))))
+                    (when (<= n (length seq))
+                      (subseq seq (- n))))
+             (clusterp (str)
+                       (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
+                                     "ch" "ff" "gh" "gl" "mn" "ph" "ps"
+                                     "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
+                                     "st" "th")))
+             (liquidp (ch) (member ch '("l" "r")))
+             (vowelp (ch) (member ch '("a" "e" "i" "o" "u")))
+             (consonantp (ch) (not (vowelp ch))))
     (let* ((next (if (characterp next) (char-to-string next) next))
            (prev (lastn letters 1))
            (cluster (concat prev next)))
       (when (or (not letters)
                 (clusterp cluster)
                 (and (vowelp prev) (consonantp next))
-                (and (consonantp prev) (vowelp next)))
+                (and (consonantp prev) (vowelp next))
+                (and (consonantp prev) (not (liquidp prev))
+                     (liquidp next)))
         t))))
 
 (defun zettel-snc--pronounceable (number letters unused-letters)
@@ -953,9 +956,12 @@ among UNUSED-LETTERS."
               "Return a random element of SEQUENCE."
               (when (sequencep sequence)
                 (elt sequence (random (length sequence))))))
-    (let ((random-letter (random-elt unused-letters)))
-      (while (not (pronounceablep letters random-letter))
-        (setq random-letter (random-elt unused-letters)))
+    (let ((random-letter (random-elt unused-letters))
+          (attempts 1))
+      (while (or (not (pronounceablep letters random-letter))
+                 (<= attempts 10))
+        (setq random-letter (random-elt unused-letters)
+              attempts (1+ attempts)))
       (zettel-slug number
                    (concat letters (char-to-string random-letter))))))
 
