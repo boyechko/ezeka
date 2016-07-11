@@ -1019,15 +1019,36 @@ argument is given."
   "Creates a new Zettel at the same level as current one."
   )
 
+;;;=============================================================================
+;;; Quick Dial
+;;;=============================================================================
+
+(defvar zettel-quick-dial
+  nil
+  "An alist of 'quick dial' choices.")
+
+(defun zettel-quick-dial (choice)
+  "Let the user choose one of the quick dial options in
+`zettel-quick-dial', and open that file."
+  (interactive
+   (list
+    (when zettel-quick-dial
+      (ido-completing-read "Quick dial: "
+                           (mapcar #'car zettel-quick-dial)))))
+  (if choice
+      (find-file (cdr (assoc choice zettel-quick-dial)))
+      (message "No quick dial choices defined. See `zettel-quick-dial'.")))
+
 ;;;-----------------------------------------------------------------------------
 ;;; Key Bindings
 ;;;
-;;; According to key binding conventions, the only bindings reserved for minor
-;;; modes are "Sequences consisting of C-c followed by any other punctuation
-;;; character" than {, }, <, >, : or ;, which are reserved for major modes.
+ ;; According to key binding conventions, the only bindings reserved for minor
+ ;; modes are "Sequences consisting of C-c followed by any other punctuation
+ ;; character" than {, }, <, >, : or ;, which are reserved for major modes.
 ;;;-----------------------------------------------------------------------------
 
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
+(define-key zettel-mode-map (kbd "C-c /") 'zettel-quick-dial)
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
@@ -1035,7 +1056,7 @@ argument is given."
 (define-key zettel-mode-map (kbd "C-c ]") 'zettel-next-sibling)
 (define-key zettel-mode-map (kbd "C-c [") 'zettel-prev-sibling)
 
-(define-key zettel-mode-map (kbd "C-c /") 'zettel-goto-next-missing-link)
+(define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 (define-key zettel-mode-map (kbd "C-c *") 'zettel-copy-relative-filename)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
