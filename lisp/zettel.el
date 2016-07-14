@@ -653,7 +653,7 @@ instead of running `reftex-get-bibkey-default'."
 ring."
   (interactive)
   (let ((file (cond ((markdown-wiki-link-p)
-                     (zettel-absolute-filename (markdown-wiki-link-link)))
+                     (zettel-convert-link-to-filename (markdown-wiki-link-link)))
                     ((zettel-p buffer-file-name)
                      buffer-file-name))))
     (deft-cache-file file)
@@ -704,6 +704,24 @@ and instead sets it back to the mode it `wants to be'."
       (when result
         (file-name-as-directory result)))))
 
+(defun zettel-convert-link-to-filename (name)
+  "Like `markdown-convert-wiki-link-to-filename', but local to
+Zettelkasten."
+  (cond ((string-match (concat "^" zettel-regexp-numerus-currens) name)
+         ;; name is a numerus currens
+         (zettel-absolute-filename name))
+        ((string-match "[[:alpha:]]+:[[:alnum:]]+" name)
+         ;; name is a 'subkasten:zettel' link
+         (let* ((split (split-string name ":"))
+                (subkasten (first split))
+                (name-only (second split))
+                (sk-dir (cdr (assoc subkasten zettel-sub-kasten))))
+           (when sk-dir
+            (expand-file-name (concat name-only "." deft-extension) sk-dir))))
+        (t
+         ;; name is something else, return nil
+         nil)))
+
 (defun markdown-cwltf-fix-link (orig-fun name)
   "Advice for `markdown-convert-wiki-link-to-filename',
 completely overriding the originall functionality. It combines
@@ -712,19 +730,8 @@ directory for the Zettel so that the links can be found across
 multiple directories within the main Zettelkasten, and also
 handling 'subkasten:' notation."
   (save-match-data
-    (let ((result
-           (cond ((string-match (concat "^" zettel-regexp-numerus-currens) name)
-                  ;; name is a numerus currens
-                  (zettel-absolute-filename name))
-                 ((string-match "[[:alpha:]]+:[[:alnum:]]+" name)
-                  ;; name is a 'subkasten:zettel' link
-                  (let* ((split (split-string name ":"))
-                         (subkasten (first split))
-                         (name-only (second split)))
-                   (expand-file-name (concat name-only "." deft-extension)
-                                     (cdr (assoc subkasten zettel-sub-kasten)))))
-                 (t
-                  (funcall orig-fun name)))))
+    (let ((result (or (zettel-convert-link-to-filename name)
+                      (funcall orig-fun name))))
       (if (string-match "\\.\\w+$" name)
           (let ((orig-ext (match-string 0 name)))
             (if (string-match (concat orig-ext "\\(\\.\\w+\\)$") result)
