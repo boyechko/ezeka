@@ -395,9 +395,10 @@ true, don't store backlink."
            (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)))))
 
 (defun zettel-insert-link-intrusive (arg)
-  "Like ZETTEL-INSERT-LINK, but also opens the Zettel of the link
-inserted if it doesn't already have a backlink, and adds the
-current Zettel to the ZETTEL-STORED-LINKS for easy back-linking."
+  "Like `zettel-insert-link', but also opens the Zettel of the
+link inserted if it doesn't already have a backlink, and adds the
+current Zettel to the `zettel-stored-links' for easy
+back-linking."
   (interactive "P")
   (when zettel-stored-links
     (let ((link-to-insert (first zettel-stored-links)))
@@ -527,7 +528,8 @@ another window."
 (defun zettel-replace-link-at-point (arg)
   "Replaces the link at point with the stored link. With a prefix
 argument, or if there are no stored links, replaces with the
-backlink."
+backlink. With C-u C-u, simply fixes the [[alias|link]] to put
+the alias outside of the link."
   (interactive "P")
   (when (markdown-wiki-link-p)
     (let ((alias (markdown-wiki-link-alias))
@@ -667,15 +669,15 @@ ring."
 ;;;-----------------------------------------------------------------------------
 
 ;;
-;; By default, MARKDOWN-CONVERT-WIKI-LINK-TO-FILENAME concatenates the file
+;; By default, `markdown-convert-wiki-link-to-filename' concatenates the file
 ;; extension of the current buffer's file to the link name when you press C-c
 ;; C-o over something like [[bib/Key2015.bib]], so it ends up opening
 ;; Key2015.bib.txt. The markdown-cwltf-fix-link removes the extra extension,
 ;; among other things.
 ;;
-;; Unfortunately, MARKDOWN-FOLLOW-WIKI-LINK also "ensure[s] that the new buffer
-;; remains in `markdown-mode'", so I need yet another work-around to fix that:
-;; markdown-fwl-set-auto-mode.
+;; Unfortunately, `markdown-follow-wiki-link' also "ensure[s] that the new
+;; buffer remains in `markdown-mode'", so I need yet another work-around to fix
+;; that: `markdown-fwl-set-auto-mode'.
 ;;
 
 (defun markdown-fwl-set-auto-mode (&rest args)
@@ -742,9 +744,9 @@ handling 'subkasten:' notation."
 (advice-add 'markdown-convert-wiki-link-to-filename
             :around #'markdown-cwltf-fix-link)
 
-;;-----------------------------------------------------------------------------
-;; Moving between Zettel
-;;-----------------------------------------------------------------------------
+;;;----------------------------------------------------------------------------
+;;; Children, siblings, and ancestors
+;;;----------------------------------------------------------------------------
 
 (defun zettel-slug (number letters)
   "Returns a Zettel slug composed of the NUMBER and LETTERS, both
