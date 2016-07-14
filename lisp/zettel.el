@@ -350,7 +350,7 @@ appropriate spaces around."
   (cl-flet ((spacep (char)
               "Returns T if the character is some kind of a space."
               (when char
-                (string-match-p "[[:space:]]" (char-to-string char)))))
+                (string-match-p "[[:space:][:punct:]]" (char-to-string char)))))
     (unless (spacep (char-before)) (insert " "))
     (insert (zettel-link file include-title inserting-into))
     (unless (spacep (char-after)) (insert " "))))
