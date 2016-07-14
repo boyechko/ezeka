@@ -659,10 +659,17 @@ ring."
                     ((zettel-p buffer-file-name)
                      buffer-file-name))))
     (deft-cache-file file)
-    (kill-new
-     (unguillemet
-      (second
-       (split-string (deft-file-title file) "[[:space:]]\\{2,\\}"))))))
+    (let ((title (deft-file-title file)))
+      (cond (title
+             (kill-new
+              (unguillemet (second (split-string title "[[:space:]]\\{2,\\}"))))
+             (message "Link title to %s saved in kill ring."
+                      (file-name-base file)))
+            (t
+             (message "Could not get the title of %s."
+                      (file-name-base file)))))))
+
+
 
 ;;;-----------------------------------------------------------------------------
 ;;; Wiki Links
