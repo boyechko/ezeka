@@ -1055,6 +1055,12 @@ argument is given."
   "Creates a new Zettel at the same level as current one."
   )
 
+(defun zettel-find-numerus-currens (slug)
+  "Finds the Zettel with the numerus currens specified
+interactively by the user."
+  (interactive "sNumerus currens to find: ")
+  (find-file (zettel-absolute-filename slug)))
+
 ;;;=============================================================================
 ;;; Quick Dial
 ;;;=============================================================================
@@ -1099,6 +1105,9 @@ argument is given."
 
 (define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
+
+(define-key zettel-mode-map (kbd "C-c '") 'zettel-find-numerus-currens)
+(define-key deft-mode-map (kbd "C-c '") 'zettel-find-numerus-currens)
 
 ;; Set the citation key in `rb-reftex-last-citation'.
 (define-key markdown-mode-map (kbd "C-c |")
