@@ -832,6 +832,18 @@ have any children, returns NIL."
                               :key #'file-name-base))
        #'string-lessp))))
 
+(defun zettel-insert-list-of-children ()
+  "Insert a list of links to children and their titles."
+  (interactive)
+  (when (zettel-p buffer-file-name)
+    (let ((slug (file-name-base buffer-file-name)))
+      (dolist (child (zettel-slug-children slug))
+        (beginning-of-line)
+        (insert "* ")
+        (zettel-link-insert-with-spaces
+         (zettel-absolute-filename child) t buffer-file-name)
+        (newline)))))
+
 (defun zettel-slug-siblings (slug)
   "Returns a list of the Zettel's siblings, inclusive. If the
 Zettel is a top-level one, or it doesn't have any siblings,
@@ -996,8 +1008,7 @@ among UNUSED-LETTERS."
           (attempts 1))
       (while (or (not (pronounceablep letters random-letter))
                  (<= attempts 10))
-        (setq random-letter (random-elt unused-letters)
-              attempts (1+ attempts)))
+        (setq random-letter (random-elt unused-letters) attempts (1+ attempts)))
       (zettel-slug number
                    (concat letters (char-to-string random-letter))))))
 
@@ -1023,33 +1034,34 @@ among UNUSED-LETTERS."
              (setf (elt letters (- (length letters) 1))
                    (first unused-letters)))))))))
 
-(defun zettel-show-new-child (slug)
-  "Show a new child, and save the slug in the kill ring."
-  (interactive
-   (let ((slug (if (zettel-p buffer-file-name)
-                   (deft-base-filename buffer-file-name)
-                   (read-string "Slug: " nil))))
-     (list slug)))
-  (let ((new-child (zettel-slug-new-child slug)))
-    (message "New child: %s" new-child)
-    (kill-new new-child)))
-
-(defun zettel-new-child (arg)
+(defun zettel-insert-new-child (arg)
   "Creates a new Zettel at the next branching level of the
-current one, inserting a link to it at point unless universal
-argument is given."
+current one, inserting a link to it at point. If called with a
+prefix argument, ask for the slug. With double prefix argument,
+show the child instead on inserting."
   (interactive "p")
+  (message "Updating cache...")
   (deft-cache-update-all)
-  (when (zettel-p buffer-file-name)
-    (let* ((slug (deft-base-filename buffer-file-name))
-           (new-child-slug (zettel-slug-new-child slug)))
-      (cond (new-child-slug
-             (zettel-store-link)
-             (unless (= arg 4)
-               (zettel-link-insert-with-spaces new-child-slug))
-             (find-file-other-window (deft-absolute-filename new-child-slug)))
-            (t
-             (message "There are no unused children."))))))
+  (let* ((slug (cond ((= arg 4)
+                      (read-string "Slug: " nil))
+                     ((zettel-p buffer-file-name)
+                      (file-name-base buffer-file-name))
+                     ((equal major-mode 'deft-mode)
+                      (file-name-base (widget-get (widget-at (point)) :tag)))
+                     (t
+                      (read-string "Slug: " nil))))
+         (new-child-slug (when slug (zettel-slug-new-child slug))))
+    (cond ((not slug)
+           (message "Could not figure out which zettel to find a child for."))
+          ((not new-child-slug)
+           (message "There are no unused children for %s." slug))
+          (t
+           (cond ((or (= arg 16) (equal major-mode 'deft-mode))
+                  ;; If invoked from deft buffer or with C-u C-u, just show child
+                  (message "New child: %s" new-child-slug)
+                  (kill-new new-child-slug))
+                 (t
+                  (zettel-link-insert-with-spaces new-child-slug)))))))
 
 (defun zettel-new-sibling ()
   "Creates a new Zettel at the same level as current one."
@@ -1094,7 +1106,7 @@ interactively by the user."
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
-(define-key zettel-mode-map (kbd "C-c .") 'zettel-new-child)
+(define-key zettel-mode-map (kbd "C-c .") 'zettel-insert-new-child)
 (define-key zettel-mode-map (kbd "C-c ]") 'zettel-next-sibling)
 (define-key zettel-mode-map (kbd "C-c [") 'zettel-prev-sibling)
 
