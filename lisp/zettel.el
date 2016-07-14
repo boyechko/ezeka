@@ -355,19 +355,21 @@ appropriate spaces around."
     (insert (zettel-link file include-title inserting-into))
     (unless (spacep (char-after)) (insert " "))))
 
-(defun zettel-store-link ()
+(defun zettel-store-link (arg)
   "Store the link 1) to the Deft file at point if in *Deft*
-buffer, or 2) to the markdown wiki link if at a markdown wiki
-link, or 3) to the file in current buffer."
-  (interactive)
+buffer, or 2) to the file in current buffer. With prefix
+argument, stores the link to the markdown wiki link if at a
+markdown wiki link."
+  (interactive "p")
   (let ((link (cond ((equal major-mode 'deft-mode)
                      (widget-get (widget-at (point)) :tag))
-                    ((markdown-wiki-link-p)
-                     (zettel-absolute-filename (markdown-wiki-link-link)))
                     (buffer-file-name
                      buffer-file-name)
+                    ((and (= arg 4) (markdown-wiki-link-p))
+                     (zettel-absolute-filename (markdown-wiki-link-link)))
                     (t
                      (message "No file to store a link to.")))))
+    (message "Link to %s stored" (file-name-base link))
     (push link zettel-stored-links)))
 
 (defun zettel-insert-link (arg &optional dont-backlink)
