@@ -669,7 +669,25 @@ ring."
              (message "Could not get the title of %s."
                       (file-name-base file)))))))
 
-
+(defun zettel-kill-ring-save-link (arg)
+  "Save the current link, the deft note at point, or the buffer
+base filename in the kill ring. With prefix argument, save the
+file name relative to `zettel-directory'."
+  (interactive "p")
+  (let ((link (cond ((equal major-mode 'deft-mode)
+                     (widget-get (widget-at (point)) :tag))
+                    ((markdown-wiki-link-p)
+                     (markdown-wiki-link-link))
+                    (buffer-file-name
+                     buffer-file-name)
+                    (t
+                     (message "No file to save a link to.")))))
+    (when link
+      (let ((link (if (= arg 4)
+                      (file-relative-name link zettel-directory)
+                      (file-name-base link))))
+       (kill-new link)
+       (message "Saved [%s] in the kill ring." link)))))
 
 ;;;-----------------------------------------------------------------------------
 ;;; Wiki Links
@@ -1078,6 +1096,9 @@ argument is given."
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 (define-key zettel-mode-map (kbd "C-c *") 'zettel-copy-relative-filename)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
+
+(define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
+(define-key deft-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
 
 ;; Set the citation key in `rb-reftex-last-citation'.
 (define-key markdown-mode-map (kbd "C-c |")
