@@ -693,6 +693,9 @@ file name relative to `zettel-directory'."
 ;;; Wiki Links
 ;;;-----------------------------------------------------------------------------
 
+;; This must be enabled to have wiki links
+(setq markdown-enable-wiki-links t)
+
 ;;
 ;; By default, `markdown-convert-wiki-link-to-filename' concatenates the file
 ;; extension of the current buffer's file to the link name when you press C-c
@@ -782,7 +785,8 @@ of which are strings."
   "Returns NIL if the slug is not a Zettel slug, and otherwise
 returns a list of two elements: the number and letters part of
 the slug."
-  (when (string-match zettel-regexp-numerus-currens slug)
+  (when (and (stringp slug)
+             (string-match zettel-regexp-numerus-currens slug))
     (list (match-string 1 slug) (match-string 3 slug))))
 
 (defun zettel-slug-number (slug)
@@ -1017,7 +1021,7 @@ among UNUSED-LETTERS."
 `zettel-new-child-method'."
   (multiple-value-bind (number letters)
       (zettel-slug-p slug)
-    (when letters
+    (when number
       (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
              (used-letters (mapcar #'(lambda (s)
                                        (string-to-char
