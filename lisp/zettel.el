@@ -363,10 +363,10 @@ markdown wiki link."
   (interactive "p")
   (let ((link (cond ((equal major-mode 'deft-mode)
                      (widget-get (widget-at (point)) :tag))
-                    (buffer-file-name
-                     buffer-file-name)
                     ((and (= arg 4) (markdown-wiki-link-p))
                      (zettel-absolute-filename (markdown-wiki-link-link)))
+                    (buffer-file-name
+                     buffer-file-name)
                     (t
                      (message "No file to store a link to.")))))
     (message "Link to %s stored" (file-name-base link))
