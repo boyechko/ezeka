@@ -376,12 +376,15 @@ markdown wiki link."
   "Insert the top link from `zettel-stored-links'. If called with
 prefix argument, inserts the link title as well. If called with a
 numeric argument, insert Nth previous link. If DONT-BACKLINK is
-true, don't store backlink."
-  (interactive "p")
-  ;; Save the current Zettel and update the deft cache.
-  (save-buffer)
-  (deft-cache-update-file buffer-file-name)
-  (cond ((and (integerp arg) (< 0 arg (length zettel-stored-links-history)))
+true or called with C-u C-u, don't store backlink."
+  (interactive "P")
+  ;; Save the current Zettel and update the deft cache, but only if need to
+  ;; backlink.
+  (unless (or dont-backlink (equal arg '(16)))
+   (save-buffer)
+   (deft-cache-update-file buffer-file-name))
+  (cond ((and (integerp arg)
+              (< 0 arg (length zettel-stored-links-history)))
          (zettel-link-insert-with-spaces
           (nth (1- arg) zettel-stored-links-history)
           buffer-file-name))
@@ -390,9 +393,10 @@ true, don't store backlink."
            ;; Save the link in link history
            (push link zettel-stored-links-history)
            ;; Save the current file's slug for possible backlinking
-           (unless dont-backlink
+           (unless (or dont-backlink (equal arg '(16)))
              (setq zettel-link-backlink buffer-file-name))
-           (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)))))
+           (zettel-link-insert-with-spaces
+            link (equal arg '(4)) buffer-file-name)))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like `zettel-insert-link', but also opens the Zettel of the
