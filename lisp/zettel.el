@@ -1048,24 +1048,30 @@ current one, inserting a link to it at point. If called with a
 prefix argument, ask for the slug. With double prefix argument,
 show the child instead on inserting."
   (interactive "p")
-  (message "Updating cache...")
-  (deft-cache-update-all)
-  (let* ((slug (cond ((= arg 4)
-                      (read-string "Slug: " nil))
-                     ((zettel-p buffer-file-name)
-                      (file-name-base buffer-file-name))
-                     ((equal major-mode 'deft-mode)
-                      (file-name-base (widget-get (widget-at (point)) :tag)))
-                     (t
-                      (read-string "Slug: " nil))))
-         (new-child-slug (when slug (zettel-slug-new-child slug))))
-    (cond ((not slug)
-           (message "Could not figure out which zettel to find a child for."))
-          ((not new-child-slug)
-           (message "There are no unused children for %s." slug))
-          (t
-           (cond ((or (= arg 16) (equal major-mode 'deft-mode))
-                  ;; If invoked from deft buffer or with C-u C-u, just show child
+  (cond ((string-match (concat "^" zettel-regexp-date)
+                       (file-name-base buffer-file-name))
+         (zettel-link-insert-with-spaces (zettel-timestamp-slug)))
+        ((string-match (concat "^" zettel-regexp-numerus-currens)
+                       (file-name-base buffer-file-name))
+         (message "Updating cache...")
+         (deft-cache-update-all)
+         (let* ((slug (cond ((= arg 4)
+                             (read-string "Slug: " nil))
+                            ((zettel-p buffer-file-name)
+                             (file-name-base buffer-file-name))
+                            ((equal major-mode 'deft-mode)
+                             (file-name-base
+                              (widget-get (widget-at (point)) :tag)))
+                            (t
+                             (read-string "Slug: " nil))))
+                (new-child-slug (when slug (zettel-slug-new-child slug))))
+           (cond ((not slug)
+                  (message "Could not figure out which zettel to find a child for."))
+                 ((not new-child-slug)
+                  (message "There are no unused children for %s." slug))
+                 ((or (= arg 16) (equal major-mode 'deft-mode))
+                  ;; If invoked from deft buffer or with C-u C-u, just
+                  ;; show child
                   (message "New child: %s" new-child-slug)
                   (kill-new new-child-slug))
                  (t
