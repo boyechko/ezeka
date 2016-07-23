@@ -235,36 +235,35 @@ Based on `rename-file-and-buffer'."
 (defun zettel-update-metadata-date ()
   "Updates the date in the metadata section of the Zettel."
   (interactive)
-  (when zettel-mode
-    (save-excursion
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (forward-line 4)
-        (narrow-to-region (point-min) (point))
-        (goto-char (point-min))
-        (let ((new-date (format-time-string "%Y-%m-%d"))
-              old-date)
-          (cond ((save-excursion
-                   (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
-                 (setq old-date (match-string 1))
-                 (when (and (not (string-equal old-date new-date))
-                            (y-or-n-p (format "Saving %s. Update the modified date? "
-                                              (file-name-base buffer-file-name))))
-                   (message "Updating metadata modified date in %s from %s to %s."
-                            buffer-file-name old-date new-date)
-                   (replace-match (format-time-string "%Y-%m-%d") nil t nil 1)))
-                ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
-                 (setq old-date (match-string 1))
-                 (when (and (not (string-equal old-date new-date))
-                            (y-or-n-p (format "Saving %s. Add modified date? "
-                                              (file-name-base buffer-file-name))))
-                   (message "Adding metadata modified date in %s (created on %s)."
-                            buffer-file-name old-date)
-                   (insert (format "\nmodified: %s" new-date))))
-                (t
-                 (message "Tried updating metadata in %s, but no created or modified date found."
-                          buffer-file-name))))))))
+  (save-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (forward-line 4)
+      (narrow-to-region (point-min) (point))
+      (goto-char (point-min))
+      (let ((new-date (format-time-string "%Y-%m-%d"))
+            old-date)
+        (cond ((save-excursion
+                 (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
+               (setq old-date (match-string 1))
+               (when (and (not (string-equal old-date new-date))
+                          (y-or-n-p (format "Saving %s. Update the modified date? "
+                                            (file-name-base buffer-file-name))))
+                 (message "Updating metadata modified date in %s from %s to %s."
+                          buffer-file-name old-date new-date)
+                 (replace-match (format-time-string "%Y-%m-%d") nil t nil 1)))
+              ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
+               (setq old-date (match-string 1))
+               (when (and (not (string-equal old-date new-date))
+                          (y-or-n-p (format "Saving %s. Add modified date? "
+                                            (file-name-base buffer-file-name))))
+                 (message "Adding metadata modified date in %s (created on %s)."
+                          buffer-file-name old-date)
+                 (insert (format "\nmodified: %s" new-date))))
+              (t
+               (message "Tried updating metadata in %s, but no created or modified date found."
+                        buffer-file-name)))))))
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
