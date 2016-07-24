@@ -551,16 +551,6 @@ the alias outside of the link."
                (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-link-intrusive nil)))))))
 
-(defun zettel-copy-relative-filename (arg)
-  "Copies the relative (to `zettel-directory') filename of the
-current Zettel."
-  (interactive "p")
-  (when (zettel-p buffer-file-name)
-    (kill-new
-     (if (eql arg 4)
-         (file-name-nondirectory buffer-file-name)
-         (file-relative-name buffer-file-name zettel-directory)))))
-
 ;;;-----------------------------------------------------------------------------
 ;;; Bibliography
 ;;;-----------------------------------------------------------------------------
@@ -772,6 +762,22 @@ handling 'subkasten:' notation."
 
 (advice-add 'markdown-convert-wiki-link-to-filename
             :around #'markdown-cwltf-fix-link)
+
+(defun zettel-make-word-wiki-link ()
+  "Make the current word (including dashes) into a wiki link by
+enclosing it in [[]]."
+  (interactive)
+  (save-excursion
+    (let ((table (make-syntax-table)))
+      (modify-syntax-entry ?- "w" table)
+      (with-syntax-table table
+        (multiple-value-bind (start end)
+         (let* ((bounds (bounds-of-thing-at-point 'word))
+                (start (car bounds))
+                (end (cdr bounds))
+                (word (buffer-substring-no-properties start end)))
+           (delete-region start end)
+           (zettel-link-insert-with-spaces word)))))))
 
 ;;;----------------------------------------------------------------------------
 ;;; Children, siblings, and ancestors
@@ -1123,7 +1129,7 @@ interactively by the user."
 
 (define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
-(define-key zettel-mode-map (kbd "C-c *") 'zettel-copy-relative-filename)
+(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 
 (define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
