@@ -227,10 +227,6 @@ Based on `rename-file-and-buffer'."
 ;;
 ;; Automatically update the date in the title line
 ;;
-;; (eval-after-load "markdown"
-;;   (add-hook 'markdown-mode-hook
-;;     '(lambda ()
-;;        (add-hook 'before-save-hook 'zettel-update-metadata-date))))
 
 (defun zettel-update-metadata-date ()
   "Updates the date in the metadata section of the Zettel."
@@ -260,14 +256,16 @@ Based on `rename-file-and-buffer'."
                                             (file-name-base buffer-file-name))))
                  (message "Adding metadata modified date in %s (created on %s)."
                           buffer-file-name old-date)
-                 (insert (format "\nmodified: %s" new-date))))
-              (t
-               (message "Tried updating metadata in %s, but no created or modified date found."
-                        buffer-file-name)))))))
+                 (insert (format "\nmodified: %s" new-date)))))))))
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)))
+
+(eval-after-load "markdown"
+  (add-hook 'markdown-mode-hook
+    '(lambda ()
+       (add-hook 'before-save-hook 'zettel-update-metadata-date nil t))))
 
 ;;
 ;; Insert my zettel title string into new zettel rather than contents of deft's
