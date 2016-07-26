@@ -392,8 +392,10 @@ true or called with C-u C-u, don't store backlink."
            ;; Save the current file's slug for possible backlinking
            (unless (or dont-backlink (equal arg '(16)))
              (setq zettel-link-backlink buffer-file-name))
-           (zettel-link-insert-with-spaces
-            link (equal arg '(4)) buffer-file-name)))))
+           (zettel-link-insert-with-spaces link
+                                           (or (equal arg '(4))
+                                               (equal arg '(16)))
+                                           buffer-file-name)))))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like `zettel-insert-link', but also opens the Zettel of the
@@ -738,7 +740,10 @@ Zettelkasten."
                 (name-only (second split))
                 (sk-dir (cdr (assoc subkasten zettel-sub-kasten))))
            (when sk-dir
-            (expand-file-name (concat name-only "." deft-extension) sk-dir))))
+             (expand-file-name (concat name-only "." deft-extension) sk-dir))))
+        ((string-match (concat "^" zettel-regexp-date) name)
+         ;; name is a datename by itself, assume it's local to `deft-directory'
+         (expand-file-name (concat name "." deft-extension) deft-directory))
         (t
          ;; name is something else, return nil
          nil)))
