@@ -129,16 +129,21 @@ the filter string with the subtree."
           (push subtree deft-filter-regexp))
       (deft-refresh-filter))))
 
-;; Was: deft-find-file
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-filter-add-subtree)
-
-(defun deft-add-section-sign-to-filter-increment ()
-  "Inserts the Unicode section sign: §."
+(defun zettel-add-section-sign-to-deft-filter ()
+  "Inserts the Unicode section sign (§) to Deft filter string."
   (interactive)
   (setq last-command-event 167)
   (deft-filter-increment))
 
-(define-key deft-mode-map (kbd "C-c s") 'deft-add-section-sign-to-filter-increment)
+(defun zettel-add-index-to-deft-filter ()
+  "Replaces the current filter string with [Index]."
+  (interactive)
+  (if deft-incremental-search
+      (deft-filter "[Index]" t)
+      (deft-filter "\\[Index\\]")))
+
+(define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
+(define-key deft-mode-map (kbd "C-c C-i") 'zettel-add-index-to-deft-filter)
 
 ;;-----------------------------------------------------------------------------
 ;; Find the next unused slug in the entire zettel tree
@@ -1147,8 +1152,10 @@ interactively by the user."
 (define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
 
-(define-key zettel-mode-map (kbd "C-c '") 'zettel-find-numerus-currens)
-(define-key deft-mode-map (kbd "C-c '") 'zettel-find-numerus-currens)
+(define-key deft-mode-map (kbd "C-c '") 'zettel-filter-add-subtree)
+;; Was: deft-find-file
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-numerus-currens)
+(define-key zettel-mode-map (kbd "C-c \"") 'zettel-find-numerus-currens)
 
 ;; Set the citation key in `rb-reftex-last-citation'.
 (define-key markdown-mode-map (kbd "C-c |")
