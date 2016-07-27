@@ -373,13 +373,14 @@ markdown wiki link."
   "Insert the top link from `zettel-stored-links'. If called with
 prefix argument, inserts the link title as well. If called with a
 numeric argument, insert Nth previous link. If DONT-BACKLINK is
-true or called with C-u C-u, don't store backlink."
+true or called with C-u C-u, don't store backlink, but insert the
+title."
   (interactive "P")
   ;; Save the current Zettel and update the deft cache, but only if need to
   ;; backlink.
   (unless (or dont-backlink (equal arg '(16)))
-   (save-buffer)
-   (deft-cache-update-file buffer-file-name))
+    (save-buffer)
+    (deft-cache-update-file buffer-file-name))
   (cond ((and (integerp arg)
               (< 0 arg (length zettel-stored-links-history)))
          (zettel-link-insert-with-spaces
@@ -392,26 +393,32 @@ true or called with C-u C-u, don't store backlink."
            ;; Save the current file's slug for possible backlinking
            (unless (or dont-backlink (equal arg '(16)))
              (setq zettel-link-backlink buffer-file-name))
-           (zettel-link-insert-with-spaces link
-                                           (or (equal arg '(4))
-                                               (equal arg '(16)))
-                                           buffer-file-name)))))
+           (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)))
+        (t
+         ;; Silently do nothing, since there are no links stored
+         )))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like `zettel-insert-link', but also opens the Zettel of the
 link inserted if it doesn't already have a backlink, and adds the
-current Zettel to the `zettel-stored-links' for easy
-back-linking."
+current Zettel to the `zettel-link-backlink' for easy
+backlinking."
   (interactive "P")
   (when zettel-stored-links
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
-      (unless (deft-file-contents link-to-insert)
-        (deft-cache-update-file link-to-insert))
-      ;; If the linked file doesn't already have a link to the current one,
-      ;; opens the linked file in a new window, but does not switch to it.
-      (cond ((string-match (regexp-quote (zettel-link buffer-file-name))
-                           (deft-file-contents link-to-insert))
+      ;; If the linked file doesn't already have a link to the current one, or
+      ;; if called with C-u C-u, opens the linked file in a new window, but does
+      ;; not switch to it.
+      (cond ((equal arg '(16))
+             ;; Silently don't open the linked file
+             )
+            ((string-match (regexp-quote (zettel-link buffer-file-name))
+                           ;; Try to get the `deft-file-contents', updating the
+                           ;; cache if neccessary.
+                           (or (deft-file-contents link-to-insert)
+                               (progn (deft-cache-update-file link-to-insert)
+                                      (deft-file-contents link-to-insert))))
              (message "The linked note %s has a backlink to %s already."
                       (file-name-base link-to-insert)
                       (file-name-base buffer-file-name)))
