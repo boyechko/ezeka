@@ -7,7 +7,7 @@ if [[ $# -eq 2 ]]; then
     old="$1"
     new="$2"
 else
-    echo "Usage: zfixlink <old> <new>"
+    echo "Usage: zchangelinks <old> <new>"
     exit 1
 fi
 
@@ -15,9 +15,11 @@ while IFS= read -r file
 do
     # This matches both the numerus currens and ISO-8601 date
     if [[ -e $file && "${file##*/}" =~ ^[0-9]{3} ]]; then
-        echo "zfixlink: Fixing $file..."
+        echo "zchangelinks: Fixing $file..."
         sed -i -e "s/\([[|]\)$old]]/\1$new]]/g" $file
+    elif [[ ! "$file" ]]; then
+        :                       # bash equivalent of NOP
     else
-        echo "zfixlink: File $file doesn't appear valid: skipping"
+        echo "zchangelinks: File '$file' doesn't appear valid: skipping"
     fi
 done
