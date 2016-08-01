@@ -6,8 +6,22 @@ function usage() {
     echo "Usage: zfix [--fromname|-f] [--oldname|-o slug] <zettel-file>"
 }
 
-function pprint_date() {
-    echo -n $(date -d"$1" '+%Y-%m-%d %H:%M')
+function humdate() {
+    if [[ "$1" =~ @ ]]; then
+        date="$1"
+    else
+        date="@$1"
+    fi
+    echo -n $(date -d"$date" '+%Y-%m-%d %H:%M:%S')
+}
+
+function humtime() {
+    if [[ "$1" =~ @ ]]; then
+        date="$1"
+    else
+        date="@$1"
+    fi
+    echo -n $(date -d"$date" '+%H:%M:%S')
 }
 
 if [[ $# -lt 1 ]]; then
@@ -48,11 +62,14 @@ if [[ $(grep -E '^modified:' $file) =~ ^modified:[[:space:]]+([0-9-]{10}) ||
     fi
 fi
 
-touchtime=
+origtime=
+newtime=
 if [[ $fromname -eq 1 ]]; then
-    if [[ "$file" =~ ([0-9]{8})T[0-9]{4} ]]; then
+    if [[ "$file" =~ [0-9]{8}T[0-9]{4} ]]; then
         echo "zfix: $basename: Using filename date: ${BASH_REMATCH[1]}"
-        touchtime="${BASH_REMATCH[1]}"
+        origtime="${BASH_REMATCH[1]}"
+        origtime=$(date -d "$origtime" "+%s")
+        newtime=$((origtime+10))
     else
         echo "zfix: $basename: Can't parse filename to get time"
     fi
@@ -77,13 +94,14 @@ else
 
     # See if timestamp is valid
     if [[ "$timestamp" =~ ([0-9]{10})\.[0-9]+},*$ ]]; then
-        touchtime="@${BASH_REMATCH[1]}"
+        origtime="${BASH_REMATCH[1]}"
+        newtime=$((origtime+10))
     else
         echo "zfix: $basename: Timestamp ($timestamp) is invalid; oldname = $oldname"
         exit 1
     fi
 fi
 
-echo -n "zfix: $basename: Retouching to $(pprint_date $touchtime)..."
-touch -d "$touchtime" "$file"
+echo -n "zfix: $basename: Retouching to $(humdate $newtime) (was $(humtime $origtime))..."
+touch -d "@$newtime" "$file"
 echo "Done"
