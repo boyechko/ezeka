@@ -76,9 +76,9 @@ not listed by Deft."
   (lambda ()
     (wc-mode 1)))
 
-;;-----------------------------------------------------------------------------
-;; How zettel are displayed in the Deft buffer
-;;-----------------------------------------------------------------------------
+;;;=============================================================================
+;;; Deft buffer
+;;;=============================================================================
 
 ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
 (setq deft-strip-title-regexp "^\\(title: +\\)")
@@ -115,19 +115,20 @@ currens) will be indented to.")
 
 (advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
 
-(defun zettel-filter-add-subtree (&optional arg)
-  "Adds the subtree where the point rests to the filter string,
-updating the filter. If called with universal argument, replace
-the filter string with the subtree."
-  (interactive "p")
-  (when (string-equal (buffer-name) "*Deft*")
-    (let ((subtree (file-name-sans-extension
-                    (file-name-nondirectory
-                     (widget-get (widget-at (point)) :tag)))))
-      (if (= arg 4)
-          (setq deft-filter-regexp (list subtree))
-          (push subtree deft-filter-regexp))
-      (deft-refresh-filter))))
+(defun zettel-add-subtree-to-deft-filter (slug)
+  "Replaces the filter with the subtree where the point rests. If
+called with universal argument, ask the user to enter the zettel
+number."
+  (interactive
+   (list (if current-prefix-arg
+             (read-string "Numerus currens to find: ")
+             (when (string-equal (buffer-name) "*Deft*")
+               (file-name-sans-extension
+                (file-name-nondirectory
+                 (widget-get (widget-at (point)) :tag)))))))
+  (let ((subtree (concat "§" slug)))
+    (setq deft-filter-regexp (list subtree))
+    (deft-refresh-filter)))
 
 (defun zettel-add-section-sign-to-deft-filter ()
   "Inserts the Unicode section sign (§) to Deft filter string."
@@ -144,6 +145,7 @@ the filter string with the subtree."
 
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-i") 'zettel-add-index-to-deft-filter)
+(define-key deft-mode-map (kbd "C-c C-h") 'zettel-add-subtree-to-deft-filter)
 
 ;;-----------------------------------------------------------------------------
 ;; Find the next unused slug in the entire zettel tree
