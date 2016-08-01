@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# Get timestamp for the given file
+
+zetteldir="$HOME/doc/zettel"
+tsfile="$zetteldir/.hgtimestamp"
+date -d@$(grep '["/]'"$1" $tsfile | grep -oE '[0-9]{10}\.[0-9]+') "+%Y-%m-%d %H:%M"
+

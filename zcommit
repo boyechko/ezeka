@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# Fix the timestamps and commit with the given commit string
+
+zfixtimes
+hg commit -m \"${@:-Periodic}\"
+
+

@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+# Fix the timestamps of all modified tracked files text files in $zetteldir
+
+zetteldir=$HOME/Dropbox/Doc/zettel/
+
+cd $zetteldir
+hg status --added --modified --include "**.txt" | while read line
+do
+    fname=$(echo $line | sed -re 's/^([AM] )*//')
+    zfix "$fname"
+done
+
