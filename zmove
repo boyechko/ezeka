@@ -56,4 +56,4 @@ zfix $newfull
 echo "zmove: Find and replace all wiki links to $old with $new..."
 links=$(zlinksto $old)
 echo "$links"
-echo "$links" | zchangelinks
+echo "$links" | zchangelinks $old $new
