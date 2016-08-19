@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+
+usage() {
+    echo "Usage: zmovebranch <branch> <replace-from> <replace-to>"
+    exit 1
+}
+
+if [[ $# -ne 3 ]]; then
+    usage
+else
+    branch=$1
+    from=$2
+    to=$3
+
+    zfind $branch | while IFS= read -r file
+    do
+        slug=$(basename -s .txt $file)
+        newslug=$(echo $slug | sed -e "s/$from/$to/")
+        echo "Moving $slug to $newslug:"
+        echo "-------------------------"
+        zmove $slug $newslug
+    done
+fi
