@@ -1,19 +1,21 @@
 #!/usr/bin/bash
+# Move the given zettel to its new location
 
 if [[ $# -ne 2 ]]; then
-    echo "Usage: zmove <old-slug> <new-slug>"
+    echo "Usage: zmove <old> <new>"
     exit 1
 fi
 
 zetteldir=$HOME/Dropbox/Doc/zettel
+ext=txt
 
 old="$1"
 oldfull=
 if [[ "$old" =~ ^[0-9]{3}[a-z-]*$ ]]; then
-    oldfull="$(zdirectory $old)/$old.txt"
+    oldfull="$(zdirectory $old)/$old.$ext"
 elif [[ -e "$old" ]]; then
     oldfull=$old
-    old=$(basename -s .txt $old)
+    old=$(basename -s ".$ext" $oldfull)
 else
     echo "zmove: Unable to figure out what file '$1' is"
     exit 1
@@ -53,7 +55,15 @@ gawk -i inplace "NR==1,/^$/{sub(/^$/, \"oldname: ${old}\\n\")} 1" $newfull
 zfix $newfull
 
 # Find and replace all wiki links to $old with $new
+if [[ "$oldfull" =~ ^(limbo|tech|personal)/.* ]]; then
+    old="${BASH_REMATCH[1]}:$old"
+fi
+if [[ "$newfull" =~ ^(limbo|tech|personal)/.* ]]; then
+    new="${BASH_REMATCH[1]}:$new"
+fi
 echo "zmove: Find and replace all wiki links to $old with $new..."
 links=$(zlinksto $old)
 echo "$links"
+echo "zmove: Press [Enter] to replace the links..."
+read
 echo "$links" | zchangelinks $old $new

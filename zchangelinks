@@ -7,7 +7,7 @@ if [[ $# -eq 2 ]]; then
     old="$1"
     new="$2"
 else
-    echo "Usage: zchangelinks <old> <new>"
+    echo "Usage: zchangelinks <from> <to>"
     exit 1
 fi
 

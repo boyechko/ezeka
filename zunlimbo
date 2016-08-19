@@ -1,33 +1,37 @@
 #!/usr/bin/bash
 # Move the limbo file to the Zettel in its proper directory
 
-ZETTELDIR="$HOME/Dropbox/Doc/zettel"
-LIMBODIR="$ZETTELDIR/limbo"
-MAINDIR="$ZETTELDIR/main"
-DEFAULTEXT="txt"
+zetteldir=$HOME/Dropbox/Doc/zettel
+limbodir=$zetteldir/limbo
+maindir=$zetteldir/main
+defaultext="txt"
 
 function usage() {
     echo "Usage: zunlimbo <file in limbo> <numerus currens>"
     exit 1
 }    
 
-# Have to be in $ZETTELDIR, otherwise Mercurial could complain about nested repos
-cd "$ZETTELDIR"
+# Have to be in $zetteldir, otherwise Mercurial could complain about nested repos
+cd "$zetteldir"
 
 numcur="${2%%.*}"
 file="$1"
 ext=${file##*.}
+ext=${ext:-$defaultext}
 if [[ $# -ne 2 ]]; then
     usage
 elif [[ ! -e $file ]]; then
-    file="$LIMBODIR/$1.$DEFAULTEXT"
-    ext=$DEFAULTEXT
+    file="$limbodir/$1.$ext"
+    ext=$ext
     if [[ ! -e $file ]]; then
         usage
     fi
 fi
 
 rightdir=$(zdirectory $numcur)
+
+# Move the file and fix references to it
+zmove "$fname" "$moveto/$datename"
 
 echo "hg mv $file $rightdir/$numcur.$ext"
 move=$(hg mv $file $rightdir/$numcur.$ext)

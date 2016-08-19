@@ -1,9 +1,10 @@
 #!/usr/bin/bash
+# Figure out the right directory for the given numerus currens
 
 zetteldir=$HOME/Dropbox/Doc/zettel/main
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: zdirectory <slug>"
+    echo "Usage: zdirectory <numerus currens>"
 fi
 
 justnum=$(echo $1 | sed -e 's/^0*//')
@@ -29,6 +30,6 @@ elif [[ "$justnum" -ge 800 && "$justnum" -le 899 ]]; then
 elif [[ "$justnum" -ge 900 && "$justnum" -le 999 ]]; then
     echo "$zetteldir/900-999"
 else
-    echo "Unable to find right directory"
+    echo "zdirectory: Unable to find right directory"
     exit 1
 fi
