@@ -16,7 +16,7 @@ do
     # This matches both the numerus currens and ISO-8601 date
     if [[ -e $file && "${file##*/}" =~ ^[0-9]{3} ]]; then
         echo "zchangelinks: Fixing $file..."
-        sed -i -e "s/\([[|]\)$old]]/\1$new]]/g" $file
+        sed -i -e "s/\([[|:]\)$old]]/\1$new]]/g" $file
     elif [[ ! "$file" ]]; then
         :                       # bash equivalent of NOP
     else
