@@ -1,6 +1,11 @@
 #!/usr/bin/bash
 
+usage() {
+    echo "zlinksto <slug> -- find all zettel containing <slug>]]"
+    exit 0
+}
+
 zetteldir=$HOME/Dropbox/Doc/zettel
 
 cd $zetteldir
-grep --include='*.txt' -lRE "[|[]${1}]]" *
+grep --include='*.txt' -lRE "[:|[]${1}]]" *
