@@ -1,35 +1,34 @@
-#!/usr/bin/bash
+#!/usr/bin/env ruby
 # Figure out the right directory for the given numerus currens
 
-zetteldir=$HOME/Dropbox/Doc/zettel/main
+require 'clamp'
 
-if [[ $# -ne 1 ]]; then
-    echo "Usage: zdirectory <numerus currens>"
-fi
+ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
 
-justnum=$(echo $1 | sed -e 's/^0*//')
-justnum="${justnum%%-*}"
-if [[ "$justnum" -ge 0 && "$justnum" -le 99 ]]; then
-    echo "$zetteldir/000-099"
-elif [[ "$justnum" -ge 100 && "$justnum" -le 199 ]]; then
-    echo "$zetteldir/100-199"
-elif [[ "$justnum" -ge 200 && "$justnum" -le 299 ]]; then
-    echo "$zetteldir/200-299"
-elif [[ "$justnum" -ge 300 && "$justnum" -le 399 ]]; then
-    echo "$zetteldir/300-399"
-elif [[ "$justnum" -ge 400 && "$justnum" -le 499 ]]; then
-    echo "$zetteldir/400-499"
-elif [[ "$justnum" -ge 500 && "$justnum" -le 599 ]]; then
-    echo "$zetteldir/500-599"
-elif [[ "$justnum" -ge 600 && "$justnum" -le 699 ]]; then
-    echo "$zetteldir/600-699"
-elif [[ "$justnum" -ge 700 && "$justnum" -le 799 ]]; then
-    echo "$zetteldir/700-799"
-elif [[ "$justnum" -ge 800 && "$justnum" -le 899 ]]; then
-    echo "$zetteldir/800-899"
-elif [[ "$justnum" -ge 900 && "$justnum" -le 999 ]]; then
-    echo "$zetteldir/900-999"
-else
-    echo "zdirectory: Unable to find right directory"
-    exit 1
-fi
+Clamp do
+  parameter "NUMERUS_CURRENS", "numerus currens to get directory for",
+            :attribute_name => :numcur
+
+
+  def execute
+    # Get the numeric portion of the numerus currens
+    m = numcur.match(/^([0-9]{3})(-[a-z]+)*$/)
+    if m
+      num = m.captures[0].to_i
+    else
+      puts "zdirectory: Can't parse '#{numcur}' as numerus currens"
+      exit(1)
+    end
+
+    # Find the correct directory
+    if num >= 0 and num <= 99
+      puts "#{ZETTEL_DIR}/000-099"
+    elsif num >= 100 and num <= 999
+      puts "#{ZETTEL_DIR}/#{numcur[0]}00-#{numcur[0]}99"
+    else
+      puts "zdirectory: Don't know which directory '#{numcur}' would go into"
+      exit(1)
+    end
+  end
+end
+

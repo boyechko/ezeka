@@ -1,11 +1,15 @@
-#!/usr/bin/bash
+#!/usr/bin/env ruby
+# List zettel with wiki links to the given slug
 
-usage() {
-    echo "zlinksto <slug> -- find all zettel containing <slug>]]"
-    exit 0
-}
+require 'clamp'
 
-zetteldir=$HOME/Dropbox/Doc/zettel
+ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
 
-cd $zetteldir
-grep --include='*.txt' -lRE "[:|[]${1}]]" *
+Clamp do
+  parameter "SLUG", "slug to find links to", :attribute_name => :slug
+
+  def execute
+    Dir.chdir(ZETTEL_DIR)
+    system("grep --include=*.txt -lER '[:|[]#{slug}]]' *")
+  end
+end

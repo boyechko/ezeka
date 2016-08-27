@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
+
+# Parse command line arguments
+optparse = OptionParser.new do |opts|
+  opts.banner = %q(Usage: zreplacelinks [-h] before after
+
+Replace wiki links from before to after
+
+Optional arguments:
+  )
+
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+end
+optparse.parse!
+
+if ARGV.length != 2
+  puts optparse.help
+  exit(1)
+else
+  before, after = ARGV
+end
+
+ARGF.each do |file|
+  file_slug = File.basename(file, ".*")
+
+  # Check that the file exists and is either a numerus currens or datetime
+  if File.exists?(file) and file_slug =~ /^[0-9]{3}/
+    puts "zchangelinks: Replacing links in #{file}..."
+    system("sed", "-i", "-e", "s/\([[|:]\)#{before}]]/\1#{after}]]/g", file)
+  else
+    puts "zchangelinks: File '#{file}' doesn't appear valid; skipping"
+  end
+end

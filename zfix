@@ -1,107 +1,95 @@
-#!/usr/bin/bash
+#!/usr/bin/env ruby
+# Fix the timestamp of the given zettel
 
-hgtimestamp=$HOME/Dropbox/Doc/zettel/.hgtimestamp
+require 'clamp'
+require 'time'
 
-function usage() {
-    echo "Usage: zfix [--fromname|-f] [--oldname|-o slug] <zettel-file>"
-}
+HG_TIMESTAMP = File.expand_path("~/Dropbox/Doc/zettel/.hgtimestamp")
+EXT = ".txt"
 
-function humdate() {
-    if [[ "$1" =~ @ ]]; then
-        date="$1"
+Clamp do
+  parameter "FILE", "zettel file for which to fix the timestamp",
+            :attribute_name => :file
+  option ["-o", "--oldname"], "SLUG", "the old name for the zettel",
+         :attribute_name => :oldname
+  option ["-f", "--fromname"], :flag, "parse the time from filename",
+         :attribute_name => :fromname
+
+  # Get the modified or created date from the Zettel, returning a Time object
+  def zettel_last_modified(file)
+    if `egrep '^modified:' #{file}` =~ /^modified:\s+(\d{4}-\d{2}-\d{2})/ or
+      `egrep '^created:' #{file}` =~ /^created:\s+(\d{4}-\d{2}-\d{2})/
+      return Time.parse($1)
+    end
+  end
+
+  # Returns true if both times have the same date
+  def same_date?(time1, time2)
+    time1.year == time2.year and time1.yday == time2.yday
+  end
+
+  # Print the status message
+  def p_status(file, message)
+    puts "zfix: #{File.basename(file)}: " + message
+  end
+
+  # Retouch the given file with the new mtime
+  def retouch(file, new_mtime)
+    return system("touch", "-d", "@#{new_mtime.to_f}", file)
+  end
+
+  # Returns the .hgtimestamp for file as a Time object
+  def hg_timestamp(file)
+    File.open(HG_TIMESTAMP) do |ts|
+      return ts.grep(/["\/]#{Regexp.quote(File.basename(file))}/).last
+    end
+  end
+
+  # Script point of entry
+  def execute
+    # Only fix modified time if it's different from the date in the Zettel
+    if same_date?(File.mtime(file), zettel_last_modified(file))
+      p_status(file, "File's modification date and modified line match; skipping")
+      exit(0)
+    elsif fromname? && basename =~ /^[0-9]{8}T[0-9]{4}\./
+      # Get the timestamp from filename, and the filename is a datename
+      p_status(file, "Using filename date: $1")
+    elsif fromname?
+      # Get the timestamp from filename, but it's not a datename
+      p_status(file, "Can't parse filename to get time from it")
+      exit(1)
     else
-        date="@$1"
-    fi
-    echo -n $(date -d"$date" '+%Y-%m-%d %H:%M:%S')
-}
+      # Get the timestamp for file or its oldname from .hgtimestamp
+      #
+      # sample line from .hgtimestamp:
+      #       "tech/363-d.txt": {"timestamp": 1436311993.0},
 
-function humtime() {
-    if [[ "$1" =~ @ ]]; then
-        date="$1"
-    else
-        date="@$1"
-    fi
-    echo -n $(date -d"$date" '+%H:%M:%S')
-}
+      # Try to get timestamp for the file OR for the supplied oldname (to_s is
+      # needed in case oldname is nil) OR for one of the oldname lines in the
+      # file itself.
+      if (timestamp = hg_timestamp(file) ||
+                     hg_timestamp(oldname.to_s + EXT) ||
+                     timestamp = File.open(file).grep(/oldname/).reverse
+                                 .find { |s|
+           if s =~ /^oldname: (\d{4}-\d{2}-\d{2})/
+             hg_timestamp($1 + EXT)
+           end }) &&
+         (timestamp =~ /([0-9]{10}\.[0-9]+)},*$/)
 
-if [[ $# -lt 1 ]]; then
-    usage
-    exit 1
-fi
-
-# Process command line options
-file=
-basename=
-fromname=
-oldname=
-while [ "$1" != "" ]; do
-    case "$1" in
-        -f | --fromname )
-            fromname=1
-            ;;
-        -o | --oldname )
-            shift
-            oldname=$1
-            ;;
-        * )
-            file="$1"
-            basename=$(basename "$file")
-    esac
-    shift
-done
-
-# Get the modified and created dates from the file
-if [[ $(grep -E '^modified:' $file) =~ ^modified:[[:space:]]+([0-9-]{10}) ||
-    $(grep -E '^created:' $file) =~ ^created:[[:space:]]+([0-9-]{10}) ]]; then
-    moddate=$(date -d @$(stat -c'%Y' "$file") "+%Y-%m-%d")
-    #echo "zfix: File 'modified' line: ${BASH_REMATCH[1]}, file modification date: $moddate"
-    
-    if [[ "${BASH_REMATCH[1]}" == "$moddate" ]]; then
-        echo "zfix: $basename: File's modification date and modified line match, skipping"
-        exit 0
-    fi
-fi
-
-origtime=
-newtime=
-if [[ $fromname -eq 1 ]]; then
-    if [[ "$file" =~ [0-9]{8}T[0-9]{4} ]]; then
-        echo "zfix: $basename: Using filename date: ${BASH_REMATCH[1]}"
-        origtime="${BASH_REMATCH[1]}"
-        origtime=$(date -d "$origtime" "+%s")
-        newtime=$((origtime+10))
-    else
-        echo "zfix: $basename: Can't parse filename to get time"
-    fi
-else
-    # Get the timestamp, either for $file or for its $oldname
-    #
-    # sample line from .hgtimestamp:
-    #       "tech/363-d.txt": {"timestamp": 1436311993.0},
-    timestamp=$(grep "[\"/]$basename" $hgtimestamp)
-    if [[ ! "$timestamp" && ! "$oldname" ]]; then
-        # No timestamp, and oldname is not given, so try to figure it out ourselves
-        if [[ "$file" ]] && grep -q "oldname" "$file"; then
-            # Oldname found in file, see if can get timestamp from it
-            oldname=$(grep "oldname" "$file" | tail -n1 | awk -e '{ print $2 ".txt" }')
-
-            timestamp=$(grep "[\"/]$oldname" $hgtimestamp)
-        else
-            echo "zfix: $basename: No timestamp for the file, and no oldname"
-            exit 1
-        fi
-    fi
-
-    # See if timestamp is valid
-    if [[ "$timestamp" =~ ([0-9]{10})\.[0-9]+},*$ ]]; then
-        origtime="${BASH_REMATCH[1]}"
-        newtime=$((origtime+10))
-    else
-        echo "zfix: $basename: Timestamp ($timestamp) is invalid; oldname = $oldname"
-        exit 1
-    fi
-fi
-
-echo -n "zfix: $basename: Retouching to $(humdate $newtime) (was $(humtime $origtime))..."
-touch -d "@$newtime" "$file"
-echo "Done"
+        # Everything checks out, so retouch with slightly increased time so that
+        # mercurial registers that there is a change
+        old_time = Time.at($1.to_i)
+        new_time = old_time + 1
+        p old_time, new_time
+        
+        if retouch(file, new_time)
+          p_status(file, "Retouched to #{new_time.strftime("%F %R")} "\
+                         "(was #{old_time.strftime("%R")})")
+        end
+      else
+        p_status(file, "Could not get the timestamp")
+        exit(1)
+      end
+    end
+  end
+end
