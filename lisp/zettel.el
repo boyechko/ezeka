@@ -552,6 +552,9 @@ the alias outside of the link."
     (let ((alias (markdown-wiki-link-alias))
           (link  (markdown-wiki-link-link)))
       (save-excursion
+        ;; Make sure we are at the start of the link
+        (unless (string-match "\\[\\[[^]]+\\]\\]" (thing-at-point 'sexp))
+          (re-search-backward "\\[\\["))
         (kill-sexp)
         (cond ((equal arg '(16))               
                (unless (string-equal link alias) (insert alias " "))
