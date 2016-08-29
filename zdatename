@@ -1,120 +1,58 @@
-#!/usr/bin/bash
-# Outputs the date name (YYYYMMDDThhmm) for the given file. Since the zettel
-# files only record the creation date, the default is to use 0000 for time
-# unless --modified/-m is given, in which case the last modification time is
-# used instead. Alternatively, with --time/-t, one can manually specify a time
-# to use.
+#!/usr/bin/env ruby
+# Outputs the date name (YYYYMMDDThhmm) for the given file
 
-# If debug=1, print debug messages
-debug=
+require 'clamp'
+require 'time'
+require 'yaml'
 
-function usage() {
-    echo "Usage: zdatename [--modified|-m] [--changed|-c] [--random|-r] [-time|-t <HHMM>] <zettel-file>"
-}
+Clamp do
+  parameter "FILE", "Zettel file for which to return the ISO 8601 date-name"
 
-# Returns success (0) if there is no modified line in the file, and the creation
-# date is the same as the date of the last modification.
-#
-# mod_is_creation(file, created-date [as "YYYY-mm-dd"])
-function mod_is_creation {
-    created_line=`grep '^created:' "$1"`
-    modified_line=`grep '^modified:' "$1"`
-    if [[ -z "$modified" && $created_line =~ created:.+([0-9-]{10}) ]]; then
-        credate=${BASH_REMATCH[1]}
-        moddate=$(date -d @$(stat -c'%Y' "$fname") "+%Y-%m-%d")
-        if [[ $debug -eq 1 ]]; then echo "DEBUG: credate = $credate, moddate = $moddate"; fi
-        
-        if [[ "$credate" == "$moddate" ]]; then
-            return 0
-        else
-            return 1
-        fi
+  option ["-m", "--mtime"], :flag, "use last data modification time", :attribute_name => :use_mtime
+  option ["-c", "--ctime"], :flag, "use last status change time", :attribute_name => :use_ctime
+  option ["-z", "--zero"], :flag, "use 00:00 as the time", :attribute_name => :use_zeros
+  option ["-t", "--time"], "HHMM", "use the specified time", :attribute_name => :use_time do |s|
+    if s =~ /^(\d{2}):*(\d{2})$/
+      Time.new(1, 1, 1, $1.to_i, $2.to_i)
     else
-        return 1
-    fi
-}
+      signal_usage_error "time should be in the format HHMM, e.g. 1234"
+    end
+  end
 
-# Process command line options
-modified=
-changed=
-random=
-time=
-fname=
+  # Returns true if both times have the same date
+  def same_day?(time1, time2)
+    return time1.strftime("%Y%m%d") == time2.strftime("%Y%m%d")
+  end
 
-while [ "$1" != "" ]; do
-    case "$1" in
-        -d | --debug )
-            debug=1
-            ;;
-        -m | --modified )
-            modified=1
-            ;;
-        -c | --changed )
-            changed=1;
-            ;;
-        -r | --random )
-            random=1;
-            ;;
-        -t | --time )
-            shift
-            time="$1"
-            if [[ ! "$time" =~ ^[0-9]{4}$ ]]; then
-                echo "Error: Time must be in the form of HHMM"
-                exit 1
-            fi
-            ;;
-        -h | --help )
-            usage
-            exit
-            ;;
-        * )
-            fname="$1"
-    esac
-    shift
-done
+  # Returns a string containing the datename of combining the DATE and TIME,
+  # both Time objects
+  def datename(date, time)
+    date.strftime("%Y%m%d") + "T" + time.strftime("%H%M")
+  end
 
-if [[ -z "$fname" ]]; then
-    echo "Error: No filename given"
-    exit 1
-fi
+  def execute
+    metadata = YAML::load(File.read(file).split("\n\n", 2)[0])
 
-bname=$(basename "$fname")
-ext=${bname#*.}
-
-created=`grep '^created:' $fname`
-if [[ $created =~ created:.+([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
-    year=${BASH_REMATCH[1]}
-    month=${BASH_REMATCH[2]}
-    day=${BASH_REMATCH[3]}
-
-    if [[ "$time" ]]; then
-        # If time is given, use that.
-        if [[ debug -eq 1 ]]; then echo "DEBUG: Time is provided"; fi
-        
-        echo "${year}${month}${day}T${time}.$ext"
-    elif [[ $changed -eq 1 ]]; then
-        # If --changed is specified, try the time of last status change.
-        if [[ debug -eq 1 ]]; then echo "DEBUG: --changed specified"; fi
-        changetime=$(date -d @$(stat -c'%Z' "$fname") "+%H%M")
-        echo "${year}${month}${day}T${changetime}.$ext"
-    elif [[ $random -eq 1 ]]; then
-        if [[ debug -eq 1 ]]; then echo "DEBUG: Using a random time between 08:00 and 23:59"; fi
-        random=$(printf "%02d%02d" $(shuf -i 8-23 -n 1) $(shuf -i 0-59 -n 1))
-        echo "${year}${month}${day}T${random}.$ext"
-    elif mod_is_creation "$fname" "$year-$month-$day" || [[ $modified -eq 1 ]]; then
-        # If file doesn't have a modified line and the last modification date is
-        # the same as the created date, _OR_ if --modified is specified, use the
-        # last change time.
-        if [[ debug -eq 1 ]]; then echo "DEBUG: Mod is creation OR --modified specified"; fi
-        
-        modtime=$(date -d @$(stat -c'%Y' "$fname") "+%H%M")
-        echo "${year}${month}${day}T${modtime}.$ext"
+    # Make sure the first paragraph of the file was parsed as YAML metadata
+    if metadata.is_a?(Hash)
+      if use_time
+        time = use_time
+      elsif use_ctime?
+        time = File.ctime(file)
+      elsif use_mtime? || same_day?(metadata['modified'], File.mtime(file))
+        time = File.mtime(file)
+      elsif use_zeros?
+        time = Time.new(1, 1, 1, 0, 0)
+      else
+        # Generate random time between 8:00 and 23:59, since that's when I would
+        # have normally be awake to create the Zettel.
+        time = Time.new(1, 1, 1, rand(8..23), rand(0..59))
+      end
     else
-        if [[ debug -eq 1 ]]; then echo "DEBUG: Using 0000 for time"; fi
-        echo "${year}${month}${day}T0000.$ext"
-    fi
-else
-    echo "No created date"
-    exit 1
-fi
+      puts "zdatename: Cannot parse the metadata"
+      exit(1)
+    end
 
+    puts datename(metadata['created'], time)
+  end
+end
