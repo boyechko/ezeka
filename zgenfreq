@@ -6,6 +6,7 @@ allzettel="$zetteldir/auto/all-zettel.dat"
 freqfile="$zetteldir/auto/word-frequency.dat"
 excludefile=/tmp/all-zettel.$$.exclude
 
+# Exclude the metadata keywords
 cat > $excludefile <<EOF
 created
 title
@@ -28,6 +29,7 @@ fi
 # Doesn't do Unicode very well
 # tr -c '[:alnum:]' '[\n*]' < $1 | awk 'NF'
 
+# Replace all special symbols with space to prevent them confusing zwf
 sed -r -e 's/[.,:;?!(){}:@«»*"#\/_”`|]/ /g' -e 's/\[/ /g' -e 's/\]/ /g' < $allzettel |
     sed -e 's/\s/\n/g' |
     tr '[:upper:]' '[:lower:]' |
@@ -35,6 +37,6 @@ sed -r -e 's/[.,:;?!(){}:@«»*"#\/_”`|]/ /g' -e 's/\[/ /g' -e 's/\]/ /g' < $a
     fgrep -v -w -f $excludefile |
     sort | uniq -c | sort -nr | sed -re 's/\s+//' > $freqfile
 
-## Cleanup
+# Cleanup
 rm -f $excludefile
 

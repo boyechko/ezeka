@@ -81,7 +81,7 @@ Clamp do
         old_time = Time.at($1.to_i)
         new_time = old_time + 1
         p old_time, new_time
-        
+
         if retouch(file, new_time)
           p_status(file, "Retouched to #{new_time.strftime("%F %R")} "\
                          "(was #{old_time.strftime("%R")})")

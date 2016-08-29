@@ -9,7 +9,7 @@ defaultext="txt"
 function usage() {
     echo "Usage: zunlimbo <file in limbo> <numerus currens>"
     exit 1
-}    
+}
 
 # Have to be in $zetteldir, otherwise Mercurial could complain about nested repos
 cd "$zetteldir"

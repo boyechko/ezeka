@@ -9,7 +9,6 @@ Clamp do
   parameter "NUMERUS_CURRENS", "numerus currens to get directory for",
             :attribute_name => :numcur
 
-
   def execute
     # Get the numeric portion of the numerus currens
     m = numcur.match(/^([0-9]{3})(-[a-z]+)*$/)
