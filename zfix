@@ -71,7 +71,7 @@ Clamp do
                      hg_timestamp(oldname.to_s + EXT) ||
                      timestamp = File.open(file).grep(/oldname/).reverse
                                  .find { |s|
-           if s =~ /^oldname: (\d{4}-\d{2}-\d{2})/
+           if s =~ /^oldname: (\d{8}T\d{4})/
              hg_timestamp($1 + EXT)
            end }) &&
          (timestamp =~ /([0-9]{10}\.[0-9]+)},*$/)
