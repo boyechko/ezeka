@@ -3,7 +3,7 @@
 ;;;;        Author: Roderick Hoybach <hoybach-code@diachronic.net>
 ;;;;   Description: Zettelkasten implementation based on Deft and Markdown
 ;;;;  Date Created: 2015-06-31
-;;;;      Comments: 
+;;;;      Comments:
 ;;;; -----------------------------------------------------------------------------
 
 ;; Cretea a keymap for the mode
@@ -373,8 +373,15 @@ markdown wiki link."
                      buffer-file-name)
                     (t
                      (message "No file to store a link to.")))))
-    (message "Link to %s stored" (file-name-base link))
-    (push link zettel-stored-links)))
+    (cond ((string-equal link (first zettel-stored-links))
+           (message "Link to %s is already in the stored links: %s"
+                    (file-name-base link)
+                    (mapcar #'file-name-base zettel-stored-links)))
+          (t
+           (push link zettel-stored-links)
+           (message "Link to %s stored: %s"
+                    (file-name-base link)
+                    (mapcar #'file-name-base zettel-stored-links))))))
 
 (defun zettel-insert-link (arg &optional dont-backlink)
   "Insert the top link from `zettel-stored-links'. If called with
@@ -556,7 +563,7 @@ the alias outside of the link."
         (unless (string-match "\\[\\[[^]]+\\]\\]" (thing-at-point 'sexp))
           (re-search-backward "\\[\\["))
         (kill-sexp)
-        (cond ((equal arg '(16))               
+        (cond ((equal arg '(16))
                (unless (string-equal link alias) (insert alias " "))
                (zettel-link-insert-with-spaces link))
               ((or (equal arg '(4))
