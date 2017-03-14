@@ -1037,17 +1037,17 @@ there are none. Respects `zettel-new-child-method'."
         t))))
 
 (defun zettel-snc--pronounceable (number letters unused-letters)
-  "Helper function for `zettel-slug-new-child', which generates a
-pronounceable new random child of the slug (NUMBERS + LETTERS)
-among UNUSED-LETTERS."
+  "Helper function for `zettel-slug-new-child', which tries to
+generate a pronounceable new random child of the slug (NUMBERS +
+LETTERS) among UNUSED-LETTERS."
   (cl-flet ((random-elt (sequence)
               "Return a random element of SEQUENCE."
               (when (sequencep sequence)
                 (elt sequence (random (length sequence))))))
     (let ((random-letter (random-elt unused-letters))
           (attempts 1))
-      (while (or (not (pronounceablep letters random-letter))
-                 (<= attempts 10))
+      (while (and (not (pronounceablep letters random-letter))
+                  (<= attempts 10))
         (setq random-letter (random-elt unused-letters) attempts (1+ attempts)))
       (zettel-slug number
                    (concat letters (char-to-string random-letter))))))
