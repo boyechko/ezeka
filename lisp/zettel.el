@@ -1058,7 +1058,8 @@ LETTERS) among UNUSED-LETTERS."
   (multiple-value-bind (number letters)
       (zettel-slug-p slug)
     (when number
-      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxyz" 'list))
+      (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxy" 'list))
+             ;; 'z' is left out as reserved letter
              (used-letters (mapcar #'(lambda (s)
                                        (string-to-char
                                         (substring
@@ -1066,13 +1067,17 @@ LETTERS) among UNUSED-LETTERS."
                                    (zettel-slug-children slug)))
              (unused-letters
               (sort (set-difference alphabet used-letters) #'<)))
-        (when unused-letters
-          (case zettel-new-child-method
-            (random
-             (zettel-snc--pronounceable number letters unused-letters))
-            (next
-             (setf (elt letters (- (length letters) 1))
-                   (first unused-letters)))))))))
+        (if unused-letters
+            (case zettel-new-child-method
+              (random
+               (zettel-snc--pronounceable number letters unused-letters))
+              (next
+               (setf (elt letters (- (length letters) 1))
+                     (first unused-letters))))
+          ;; If no more unused letters, try going into the "z" extension.
+          (zettel-slug-new-child
+           (zettel-slug (zettel-slug-number slug)
+                        (concat (zettel-slug-letters slug) "z"))))))))
 
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel at the next branching level of the
@@ -1087,6 +1092,7 @@ show the child instead on inserting."
                        (file-name-base buffer-file-name))
          (message "Updating cache...")
          (deft-cache-update-all)
+         (message "Generating a new child...")
          (let* ((slug (cond ((= arg 4)
                              (read-string "Slug: " nil))
                             ((zettel-p buffer-file-name)
