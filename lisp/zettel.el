@@ -637,9 +637,9 @@ support for following citations."
     (cmd
      (let ((reftex-cite-format
             '((?\r . "[][#%l]")
-              (?b . "[#%l]: %A. _%t_. %r: %u, %y. %h.")
-              (?c . "[#%l]: %A. \"%t\". _%b_. Eds. %e. %r: %u, %y. %p. %h.")
-              (?j . "[#%l]: %A. \"%t.\" _%j_ %v.%n (%y): %p. %h.")
+              (?b . "[#%l]: %A. _%t_. %u, %y.")
+              (?c . "[#%l]: %A. \"%t\". _%b_, edited by %e, %u, %y, pp. %p.")
+              (?j . "[#%l]: %A. \"%t.\" _%j_, vol. %v, no. %n, %y, pp. %p.")
               (?t . "%A, »%t« (%y)")
               (?T . "%A, \"%t\" (%y)"))))
        (reftex-citation)))))
