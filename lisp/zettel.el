@@ -68,7 +68,8 @@ not listed by Deft."
 (add-hook 'org-mode-hook
   '(lambda ()
      (when (zettel-p buffer-file-name)
-       (zettel-mode 1))))
+       (zettel-mode 1)
+       (setq org-descriptive-links nil))))
 
 ;; Enable wc-mode (shows word count in the mode line) in Zettel files
 (require 'wc-mode)
@@ -457,6 +458,9 @@ backlinking."
 (define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
 (define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
+
+;; Shadow org-mode's `org-open-at-point'
+(define-key zettel-mode-map (kbd "C-c C-o") 'markdown-follow-wiki-link-at-point)
 
 ;;-----------------------------------------------------------------------------
 ;; Renaming
