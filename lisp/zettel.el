@@ -459,8 +459,14 @@ backlinking."
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
 (define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
 
-;; Shadow org-mode's `org-open-at-point'
-(define-key zettel-mode-map (kbd "C-c C-o") 'markdown-follow-wiki-link-at-point)
+;; Allow handling markdown wiki links in org-mode
+(defun zettel-org-open-at-point--zettel-links (orig-fun &rest args)
+  "Around advice for `org-open-at-point' that adds support for
+following internal Zettel links."
+  (if (markdown-wiki-link-p)
+      (markdown-follow-wiki-link-at-point)
+    (apply orig-fun args)))
+(advice-add 'org-open-at-point :around #'zettel-org-open-at-point--zettel-links)
 
 ;;-----------------------------------------------------------------------------
 ;; Renaming
@@ -1168,7 +1174,7 @@ interactively by the user."
 
 (define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
-(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
+;;(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 
 (define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
