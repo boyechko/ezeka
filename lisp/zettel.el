@@ -302,12 +302,12 @@ on the first line with the Zettel title string."
 ;;;-----------------------------------------------------------------------------
 
 (defvar zettel-stored-links '()
-  "A stack of links stored with ZETTEL-STORE-LINK.")
+  "A stack of links stored with `zettel-store-link'.")
 (defvar zettel-stored-links-history '()
-  "History of the links stored with ZETTEL-STORE-LINK.")
+  "History of the links stored with `zettel-store-link'.")
 (defvar zettel-link-backlink nil
   "Stores the file name of the document into which a link was inserted
-with ZETTEL-INSERT-LINK-INTRUSIVE or ZETTEL-INSERT-LINK, allowing
+with `zettel-insert-link-intrusive' or `zettel-insert-link', allowing
 for creation of backlinks.")
 
 (defun zettel-link-slug (file &optional inserting-into)
@@ -388,8 +388,7 @@ markdown wiki link."
   "Insert the top link from `zettel-stored-links'. If called with
 prefix argument, inserts the link title as well. If called with a
 numeric argument, insert Nth previous link. If DONT-BACKLINK is
-true or called with C-u C-u, don't store backlink, but insert the
-title."
+true or called with C-u C-u, don't store backlink."
   (interactive "P")
   ;; Save the current Zettel and update the deft cache, but only if need to
   ;; backlink.
@@ -406,9 +405,14 @@ title."
            ;; Save the link in link history
            (push link zettel-stored-links-history)
            ;; Save the current file's slug for possible backlinking
-           (unless (or dont-backlink (equal arg '(16)))
-             (setq zettel-link-backlink buffer-file-name))
-           (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)))
+           (cond ((or dont-backlink (equal arg '(16)))
+                  ;; don't insert backlink, insert link w/o title
+                  (zettel-link-insert-with-spaces link nil buffer-file-name))
+                 (t
+                  ;; insert link title if called with prefix argument
+                  (setq zettel-link-backlink buffer-file-name)
+                  (zettel-link-insert-with-spaces link (consp arg) buffer-file-name)
+                  ))))
         (t
          ;; Silently do nothing, since there are no links stored
          )))
