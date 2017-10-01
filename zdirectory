@@ -2,32 +2,13 @@
 # Figure out the right directory for the given numerus currens
 
 require 'clamp'
-
-ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
+require_relative 'zettel'
 
 Clamp do
   parameter "NUMERUS_CURRENS", "numerus currens to get directory for",
             :attribute_name => :numcur
 
   def execute
-    # Get the numeric portion of the numerus currens
-    m = numcur.match(/^([0-9]{3})(-[a-z]+)*$/)
-    if m
-      num = m.captures[0].to_i
-    else
-      puts "zdirectory: Can't parse '#{numcur}' as numerus currens"
-      exit(1)
-    end
-
-    # Find the correct directory
-    if num >= 0 and num <= 99
-      puts "#{ZETTEL_DIR}/000-099"
-    elsif num >= 100 and num <= 999
-      puts "#{ZETTEL_DIR}/#{numcur[0]}00-#{numcur[0]}99"
-    else
-      puts "zdirectory: Don't know which directory '#{numcur}' would go into"
-      exit(1)
-    end
+    puts Numerus.new(numcur).directory
   end
 end
-

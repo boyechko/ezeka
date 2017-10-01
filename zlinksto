@@ -2,14 +2,13 @@
 # List zettel with wiki links to the given slug
 
 require 'clamp'
-
-ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
+require_relative 'zettel'
 
 Clamp do
   parameter "SLUG", "slug to find links to", :attribute_name => :slug
 
   def execute
-    Dir.chdir(ZETTEL_DIR)
+    Dir.chdir(Zettelkasten.root)
     system("grep --include=*.txt -lER '[:|[]#{slug}]]' *")
   end
 end

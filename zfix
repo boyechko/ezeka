@@ -3,9 +3,10 @@
 
 require 'clamp'
 require 'time'
+require_relative 'zettel'
 
-HG_TIMESTAMP = File.expand_path("~/Dropbox/Doc/zettel/.hgtimestamp")
-EXT = ".txt"
+HG_TIMESTAMP = File.join(Zettelkasten.root, ".hgtimestamp")
+EXT = Zettelkasten.ext
 
 Clamp do
   parameter "FILE", "zettel file for which to fix the timestamp",
@@ -80,11 +81,10 @@ Clamp do
         # mercurial registers that there is a change
         old_time = Time.at($1.to_i)
         new_time = old_time + 1
-        p old_time, new_time
 
         if retouch(file, new_time)
-          p_status(file, "Retouched to #{new_time.strftime("%F %R")} "\
-                         "(was #{old_time.strftime("%R")})")
+          p_status(file, "Retouched to #{new_time.strftime("%F %H:%M:%S")} "\
+                         "(was #{old_time.strftime("%H:%M:%S")})")
         end
       else
         p_status(file, "Could not get the timestamp")
