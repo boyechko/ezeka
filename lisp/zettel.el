@@ -167,14 +167,14 @@ number."
 (defun zettel-used-slugs ()
   "Returns a list -- sorted and with no duplicates -- of used slugs."
   (delete-dups
-   (sort (mapcar #'(lambda (file)
-                     (when (string-match
-                            (format "/\\([0-9]\\{3\\}\\)\\(-[a-z]+\\)*\.%s$"
-                                    deft-extension)
-                            file)
-                       (string-to-number (match-string 1 file))))
-                 deft-all-files)
-         #'<)))
+   (delete nil
+           (mapcar #'(lambda (file)
+                       (when (string-match
+                              (format "/\\([0-9]\\{3\\}\\)\\(-[a-z]+\\)*\.%s$"
+                                      deft-extension)
+                              file)
+                         (string-to-number (match-string 1 file))))
+                   deft-all-files))))
 
 (defcustom zettel-new-numerus-currens-method 'random
   "How new numeri currenses are created: RANDOM or NEXT are
