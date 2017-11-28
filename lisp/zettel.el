@@ -386,9 +386,9 @@ appropriate spaces around."
               "Returns T if the character is some kind of a space."
               (when char
                 (string-match-p "[[:space:][:punct:]]" (char-to-string char)))))
-    (concat (if (spacep (char-before)) " " "")
+    (concat (if (spacep (char-before)) "" " ")
             (zettel-link file include-title title-location inserting-into)
-            (if (spacep (char-after)) " " ""))))
+            (if (spacep (char-after)) "" " "))))
 
 (defun zettel-insert-link (arg)
   "Insert the top link from `zettel-stored-links'. If called with
