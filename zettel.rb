@@ -15,7 +15,7 @@ class Zettelkasten
   class << self; attr_accessor :writing end
   class << self; attr_accessor :ext end
 
-  @root = ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Doc/zettel')
+  @root = ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel')
   @main = "#{@root}/main"
   @limbo = "#{@root}/limbo"
   @tech = "#{@root}/tech"
