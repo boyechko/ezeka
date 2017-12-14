@@ -1,8 +1,12 @@
 #!/usr/bin/bash
 
-zetteldir=$HOME/Dropbox/Doc/zettel
-azfile=$zetteldir/auto/all-zettel.dat
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+azfile=$ZETTEL_DIR/auto/all-zettel.dat
 
 shopt -s globstar
-cd $zetteldir
+cd $ZETTEL_DIR
 cat **/*.txt > $azfile

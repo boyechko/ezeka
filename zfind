@@ -1,6 +1,10 @@
 #!/usr/bin/bash
+# Find all Zettel with names beginning with the given string
 
-zetteldir=$HOME/Dropbox/Doc/zettel
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
 
-cd $zetteldir
+cd $ZETTEL_DIR
 find ./ -type f -name "$1*.txt" | sed -e 's!^\./!!' | sort

@@ -1,11 +1,15 @@
 #!/usr/bin/bash
 # Easy way to rename zettel files; relies on ~/bin/zdatename
 
-zetteldir=$HOME/Dropbox/Doc/zettel
-limbodir=$zetteldir/limbo
-techdir=$zetteldir/tech
-personaldir=$zetteldir/personal
-writingdir=$zetteldir/writing
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+limbodir=$ZETTEL_DIR/limbo
+techdir=$ZETTEL_DIR/tech
+personaldir=$ZETTEL_DIR/personal
+writingdir=$ZETTEL_DIR/writing
 
 function usage() {
     echo "Usage: zmakedate [-t <HHMM>] [-m ...] [-n] [-r] <slug>"
@@ -64,7 +68,7 @@ while [ "$1" != "" ]; do
                 origmodtime=$(stat -c'%Y' "$fname")
             else
                 fname="$(zdirectory ${1})/${1}.txt"
-                fname="${fname##$zetteldir/}"
+                fname="${fname##$ZETTEL_DIR/}"
                 if [[ ! -e "$fname" ]]; then
                     echo "Error: File '$1' does not exist"
                     usage

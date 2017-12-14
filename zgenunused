@@ -1,12 +1,16 @@
 #!/usr/bin/bash
-# Generates a list of unused Zettel numbers in $zetteldir
+# Generates a list of unused Zettel numbers in $ZETTEL_DIR
 
-zetteldir=$HOME/Dropbox/Doc/zettel
-unusedfile=$zetteldir/auto/unused-numbers.txt
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+unusedfile=$ZETTEL_DIR/auto/unused-numbers.txt
 usedfile=/tmp/zgaps-used.$$
 allfile=/tmp/zgaps-all.$$
 
-cd $zetteldir/main
+cd $ZETTEL_DIR/main
 find -L -name "[0-9][0-9][0-9]*.txt" |
     sed -re 's!^.*/([0-9]{3}).*\.txt!\1!g' |
     sort -n |

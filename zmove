@@ -6,7 +6,11 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-zetteldir=$HOME/Dropbox/Doc/zettel
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
 ext=txt
 
 old="$1"
@@ -20,7 +24,7 @@ else
     echo "zmove: Unable to figure out what file '$1' is"
     exit 1
 fi
-oldfull="${oldfull##$zetteldir/}"
+oldfull="${oldfull##$ZETTEL_DIR/}"
 
 # Figure out where to move to
 new="$2"
@@ -36,13 +40,13 @@ else
     echo "zmove: Unable to figure out what file '$2' is"
     exit 1
 fi
-newfull="${newfull##$zetteldir/}"
+newfull="${newfull##$ZETTEL_DIR/}"
 
 echo "zmove: Press [Enter] to move $oldfull to $newfull..."
 read
 
 # Move the files themselves
-cd $zetteldir
+cd $ZETTEL_DIR
 hg mv $oldfull $newfull
 if [[ $? -ne 0 ]]; then
     echo "zmove: Mercurial could not move the file; aborting"

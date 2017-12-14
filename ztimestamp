@@ -1,7 +1,10 @@
 #!/usr/bin/bash
-# Get timestamp for the given file
+# Get timestamp for the given Zettel file
 
-zetteldir="$HOME/doc/zettel"
-tsfile="$zetteldir/.hgtimestamp"
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+tsfile="$ZETTEL_DIR/.hgtimestamp"
 date -d@$(grep '["/]'"$1" $tsfile | grep -oE '[0-9]{10}\.[0-9]+') "+%Y-%m-%d %H:%M"
-

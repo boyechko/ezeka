@@ -1,6 +1,11 @@
 #!/usr/bin/bash
 
-hgtimestamp=$HOME/Dropbox/Doc/zettel/.hgtimestamp
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+hgtimestamp=$ZETTEL_DIR/.hgtimestamp
 
 function usage() {
     echo "Usage: zfix [--fromname|-f] [--oldname|-o slug] <zettel-file>"

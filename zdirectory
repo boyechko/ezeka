@@ -1,34 +1,38 @@
 #!/usr/bin/bash
 # Figure out the right directory for the given numerus currens
 
-zetteldir=$HOME/Dropbox/Doc/zettel/main
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: zdirectory <numerus currens>"
 fi
 
+maindir=$ZETTEL_DIR/main
 justnum=$(echo $1 | sed -e 's/^0*//')
 justnum="${justnum%%-*}"
 if [[ "$justnum" -ge 0 && "$justnum" -le 99 ]]; then
-    echo "$zetteldir/000-099"
+    echo "$maindir/000-099"
 elif [[ "$justnum" -ge 100 && "$justnum" -le 199 ]]; then
-    echo "$zetteldir/100-199"
+    echo "$maindir/100-199"
 elif [[ "$justnum" -ge 200 && "$justnum" -le 299 ]]; then
-    echo "$zetteldir/200-299"
+    echo "$maindir/200-299"
 elif [[ "$justnum" -ge 300 && "$justnum" -le 399 ]]; then
-    echo "$zetteldir/300-399"
+    echo "$maindir/300-399"
 elif [[ "$justnum" -ge 400 && "$justnum" -le 499 ]]; then
-    echo "$zetteldir/400-499"
+    echo "$maindir/400-499"
 elif [[ "$justnum" -ge 500 && "$justnum" -le 599 ]]; then
-    echo "$zetteldir/500-599"
+    echo "$maindir/500-599"
 elif [[ "$justnum" -ge 600 && "$justnum" -le 699 ]]; then
-    echo "$zetteldir/600-699"
+    echo "$maindir/600-699"
 elif [[ "$justnum" -ge 700 && "$justnum" -le 799 ]]; then
-    echo "$zetteldir/700-799"
+    echo "$maindir/700-799"
 elif [[ "$justnum" -ge 800 && "$justnum" -le 899 ]]; then
-    echo "$zetteldir/800-899"
+    echo "$maindir/800-899"
 elif [[ "$justnum" -ge 900 && "$justnum" -le 999 ]]; then
-    echo "$zetteldir/900-999"
+    echo "$maindir/900-999"
 else
     echo "zdirectory: Unable to find right directory"
     exit 1

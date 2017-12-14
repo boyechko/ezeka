@@ -5,7 +5,10 @@ usage() {
     exit 0
 }
 
-zetteldir=$HOME/Dropbox/Doc/zettel
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
 
-cd $zetteldir
+cd $ZETTEL_DIR
 grep --include='*.txt' -lRE "[:|[]${1}]]" *
