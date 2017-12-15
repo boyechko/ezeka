@@ -6,6 +6,7 @@
 # -----------------------------------------------------------------------------
 
 require 'time'
+require 'yaml'
 
 class Zettelkasten
   class << self; attr_accessor :root end
@@ -41,85 +42,27 @@ class Zettelkasten
   end
 end
 
-class Metadata
-  attr_accessor :hash
-  attr_reader :title, :subtitle, :created, :modified, :oldname,
-              :first_reading, :second_reading
-
-  # Reads the first paragraph of the given path as YAML metadata from the
-  # Zettel, returning a hash of values
-  def initialize(path)
-    @hash = {}
-
-    # Populate the hash
-    File.read(path).split("\n\n", 2)[0].split("\n").each do |line|
-      key, val = line.split(':').map { |x| x.strip }
-
-      if val.include?(",")
-        # If the value is a list (contains commas), make it an array, and either
-        # add it do existing array or create a new one.
-        vals = val.split("\s*,\s*")
-        if @hash[key].is_a?(Array)
-          @hash[key].concat(vals)
-        else
-          @hash[key] = vals
-        end
-      else
-        # If the value is scalar, just ensure that we're adding to rather than
-        # overwriting an existing hash entry.
-        if @hash[key]
-          if @hash[key].is_a?(Array)
-            @hash[key].push(val)
-          else
-            @hash[key] = [ @hash[key], val ]
-          end
-        else
-          @hash[key] = val
-        end
-      end
-    end
-
-    #
-    # Populate the instance variables
-    #
-
-    # Required values
-    if @hash['title'] && @hash['created']
-      @title = @hash['title']
-      @created = Time.parse(@hash['created'])
-    else
-      raise "The metadata is lacking 'title' and 'created' keys"
-    end
-
-    # Optional values
-    @subtitle = @hash['subtitle']
-    @oldname = @hash['oldname']
-    @modified = Time.parse(@hash['modified']) unless @hash['modified'].nil?
-    @first_reading = Time.parse(@hash['first_reading']) unless @hash['first_reading'].nil?
-    @second_reading = Time.parse(@hash['second_reading']) unless @hash['second_reading'].nil?
-  end
-end
-
 class Zettel
-  @metadata
   attr_reader :type, :name, :kasten, :directory, :path
+  attr_accessor :metadata
 
   def initialize(name)
     @name = name
   end
 
+  def initialize_metadata()
+    if File.exists?(@path)
+      begin
+        @metadata = YAML::load(File.read(path).split("\n\n", 2)[0])
+      rescue Exception => e
+        raise "Malformed metadata: #{e.message}"
+      end
+    end
+  end
+
   # Returns true if the zettel exists where it should
   def exists?
     File.exists?(@path)
-  end
-
-  # Returns the Metadata for the Zettel
-  def metadata
-    if @metadata.is_a?(Metadata)
-      @metadata
-    else
-      @metadata = Metadata.new(@path)
-    end
   end
 end
 
@@ -144,13 +87,10 @@ class Numerus < Zettel
         raise "Numerus currens '#{name}' is out of bounds (0-999)"
       end
       @path = "#{@directory}/#{@name}#{Zettelkasten.ext}"
+      initialize_metadata
     else
       raise TypeError, "Invalid name for a numerus currens Zettel: '#{name}'"
     end
-  end
-
-  # TODO: Get from zdatename
-  def datename()
   end
 end
 
@@ -163,9 +103,11 @@ class Tempus < Zettel
 
     if name =~ /^([a-z]+):(\d{8}T\d{4})$/
       @kasten = $1.to_sym
+      @name = $2
       @time = Time.parse(name)
       @directory = "#{Zettelkasten.dir(@kasten)}"
       @path = "#{@directory}/#{@name}#{Zettelkasten.ext}"
+      initialize_metadata
     else
       raise TypeError, "Invalid name for a tempus Zettel: '#{name}'"
     end
