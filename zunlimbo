@@ -1,52 +1,37 @@
-#!/usr/bin/bash
+# Not finished; first need to rewrite zmove. Might not need this to begin with,
+# since zmove can handle this situation just fine: zmove filepath numcur
+
+#!/usr/bin/env ruby
 # Move the limbo file to the Zettel in its proper directory
 
-function usage() {
-    echo "Usage: zunlimbo <file in limbo> <numerus currens>"
-    exit 1
-}
+require 'clamp'
+require_relative 'zettel'
 
-if [[ ! -v ZETTEL_DIR ]]; then
-    echo "$(basename $0): $ZETTEL_DIR is not set"
-    exit 1
-fi
+ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel")
+LIMBO_DIR =  ZETTEL_DIR + "/limbo"
+MAIN_DIR =  ZETTEL_DIR + "/main"
 
-limbodir=$ZETTEL_DIR/limbo
-maindir=$ZETTEL_DIR/main
-defaultext="txt"
+Clamp do
+  parameter "FILE-OR-DATENAME", "file in limbo to move out of there",
+            :attribute_name => :file
+  parameter "NUMCUR", "numerus currens to which the file should be moved to"
 
-# Have to be in $ZETTEL_DIR, otherwise Mercurial could complain about nested repos
-cd "$ZETTEL_DIR"
+  def execute
+    ext = File.extname(file) || Zettelkasten.ext
+    numcur_path = "#{`zdirectory #{numcur}`}/#{numcur}#{ext}"
 
-numcur="${2%%.*}"
-file="$1"
-ext=${file##*.}
-ext=${ext:-$defaultext}
-if [[ $# -ne 2 ]]; then
-    usage
-elif [[ ! -e $file ]]; then
-    file="$limbodir/$1.$ext"
-    ext=$ext
-    if [[ ! -e $file ]]; then
-        usage
-    fi
-fi
+    # Do some parameter checking
+    if File.exists?(numcur_path)
+      signal_usage_error "Zettel with that numerus currens already exists: " +
+                         "'#{numcur_path}'"
+    elsif ! File.exists?(file) ||
+          ! (file = "#{LIMBO_DIR}/#{file}.#{DEFAULT_EXT}" && File.exists?(file))
+      signal_usage_error "Could not find file '#{file}'"
+    else
+      system("zmove #{file} #{numcur}")
 
-rightdir=$(zdirectory $numcur)
-
-# Move the file and fix references to it
-zmove "$fname" "$moveto/$datename"
-
-echo "hg mv $file $rightdir/$numcur.$ext"
-move=$(hg mv $file $rightdir/$numcur.$ext)
-if [[ $? -eq 0 ]]; then
-    # Succcess
-    echo "Moved $file to $rightdir/$numcur.$ext"
-elif [[ $? -eq 255 ]]; then
-    # File untracked, revert to normal move
-    mv $file $rightdir/$numcur.$ext;
-    echo "Moved $file to $rightdir/$numcur.$ext"
-else
-    # Unexpected
-    echo "Unexpected failure from hg mv: $?\n$move"
-fi
+      # Have to be in ZETTEL_DIR, otherwise Mercurial could complain about nested repos
+      Dir.chdir(ZETTEL_DIR)
+    end
+  end
+end
