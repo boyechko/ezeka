@@ -21,7 +21,11 @@ Clamp do
 
   # Returns true if both times have the same date
   def same_day?(time1, time2)
-    return time1.strftime("%Y%m%d") == time2.strftime("%Y%m%d")
+    if time1.nil? || time2.nil?
+      return false
+    else
+      return time1.strftime("%Y%m%d") == time2.strftime("%Y%m%d")
+    end
   end
 
   # Returns a string containing the datename of combining the DATE and TIME,
@@ -31,7 +35,12 @@ Clamp do
   end
 
   def execute
-    metadata = YAML::load(File.read(file).split("\n\n", 2)[0])
+    begin
+      metadata = YAML::load(File.read(file).split("\n\n", 2)[0])
+    rescue Exception => e
+      puts "zdatename: Malformed metadata: #{e.message}"
+      exit(1)
+    end
 
     # Make sure the first paragraph of the file was parsed as YAML metadata
     if metadata.is_a?(Hash)

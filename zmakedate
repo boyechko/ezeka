@@ -90,16 +90,14 @@ if [[ "$time" ]]; then
     fi
 else
     #
-    # Otherwise, try random time, and if that fails, the time of last
-    # modification or the time of last status change.
+    # Otherwise, try the time of last modification, the time of last status
+    # change, and just 00:00.
     #
-    datename=$(zdatename -r "$fname")
+    datename=$(zdatename -m "$fname")
     if [[ -e "$moveto/$datename" ]]; then
-        regdatename=$datename
-        datename=$(zdatename -m "$fname")
+        datename=$(zdatename -c "$fname")
         if [[ -e "$moveto/$datename" ]]; then
-            moddatename=$datename
-            datename=$(zdatename -c "$fname")
+            datename=$(zdatename -z "$fname")
             if [[ -e "$moveto/$datename" ]]; then
                 echo "Error: Can't move $fname because all attempted datenames already exist."
                 exit 1
