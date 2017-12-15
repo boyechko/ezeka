@@ -9,6 +9,6 @@ Clamp do
 
   def execute
     Dir.chdir(Zettelkasten.root)
-    system("grep --include=*.txt -lER '[:|[]#{slug}]]' *")
+    system("grep --include=*#{Zettelkasten.ext} -lER '[:|[]#{slug}]]' *")
   end
 end
