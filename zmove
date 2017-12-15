@@ -1,73 +1,142 @@
-#!/usr/bin/bash
-# Move the given zettel to its new location
+#!/usr/bin/env ruby
+# coding: utf-8
+# Move the given zettel to a new location
 
-if [[ $# -ne 2 ]]; then
-    echo "Usage: zmove <old> <new>"
-    exit 1
-fi
+# FIXME:
+# - the path now must be absolute; allow relative path
 
-if [[ ! -v ZETTEL_DIR ]]; then
-    echo "$(basename $0): $ZETTEL_DIR is not set"
-    exit 1
-fi
+require 'clamp'
+require 'pathname'
+require 'yaml'
+require_relative 'zettel'
 
-ext=txt
+ZETTEL_DIR = Zettelkasten.root
+EXT = Zettelkasten.ext
 
-old="$1"
-oldfull=
-if [[ "$old" =~ ^[0-9]{3}[a-z-]*$ ]]; then
-    oldfull="$(zdirectory $old)/$old.$ext"
-elif [[ -e "$old" ]]; then
-    oldfull=$old
-    old=$(basename -s ".$ext" $oldfull)
-else
-    echo "zmove: Unable to figure out what file '$1' is"
-    exit 1
-fi
-oldfull="${oldfull##$ZETTEL_DIR/}"
+Clamp do
+  parameter "OLD", "zettel to move (numerus currens or filepath)"
+  parameter "NEW", "where to move the zettel (numerus currens or filepath)"
 
-# Figure out where to move to
-new="$2"
-newfull=
-if [[ "$new" =~ ^[0-9]{3}[a-z-]*$ ]]; then
-    newfull="$(zdirectory $new)/$new.txt"
-elif [[ "$new" =~ \.txt$ ]]; then
-    # FIX: Hack, assumes that if a file has extension, then treat as fully
-    # qualified.
-    newfull=$new
-    new=$(basename -s .txt $new)
-else
-    echo "zmove: Unable to figure out what file '$2' is"
-    exit 1
-fi
-newfull="${newfull##$ZETTEL_DIR/}"
+  # Reads the STRING as YAML metadata from the Zettel, returning a hash of values
+  def from_yaml(string)
+    hash = {}
+    string.split("\n").each do |line|
+      key, val = line.split(':').map { |x| x.strip }
 
-echo "zmove: Press [Enter] to move $oldfull to $newfull..."
-read
+      if val.include?(",")
+        # If the value is a list (contains commas), make it an array, and either
+        # add it do existing array or create a new one.
+        vals = val.split("\s*,\s*")
+        if hash[key].is_a?(Array)
+          hash[key].concat(vals)
+        else
+          hash[key] = vals
+        end
+      else
+        # If the value is scalar, just ensure that we're adding to rather than
+        # overwriting an existing hash entry.
+        if hash[key]
+          if hash[key].is_a?(Array)
+            hash[key].push(val)
+          else
+            hash[key] = [ hash[key], val ]
+          end
+        else
+          hash[key] = val
+        end
+      end
+    end
+    return hash
+  end
 
-# Move the files themselves
-cd $ZETTEL_DIR
-hg mv $oldfull $newfull
-if [[ $? -ne 0 ]]; then
-    echo "zmove: Mercurial could not move the file; aborting"
-    exit 1
-fi
+  # Generates a YAML block as a string, using inline sequence style
+  def to_yaml(hash)
+    result = ""
+    hash.each do |key, val|
+      if val.is_a?(Array)
+        result += "#{key}: #{val.join(' ')}\n"
+      else
+        result += "#{key}: #{val}\n"
+      end
+    end
+    return result
+  end
 
-# Change the title and add oldname, and then retouch to original modtime
-sed -i -e "s/§$old\\./§$new\\./" $newfull
-gawk -i inplace "NR==1,/^$/{sub(/^$/, \"oldname: ${old}\\n\")} 1" $newfull
-zfix $newfull
+  # Returns the wiki link target for the given Zettel file
+  def link_target(file_path)
+    parent = File.dirname(file_path).split("/").last
+    zettel = File.basename(file_path, EXT)
+    if parent =~ /(limbo|tech|personal|writing)/
+      return "#{1}:#{zettel}"
+    else
+      return zettel
+    end
+  end
 
-# Find and replace all wiki links to $old with $new
-if [[ "$oldfull" =~ ^(limbo|tech|personal)/.* ]]; then
-    old="${BASH_REMATCH[1]}:$old"
-fi
-if [[ "$newfull" =~ ^(limbo|tech|personal)/.* ]]; then
-    new="${BASH_REMATCH[1]}:$new"
-fi
-echo "zmove: Find and replace all wiki links to $old with $new..."
-links=$(zlinksto $old)
-echo "$links"
-echo "zmove: Press [Enter] to replace the links..."
-read
-echo "$links" | zchangelinks $old $new
+  def execute
+    # Figure out the full path for OLD
+    if old =~ /^\d{3}[a-z-]*$/
+      old_path = Numerus.new(old).path
+    elsif File.exists?(old)
+      old_path = File.expand_path(old)
+      old = File.basename(old_path, EXT)
+    else
+      puts "zmove: Unable to figure out what file '#{old}' is"
+      exit(1)
+    end
+    #puts "TESTING #{Pathname.new(old_path)}, #{Pathname.new(Zettelkasten.root)}"
+    old_relv = Pathname.new(old_path).relative_path_from(Pathname.new(Zettelkasten.root)).to_s
+
+    # Figure out the full path for NEW
+    if new =~ /^\d{3}[a-z-]*$/
+        new_path = Numerus.new(new).path
+    elsif new =~ /#{EXT}$/
+      # FIXME: A hack, assumes if a file has an extension, treat it as fully
+      # qualified.
+      new_path = File.expand_path(new)
+      new = File.basename(new_path, EXT)
+    else
+      puts "zmove: Unable to figure out what file '#{new}' is"
+      exit(1)
+    end
+    new_relv = Pathname.new(new_path).relative_path_from(Pathname.new(Zettelkasten.root)).to_s
+
+    # Give user chance to interrupt
+    puts "zmove: Press [Enter] to move #{old_relv} to #{new_relv}..."
+    STDIN.gets
+
+    # Move the files themselves
+    Dir.chdir(Zettelkasten.root)
+    system("hg mv #{old_relv} #{new_relv}")
+    if $?.exitstatus != 0
+      puts "zmove: Mercurial could not move the file; aborting"
+      exit(1)
+    end
+
+    # Change the title, add oldname, and then retouch to original modtime
+    metadata = from_yaml(File.read(new_path).split("\n\n", 2)[0])
+    if metadata.is_a?(Hash)
+      metadata['title'].gsub("§#{old}.", "§#{new}.") if metadata['title']
+      if metadata['oldname'].is_a?(Array)
+        metadata['oldname'].push(old)
+      else
+        metadata['oldname'] = [ old ]
+      end
+    else
+      puts "zmove: Cannot parse the file's metadata; leaving file unchanged"
+      exit(0)
+    end
+    system("zfix #{new_path}")
+
+    # Find and replace all wiki links to $old with $new
+    puts "zmove: Find and replace all wiki links to #{old} with #{new}..."
+    links = `zlinksto #{old}`
+    puts links + "\nPress [Enter] to replace the links..."
+    STDIN.gets
+    IO.popen("zchangelinks #{old} #{new}") do |subproc|
+      subproc.write(links)
+      subproc.close_write
+      puts subproc.read
+    end
+  end
+end
