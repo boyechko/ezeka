@@ -2,23 +2,30 @@
 # Replace wiki links from before to after in files read from STDIN
 
 require 'clamp'
-
-ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel/main")
+require_relative 'zettel'
 
 Clamp do
   parameter "BEFORE", "the link text to replace", :attribute_name => :before
   parameter "AFTER", "link text to replace with", :attribute_name => :after
 
   def execute
+    # Need to get rid of ARGV arguments before ARGF.each_line starts reading
+    # from STDIN
+    until ARGV.empty? do
+      ARGV.shift
+    end
+
     # Read list of files to replace the links in from STDIN
-    ARGF.each do |file|
+    ARGF.each_line do |file|
+      file = file.strip
       file_slug = File.basename(file, ".*")
 
       # Check that the file exists and is either a numerus currens or datetime
       if File.exists?(file) &&
          (file_slug =~ /^[0-9]{3}/ || file_slug =~ /^[0-9]{8}T[0-9]{4}/)
-        puts "zreplacelinks: Replacing links in #{file}..."
-        File.write(file, File.read(file).gsub(/([[|:])#{before}]]/, "\\1#{after}]]"))
+        print "zreplacelinks: Replacing links in #{file}..."
+        File.write(file, File.read(file).gsub(/#{before}\]\]/, "#{after}]]"))
+        puts "Done"
       else
         puts "zreplacelinks: File '#{file}' doesn't appear valid; skipping"
       end
