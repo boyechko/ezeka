@@ -1,18 +1,25 @@
 #!/usr/bin/bash
-# Usage: zetgenfreq <frequency-file>
+# Generates the frequency file
 
-zetteldir=$HOME/Dropbox/Doc/zettel
-allzettel="$zetteldir/auto/all-zettel.dat"
-freqfile="$zetteldir/auto/word-frequency.dat"
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+allzettel="$ZETTEL_DIR/auto/all-zettel.dat"
+freqfile="$ZETTEL_DIR/auto/word-frequency.dat"
 excludefile=/tmp/all-zettel.$$.exclude
 
-# Exclude the metadata keywords
+# Exclude the metadata keywords and common section names
 cat > $excludefile <<EOF
 created
 title
 modified
 oldname
-first-reading
+readings
+summary
+notes
+connections
 EOF
 
 # Create frequency file if it doesn't exist

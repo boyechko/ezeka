@@ -1,18 +1,22 @@
 #!/usr/bin/bash
 # Move the limbo file to the Zettel in its proper directory
 
-zetteldir=$HOME/Dropbox/Doc/zettel
-limbodir=$zetteldir/limbo
-maindir=$zetteldir/main
-defaultext="txt"
-
 function usage() {
     echo "Usage: zunlimbo <file in limbo> <numerus currens>"
     exit 1
 }
 
-# Have to be in $zetteldir, otherwise Mercurial could complain about nested repos
-cd "$zetteldir"
+if [[ ! -v ZETTEL_DIR ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+limbodir=$ZETTEL_DIR/limbo
+maindir=$ZETTEL_DIR/main
+defaultext="txt"
+
+# Have to be in $ZETTEL_DIR, otherwise Mercurial could complain about nested repos
+cd "$ZETTEL_DIR"
 
 numcur="${2%%.*}"
 file="$1"

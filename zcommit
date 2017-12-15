@@ -3,5 +3,3 @@
 
 zfixtimes
 hg commit -m \"${@:-Periodic}\"
-
-
