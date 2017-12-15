@@ -1,41 +1,39 @@
-#!/usr/bin/bash
+#!/usr/bin/env ruby
+# Rename Zettel to date/time and move it into limbo
 
-function usage() {
-    echo "Usage: zlimbo <slug> -- rename Zettel to date/time and move it into limbo"
-    exit 1
-}
+require 'clamp'
+require_relative 'zettel'
 
-if [[ $# -lt 1 ]]; then
-    usage
-    exit 1
-fi
+Clamp do
+  parameter "SLUG", "slug of the Zettel to move to limbo"
+  option ["-t", "--time"], "HHMM", "use the specified time", :attribute_name => :use_time do |s|
+    if s =~ /^(\d{2}):*(\d{2})$/
+      Time.new(1, 1, 1, $1.to_i, $2.to_i)
+    else
+      signal_usage_error "time should be in the format HHMM, e.g. 1234"
+    end
+  end
 
-# Process command line options
-slug=
-time=
-while [ "$1" != "" ]; do
-    case "$1" in
-        -t | --time )
-            shift
-            time="$1"
-            ;;
-        * )
-            slug="$1"
-    esac
-    shift
-done
+  def execute
+    if File.exists?(slug)
+      puts "The slug should not be a full pathname, just the slug."
+      exit(1)
+    end
 
-echo "Files with links to $slug:"
-echo "--------------------------"
-zlinksto $slug
+    puts "Files with links to #{slug}:"
+    puts "--------------------------"
+    system("zlinksto", "#{slug}")
+    puts ""
 
-echo "Zettel matching $slug:"
-echo "--------------------------"
-zfind $slug
-echo -e "\n"
+    puts "Zettel beginning with #{slug}:"
+    puts "--------------------------"
+    system("zfind", "#{slug}")
+    puts ""
 
-if [[ "$time" ]]; then
-    zmakedate -t $time -m limbo "$slug"
-else
-    zmakedate -m limbo "$slug"
-fi
+    if use_time then
+      system("zmakedate", "-t", use_time.strftime("%H%M"), "-m", "limbo", slug)
+    else
+      system("zmakedate", "-m", "limbo", slug)
+    end
+  end
+end
