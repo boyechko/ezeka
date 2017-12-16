@@ -10,40 +10,29 @@ require 'yaml'
 
 class Zettelkasten
   class << self; attr_accessor :root end
-  class << self; attr_accessor :main end
-  class << self; attr_accessor :limbo end
-  class << self; attr_accessor :tech end
-  class << self; attr_accessor :writing end
   class << self; attr_accessor :ext end
-
-  @root = ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel')
-  @main = "#{@root}/main"
-  @limbo = "#{@root}/limbo"
-  @tech = "#{@root}/tech"
-  @writing = "#{@root}/writing"
 
   # Default extension for Zettelkasten files
   @ext = ".txt"
 
-  # Returns the directory for the kasten as a symbol
-  def self.dir(symbol)
-    case symbol
-    when :main
-      @main
-    when :limbo
-      @limbo
-    when :tech
-      @tech
-    when :writing
-      @writing
+  @root = Pathname(ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel'))
+  @kaesten = { "main"    => root + "main",
+               "limbo"   => root + "limbo",
+               "tech"    => root + "tech",
+               "writing" => root + "writing" }
+
+  # Returns the directory for the given kasten
+  def self.dir(kasten)
+    if @kaesten[kasten]
+      return @kaesten[kasten]
     else
-      raise "Unknown kasten '#{symbol}'"
+      raise "Unknown kasten '#{kasten}'"
     end
   end
 
   # Returns true if the given string names a valid kasten
-  def self.valid_kasten?(string)
-    return ['main', 'limbo', 'tech', 'writing'].include?(string)
+  def self.kasten?(string)
+    return true if @kaesten[string]
   end
 end
 
