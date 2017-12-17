@@ -74,7 +74,26 @@ class Zettelkaesten
 
   # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
   # from the given link.
-  def self.zettel_from(link)
+  def self.zettel_from_link(link)
+    if Numerus.valid_link?(link)
+      return Numerus.new_from_link(link)
+    elsif Tempus.valid_link?(link)
+      return Tempus.new_from_link(link)
+    else
+      return nil
+    end
+  end
+
+  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
+  # from the given path.
+  def self.zettel_from_path(path)
+    if Numerus.valid_path?(path)
+      return Numerus.new_from_path(path)
+    elsif Tempus.valid_path?(path)
+      return Tempus.new_from_path(path)
+    else
+      return nil
+    end
   end
 end
 
@@ -103,6 +122,15 @@ class Zettel
   # Returns true if the zettel exists where it should
   def exists?
     File.exists?(@path)
+  end
+
+  # Returns a relative path to Zettel from the Zettelkaesten root
+  def relative_path()
+    if @path
+      return @path.relative_path_from(Zettelkaesten.root)
+    else
+      raise "The Zettel has no path set"
+    end
   end
 
   # Generates a YAML block as a string, using inline sequence style. Can't use
@@ -202,7 +230,7 @@ class Numerus < Zettel
 
   # Returns true if the link (a string) is a valid link to Numerus Currens Zettel
   def self.valid_link?(string)
-    return link =~ LINK_PATTERN ? true : false
+    return string =~ LINK_PATTERN ? true : false
   end
 
   # Returns true if the string is a valid path a to numerus currens zettel
