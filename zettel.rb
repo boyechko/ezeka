@@ -7,6 +7,11 @@
 
 require 'time'
 require 'yaml'
+require 'pathname'
+
+#-------------------------------------------------------------------------------
+# Zettelkaesten
+#-------------------------------------------------------------------------------
 
 class Zettelkaesten
   class << self; attr_accessor :root end
@@ -72,6 +77,10 @@ class Zettelkaesten
   def self.zettel_from(link)
   end
 end
+
+#-------------------------------------------------------------------------------
+# Zettel
+#-------------------------------------------------------------------------------
 
 class Zettel
   attr_reader :type,            # Zettel type; either :tempus or :numerus
@@ -154,6 +163,7 @@ class Numerus < Zettel
       @litterae = $3
       @section = self.class.section_of(@slug)
       @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
+      initialize_metadata if @path.exist?
     else
       raise "The link does not point to a numerus currens: #{link}"
     end
@@ -190,9 +200,9 @@ class Numerus < Zettel
     end
   end
 
-  # Returns true if the link (a string) is a valid link to numerus currens zettel
-  def self.valid_link?(link)
-    return link =~ SLUG_PATTERN ? true : false
+  # Returns true if the link (a string) is a valid link to Numerus Currens Zettel
+  def self.valid_link?(string)
+    return link =~ LINK_PATTERN ? true : false
   end
 
   # Returns true if the string is a valid path a to numerus currens zettel
@@ -203,60 +213,78 @@ class Numerus < Zettel
   end
 end
 
+#-------------------------------------------------------------------------------
+# Tempus
+#-------------------------------------------------------------------------------
+
 class Tempus < Zettel
   LINK_PATTERN = /^([a-z]+):(\d{8}T\d{4})$/
   SLUG_PATTERN = /^\d{8}T\d{4}$/
 
-  @type = :tempus
-  attr_reader :time
+  attr_reader :time             # the time of the Zettel as a Time object
 
-  def initialize(string)
-    # Figure out of we're passed a slug or a path
-    if File.exists?(string) && valid_link_or_path?(string) then
-      # FIXME: This would allow paths outside of the Zettelkaesten
-      path = Pathname(string)
-      @kasten = path.dirname.to_s.to_sym
-      @slug = path.basename(Zettelkaesten.ext).to_s
-    elsif string =~ LINK_PATTERN
-      if Zettelkaesten.valid_kasten?($1.to_sym)
-        @kasten = $1.to_sym
-        @slug = $2
-      else
-        raise TypeError, "Unknown Kasten: '#{$1.to_sym}'"
-      end
-    else
-      raise TypeError, "Invalid slug for a tempus Zettel: '#{slug}'"
-    end
-    super(slug)
-
-    @time = Time.parse(slug)
-    @directory = "#{Zettelkaesten.dir(@kasten)}"
-    @path = "#{@directory}/#{@slug}#{Zettelkaesten.ext}"
-    initialize_metadata
+  #
+  # Custom Constructors
+  #
+  def self.new_from_path(*args)
+    numerus = allocate
+    numerus.init_path(*args)
+    numerus
   end
 
+  def self.new_from_link(*args)
+    numerus = allocate
+    numerus.init_link(*args)
+    numerus
+  end
+
+  #
+  # Custom Initializers
+  #
+  def init_path(path)
+    if Zettelkaesten.includes?(path)
+      init_link(Zettelkaesten.kasten_of(path) +
+                ":" +
+                Pathname(path).basename(Zettelkaesten.ext).to_s)
+    else
+      raise "The path is not part of the Zettelkaesten: #{path}"
+    end
+  end
+
+  def init_link(link)
+    if link =~ LINK_PATTERN
+      @slug = $2
+      @type = :tempus
+      @kasten = $1
+      @time = Time.parse(@slug)
+      @path = Zettelkaesten.dir(@kasten) + (@slug + Zettelkaesten.ext)
+      initialize_metadata if @path.exist?
+    else
+      raise "The link does not point to a Tempus Zettel: #{link}"
+    end
+  end
+
+  #
+  # Instance Methods
+  #
+
   # Returns the wiki link target
-  def link_target()
+  def link()
     return "#{@kasten}:#{@slug}"
   end
 
-  # Returns true if the link (a string) is a valid link to tempus zettel
-  def self.valid_link?(link)
-    return link =~ LINK_PATTERN ? true : false
+  #
+  # Class Methods
+  #
+
+  # Returns true if the link (a string) is a valid link to Tempus Zettel
+  def self.valid_link?(string)
+    return string =~ LINK_PATTERN ? true : false
   end
 
-  # Returns true if the string is a valid link or path a to numerus currens zettel
-  def self.valid_link_or_path?(string)
-    if string =~ LINK_PATTERN
-      return true
-    else
-      path = Pathname(string)
-      if path.basename(Zettelkaesten.ext).to_s =~ SLUG_PATTERN &&
-         Zettelkaesten.valid_kasten?(path.dirname.split[1].to_s)
-        return true
-      else
-        return false
-      end
-    end
+  # Returns true if this is a valid path a to numerus currens zettel
+  def self.valid_path?(string)
+    return File.basename(string, Zettelkaesten.ext) =~ SLUG_PATTERN &&
+           Zettelkaesten.includes?(string) ? true : false
   end
 end
