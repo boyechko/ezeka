@@ -5,8 +5,8 @@ require 'clamp'
 require 'time'
 require_relative 'zettel'
 
-HG_TIMESTAMP = File.join(Zettelkasten.root, ".hgtimestamp")
-EXT = Zettelkasten.ext
+HG_TIMESTAMP = File.join(Zettelkaesten.root, ".hgtimestamp")
+EXT = Zettelkaesten.ext
 
 Clamp do
   parameter "FILE", "zettel file for which to fix the timestamp",

@@ -8,7 +8,7 @@ Clamp do
   parameter "SLUG", "slug to find links to", :attribute_name => :slug
 
   def execute
-    Dir.chdir(Zettelkasten.root)
-    system("grep --include=*#{Zettelkasten.ext} -lER '[:|[]#{slug}]]' *")
+    Dir.chdir(Zettelkaesten.root)
+    system("grep --include=*#{Zettelkaesten.ext} -lER '[:|[]#{slug}]]' *")
   end
 end

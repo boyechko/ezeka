@@ -19,7 +19,7 @@ Clamp do
 
     # Move those zettels
     files.each do |file|
-      old_slug = File.basename(file, Zettelkasten.ext)
+      old_slug = File.basename(file, Zettelkaesten.ext)
       new_slug = old_slug.gsub(source, target)
       puts "Moving #{old_slug} to #{new_slug}"
       #system("zmove", old_slug, new_slug)
