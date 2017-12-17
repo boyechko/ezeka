@@ -6,134 +6,72 @@
 # - the path now must be absolute; allow relative path
 
 require 'clamp'
-require 'pathname'
-require 'yaml'
 require_relative 'zettel'
 
-ZETTEL_DIR = Zettelkasten.root
-EXT = Zettelkasten.ext
+ZETTEL_DIR = Zettelkaesten.root
+EXT = Zettelkaesten.ext
 
 Clamp do
-  parameter "OLD", "zettel to move (numerus currens or filepath)"
-  parameter "NEW", "where to move the zettel (numerus currens or filepath)"
-
-  # Reads the STRING as YAML metadata from the Zettel, returning a hash of values
-  def from_yaml(string)
-    hash = {}
-    string.split("\n").each do |line|
-      key, val = line.split(':').map { |x| x.strip }
-
-      if val.include?(",")
-        # If the value is a list (contains commas), make it an array, and either
-        # add it do existing array or create a new one.
-        vals = val.split("\s*,\s*")
-        if hash[key].is_a?(Array)
-          hash[key].concat(vals)
-        else
-          hash[key] = vals
-        end
-      else
-        # If the value is scalar, just ensure that we're adding to rather than
-        # overwriting an existing hash entry.
-        if hash[key]
-          if hash[key].is_a?(Array)
-            hash[key].push(val)
-          else
-            hash[key] = [ hash[key], val ]
-          end
-        else
-          hash[key] = val
-        end
-      end
-    end
-    return hash
-  end
-
-  # Generates a YAML block as a string, using inline sequence style
-  def to_yaml(hash)
-    result = ""
-    hash.each do |key, val|
-      if val.is_a?(Array)
-        result += "#{key}: #{val.join(' ')}\n"
-      else
-        result += "#{key}: #{val}\n"
-      end
-    end
-    return result
-  end
-
-  # Returns the wiki link target for the given Zettel file
-  def link_target(file_path)
-    parent = File.dirname(file_path).split("/").last
-    zettel = File.basename(file_path, EXT)
-    if parent =~ /(limbo|tech|personal|writing)/
-      return "#{1}:#{zettel}"
-    else
-      return zettel
-    end
-  end
+  parameter "SOURCE", "Zettel to move (link or filepath)",
+            :attribute_name => :source_string
+  parameter "TARGET", "where to move the Zettel (link or filepath)",
+            :attribute_name => :target_string
 
   def execute
-    # Figure out the full path for OLD
-    if old =~ /^\d{3}[a-z-]*$/
-      old_path = Numerus.new(old).path
-    elsif File.exists?(old)
-      old_path = File.expand_path(old)
-      old = File.basename(old_path, EXT)
+    if Numerus.valid_link?(source_string) || Tempus.valid_link?(source_string)
+      source = Zettelkaesten.zettel_from_link(source_string)
+    elsif Numerus.valid_path?(source_string) || Tempus.valid_path?(source_string)
+      source = Zettelkaesten.zettel_from_path(source_string)
     else
-      puts "zmove: Unable to figure out what file '#{old}' is"
+      puts "zmove: Source is neither a valid link nor a valid path."
       exit(1)
     end
-    #puts "TESTING #{Pathname.new(old_path)}, #{Pathname.new(Zettelkasten.root)}"
-    old_relv = Pathname.new(old_path).relative_path_from(Pathname.new(Zettelkasten.root)).to_s
+    raise "Source is not initialized" unless source
+    source_rel = source.relative_path
 
-    # Figure out the full path for NEW
-    if new =~ /^\d{3}[a-z-]*$/
-        new_path = Numerus.new(new).path
-    elsif new =~ /#{EXT}$/
-      # FIXME: A hack, assumes if a file has an extension, treat it as fully
-      # qualified.
-      new_path = File.expand_path(new)
-      new = File.basename(new_path, EXT)
+    if Numerus.valid_link?(target_string) || Tempus.valid_link?(target_string)
+      target = Zettelkaesten.zettel_from_link(target_string)
+    elsif Numerus.valid_path?(target_string) || Tempus.valid_path?(target_string)
+      target = Zettelkaesten.zettel_from_path(target_string)
     else
-      puts "zmove: Unable to figure out what file '#{new}' is"
+      puts "zmove: Target is neither a valid link nor a valid path."
       exit(1)
     end
-    new_relv = Pathname.new(new_path).relative_path_from(Pathname.new(Zettelkasten.root)).to_s
+    target_rel = target.relative_path
 
     # Give user chance to interrupt
-    puts "zmove: Press [Enter] to move #{old_relv} to #{new_relv}..."
+    puts "zmove: Press [Enter] to move #{source_rel} to #{target_rel}..."
     STDIN.gets
 
     # Move the files themselves
-    Dir.chdir(Zettelkasten.root)
-    system("hg mv #{old_relv} #{new_relv}")
+    Dir.chdir(Zettelkaesten.root)
+    system("hg mv #{source_rel} #{target_rel}")
     if $?.exitstatus != 0
       puts "zmove: Mercurial could not move the file; aborting"
       exit(1)
     end
 
     # Change the title, add oldname, and then retouch to original modtime
-    metadata = from_yaml(File.read(new_path).split("\n\n", 2)[0])
-    if metadata.is_a?(Hash)
-      metadata['title'].gsub("§#{old}.", "§#{new}.") if metadata['title']
-      if metadata['oldname'].is_a?(Array)
-        metadata['oldname'].push(old)
+    target.initialize_metadata
+    if target.metadata
+      target.metadata['title'].gsub("§#{source.slug}.", "§#{target.slug}.")
+      if target.metadata['oldnames'].is_a?(Array)
+        target.metadata['oldnames'].push(source.slug)
       else
-        metadata['oldname'] = [ old ]
+        target.metadata['oldnames'] = [ source.slug ]
       end
     else
-      puts "zmove: Cannot parse the file's metadata; leaving file unchanged"
-      exit(0)
+      puts "zmove: The file has no metadata; leaving file unchanged"
+      exit(1)
     end
-    system("zfix #{new_path}")
+    system("zfix", target.slug, "-o", source.slug)
 
-    # Find and replace all wiki links to $old with $new
-    puts "zmove: Find and replace all wiki links to #{old} with #{new}..."
-    links = `zlinksto #{old}`
+    # Find and replace all wiki links to $source with $target
+    puts "zmove: Find and replace all wiki links to #{source.link} with #{target.link}..."
+    links = `zlinksto #{source.slug}`
     puts links + "\nPress [Enter] to replace the links..."
     STDIN.gets
-    IO.popen("zchangelinks #{old} #{new}") do |subproc|
+    IO.popen("zreplacelinks #{source.slug} #{target.slug}") do |subproc|
       subproc.write(links)
       subproc.close_write
       puts subproc.read
