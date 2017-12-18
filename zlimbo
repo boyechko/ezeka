@@ -6,7 +6,8 @@ require_relative 'zettel'
 
 Clamp do
   parameter "SLUG", "slug of the Zettel to move to limbo"
-  option ["-t", "--time"], "HHMM", "use the specified time", :attribute_name => :use_time do |s|
+  option ["-t", "--time"], "HHMM", "use the specified time",
+         :attribute_name => :use_time do |s|
     if s =~ /^(\d{2}):*(\d{2})$/
       Time.new(1, 1, 1, $1.to_i, $2.to_i)
     else

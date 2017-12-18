@@ -42,7 +42,7 @@ while [ "$1" != "" ]; do
             elif [[ "$1" == "personal" ]]; then
                 moveto=$personaldir
             elif [[ "$1" == "writing" ]]; then
-                moveto=$writingdir                
+                moveto=$writingdir
             else
                 echo "Error: Unknown move destination ($1); giving up"
                 exit 1
