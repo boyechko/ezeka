@@ -107,17 +107,8 @@ class Zettel
               :slug,            # slug only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless main)
               :path             # full path, as Pathname
-  attr_accessor :metadata       # hash
-
-  def initialize_metadata()
-    if File.exists?(@path)
-      begin
-        @metadata = YAML::load(File.read(path).split("\n\n", 2)[0])
-      rescue Exception => e
-        raise "Malformed metadata: #{e.message}"
-      end
-    end
-  end
+  attr_accessor :metadata,      # hash
+                :text           # the text of the Zettel
 
   # Returns true if the zettel exists where it should
   def exists?
@@ -133,9 +124,36 @@ class Zettel
     end
   end
 
-  # Generates a YAML block as a string, using inline sequence style. Can't use
-  # YAML::to_yaml() because it does not support inline style.
-  def self.to_yaml()
+  # Reads the Zettel file, setting the @metadata and @text instance variables.
+  def read_file()
+    if File.readable?(@path)
+      begin
+        content = File.read(path)
+        metadata, @text = content.split("\n\n", 2)
+        @metadata = YAML::load(metadata)
+      rescue Exception => e
+        raise "Malformed metadata: #{e.message}"
+      end
+    else
+      raise "The file for Zettel '#{@slug}' is not readable: #{@path}"
+    end
+  end
+
+  # Writes to the Zettel file the content of metadata (in YAML) and @text.
+  def write_file()
+    if File.writable?(@path)
+      File.write(@path, to_yaml(metadata) + "\n" + @text)
+    else
+      raise "The file for Zettel '#{@slug}' is not writable: #{@path}"
+    end
+  end
+
+  private
+
+  # Returns a YAML block as a string, using inline sequence style.
+  #
+  # Can't use YAML::to_yaml() because it does not support inline style.
+  def to_yaml(hash)
     result = ""
     hash.each do |key, val|
       if val.is_a?(Array)
@@ -191,7 +209,7 @@ class Numerus < Zettel
       @litterae = $3
       @section = self.class.section_of(@slug)
       @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
-      initialize_metadata if @path.exist?
+      read_file if @path.exist?
     else
       raise "The link does not point to a numerus currens: #{link}"
     end
@@ -286,7 +304,7 @@ class Tempus < Zettel
       @kasten = $1
       @time = Time.parse(@slug)
       @path = Zettelkaesten.dir(@kasten) + (@slug + Zettelkaesten.ext)
-      initialize_metadata if @path.exist?
+      read_file if @path.exist?
     else
       raise "The link does not point to a Tempus Zettel: #{link}"
     end
