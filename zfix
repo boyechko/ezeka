@@ -59,6 +59,10 @@ Clamp do
       # Get the timestamp from filename, but it's not a datename
       p_status(file, "Can't parse filename to get time from it")
       exit(1)
+    elsif !File.exists?(HG_TIMESTAMP)
+      # No timestamp file
+      puts "zfix: No timestamp file, not getting time from name, so nothing to do"
+      exit(0)
     else
       # Get the timestamp for file or its oldname from .hgtimestamp
       #
