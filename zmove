@@ -52,29 +52,36 @@ Clamp do
     end
 
     # Change the title, add oldname, and then retouch to original modtime
-    target.initialize_metadata
+    newslug = target.slug
+    target.read_file            # re-read the moved target
     if target.metadata
-      target.metadata['title'].gsub("§#{source.slug}.", "§#{target.slug}.")
+      target.metadata['title'] = target.metadata['title']
+                                   .gsub("§#{source.slug}.", "§#{newslug}.")
       if target.metadata['oldnames'].is_a?(Array)
         target.metadata['oldnames'].push(source.slug)
       else
         target.metadata['oldnames'] = [ source.slug ]
       end
+      target.write_file
     else
       puts "zmove: The file has no metadata; leaving file unchanged"
       exit(1)
     end
-    system("zfix", target.slug, "-o", source.slug)
+    system("zfix", "-o", source.slug, target.relative_path.to_s)
 
     # Find and replace all wiki links to $source with $target
-    puts "zmove: Find and replace all wiki links to #{source.link} with #{target.link}..."
     links = `zlinksto #{source.slug}`
-    puts links + "\nPress [Enter] to replace the links..."
-    STDIN.gets
-    IO.popen("zreplacelinks #{source.slug} #{target.slug}") do |subproc|
-      subproc.write(links)
-      subproc.close_write
-      puts subproc.read
+    if !links.empty?
+      puts "zmove: Replace all wiki links to #{source.link} with #{target.link}..."
+      puts links + "\nPress [Enter] to continue..."
+      STDIN.gets
+      IO.popen("zreplacelinks #{source.slug} #{target.slug}") do |subproc|
+        subproc.write(links)
+        subproc.close_write
+        puts subproc.read
+      end
+    else
+      puts "zmove: No links needed to be replaced; we're done."
     end
   end
 end
