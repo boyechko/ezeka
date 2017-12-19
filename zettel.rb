@@ -107,8 +107,14 @@ class Zettel
               :slug,            # slug only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless main)
               :path             # full path, as Pathname
-  attr_accessor :metadata,      # hash
+  attr_accessor :metadata,      # hash of symbol -> value
                 :text           # the text of the Zettel
+
+  # More concise representation
+  def inspect()
+    return "#<#{self.class} @slug=#{@slug}, @kasten=#{@kasten}, "\
+           "@path=#{@path.relative_path_from(Zettelkaesten.root)}>"
+  end
 
   # Returns true if the zettel exists where it should
   def exists?
@@ -211,7 +217,7 @@ class Numerus < Zettel
       @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
       read_file if @path.exist?
     else
-      raise "The link does not point to a numerus currens: #{link}"
+      raise "This does not look like a Numerus Currens Zettel: #{link}"
     end
   end
 
@@ -306,7 +312,7 @@ class Tempus < Zettel
       @path = Zettelkaesten.dir(@kasten) + (@slug + Zettelkaesten.ext)
       read_file if @path.exist?
     else
-      raise "The link does not point to a Tempus Zettel: #{link}"
+      raise "This does not look like a Tempus Zettel: #{link}"
     end
   end
 
