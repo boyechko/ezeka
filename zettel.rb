@@ -133,13 +133,9 @@ class Zettel
   # Reads the Zettel file, setting the @metadata and @text instance variables.
   def read_file()
     if File.readable?(@path)
-      begin
-        content = File.read(path)
-        metadata, @text = content.split("\n\n", 2)
-        @metadata = YAML::load(metadata)
-      rescue Exception => e
-        raise "Malformed metadata: #{e.message}"
-      end
+      content = File.read(path)
+      metadata, @text = content.split("\n\n", 2)
+      @metadata = from_quasi_yaml(metadata)
     else
       raise "The file for Zettel '#{@slug}' is not readable: #{@path}"
     end
@@ -169,6 +165,48 @@ class Zettel
       end
     end
     return result
+  end
+
+  METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
+  ISO8601_PATTERN = /\d{4}-\d{2}-\d{2}/
+
+  # Returns a hash representing the YAML block given.
+  #
+  # Can't use YAML::load() because it reads the value only up to a colon (I have
+  # a lot of colons in Zettel titles) and converts numerus into a number. So
+  # this is not really YAML anymore.
+  def from_quasi_yaml(string)
+    hash = Hash.new
+    string.each_line do |line|
+      if line =~ METADATA_LINE  # $1 = key, $2 = value
+        # Fix legacy keys
+        if $1 == "oldname"
+          key = :oldnames
+        elsif $1 == "first-reading" || $1 == "second-reading"
+          key = :readings
+        else
+          key = $1.to_sym
+        end
+        value = $2
+
+        if value =~ ISO8601_PATTERN
+          value = Time.parse(value).to_date
+        elsif value =~ /\[(.*)\]/      # YAML array
+          value = $1.strip.split(/, */)
+        end
+
+        # Make sure multiple values for the same key are handled properly
+        hash[key] = Array(hash[key]) if hash[key]
+        if hash[key].is_a?(Array)
+          hash[key] = hash[key].push(value)
+        else
+          hash[key] = value
+        end
+      else
+        raise "Malformed line `#{line.strip}'"
+      end
+    end
+    return hash
   end
 end
 
