@@ -310,22 +310,29 @@ on the first line with the Zettel title string."
 with `zettel-insert-link-intrusive' or `zettel-insert-link', allowing
 for creation of backlinks.")
 
-(defun zettel-link-slug (file &optional inserting-into)
-  "Returns the slug of the given file. If INSERTING-INTO is
-given, returns a slug relative to the file specified there."
-  (let ((base-slug (file-name-base file)))
-    (cond ((not inserting-into)
+(defun zettel-link-slug (target &optional context)
+  "Returns the slug of the given TARGET, which might be a
+pathname or just the slug itself. If CONTEXT is given and is a
+file, returns a slug relative to it, otherwise returns a 'fully
+qualified' link."
+  (let ((base-slug (file-name-base target))
+        (target-dir (file-name-directory target)))
+    (cond ((and (stringp context)
+                (file-exists-p context)
+                (equal target-dir (file-name-directory context)))
+           ;; The target and context of the link are in the same location,
+           ;; return relative link.
            base-slug)
-          ((string-equal (file-name-directory file)
-                         (file-name-directory inserting-into))
-           base-slug)
-          (t
-           (let* ((dir (car (last (split-string
-                                   (file-name-directory file) "/" t))))
+          (target-dir
+           ;; The target is an actual file, return "fully qualified" link with
+           ;; the explicit subkasten.
+           (let* ((dir (car (last (split-string target-dir "/" t))))
                   (keyval (assoc dir zettel-sub-kasten)))
              (if keyval
                  (concat (car keyval) ":" base-slug)
-                 base-slug))))))
+               base-slug)))
+          (t
+           base-slug))))
 
 (defun zettel-store-link (arg)
   "Store the link 1) to the Deft file at point if in *Deft*
@@ -355,22 +362,24 @@ markdown wiki link."
   "Replaces the guillemets in the string with underscores."
   (replace-regexp-in-string "[«»]" "_" string))
 
-(defun zettel-link (file &optional include-title title-location inserting-into)
-  "Returns a markdown-formatted link to the file, including the
+(defun zettel-link (target &optional include-title title-location context)
+  "Returns a markdown-formatted link to TARGET, including the
 link title when INCLUDE-TITLE is true. If TITLE-LOCATION is RIGHT
 or T, puts the title on the right; otherwise, on the left. If
-INSERTING-INTO is given, attemps to include the correct form of a
+CONTEXT is given, attemps to include the relative form of the
 link."
-  (let ((link-text (zettel-link-slug file inserting-into)))
+  (let* ((file (if (file-exists-p target)
+                   target
+                 (zettel-convert-link-to-filename target)))
+         (link-text (zettel-link-slug file context)))
     (cond (include-title
            ;; Make sure cache is updated for the linked file
            (deft-cache-file file)
            ;; FIX: This is very hacky, since assumes there will be at least two
            ;; spaces separating the zettel number from its title.
            (let ((title
-                  (unguillemet
-                   (second
-                    (split-string (deft-file-title file) "[[:space:]]\\{2,\\}")))))
+                  (second (split-string (deft-file-title file)
+                                        "[[:space:]]\\{2,\\}"))))
              (if (or (null title-location) (eq title-location 'left))
                  (format "%s [[%s]]" title link-text)
                (format "[[%s]] %s" link-text title))))
@@ -378,7 +387,7 @@ link."
            (format "[[%s]]" link-text)))))
 
 (defun zettel-link-with-spaces (file &optional
-                                     include-title title-location inserting-into)
+                                     include-title title-location context)
   "A wrapper around `zettel-link' that returns the link with
 appropriate spaces around."
   ;; FIX: Is it okay that assumes it's called from a buffer?
@@ -387,7 +396,7 @@ appropriate spaces around."
               (when char
                 (string-match-p "[[:space:][:punct:]]" (char-to-string char)))))
     (concat (if (spacep (char-before)) "" " ")
-            (zettel-link file include-title title-location inserting-into)
+            (zettel-link file include-title title-location context)
             (if (spacep (char-after)) "" " "))))
 
 (defun zettel-insert-link (arg)
