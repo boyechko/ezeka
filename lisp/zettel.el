@@ -706,8 +706,9 @@ ring."
 
 (defun zettel-kill-ring-save-link (arg)
   "Save the current link, the deft note at point, or the buffer
-base filename in the kill ring. With prefix argument, save the
-file name relative to `zettel-directory'."
+base filename in the kill ring to be used as a wiki link
+elsewhere. With prefix argument, save the file name relative to
+`zettel-directory' instead."
   (interactive "p")
   (let ((link (cond ((equal major-mode 'deft-mode)
                      (widget-get (widget-at (point)) :tag))
@@ -720,7 +721,7 @@ file name relative to `zettel-directory'."
     (when link
       (let ((link (if (= arg 4)
                       (file-relative-name link zettel-directory)
-                      (file-name-base link))))
+                    (zettel-link-slug link))))
        (kill-new link)
        (message "Saved [%s] in the kill ring." link)))))
 
@@ -940,14 +941,20 @@ to find the Nth ancestor."
         (find-file
          (zettel-absolute-filename ancestor))))))
 
-(defun zettel-insert-ancestor-link (n)
+(defun zettel-insert-ancestor-link (arg)
   "Insert a link to the ancestor of the current zettel. With a
-prefix argument, try to find Nth ancestor."
-  (interactive "p")
+numerical prefix argument, try to find Nth ancestor. With
+universal argument, behave like `zettel-insert-link'."
+  (interactive "P")
   (when (zettel-p buffer-file-name)
-    (let ((ancestor (zettel-slug-ancestor (file-name-base buffer-file-name) n)))
-      (when ancestor
-        (insert (zettel-link-with-spaces ancestor))))))
+    (let ((link (zettel-slug-ancestor (file-name-base buffer-file-name)
+                                      (if (integerp arg) arg 1))))
+      (when link
+        (insert
+         (zettel-link-with-spaces link
+                                  (consp arg)
+                                  (equal arg '(16))
+                                  buffer-file-name))))))
 
 (defcustom zettel-loop-siblings t
   "When T, commands `zettel-next-sibling' and
