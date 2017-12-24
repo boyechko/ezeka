@@ -71,12 +71,6 @@ not listed by Deft."
        (zettel-mode 1)
        (setq org-descriptive-links nil))))
 
-;; Enable wc-mode (shows word count in the mode line) in Zettel files
-(require 'wc-mode)
-(add-hook 'zettel-mode-hook
-  (lambda ()
-    (wc-mode 1)))
-
 ;;;=============================================================================
 ;;; Deft buffer
 ;;;=============================================================================
