@@ -1050,7 +1050,7 @@ siblings as a loop."
 there are none. Respects `zettel-new-child-method'."
   )
 
-(defun pronounceablep (letters next)
+(defun slug-pronounceable-p (letters next)
   "Returns NIL if NEXT is not pronounceable after LETTERS."
   (cl-flet* ((lastn (seq n)
                     "Returns last N members of SEQ, or nil if it's too
@@ -1063,7 +1063,7 @@ there are none. Respects `zettel-new-child-method'."
                                      "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
                                      "st" "th")))
              (liquidp (ch) (member ch '("l" "r")))
-             (vowelp (ch) (member ch '("a" "e" "i" "o" "u")))
+             (vowelp (ch) (member ch '("a" "e" "i" "o" "u" "y")))
              (consonantp (ch) (not (vowelp ch))))
     (let* ((next (if (characterp next) (char-to-string next) next))
            (prev (lastn letters 1))
@@ -1086,7 +1086,7 @@ LETTERS) among UNUSED-LETTERS."
                 (elt sequence (random (length sequence))))))
     (let ((random-letter (random-elt unused-letters))
           (attempts 1))
-      (while (and (not (pronounceablep letters random-letter))
+      (while (and (not (slug-pronounceable-p letters random-letter))
                   (<= attempts 10))
         (setq random-letter (random-elt unused-letters) attempts (1+ attempts)))
       (zettel-slug number
