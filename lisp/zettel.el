@@ -369,11 +369,17 @@ link."
     (cond (include-title
            ;; Make sure cache is updated for the linked file
            (deft-cache-file file)
-           ;; FIX: This is very hacky, since assumes there will be at least two
-           ;; spaces separating the zettel number from its title.
+           ;; NOTE: This works on the assumption that there will be at least two
+           ;; spaces separating the zettel number from its title, which might be
+           ;; affected by `deft-strip-title-regexp' and/or
+           ;; `zettel-separate-deft-file-title'.
            (let ((title
-                  (second (split-string (deft-file-title file)
-                                        "[[:space:]]\\{2,\\}"))))
+                  ;; Strip any {...} type keyword, if any
+                  (replace-regexp-in-string
+                   "^{.*} " ""
+                   (second
+                    (split-string (deft-file-title file)
+                                  "[[:space:]]\\{2,\\}")))))
              (if (or (null title-location) (eq title-location 'left))
                  (format "%s [[%s]]" title link-text)
                (format "[[%s]] %s" link-text title))))
