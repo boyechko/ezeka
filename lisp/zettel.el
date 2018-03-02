@@ -459,11 +459,26 @@ current Zettel to the `zettel-link-backlink'."
         (t
          (message "No backlink to insert."))))
 
+(defun zettel-list-links ()
+  "Lists the currently stored links and backlink."
+  (interactive)
+  (message "Stored links: %s Backlink: %s"
+           (mapcar #'file-name-base zettel-stored-links)
+           (file-name-base zettel-link-backlink)))
+
+(defun zettel-drop-link ()
+  "Drops the most recent stored link."
+  (interactive)
+  (message "Dropping link to %s, remaining links: %s"
+           (file-name-base (pop zettel-stored-links))
+           (mapcar #'file-name-base zettel-stored-links)))
+
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
 (define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
+(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
 (define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
 
