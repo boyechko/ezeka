@@ -77,7 +77,14 @@ not listed by Deft."
 
 ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
 (setq deft-strip-title-regexp "^\\(title: +\\)")
+;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
+(setq deft-strip-summary-regexp "\\(^\\w+: .*\\)"
+      deft-time-format nil)
 (setq deft-use-filename-as-title nil)
+
+(add-hook 'deft-mode-hook
+  (lambda ()
+    (setq show-trailing-whitespace nil)))
 
 (defvar zettel-indent-title-column 15
   "The column number where the Zettel title (without the numerus
