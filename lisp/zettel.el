@@ -5,6 +5,10 @@
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
 ;;;; -----------------------------------------------------------------------------
+;;;;
+;;;; TODO:
+;;;;
+;;;; - zettel-link-p
 
 ;; Cretea a keymap for the mode
 (defvar zettel-mode-map (make-sparse-keymap)
@@ -50,6 +54,12 @@ the Zettel directory."
     (and (string-equal (file-name-extension file) deft-extension)
      (or (string-match zettel-regexp-numerus-currens (file-name-base file))
          (string-match zettel-regexp-date (file-name-base file))))))
+
+(defun zettel-link-p (string)
+  "Returns non-NIL if the string could be a link to a zettel."
+  ;; TODO: Deal with subkasten in the link
+  (or (string-match zettel-regexp-numerus-currens string)
+      (string-match zettel-regexp-date string)))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
@@ -415,7 +425,7 @@ If with double prefix argument, insert the title to the right."
          (let ((link (pop zettel-stored-links)))
            ;; Save the link in link history
            (push link zettel-stored-links-history)
-           ;; Save the current file's slug for possible backlinking
+           ;; Insert the link
            (insert
             (zettel-link-with-spaces link
                                      (consp arg)
@@ -431,7 +441,7 @@ link inserted if it doesn't already have a backlink, and adds the
 current Zettel to the `zettel-link-backlink'."
   (interactive "P")
   (when zettel-stored-links
-    ;; Make sure the current buffer is saved and cache properly
+    ;; Make sure the current buffer is saved and cached properly
     (save-buffer)
     (deft-cache-update-file buffer-file-name)
     ;; Save the backlink
@@ -479,6 +489,25 @@ current Zettel to the `zettel-link-backlink'."
   (message "Dropping link to %s, remaining links: %s"
            (file-name-base (pop zettel-stored-links))
            (mapcar #'file-name-base zettel-stored-links)))
+
+(defun __zettel-clipboard-data ()
+  "Text from the OS clipboard."
+  (string-trim
+   (or (x-get-selection 'CLIPBOARD)
+       (w32-get-clipboard-data)
+       "")))
+
+(defun zettel-insert-link-from-clipboard (arg)
+  "Link `zettel-insert-link' but attempts to get the link slug
+from OS clipboard."
+  (interactive "P")
+  (let ((link (__zettel-clipboard-data)))
+    (if (zettel-link-p link)
+        (insert
+         (zettel-link-with-spaces link
+                                  (consp arg)
+                                  (equal arg '(16))
+                                  buffer-file-name)))))
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
