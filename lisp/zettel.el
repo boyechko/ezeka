@@ -695,47 +695,6 @@ support for following citations."
          (error "Nothing to follow at point"))))
 (advice-add 'markdown-follow-thing-at-point :around #'rb-markdown-follow-thing-at-point)
 
-;;
-;; The following is not zettel-specific, and used to live in my init.el, where
-;; it might need to remain still.
-;;
-
-;; Add a kind of RefTeX support to markdown
-(eval-after-load "markdown-mode"
-  '(define-key markdown-mode-map (kbd "C-c \\")
-    (cmd
-     (let ((reftex-cite-format
-            '((?\r . "[][#%l]")
-              (?b . "[#%l]: %A. _%t_. %u, %y.")
-              (?c . "[#%l]: %A. \"%t\". _%b_, edited by %e, %u, %y, pp. %p.")
-              (?j . "[#%l]: %A. \"%t.\" _%j_, vol. %v, no. %n, %y, pp. %p.")
-              (?t . "%A, »%t« (%y)")
-              (?T . "%A, \"%t\" (%y)"))))
-       (reftex-citation)))))
-
-;;
-;; Pre-insert the previously referenced key when using `reftex-citation'
-;;
-;; http://stackoverflow.com/questions/3627574/emacs-changing-the-default-reftex-citation
-;;
-(defvar rb-reftex-last-citation nil
-  "A list where the last used RefTeX citations are stored.")
-
-(defun reftex-citation--remember-citation (orig-fun &rest args)
-  "Save last citation to `rb-reftex-last-citation' after running
-`reftex-citation'."
-  (setq rb-reftex-last-citation (apply orig-fun args)))
-(advice-add 'reftex-citation :around #'reftex-citation--remember-citation)
-
-(defun reftex-get-bibkey-default--return-last-citation (orig-fun &rest args)
-  "If there is a `rb-reftex-last-citation' then just return that
-instead of running `reftex-get-bibkey-default'."
-  (if rb-reftex-last-citation
-      (substring-no-properties (first rb-reftex-last-citation))
-      (apply orig-fun args)))
-(advice-add 'reftex-get-bibkey-default
-            :around #'reftex-get-bibkey-default--return-last-citation)
-
 (defun zettel-kill-ring-save-link-title ()
   "Save the title of the wiki link at point or the buffer to kill
 ring."
