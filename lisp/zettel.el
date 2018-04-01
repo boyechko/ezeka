@@ -1189,14 +1189,10 @@ interactively by the user."
 ;;;-----------------------------------------------------------------------------
 
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
-;; Interferes with org-sparse-tree
-;;(define-key zettel-mode-map (kbd "C-c /") 'zettel-quick-dial)
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c .") 'zettel-insert-new-child)
-(define-key zettel-mode-map (kbd "C-c ]") 'zettel-next-sibling)
-(define-key zettel-mode-map (kbd "C-c [") 'zettel-prev-sibling)
 
 (define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
