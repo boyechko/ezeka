@@ -263,11 +263,12 @@ Based on `rename-file-and-buffer'."
                  (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
-                          (y-or-n-p (format "Saving %s. Update the modified date? "
-                                            (file-name-base buffer-file-name))))
+                          (save-match-data
+                            (y-or-n-p (format "Saving %s. Update the modified date? "
+                                              (file-name-base buffer-file-name)))))
                  (message "Updating metadata modified date in %s from %s to %s."
                           buffer-file-name old-date new-date)
-                 (replace-match (format-time-string "%Y-%m-%d") nil t nil 1)))
+                 (replace-match new-date nil t nil 1)))
               ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
