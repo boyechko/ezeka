@@ -17,6 +17,30 @@ Clamp do
   parameter "TARGET", "where to move the Zettel (link or filepath)",
             :attribute_name => :target_string
 
+  # Updates the title, replacing oldslug with newslug, and adding oldslug to
+  # oldnames.
+  def update_title(zettel, oldslug, newslug)
+    zettel.read_file
+
+    if zettel.metadata
+      puts "zettel.metadata[:title] = #{zettel.metadata[:title]}"
+      zettel.metadata[:title] =
+        zettel.metadata[:title].gsub("§#{oldslug}.", "§#{newslug}.")
+
+      if zettel.metadata[:oldnames].is_a?(Array)
+        zettel.metadata[:oldnames].push(oldslug)
+      else
+        zettel.metadata[:oldnames] = [ oldslug ]
+      end
+
+      zettel.metadata[:modified] = Time.now.to_date
+      zettel.write_file
+    else
+      puts "zmove: The file has no metadata; cannot update title"
+      exit(1)
+    end
+  end
+
   def execute
     if Numerus.valid_link?(source_string) || Tempus.valid_link?(source_string)
       source = Zettelkaesten.zettel_from_link(source_string)
@@ -52,21 +76,7 @@ Clamp do
     end
 
     # Change the title, add oldname, and then retouch to original modtime
-    newslug = target.slug
-    target.read_file            # re-read the moved target
-    if target.metadata
-      target.metadata['title'] = target.metadata['title']
-                                   .gsub("§#{source.slug}.", "§#{newslug}.")
-      if target.metadata['oldnames'].is_a?(Array)
-        target.metadata['oldnames'].push(source.slug)
-      else
-        target.metadata['oldnames'] = [ source.slug ]
-      end
-      target.write_file
-    else
-      puts "zmove: The file has no metadata; leaving file unchanged"
-      exit(1)
-    end
+    update_title(target, source.slug, target.slug)
     system("zfix", "-o", source.slug, target.relative_path.to_s)
 
     # Find and replace all wiki links to $source with $target
