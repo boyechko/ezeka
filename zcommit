@@ -2,4 +2,4 @@
 # Fix the timestamps and commit with the given commit string
 
 zfixtimes
-hg commit -m \"${@:-Periodic}\"
+hg commit -m \"${1:-Periodic}\"
