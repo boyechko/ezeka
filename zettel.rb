@@ -191,7 +191,7 @@ class Zettel
 
         if value =~ ISO8601_PATTERN
           value = Time.parse(value).to_date
-        elsif value =~ /\[(.*)\]/      # YAML array
+        elsif value =~ /^\[(.*)\]$/      # YAML array
           value = $1.strip.split(/, */)
         end
 
