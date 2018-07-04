@@ -380,9 +380,10 @@ link title when INCLUDE-TITLE is true. If TITLE-LOCATION is RIGHT
 or T, puts the title on the right; otherwise, on the left. If
 CONTEXT is given, attemps to include the relative form of the
 link."
-  (let* ((file (if (file-exists-p target)
-                   target
-                 (zettel-convert-link-to-filename target)))
+  (let* ((file (or (if (file-exists-p target)
+                       target
+                     (zettel-convert-link-to-filename target))
+                   (error "Link target doesn't exist; make sure it's saved.")))
          (link-text (zettel-link-slug file context)))
     (cond (include-title
            ;; Make sure cache is updated for the linked file
@@ -431,7 +432,9 @@ If with double prefix argument, insert the title to the right."
             (zettel-link-with-spaces link
                                      (consp arg)
                                      (equal arg '(16))
-                                     buffer-file-name))))
+                                     buffer-file-name))
+           ;; Save the backlink
+           (setq zettel-link-backlink buffer-file-name)))
         (t
          (message "No link to insert.")
          )))
@@ -445,8 +448,6 @@ current Zettel to the `zettel-link-backlink'."
     ;; Make sure the current buffer is saved and cached properly
     (save-buffer)
     (deft-cache-update-file buffer-file-name)
-    ;; Save the backlink
-    (setq zettel-link-backlink buffer-file-name)
     (let ((link-to-insert (first zettel-stored-links)))
       (zettel-insert-link arg)
       ;; If the linked file doesn't already have a link to the current one,
@@ -902,17 +903,24 @@ have any children, returns NIL."
                               :key #'file-name-base))
        #'string-lessp))))
 
-(defun zettel-insert-list-of-children ()
-  "Insert a list of links to children and their titles."
-  (interactive)
+(defun zettel-insert-list-of-children (slug arg)
+  "Insert a list of links to children and their titles for the
+given slug (defaults to current one). With prefix argument,
+the links are on the right of titles; otherwise, to the left."
+  (interactive (list
+                (read-string
+                 (format "slug (%s): " (file-name-base buffer-file-name))
+                 nil nil (file-name-base buffer-file-name))
+                current-prefix-arg))
   (when (zettel-p buffer-file-name)
-    (let ((slug (file-name-base buffer-file-name)))
-      (dolist (child (zettel-slug-children slug))
-        (beginning-of-line)
-        (insert "* ")
-        (insert (zettel-link-with-spaces (zettel-absolute-filename child)
-                                         t 'left buffer-file-name))
-        (newline)))))
+    (dolist (child (zettel-slug-children slug))
+      (beginning-of-line)
+      (insert "* ")
+      (insert (zettel-link-with-spaces (zettel-absolute-filename child)
+                                       t
+                                       arg
+                                       buffer-file-name))
+      (newline))))
 
 (defun zettel-slug-siblings (slug)
   "Returns a list of the Zettel's siblings, inclusive. If the
