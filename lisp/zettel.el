@@ -516,6 +516,7 @@ from OS clipboard."
 (define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
 (define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
+(define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-insert-link-from-clipboard)
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
 (define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
 (define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
