@@ -1064,10 +1064,11 @@ there are none. Respects `zettel-new-child-method'."
                       (subseq seq (- n))))
              (clusterp (str)
                        (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
-                                     "ch" "ff" "gh" "gl" "mn" "ph" "ps"
+                                     "ch" "ck" "ff" "gh" "gl" "mn" "ph"
                                      "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
-                                     "st" "th")))
+                                     "st" "th" "zh")))
              (liquidp (ch) (member ch '("l" "r")))
+             (sibilantp (ch) (member ch '("s" "z")))
              (vowelp (ch) (member ch '("a" "e" "i" "o" "u" "y")))
              (consonantp (ch) (not (vowelp ch))))
     (let* ((next (if (characterp next) (char-to-string next) next))
@@ -1077,8 +1078,9 @@ there are none. Respects `zettel-new-child-method'."
                 (clusterp cluster)
                 (and (vowelp prev) (consonantp next))
                 (and (consonantp prev) (vowelp next))
-                (and (consonantp prev) (not (liquidp prev))
-                     (liquidp next)))
+                (and (consonantp prev)
+                     (or (and (not (liquidp prev)) (liquidp next))
+                         (or (sibilantp prev) (sibilantp next)))))
         t))))
 
 (defun zettel-snc--pronounceable (number letters unused-letters)
@@ -1090,10 +1092,12 @@ LETTERS) among UNUSED-LETTERS."
               (when (sequencep sequence)
                 (elt sequence (random (length sequence))))))
     (let ((random-letter (random-elt unused-letters))
-          (attempts 1))
+          (attempts '()))
       (while (and (not (slug-pronounceable-p letters random-letter))
-                  (<= attempts 10))
-        (setq random-letter (random-elt unused-letters) attempts (1+ attempts)))
+                  (<= (length attempts) 10))
+        (push (setq random-letter (random-elt unused-letters)) attempts))
+      (message "Attempted letters: %s" (mapcar #'char-to-string
+                                               (nreverse attempts)))
       (zettel-slug number
                    (concat letters (char-to-string random-letter))))))
 
