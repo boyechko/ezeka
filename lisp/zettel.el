@@ -9,6 +9,9 @@
 ;;;; TODO:
 ;;;;
 ;;;; - zettel-link-p
+;;;; - zettel-slug-new-sibling
+
+(require 'deft)
 
 ;; Cretea a keymap for the mode
 (defvar zettel-mode-map (make-sparse-keymap)
@@ -71,10 +74,11 @@ not listed by Deft."
       (string-match "~\\'" file)))
 
 ;; Enable zettel-mode for files that match the pattern
-(add-hook 'markdown-mode-hook
-  '(lambda ()
-     (when (zettel-p buffer-file-name)
-       (zettel-mode 1))))
+(eval-after-load "markdown"
+  (add-hook 'markdown-mode-hook
+    '(lambda ()
+      (when (zettel-p buffer-file-name)
+        (zettel-mode 1)))))
 (add-hook 'org-mode-hook
   '(lambda ()
      (when (zettel-p buffer-file-name)
@@ -1222,9 +1226,10 @@ interactively by the user."
 (define-key zettel-mode-map (kbd "C-c \"") 'zettel-find-numerus-currens)
 
 ;; Set the citation key in `rb-reftex-last-citation'.
-(define-key markdown-mode-map (kbd "C-c |")
-  (cmd
-   (when (rb-markdown-citation-key-p)
-     (push (rb-markdown-citation-key-key) rb-reftex-last-citation))))
+(eval-after-load "markdown"
+  '(define-key markdown-mode-map (kbd "C-c |")
+    (cmd
+      (when (rb-markdown-citation-key-p)
+        (push (rb-markdown-citation-key-key) rb-reftex-last-citation)))))
 
 (provide 'zettel)
