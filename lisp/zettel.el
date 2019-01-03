@@ -1198,6 +1198,26 @@ bookmark's filename property to the Zettel link."
   (lambda ()
     (setq-local bookmark-make-record-function 'bookmark-make-record-zettel)))
 
+;;;=============================================================================
+;;; Switch to Buffer
+;;;=============================================================================
+
+(defun zettel-switch-to-buffer ()
+  "Quickly switch to other open Zettel buffer via `helm'."
+  (interactive)
+  (let ((buffers
+         (mapcar #'(lambda (buf)
+                     (cons (deft-file-title (buffer-file-name buf)) buf))
+                 (remove-if-not #'(lambda (buf)
+                                    (zettel-p (buffer-file-name buf)))
+                                (buffer-list)))))
+    (if buffers
+        (ivy-read "Switch to Zettel buffer: "
+                  buffers
+                  :action (lambda (choice)
+                            (switch-to-buffer (cdr choice))))
+      (user-error "No open Zettel buffers to switch to"))))
+
 ;;;-----------------------------------------------------------------------------
 ;;; Key Bindings
 ;;;
