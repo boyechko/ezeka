@@ -73,6 +73,26 @@ not listed by Deft."
   (or (string-match "\\`\\." (file-name-nondirectory file))
       (string-match "~\\'" file)))
 
+(defun zettel-absolute-filename (slug &optional extension)
+  "Return an absolute filename to file named SLUG with optional EXTENSION.
+If the slug is a numerus currens, makes sure to locate it in the
+right split-up directory. Otherwise, relies on `deft-directory'.
+If EXTENSION is not given, `deft-extension' is assumed.
+
+This function replaces `deft-absolute-filename' for zettels."
+  (expand-file-name
+   (concat slug "." (or extension deft-extension))
+   (if (string-match (concat "^" zettel-regexp-numerus-currens) slug)
+       (expand-file-name (zettel-right-directory slug)
+                         (cdr (assoc "main" zettel-sub-kasten)))
+     deft-directory)))
+
+(defun deft-absolute-filename--around (orig-fun &rest args)
+  "Replaces the default `deft-absolute-filename' with
+`zettel-absolute-filename'."
+  (apply #'zettel-absolute-filename args))
+(advice-add 'deft-absolute-filename :around 'deft-absolute-filename--around)
+
 ;; Enable zettel-mode for files that match the pattern
 (eval-after-load "markdown"
   (add-hook 'markdown-mode-hook
@@ -104,7 +124,7 @@ not listed by Deft."
   "The column number where the Zettel title (without the numerus
 currens) will be indented to.")
 
-(defun zettel-separate-deft-file-title (orig-fun file-name)
+(defun deft-file-title--separate (orig-fun file-name)
   "Replace the first slash of with enough spaces to justify the actual title."
   (let ((title (funcall orig-fun file-name)))
     (when title
@@ -128,8 +148,7 @@ currens) will be indented to.")
                (make-string (max diff 0) ?\s))
              title nil nil 1))
           title))))
-
-(advice-add 'deft-file-title :around #'zettel-separate-deft-file-title)
+(advice-add 'deft-file-title :around #'deft-file-title--separate)
 
 (defun zettel-add-subtree-to-deft-filter (slug)
   "Replaces the filter with the subtree where the point rests. If
@@ -163,9 +182,9 @@ number."
 (define-key deft-mode-map (kbd "C-c C-i") 'zettel-add-index-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-h") 'zettel-add-subtree-to-deft-filter)
 
-;;-----------------------------------------------------------------------------
-;; Find the next unused slug in the entire zettel tree
-;;-----------------------------------------------------------------------------
+;;;=============================================================================
+;;; Unused Slugs
+;;;=============================================================================
 
 (defun zettel-local-unused-slug ()
   "Return an unused filename slug (short name) in the current `deft-directory'."
@@ -190,6 +209,34 @@ number."
                               file)
                          (string-to-number (match-string 1 file))))
                    deft-all-files))))
+
+(defun slug-pronounceable-p (letters next)
+  "Returns NIL if NEXT is not pronounceable after LETTERS."
+  (cl-flet* ((lastn (seq n)
+                    "Returns last N members of SEQ, or nil if it's too
+              short."
+                    (when (<= n (length seq))
+                      (subseq seq (- n))))
+             (clusterp (str)
+                       (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
+                                     "ch" "ck" "ff" "gh" "gl" "mn" "ph"
+                                     "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
+                                     "st" "th" "zh")))
+             (liquidp (ch) (member ch '("l" "r")))
+             (sibilantp (ch) (member ch '("s" "z")))
+             (vowelp (ch) (member ch '("a" "e" "i" "o" "u" "y")))
+             (consonantp (ch) (not (vowelp ch))))
+    (let* ((next (if (characterp next) (char-to-string next) next))
+           (prev (lastn letters 1))
+           (cluster (concat prev next)))
+      (when (or (not letters)
+                (clusterp cluster)
+                (and (vowelp prev) (consonantp next))
+                (and (consonantp prev) (vowelp next))
+                (and (consonantp prev)
+                     (or (and (not (liquidp prev)) (liquidp next))
+                         (or (sibilantp prev) (sibilantp next)))))
+        t))))
 
 (defcustom zettel-new-numerus-currens-method 'random
   "How new numeri currenses are created: RANDOM or NEXT are
@@ -247,9 +294,9 @@ Based on `rename-file-and-buffer'."
   (interactive)
   (rename-file-and-buffer (concat (zettel-next-unused-slug) "." deft-extension)))
 
-;;
-;; Automatically update the date in the title line
-;;
+;;;=============================================================================
+;;; Automatically update the date in the title line
+;;;=============================================================================
 
 (defun zettel-update-metadata-date ()
   "Updates the date in the metadata section of the Zettel."
@@ -298,7 +345,7 @@ Based on `rename-file-and-buffer'."
 ;; Warning: Relies on yasnippet expansion of "title"
 ;;
 
-(defun zettel-title-in-deft-new-file (orig-fun slug)
+(defun deft-new-file--add-zettel-title (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
 on the first line with the Zettel title string."
   ;; DEFT-NEW-FILE-NAMED returns either a string (from MESSAGE) about an
@@ -308,14 +355,15 @@ on the first line with the Zettel title string."
     (let ((file (deft-absolute-filename slug)))
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
+        ;; FIXME: Relying on an external yasnippet
         (insert "title")
         (yas-expand)))))
 
-(advice-add 'deft-new-file-named :around #'zettel-title-in-deft-new-file)
+(advice-add 'deft-new-file-named :around #'deft-new-file--add-zettel-title)
 
-;;;-----------------------------------------------------------------------------
-;;; Storing Zettel Links
-;;;-----------------------------------------------------------------------------
+;;;=============================================================================
+;;; Zettel Links
+;;;=============================================================================
 
 (defvar zettel-stored-links '()
   "A stack of links stored with `zettel-store-link'.")
@@ -373,10 +421,6 @@ markdown wiki link."
            (message "Link to %s stored: %s"
                     (file-name-base link)
                     (mapcar #'file-name-base zettel-stored-links))))))
-
-(defun unguillemet (string)
-  "Replaces the guillemets in the string with underscores."
-  (replace-regexp-in-string "[«»]" "_" string))
 
 (defun zettel-link (target &optional include-title title-location context)
   "Returns a markdown-formatted link to TARGET, including the
@@ -496,8 +540,8 @@ current Zettel to the `zettel-link-backlink'."
            (file-name-base (pop zettel-stored-links))
            (mapcar #'file-name-base zettel-stored-links)))
 
-(defun __zettel-clipboard-data ()
-  "Text from the OS clipboard."
+(defun zettel-get-clipboard-data ()
+  "Get the text from the OS clipboard no matter the system."
   (string-trim
    (or (x-get-selection 'CLIPBOARD)
        (w32-get-clipboard-data)
@@ -507,7 +551,7 @@ current Zettel to the `zettel-link-backlink'."
   "Link `zettel-insert-link' but attempts to get the link slug
 from OS clipboard."
   (interactive "P")
-  (let ((link (__zettel-clipboard-data)))
+  (let ((link (zettel-get-clipboard-data)))
     (if (zettel-link-p link)
         (insert
          (zettel-link-with-spaces link
@@ -526,17 +570,17 @@ from OS clipboard."
 (define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
 
 ;; Allow handling markdown wiki links in org-mode
-(defun zettel-org-open-at-point--zettel-links (orig-fun &rest args)
+(defun org-open-at-point--zettel-links (orig-fun &rest args)
   "Around advice for `org-open-at-point' that adds support for
 following internal Zettel links."
   (if (markdown-wiki-link-p)
       (markdown-follow-wiki-link-at-point)
     (apply orig-fun args)))
-(advice-add 'org-open-at-point :around #'zettel-org-open-at-point--zettel-links)
+(advice-add 'org-open-at-point :around #'org-open-at-point--zettel-links)
 
-;;-----------------------------------------------------------------------------
-;; Renaming
-;;-----------------------------------------------------------------------------
+;;;=============================================================================
+;;; Renaming
+;;;=============================================================================
 
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's DEFT-RENAME-FILE."
@@ -653,9 +697,9 @@ the alias outside of the link."
                (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-link-intrusive nil)))))))
 
-;;;-----------------------------------------------------------------------------
+;;;=============================================================================
 ;;; Bibliography
-;;;-----------------------------------------------------------------------------
+;;;=============================================================================
 
 (defconst rb-markdown-regex-citation-key
   "\\(\\[\\)\\(#\\)\\([^]]+\\)\\(\\]\\)\\(:.*\\)*"
@@ -714,7 +758,9 @@ ring."
     (let ((title (deft-file-title file)))
       (cond (title
              (kill-new
-              (unguillemet (second (split-string title "[[:space:]]\\{2,\\}"))))
+              ;; FIXME: Remove the now obsolete unguillemet
+              (replace-regexp-in-string
+               "[«»]" "_" (second (split-string title "[[:space:]]\\{2,\\}"))))
              (message "Link title to %s saved in kill ring."
                       (file-name-base file)))
             (t
@@ -742,9 +788,9 @@ elsewhere. With prefix argument, save the file name relative to
        (kill-new link)
        (message "Saved [%s] in the kill ring." link)))))
 
-;;;-----------------------------------------------------------------------------
+;;;=============================================================================
 ;;; Wiki Links
-;;;-----------------------------------------------------------------------------
+;;;=============================================================================
 
 ;; This must be enabled to have wiki links
 (setq markdown-enable-wiki-links t)
@@ -761,13 +807,13 @@ elsewhere. With prefix argument, save the file name relative to
 ;; that: `markdown-fwl-set-auto-mode'.
 ;;
 
-(defun markdown-fwl-set-auto-mode (&rest args)
+(defun markdown-fwl--set-auto-mode (&rest args)
   "After advice for `markdown-follow-wiki-link'. Reverses the
 default behavir of ensuring that the buffer is in markdown mode,
 and instead sets it back to the mode it `wants to be'."
   (set-auto-mode t))
 
-(advice-add 'markdown-follow-wiki-link :after #'markdown-fwl-set-auto-mode)
+(advice-add 'markdown-follow-wiki-link :after #'markdown-fwl--set-auto-mode)
 
 (defun zettel-right-directory (numerus-currens)
   "Finds the right directory for the numerus currens provided."
@@ -808,7 +854,7 @@ Zettelkasten."
          ;; name is something else, return nil
          nil)))
 
-(defun markdown-cwltf-fix-link (orig-fun name)
+(defun markdown-cwltf--fix-link (orig-fun name)
   "Advice for `markdown-convert-wiki-link-to-filename',
 completely overriding the originall functionality. It combines
 the not clobbering of extension, finding the right directory
@@ -826,7 +872,7 @@ handling 'subkasten:' notation."
           result))))
 
 (advice-add 'markdown-convert-wiki-link-to-filename
-            :around #'markdown-cwltf-fix-link)
+            :around #'markdown-cwltf--fix-link)
 
 (defun zettel-make-word-wiki-link ()
   "Make the current word (including dashes) into a wiki link by
@@ -844,9 +890,9 @@ enclosing it in [[]]."
            (delete-region start end)
            (insert (zettel-link-with-spaces word))))))))
 
-;;;----------------------------------------------------------------------------
+;;;=============================================================================
 ;;; Children, siblings, and ancestors
-;;;----------------------------------------------------------------------------
+;;;=============================================================================
 
 (defun zettel-slug (number letters)
   "Returns a Zettel slug composed of the NUMBER and LETTERS, both
@@ -934,26 +980,6 @@ returns NIL."
   (let ((parent (zettel-slug-ancestor slug)))
     (when parent
       (zettel-slug-children parent))))
-
-(defun zettel-absolute-filename (slug &optional extension)
-  "Return an absolute filename to file named SLUG with optional EXTENSION.
-If the slug is a numerus currens, makes sure to locate it in the
-right split-up directory. Otherwise, relies on `deft-directory'.
-If EXTENSION is not given, `deft-extension' is assumed.
-
-This function replaces `deft-absolute-filename' for zettels."
-  (expand-file-name
-   (concat slug "." (or extension deft-extension))
-   (if (string-match (concat "^" zettel-regexp-numerus-currens) slug)
-       (expand-file-name (zettel-right-directory slug)
-                         (cdr (assoc "main" zettel-sub-kasten)))
-       deft-directory)))
-
-(defun deft-absolute-filename--around (orig-fun &rest args)
-  "Replaces the default `deft-absolute-filename' with
-`zettel-absolute-filename'."
-  (apply #'zettel-absolute-filename args))
-(advice-add 'deft-absolute-filename :around 'deft-absolute-filename--around)
 
 (defun zettel-find-ancestor (n)
   "Opens the current Zettel's ancestor. With a prefix argument, try
@@ -1059,52 +1085,6 @@ siblings as a loop."
 there are none. Respects `zettel-new-child-method'."
   )
 
-(defun slug-pronounceable-p (letters next)
-  "Returns NIL if NEXT is not pronounceable after LETTERS."
-  (cl-flet* ((lastn (seq n)
-                    "Returns last N members of SEQ, or nil if it's too
-              short."
-                    (when (<= n (length seq))
-                      (subseq seq (- n))))
-             (clusterp (str)
-                       (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
-                                     "ch" "ck" "ff" "gh" "gl" "mn" "ph"
-                                     "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
-                                     "st" "th" "zh")))
-             (liquidp (ch) (member ch '("l" "r")))
-             (sibilantp (ch) (member ch '("s" "z")))
-             (vowelp (ch) (member ch '("a" "e" "i" "o" "u" "y")))
-             (consonantp (ch) (not (vowelp ch))))
-    (let* ((next (if (characterp next) (char-to-string next) next))
-           (prev (lastn letters 1))
-           (cluster (concat prev next)))
-      (when (or (not letters)
-                (clusterp cluster)
-                (and (vowelp prev) (consonantp next))
-                (and (consonantp prev) (vowelp next))
-                (and (consonantp prev)
-                     (or (and (not (liquidp prev)) (liquidp next))
-                         (or (sibilantp prev) (sibilantp next)))))
-        t))))
-
-(defun zettel-snc--pronounceable (number letters unused-letters)
-  "Helper function for `zettel-slug-new-child', which tries to
-generate a pronounceable new random child of the slug (NUMBERS +
-LETTERS) among UNUSED-LETTERS."
-  (cl-flet ((random-elt (sequence)
-              "Return a random element of SEQUENCE."
-              (when (sequencep sequence)
-                (elt sequence (random (length sequence))))))
-    (let ((random-letter (random-elt unused-letters))
-          (attempts '()))
-      (while (and (not (slug-pronounceable-p letters random-letter))
-                  (<= (length attempts) 10))
-        (push (setq random-letter (random-elt unused-letters)) attempts))
-      (message "Attempted letters: %s" (mapcar #'char-to-string
-                                               (nreverse attempts)))
-      (zettel-slug number
-                   (concat letters (char-to-string random-letter))))))
-
 (defun zettel-slug-new-child (slug)
   "Generate a new available child of the given SLUG, respecting
 `zettel-new-child-method'."
@@ -1131,6 +1111,24 @@ LETTERS) among UNUSED-LETTERS."
           (zettel-slug-new-child
            (zettel-slug (zettel-slug-number slug)
                         (concat (zettel-slug-letters slug) "z"))))))))
+
+(defun zettel-snc--pronounceable (number letters unused-letters)
+  "Helper function for `zettel-slug-new-child', which tries to
+generate a pronounceable new random child of the slug (NUMBERS +
+LETTERS) among UNUSED-LETTERS."
+  (cl-flet ((random-elt (sequence)
+              "Return a random element of SEQUENCE."
+              (when (sequencep sequence)
+                (elt sequence (random (length sequence))))))
+    (let ((random-letter (random-elt unused-letters))
+          (attempts '()))
+      (while (and (not (slug-pronounceable-p letters random-letter))
+                  (<= (length attempts) 10))
+        (push (setq random-letter (random-elt unused-letters)) attempts))
+      (message "Attempted letters: %s" (mapcar #'char-to-string
+                                               (nreverse attempts)))
+      (zettel-slug number
+                   (concat letters (char-to-string random-letter))))))
 
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel at the next branching level of the
