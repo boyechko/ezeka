@@ -7,9 +7,9 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;;
 ;;;; TODO:
+;;;; * Write `zettel-link-p'
+;;;; * Write `zettel-slug-new-sibling'
 ;;;;
-;;;; - zettel-link-p
-;;;; - zettel-slug-new-sibling
 
 (require 'deft)
 
@@ -1179,24 +1179,26 @@ interactively by the user."
   (find-file (zettel-absolute-filename slug)))
 
 ;;;=============================================================================
-;;; Quick Dial
+;;; Bookmarks
 ;;;=============================================================================
 
-(defvar zettel-quick-dial
-  nil
-  "An alist of 'quick dial' choices.")
+(defun bookmark-make-record-zettel ()
+  "Bookmark record function for Zettel bookmarks, setting the
+bookmark's filename property to the Zettel link."
+  (list (cons 'filename (concat "zettel:" (zettel-link-slug buffer-file-name)))
+        (cons 'handler 'bookmark-zettel-handler)))
 
-(defun zettel-quick-dial (choice)
-  "Let the user choose one of the quick dial options in
-`zettel-quick-dial', and open that file."
-  (interactive
-   (list
-    (when zettel-quick-dial
-      (ido-completing-read "Quick dial: "
-                           (mapcar #'car zettel-quick-dial)))))
-  (if choice
-      (find-file (cdr (assoc choice zettel-quick-dial)))
-      (message "No quick dial choices defined. See `zettel-quick-dial'.")))
+(defun bookmark-zettel-handler (bmk-record)
+  "Bookmark record handler for Zettel bookmarks."
+  (find-file
+   (zettel-convert-link-to-filename
+    (replace-regexp-in-string "^zettel:" ""
+                              (cdr (assoc 'filename bmk-record))))))
+
+;; Use the special zettel bookmark handler in Zettel buffers
+(add-hook 'zettel-mode-hook
+  (lambda ()
+    (setq-local bookmark-make-record-function 'bookmark-make-record-zettel)))
 
 ;;;-----------------------------------------------------------------------------
 ;;; Key Bindings
