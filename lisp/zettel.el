@@ -224,7 +224,13 @@ Group 8 is the title itself.")
   (let* ((metadata-section
           (split-string
            (first (split-string
-                   (deft-file-contents file)
+                   ;; do a sane thing when I opened a Zettel file directly
+                   ;; rather than through Deft interface
+                   (progn
+                     (when (not deft-hash-contents)
+                       (deft-cache-initialize)
+                       (deft-cache-file file))
+                     (deft-file-contents file))
                    "\n\n"))
            "\n"))
          (metadata
