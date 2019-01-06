@@ -305,22 +305,25 @@ Based on `rename-file-and-buffer'."
     (save-restriction
       (widen)
       (goto-char (point-min))
-      (forward-line 4)
+      (search-forward-regexp "^$" nil)
       (narrow-to-region (point-min) (point))
       (goto-char (point-min))
       (let ((new-date (format-time-string "%Y-%m-%d"))
             old-date)
         (cond ((save-excursion
-                 (re-search-forward (concat "^modified: +" zettel-regexp-date) nil t))
+                 (re-search-forward (concat "^modified: +" zettel-regexp-date)
+                                    nil t))
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
                           (save-match-data
-                            (y-or-n-p (format "Saving %s. Update the modified date? "
-                                              (file-name-base buffer-file-name)))))
+                            (y-or-n-p
+                             (format "Saving %s. Update the modified date? "
+                                     (file-name-base buffer-file-name)))))
                  (message "Updating metadata modified date in %s from %s to %s."
                           buffer-file-name old-date new-date)
                  (replace-match new-date nil t nil 1)))
-              ((re-search-forward (concat "^created: +" zettel-regexp-date) nil t)
+              ((re-search-forward (concat "^created: +" zettel-regexp-date)
+                                  nil t)
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
                           (y-or-n-p (format "Saving %s. Add modified date? "
