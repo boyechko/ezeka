@@ -233,8 +233,8 @@ Group 8 is the title itself.")
                         (cons (intern (concat ":" (first pair))) (second pair))))
                   metadata-section))
          (title ))
-    (append metadata
-            (zettel-combined-title-metadata (alist-get :title metadata)))))
+    (append (zettel-combined-title-metadata (alist-get :title metadata))
+            metadata)))
 
 ;;;=============================================================================
 ;;; Deft Buffer
