@@ -259,30 +259,20 @@ Group 8 is the title itself.")
 currens) will be indented to.")
 
 (defun deft-file-title--separate (orig-fun file-name)
-  "Replace the first slash of with enough spaces to justify the actual title."
+  "Create mock columns in Deft buffer when displaying Zettel."
   (let ((title (funcall orig-fun file-name)))
     (when title
       (if (zettel-p file-name)
-          (let ((numerus-length
-                 (if (or (string-match zettel-regexp-numerus-currens title)
-                         (string-match zettel-regexp-tempus-currens title))
-                     ;; Strip the § before the numerus currens, if exists
-                     (let ((match-end (match-end 0)))
-                       (cond ((string-match "§" title)
-                              (setq title
-                                (replace-regexp-in-string "§" "" title))
-                              (- match-end 1))
-                             (t
-                              match-end)))
-                     0)))
-            ;; Replace the ". " in the first title (following § + numerus
-            ;; currens) with indentation.
-            (replace-regexp-in-string
-             "\\(\\. \\).*\\'"
-             (let ((diff (- zettel-indent-title-column numerus-length)))
-               (make-string (max diff 0) ?\s))
-             title nil nil 1))
-          title))))
+          (let ((metadata (zettel-combined-title-metadata title)))
+            ;; FIXME: Use variables rather than magic numbers?
+            (format "%-15s%-13s%s"
+                    (alist-get :slug metadata)
+                    (let ((type (alist-get :type metadata)))
+                      (if (> (length type) 12)
+                          (concat (subseq type 0 10) "..")
+                        type))
+                    (alist-get :title metadata)))
+        title))))
 (advice-add 'deft-file-title :around #'deft-file-title--separate)
 
 (defun zettel-add-subtree-to-deft-filter (slug)
