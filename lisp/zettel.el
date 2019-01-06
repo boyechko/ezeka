@@ -196,6 +196,47 @@ the slug."
       (apply #'vector number letters))))
 
 ;;;=============================================================================
+;;; Metadata
+;;;=============================================================================
+
+(defvar zettel-regexp-combined-title
+  (concat "^§"
+          zettel-regexp-slug
+          "\\. \\({\\([^}]+\\)} \\)*\\(.*\\)$")
+  "Regular expression for a combined title string, used in `zettel-metadata'.
+Group 1 is the slug.
+Group 7 is the kind.
+Group 8 is the title itself.")
+
+(defun zettel-combined-title-metadata (title)
+  "Returns an alist of metadata from a combined title."
+  (when (string-match zettel-regexp-combined-title title)
+    (let ((slug (match-string 1 title)))
+      (list (cons :slug slug)
+            (cons :style (if (string-match-p zettel-regexp-numerus-currens slug)
+                             :numerus
+                           :tempus))
+            (cons :type (match-string 7 title))
+            (cons :title (match-string 8 title))))))
+
+(defun zettel-metadata (file)
+  "Returns an alist of metadata, with the keys as keywords."
+  (let* ((metadata-section
+          (split-string
+           (first (split-string
+                   (deft-file-contents file)
+                   "\n\n"))
+           "\n"))
+         (metadata
+          (mapcar #'(lambda (line)
+                      (let ((pair (split-string line ": ")))
+                        (cons (intern (concat ":" (first pair))) (second pair))))
+                  metadata-section))
+         (title ))
+    (append metadata
+            (zettel-combined-title-metadata (alist-get :title metadata)))))
+
+;;;=============================================================================
 ;;; Deft Buffer
 ;;;=============================================================================
 
