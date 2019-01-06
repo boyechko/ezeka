@@ -56,14 +56,24 @@ the Zettel directory."
 (defvar zettel-base-format (first zettel-filename-format)
   "The format of the base numerical component of Zettel's name.")
 
+;; FIXME: Why does this match "201-"?
 (defvar zettel-regexp-numerus-currens
-  "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
+  "\\<§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
   "The regular expression that matches numerus currens like 261-cabf.")
 
 (defvar zettel-regexp-tempus-currens
-  "§*\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)\\>"
+  "\\<§*\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)\\>"
   "The regular expression that matches the basic (but not extended) ISO 8601
 date and time.")
+
+(defvar zettel-regexp-slug
+  (concat "\\("
+          zettel-regexp-numerus-currens
+          "\\|"
+          zettel-regexp-tempus-currens
+          "\\)")
+  "A generalized regexp that matches any slug, whether numerus or tempus
+currens.")
 
 ;; This is a rather sloppy regexp, but works for our purposes.
 (defvar zettel-regexp-iso8601-datetime
