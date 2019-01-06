@@ -60,8 +60,14 @@ the Zettel directory."
   "§*\\([0-9]\\{3\\}\\)\\(-\\([a-z]+\\)\\)*\\>"
   "The regular expression that matches numerus currens like 261-cabf.")
 
-(defvar zettel-regexp-date
-  "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
+(defvar zettel-regexp-tempus-currens
+  "§*\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)\\>"
+  "The regular expression that matches the basic (but not extended) ISO 8601
+date and time.")
+
+;; This is a rather sloppy regexp, but works for our purposes.
+(defvar zettel-regexp-iso8601-datetime
+  "\\<\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)\\>"
   "The regular expression that matches ISO 8601-like date/time expression.")
 
 (defvar zettel-stored-links '()
@@ -71,9 +77,9 @@ the Zettel directory."
   "History of the links stored with `zettel-store-link'.")
 
 (defvar zettel-link-backlink nil
-  "Stores the file name of the document into which a link was inserted
-with `zettel-insert-link-intrusive' or `zettel-insert-link', allowing
-for creation of backlinks.")
+  "Stores the file name of the document into which a link was inserted with
+`zettel-insert-link-intrusive' or `zettel-insert-link', allowing for creation
+of backlinks.")
 
 ;;;=============================================================================
 ;;; User Variables
@@ -109,14 +115,14 @@ acceptable."
   (interactive "f")
   (when file
     (and (string-equal (file-name-extension file) deft-extension)
-     (or (string-match zettel-regexp-numerus-currens (file-name-base file))
-         (string-match zettel-regexp-date (file-name-base file))))))
+         (or (string-match zettel-regexp-numerus-currens (file-name-base file))
+             (string-match zettel-regexp-tempus-currens (file-name-base file))))))
 
 (defun zettel-link-p (string)
   "Returns non-NIL if the string could be a link to a zettel."
   ;; TODO: Deal with subkasten in the link
   (or (string-match zettel-regexp-numerus-currens string)
-      (string-match zettel-regexp-date string)))
+      (string-match zettel-regexp-tempus-currens string)))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
@@ -208,7 +214,7 @@ currens) will be indented to.")
       (if (zettel-p file-name)
           (let ((numerus-length
                  (if (or (string-match zettel-regexp-numerus-currens title)
-                         (string-match zettel-regexp-date title))
+                         (string-match zettel-regexp-tempus-currens title))
                      ;; Strip the § before the numerus currens, if exists
                      (let ((match-end (match-end 0)))
                        (cond ((string-match "§" title)
@@ -376,7 +382,8 @@ Based on `rename-file-and-buffer'."
       (let ((new-date (format-time-string "%Y-%m-%d"))
             old-date)
         (cond ((save-excursion
-                 (re-search-forward (concat "^modified: +" zettel-regexp-date)
+                 (re-search-forward (concat "^modified: +"
+                                            zettel-regexp-iso8601-datetime)
                                     nil t))
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
@@ -387,7 +394,8 @@ Based on `rename-file-and-buffer'."
                  (message "Updating metadata modified date in %s from %s to %s."
                           buffer-file-name old-date new-date)
                  (replace-match new-date nil t nil 1)))
-              ((re-search-forward (concat "^created: +" zettel-regexp-date)
+              ((re-search-forward (concat "^created: +"
+                                          zettel-regexp-iso8601-datetime)
                                   nil t)
                (setq old-date (match-string 1))
                (when (and (not (string-equal old-date new-date))
@@ -904,8 +912,8 @@ Zettelkasten."
                 (sk-dir (cdr (assoc subkasten zettel-sub-kasten))))
            (when sk-dir
              (expand-file-name (concat name-only "." deft-extension) sk-dir))))
-        ((string-match (concat "^" zettel-regexp-date) name)
-         ;; name is a datename by itself, assume it's local to `deft-directory'
+        ((string-match (concat "^" zettel-regexp-tempus-currens) name)
+         ;; name is a tempus currens by itself, assume it's in `deft-directory'
          (expand-file-name (concat name "." deft-extension) deft-directory))
         (t
          ;; name is something else, return nil
@@ -1161,7 +1169,7 @@ current one, inserting a link to it at point. If called with a
 prefix argument, ask for the slug. With double prefix argument,
 show the child instead on inserting."
   (interactive "p")
-  (cond ((string-match (concat "^" zettel-regexp-date)
+  (cond ((string-match (concat "^" zettel-regexp-tempus-currens)
                        (file-name-base buffer-file-name))
          (insert (zettel-link-with-spaces (zettel-timestamp-slug))))
         ((string-match (concat "^" zettel-regexp-numerus-currens)
