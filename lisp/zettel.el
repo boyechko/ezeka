@@ -1,6 +1,6 @@
 ;;;; -*- mode: emacs-lisp -*-
 ;;;;-----------------------------------------------------------------------------
-;;;;        Author: Roderick Hoybach <hoybach-code@diachronic.net>
+;;;;        Author: Richard Boyechko <rb-emacs@diachronic.net>
 ;;;;   Description: Zettelkasten implementation based on Deft and Markdown
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
@@ -13,6 +13,10 @@
 
 (require 'deft)
 
+;;;=============================================================================
+;;; Mode
+;;;=============================================================================
+
 ;; Cretea a keymap for the mode
 (defvar zettel-mode-map (make-sparse-keymap)
   "Keymap for Zettel mode.")
@@ -24,21 +28,31 @@
   :keymap zettel-mode-map
   :require 'deft)
 
-(defvar zettel-directory nil            ; should be set on each computer
-  "The central Zettelkasten directory housing all the sub-Zettelkasten.")
+;; Enable zettel-mode for files that match the pattern
+(eval-after-load "markdown"
+  (add-hook 'markdown-mode-hook
+    '(lambda ()
+      (when (zettel-p buffer-file-name)
+        (zettel-mode 1)))))
+(add-hook 'org-mode-hook
+  '(lambda ()
+     (when (zettel-p buffer-file-name)
+       (zettel-mode 1)
+       (setq org-descriptive-links nil))))
+
+;;;=============================================================================
+;;; Internal Variables
+;;;=============================================================================
 
 (defun in-zettel-dir (&optional relative-path)
   "Returns absolute pathname of the given pathspec relative to
 the Zettel directory."
   (expand-file-name (or relative-path "") zettel-directory))
 
-(defvar zettel-sub-kasten
-  nil
-  "An alist of translating various sub-Zettelkasten into pathnames.")
-
 (defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
   "A list of elements of the Zettel filename as FORMAT control
   sequences.")
+
 (defvar zettel-base-format (first zettel-filename-format)
   "The format of the base numerical component of Zettel's name.")
 
@@ -49,6 +63,46 @@ the Zettel directory."
 (defvar zettel-regexp-date
   "§*\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)"
   "The regular expression that matches ISO 8601-like date/time expression.")
+
+(defvar zettel-stored-links '()
+  "A stack of links stored with `zettel-store-link'.")
+
+(defvar zettel-stored-links-history '()
+  "History of the links stored with `zettel-store-link'.")
+
+(defvar zettel-link-backlink nil
+  "Stores the file name of the document into which a link was inserted
+with `zettel-insert-link-intrusive' or `zettel-insert-link', allowing
+for creation of backlinks.")
+
+;;;=============================================================================
+;;; User Variables
+;;;=============================================================================
+
+(defcustom zettel-directory nil
+  "The central Zettelkasten directory housing all the sub-Zettelkasten."
+  :type 'string)
+
+(defcustom zettel-sub-kasten nil
+  "An alist of translating various sub-Zettelkasten into pathnames."
+  :type 'alist)
+
+(defcustom zettel-new-numerus-currens-method 'random
+  "How new numeri currenses are created: RANDOM or NEXT are
+acceptable."
+  :type 'symbol)
+
+(defcustom zettel-new-child-method 'random
+  "How new children are created: RANDOM or NEXT are acceptable."
+  :type 'symbol)
+
+(defcustom zettel-new-numerus-currens-random-limit 200
+  "Upper limit for generating random numeri currenses; exclusive."
+  :type 'integer)
+
+;;;=============================================================================
+;;; Useful Functions
+;;;=============================================================================
 
 (defun zettel-p (file)
   "Returns non-NIL if the file is a Zettel."
@@ -93,28 +147,51 @@ This function replaces `deft-absolute-filename' for zettels."
   (apply #'zettel-absolute-filename args))
 (advice-add 'deft-absolute-filename :around 'deft-absolute-filename--around)
 
-;; Enable zettel-mode for files that match the pattern
-(eval-after-load "markdown"
-  (add-hook 'markdown-mode-hook
-    '(lambda ()
-      (when (zettel-p buffer-file-name)
-        (zettel-mode 1)))))
-(add-hook 'org-mode-hook
-  '(lambda ()
-     (when (zettel-p buffer-file-name)
-       (zettel-mode 1)
-       (setq org-descriptive-links nil))))
+(defun zettel-slug (number letters)
+  "Returns a Zettel slug composed of the NUMBER and LETTERS, both
+of which are strings."
+  (concat number "-" letters))
+
+(defun zettel-slug-p (slug)
+  "Returns NIL if the slug is not a Zettel slug, and otherwise
+returns a list of two elements: the number and letters part of
+the slug."
+  (when (and (stringp slug)
+             (string-match zettel-regexp-numerus-currens slug))
+    (list (match-string 1 slug) (match-string 3 slug))))
+
+(defun zettel-slug-number (slug)
+  "Returns the number part of the slug."
+  (when (string-match zettel-regexp-numerus-currens slug)
+    (match-string 1 slug)))
+
+(defun zettel-slug-letters (slug)
+  "Returns the letters part of the slug as a string."
+  (when (string-match zettel-regexp-numerus-currens slug)
+    (match-string 3 slug)))
+
+(defun zettel-split-slug (slug)
+  "Returns the slug in its split form as a vector: 234-abc ->
+#('234' 'a' 'b''c')."
+  (when (zettel-slug-p slug))
+  (when (string-match zettel-regexp-numerus-currens slug)
+    (let ((number (match-string 1 slug))
+          (letters (split-string (match-string 3 slug) "" t)))
+      (apply #'vector number letters))))
 
 ;;;=============================================================================
-;;; Deft buffer
+;;; Deft Buffer
 ;;;=============================================================================
 
-;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
-(setq deft-strip-title-regexp "^\\(title: +\\)")
-;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
-(setq deft-strip-summary-regexp "\\(^\\w+: .*\\)"
-      deft-time-format nil)
-(setq deft-use-filename-as-title nil)
+;;
+;; Adjust how Deft lists Zettel
+;;
+(setq deft-strip-title-regexp "^\\(title: +\\)"
+      ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
+      deft-strip-summary-regexp "\\(^\\w+: .*\\)"
+      ;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
+      deft-time-format nil
+      deft-use-filename-as-title nil)
 
 (add-hook 'deft-mode-hook
   (lambda ()
@@ -135,13 +212,14 @@ currens) will be indented to.")
                      ;; Strip the § before the numerus currens, if exists
                      (let ((match-end (match-end 0)))
                        (cond ((string-match "§" title)
-                              (setq title (replace-regexp-in-string "§" "" title))
+                              (setq title
+                                (replace-regexp-in-string "§" "" title))
                               (- match-end 1))
                              (t
                               match-end)))
                      0)))
-            ;; Replace the ". " in the first title (following § + numerus currens)
-            ;; with indentation.
+            ;; Replace the ". " in the first title (following § + numerus
+            ;; currens) with indentation.
             (replace-regexp-in-string
              "\\(\\. \\).*\\'"
              (let ((diff (- zettel-indent-title-column numerus-length)))
@@ -183,7 +261,7 @@ number."
 (define-key deft-mode-map (kbd "C-c C-h") 'zettel-add-subtree-to-deft-filter)
 
 ;;;=============================================================================
-;;; Unused Slugs
+;;; Generating Zettel Slugs
 ;;;=============================================================================
 
 (defun zettel-local-unused-slug ()
@@ -237,19 +315,6 @@ number."
                      (or (and (not (liquidp prev)) (liquidp next))
                          (or (sibilantp prev) (sibilantp next)))))
         t))))
-
-(defcustom zettel-new-numerus-currens-method 'random
-  "How new numeri currenses are created: RANDOM or NEXT are
-acceptable."
-  :type 'symbol)
-
-(defcustom zettel-new-child-method 'random
-  "How new children are created: RANDOM or NEXT are acceptable."
-  :type 'symbol)
-
-(defcustom zettel-new-numerus-currens-random-limit 200
-  "Upper limit for generating random numeri currenses; exclusive."
-  :type 'integer)
 
 (defun zettel-next-unused-slug ()
   "Returns the next unused slug, relying on `deft-all-files'.
@@ -345,9 +410,6 @@ Based on `rename-file-and-buffer'."
 ;; Insert my zettel title string into new zettel rather than contents of deft's
 ;; filter string.
 ;;
-;; Warning: Relies on yasnippet expansion of "title"
-;;
-
 (defun deft-new-file--add-zettel-title (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
 on the first line with the Zettel title string."
@@ -367,15 +429,6 @@ on the first line with the Zettel title string."
 ;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
-
-(defvar zettel-stored-links '()
-  "A stack of links stored with `zettel-store-link'.")
-(defvar zettel-stored-links-history '()
-  "History of the links stored with `zettel-store-link'.")
-(defvar zettel-link-backlink nil
-  "Stores the file name of the document into which a link was inserted
-with `zettel-insert-link-intrusive' or `zettel-insert-link', allowing
-for creation of backlinks.")
 
 (defun zettel-link-slug (target &optional context)
   "Returns the slug of the given TARGET, which might be a
@@ -543,18 +596,21 @@ current Zettel to the `zettel-link-backlink'."
            (file-name-base (pop zettel-stored-links))
            (mapcar #'file-name-base zettel-stored-links)))
 
-(defun zettel-get-clipboard-data ()
-  "Get the text from the OS clipboard no matter the system."
-  (string-trim
-   (or (x-get-selection 'CLIPBOARD)
-       (w32-get-clipboard-data)
-       "")))
+(unless (fboundp 'rb-get-clipboard-data)
+  (defun rb-get-clipboard-data ()
+    "System-independent way to get current clipboard data. Returns
+nil if there is nothing there."
+    (case system-type
+      (gnu/linux (x-get-selection 'CLIPBOARD))
+      (windows-nt (w32-get-clipboard-data))
+      (darwin (shell-command-to-string "/usr/bin/pbpaste"))
+      (t nil))))
 
 (defun zettel-insert-link-from-clipboard (arg)
   "Link `zettel-insert-link' but attempts to get the link slug
 from OS clipboard."
   (interactive "P")
-  (let ((link (zettel-get-clipboard-data)))
+  (let ((link (rb-get-clipboard-data)))
     (if (zettel-link-p link)
         (insert
          (zettel-link-with-spaces link
@@ -562,15 +618,47 @@ from OS clipboard."
                                   (equal arg '(16))
                                   buffer-file-name)))))
 
-;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
-(define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
-(define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
-(define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
-(define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
-(define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-insert-link-from-clipboard)
-(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
-(define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
-(define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
+(defun zettel-kill-ring-save-link-title ()
+  "Save the title of the wiki link at point or the buffer to kill
+ring."
+  (interactive)
+  (let ((file (cond ((markdown-wiki-link-p)
+                     (zettel-convert-link-to-filename (markdown-wiki-link-link)))
+                    ((zettel-p buffer-file-name)
+                     buffer-file-name))))
+    (deft-cache-file file)
+    (let ((title (deft-file-title file)))
+      (cond (title
+             (kill-new
+              ;; FIXME: Remove the now obsolete unguillemet
+              (replace-regexp-in-string
+               "[«»]" "_" (second (split-string title "[[:space:]]\\{2,\\}"))))
+             (message "Link title to %s saved in kill ring."
+                      (file-name-base file)))
+            (t
+             (message "Could not get the title of %s."
+                      (file-name-base file)))))))
+
+(defun zettel-kill-ring-save-link (arg)
+  "Save the current link, the deft note at point, or the buffer
+base filename in the kill ring to be used as a wiki link
+elsewhere. With prefix argument, save the file name relative to
+`zettel-directory' instead."
+  (interactive "p")
+  (let ((link (cond ((equal major-mode 'deft-mode)
+                     (widget-get (widget-at (point)) :tag))
+                    ((markdown-wiki-link-p)
+                     (markdown-wiki-link-link))
+                    (buffer-file-name
+                     buffer-file-name)
+                    (t
+                     (message "No file to save a link to.")))))
+    (when link
+      (let ((link (if (= arg 4)
+                      (file-relative-name link zettel-directory)
+                    (zettel-link-slug link))))
+       (kill-new link)
+       (message "Saved [%s] in the kill ring." link)))))
 
 ;; Allow handling markdown wiki links in org-mode
 (defun org-open-at-point--zettel-links (orig-fun &rest args)
@@ -747,49 +835,15 @@ support for following citations."
          (rb-markdown-follow-citation-key-at-point arg))
         (t
          (error "Nothing to follow at point"))))
-(advice-add 'markdown-follow-thing-at-point :around #'rb-markdown-follow-thing-at-point)
+(advice-add 'markdown-follow-thing-at-point
+            :around #'rb-markdown-follow-thing-at-point)
 
-(defun zettel-kill-ring-save-link-title ()
-  "Save the title of the wiki link at point or the buffer to kill
-ring."
-  (interactive)
-  (let ((file (cond ((markdown-wiki-link-p)
-                     (zettel-convert-link-to-filename (markdown-wiki-link-link)))
-                    ((zettel-p buffer-file-name)
-                     buffer-file-name))))
-    (deft-cache-file file)
-    (let ((title (deft-file-title file)))
-      (cond (title
-             (kill-new
-              ;; FIXME: Remove the now obsolete unguillemet
-              (replace-regexp-in-string
-               "[«»]" "_" (second (split-string title "[[:space:]]\\{2,\\}"))))
-             (message "Link title to %s saved in kill ring."
-                      (file-name-base file)))
-            (t
-             (message "Could not get the title of %s."
-                      (file-name-base file)))))))
-
-(defun zettel-kill-ring-save-link (arg)
-  "Save the current link, the deft note at point, or the buffer
-base filename in the kill ring to be used as a wiki link
-elsewhere. With prefix argument, save the file name relative to
-`zettel-directory' instead."
-  (interactive "p")
-  (let ((link (cond ((equal major-mode 'deft-mode)
-                     (widget-get (widget-at (point)) :tag))
-                    ((markdown-wiki-link-p)
-                     (markdown-wiki-link-link))
-                    (buffer-file-name
-                     buffer-file-name)
-                    (t
-                     (message "No file to save a link to.")))))
-    (when link
-      (let ((link (if (= arg 4)
-                      (file-relative-name link zettel-directory)
-                    (zettel-link-slug link))))
-       (kill-new link)
-       (message "Saved [%s] in the kill ring." link)))))
+;; Set the citation key in `rb-reftex-last-citation'.
+(eval-after-load "markdown"
+  '(define-key markdown-mode-map (kbd "C-c |")
+    (cmd
+      (when (rb-markdown-citation-key-p)
+        (push (rb-markdown-citation-key-key) rb-reftex-last-citation)))))
 
 ;;;=============================================================================
 ;;; Wiki Links
@@ -813,7 +867,7 @@ elsewhere. With prefix argument, save the file name relative to
 (defun markdown-fwl--set-auto-mode (&rest args)
   "After advice for `markdown-follow-wiki-link'. Reverses the
 default behavir of ensuring that the buffer is in markdown mode,
-and instead sets it back to the mode it `wants to be'."
+and instead sets it back to the mode it 'wants to be'."
   (set-auto-mode t))
 
 (advice-add 'markdown-follow-wiki-link :after #'markdown-fwl--set-auto-mode)
@@ -896,38 +950,6 @@ enclosing it in [[]]."
 ;;;=============================================================================
 ;;; Children, siblings, and ancestors
 ;;;=============================================================================
-
-(defun zettel-slug (number letters)
-  "Returns a Zettel slug composed of the NUMBER and LETTERS, both
-of which are strings."
-  (concat number "-" letters))
-
-(defun zettel-slug-p (slug)
-  "Returns NIL if the slug is not a Zettel slug, and otherwise
-returns a list of two elements: the number and letters part of
-the slug."
-  (when (and (stringp slug)
-             (string-match zettel-regexp-numerus-currens slug))
-    (list (match-string 1 slug) (match-string 3 slug))))
-
-(defun zettel-slug-number (slug)
-  "Returns the number part of the slug."
-  (when (string-match zettel-regexp-numerus-currens slug)
-    (match-string 1 slug)))
-
-(defun zettel-slug-letters (slug)
-  "Returns the letters part of the slug as a string."
-  (when (string-match zettel-regexp-numerus-currens slug)
-    (match-string 3 slug)))
-
-(defun zettel-split-slug (slug)
-  "Returns the slug in its split form as a vector: 234-abc ->
-#('234' 'a' 'b''c')."
-  (when (zettel-slug-p slug))
-  (when (string-match zettel-regexp-numerus-currens slug)
-    (let ((number (match-string 1 slug))
-          (letters (split-string (match-string 3 slug) "" t)))
-      (apply #'vector number letters))))
 
 ;; TODO: Tired, needs a rewrite.
 (defun zettel-slug-ancestor (slug &optional n)
@@ -1248,11 +1270,16 @@ bookmark's filename property to the Zettel link."
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-numerus-currens)
 (define-key zettel-mode-map (kbd "C-c \"") 'zettel-find-numerus-currens)
 
-;; Set the citation key in `rb-reftex-last-citation'.
-(eval-after-load "markdown"
-  '(define-key markdown-mode-map (kbd "C-c |")
-    (cmd
-      (when (rb-markdown-citation-key-p)
-        (push (rb-markdown-citation-key-key) rb-reftex-last-citation)))))
+;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
+(define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
+(define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
+(define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
+
+(define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
+(define-key zettel-mode-map (kbd "C-c C-M-S-l")
+            'zettel-insert-link-from-clipboard)
+(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
+(define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
+(define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
 
 (provide 'zettel)
