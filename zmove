@@ -17,23 +17,18 @@ Clamp do
   parameter "TARGET", "where to move the Zettel (link or filepath)",
             :attribute_name => :target_string
 
-  # Updates the title, replacing oldslug with newslug, and adding oldslug to
-  # oldnames.
+  # Updates the title, replacing oldslug with newslug, and recording oldslug as
+  # oldname.
   def update_title(zettel, oldslug, newslug)
     zettel.read_file
 
     if zettel.metadata
-      puts "zettel.metadata[:title] = #{zettel.metadata[:title]}"
       zettel.metadata[:title] =
         zettel.metadata[:title].gsub("§#{oldslug}.", "§#{newslug}.")
 
-      if zettel.metadata[:oldnames].is_a?(Array)
-        zettel.metadata[:oldnames].push(oldslug)
-      else
-        zettel.metadata[:oldnames] = [ oldslug ]
-      end
+      zettel.metadata[:oldname] = oldslug
 
-      zettel.metadata[:modified] = Time.now.to_date
+      #zettel.metadata[:modified] = Time.now.to_date
       zettel.write_file
     else
       puts "zmove: The file has no metadata; cannot update title"
@@ -80,9 +75,9 @@ Clamp do
     system("zfix", "-o", source.slug, target.relative_path.to_s)
 
     # Find and replace all wiki links to $source with $target
+    puts "zmove: Replacing all wiki links to #{source.link} with #{target.link}..."
     links = `zlinksto #{source.slug}`
     if !links.empty?
-      puts "zmove: Replace all wiki links to #{source.link} with #{target.link}..."
       puts links + "\nPress [Enter] to continue..."
       STDIN.gets
       IO.popen("zreplacelinks #{source.slug} #{target.slug}") do |subproc|
