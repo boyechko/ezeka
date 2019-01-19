@@ -72,14 +72,12 @@ Clamp do
       # Try to get timestamp for the file OR for the supplied oldname (to_s is
       # needed in case oldname is nil) OR for one of the oldname lines in the
       # file itself.
+      zettel = Zettelkaesten.zettel_from_path(file)
+      zettel.read_file
       if (timestamp = hg_timestamp(file) ||
-                     hg_timestamp(oldname.to_s + EXT) ||
-                     timestamp = File.open(file).grep(/oldname/).reverse
-                                 .find { |s|
-           if s =~ /^oldname: (\d{8}T\d{4})/
-             hg_timestamp($1 + EXT)
-           end }) &&
-         (timestamp =~ /([0-9]{10}\.[0-9]+)},*$/)
+                     timestamp = hg_timestamp(oldname.to_s + EXT) ||
+                     timestamp = hg_timestamp(zettel.metadata[:oldname].to_s + EXT)) &&
+        (timestamp =~ /([0-9]{10}\.[0-9]+)},*$/)
 
         # Everything checks out, so retouch with slightly increased time so that
         # mercurial registers that there is a change
