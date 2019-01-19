@@ -177,12 +177,10 @@ class Zettel
   # this is not really YAML anymore.
   def from_quasi_yaml(string)
     hash = Hash.new
-    string.each_line do |line|
+    string.each_line.with_index do |line, index|
       if line =~ METADATA_LINE  # $1 = key, $2 = value
         # Fix legacy keys
-        if $1 == "oldname"
-          key = :oldnames
-        elsif $1 == "first-reading" || $1 == "second-reading"
+        if $1 == "first-reading" || $1 == "second-reading"
           key = :readings
         else
           key = $1.to_sym
@@ -203,7 +201,7 @@ class Zettel
           hash[key] = value
         end
       else
-        raise "Malformed line `#{line.strip}'"
+        raise "Malformed line (#{index+1}) `#{line}'"
       end
     end
     return hash
