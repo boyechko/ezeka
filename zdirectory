@@ -9,6 +9,6 @@ Clamp do
             :attribute_name => :numcur
 
   def execute
-    puts Numerus.new(numcur).directory
+    puts Zettelkaesten.dir("main") + Numerus.section_of(numcur)
   end
 end
