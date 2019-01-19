@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Easy way to rename zettel files; relies on ~/bin/zdatename
 
 if [[ ! -v ZETTEL_DIR ]]; then

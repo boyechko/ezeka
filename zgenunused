@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Generates a list of unused Zettel numbers in $ZETTEL_DIR
 
 if [[ ! -v ZETTEL_DIR ]]; then

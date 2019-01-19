@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 function usage() {
     echo "Usage: zlimbo <slug> -- rename Zettel to date/time and move it into limbo"

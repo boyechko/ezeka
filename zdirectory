@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Figure out the right directory for the given numerus currens
 
 if [[ ! -v ZETTEL_DIR ]]; then

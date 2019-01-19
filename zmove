@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Move the given zettel to its new location
 
 if [[ $# -ne 2 ]]; then

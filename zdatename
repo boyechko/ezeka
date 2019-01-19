@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Outputs the date name (YYYYMMDDThhmm) for the given file. Since the zettel
 # files only record the creation date, the default is to use 0000 for time
 # unless --modified/-m is given, in which case the last modification time is

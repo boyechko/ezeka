@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Move the limbo file to the Zettel in its proper directory
 
 function usage() {

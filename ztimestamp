@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Get timestamp for the given Zettel file
 
 if [[ ! -v ZETTEL_DIR ]]; then

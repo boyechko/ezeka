@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Generates the frequency file
 
 if [[ ! -v ZETTEL_DIR ]]; then

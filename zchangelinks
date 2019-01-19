@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Fix the links from <old> to <new>
 
 old=
