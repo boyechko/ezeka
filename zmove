@@ -6,7 +6,7 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-if [[ ! -v ZETTEL_DIR ]]; then
+if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"
     exit 1
 fi

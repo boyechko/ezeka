@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fix the timestamps of all modified tracked files text files in $ZETTEL_DIR
 
-if [[ ! -v ZETTEL_DIR ]]; then
+if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"
     exit 1
 fi
