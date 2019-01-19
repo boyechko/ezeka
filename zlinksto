@@ -9,6 +9,6 @@ Clamp do
 
   def execute
     Dir.chdir(Zettelkaesten.root)
-    system("grep --include=*#{Zettelkaesten.ext} -lER '[:|[]#{slug}]]' *")
+    system("grep --include=*#{Zettelkaesten.ext} --exclude-dir=test-zettel -lR '\\[\\[#{slug}\\]\\]' *")
   end
 end
