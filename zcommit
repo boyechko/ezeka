@@ -1,5 +1,10 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Fix the timestamps and commit with the given commit string
 
+modified=$(hg status --modified | wc -l)
+removed=$(hg status --removed | wc -l)
+added=$(hg status --added | wc -l)
+unknown=$(hg status --unknown | wc -l)
+
 zfixtimes
-hg commit -m \"${1:-Periodic}\"
+echo "$(modified)M, $(removed)R, $(added)A, $(unknown)U"

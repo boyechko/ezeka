@@ -1,7 +1,7 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Generates a list of unused Zettel numbers in $ZETTEL_DIR
 
-if [[ ! -v ZETTEL_DIR ]]; then
+if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"
     exit 1
 fi

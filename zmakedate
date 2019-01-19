@@ -1,7 +1,7 @@
-#!/usr/bin/bash
+#!/bin/bash
 # Easy way to rename zettel files; relies on ~/bin/zdatename
 
-if [[ ! -v ZETTEL_DIR ]]; then
+if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"
     exit 1
 fi
