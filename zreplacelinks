@@ -16,18 +16,20 @@ Clamp do
     end
 
     # Read list of files to replace the links in from STDIN
-    ARGF.each_line do |file|
-      file = file.strip
-      file_slug = File.basename(file, ".*")
+    ARGF.each_line do |line|
+      line = line.strip
 
-      # Check that the file exists and is either a numerus currens or datetime
-      if File.exists?(file) &&
-         (file_slug =~ /^[0-9]{3}/ || file_slug =~ /^[0-9]{8}T[0-9]{4}/)
-        print "zreplacelinks: Replacing links in #{file}..."
-        File.write(file, File.read(file).gsub(/#{before}\]\]/, "#{after}]]"))
-        puts "Done"
-      else
-        puts "zreplacelinks: File '#{file}' doesn't appear valid; skipping"
+      if !line.empty?
+        zettel = Zettelkaesten.zettel_from_path(line)
+
+        # Check that the file exists and is either a numerus currens or datetime
+        if zettel
+          n = zettel.replace_links(before, after)
+          zettel.write_file
+          puts "Replaced #{n.to_s} occurence(s) in #{zettel.slug}"
+        else
+          STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
+        end
       end
     end
   end

@@ -150,6 +150,16 @@ class Zettel
     end
   end
 
+  # Replaces the links in the @text
+  def replace_links(before, after)
+    counter = 0
+    @text = @text.gsub(/#{before}\]\]/) do |match|
+      counter += 1
+      "#{after}]]"
+    end
+    return counter
+  end
+
   private
 
   # Returns a YAML block as a string, using inline sequence style.
