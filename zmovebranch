@@ -22,7 +22,7 @@ Clamp do
       old_slug = File.basename(file, Zettelkaesten.ext)
       new_slug = old_slug.gsub(source, target)
       puts "Moving #{old_slug} to #{new_slug}"
-      #system("zmove", old_slug, new_slug)
+      system("zmove", old_slug, new_slug)
     end
   end
 end

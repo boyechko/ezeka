@@ -31,7 +31,7 @@ Clamp do
       #zettel.metadata[:modified] = Time.now.to_date
       zettel.write_file
     else
-      puts "zmove: The file has no metadata; cannot update title"
+      STDERR.puts "The file has no metadata; cannot update title"
       exit(1)
     end
   end
@@ -42,7 +42,7 @@ Clamp do
     elsif Numerus.valid_path?(source_string) || Tempus.valid_path?(source_string)
       source = Zettelkaesten.zettel_from_path(source_string)
     else
-      puts "zmove: Source is neither a valid link nor a valid path."
+      STDERR.puts "Source is neither a valid link nor a valid path."
       exit(1)
     end
     raise "Source is not initialized" unless source
@@ -53,40 +53,42 @@ Clamp do
     elsif Numerus.valid_path?(target_string) || Tempus.valid_path?(target_string)
       target = Zettelkaesten.zettel_from_path(target_string)
     else
-      puts "zmove: Target is neither a valid link nor a valid path."
+      STDERR.puts "Target is neither a valid link nor a valid path."
       exit(1)
     end
     target_rel = target.relative_path
 
     # Give user chance to interrupt
-    puts "zmove: Press [Enter] to move #{source_rel} to #{target_rel}..."
+    puts "Press ENTER to move #{source_rel} to #{target_rel}..."
     STDIN.gets
 
     # Move the files themselves
     Dir.chdir(Zettelkaesten.root)
     system("hg mv #{source_rel} #{target_rel}")
     if $?.exitstatus != 0
-      puts "zmove: Mercurial could not move the file; aborting"
+      STDERR.puts "Mercurial could not move the file; aborting"
       exit(1)
     end
 
-    # Change the title, add oldname, and then retouch to original modtime
+    # Change the title and add oldname
     update_title(target, source.slug, target.slug)
-    system("zfix", "-o", source.slug, target.relative_path.to_s)
 
     # Find and replace all wiki links to $source with $target
-    puts "zmove: Replacing all wiki links to #{source.link} with #{target.link}..."
     links = `zlinksto #{source.slug}`
     if !links.empty?
-      puts links + "\nPress [Enter] to continue..."
+      puts links + "Press ENTER to replace links in the above files..."
       STDIN.gets
-      IO.popen("zreplacelinks #{source.slug} #{target.slug}") do |subproc|
+
+      IO.popen("zreplacelinks #{source.slug} #{target.slug}", 'w+') do |subproc|
         subproc.write(links)
         subproc.close_write
-        puts subproc.read
+        subproc.read.split("\n").each do |l|
+          puts "#{l}"
+        end
+        puts
       end
     else
-      puts "zmove: No links needed to be replaced; we're done."
+      puts "No links needed to be replaced; we're done."
     end
   end
 end
