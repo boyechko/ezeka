@@ -36,7 +36,7 @@ Clamp do
 
   # Retouch the given file with the new mtime
   def retouch(file, new_mtime)
-    return system("touch", "-d", "@#{new_mtime.to_f}", file)
+    return system("touch", "-t", "#{new_mtime.strftime "%Y%m%d%H%M"}", file)
   end
 
   # Returns the .hgtimestamp for file as a Time object
