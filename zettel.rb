@@ -133,7 +133,7 @@ class Zettel
   # Reads the Zettel file, setting the @metadata and @text instance variables.
   def read_file()
     if File.readable?(@path)
-      content = File.read(path)
+      content = File.read(path).gsub(/\r\n/, "\n") # fix DOS line endings too
       metadata, @text = content.split("\n\n", 2)
       @metadata = from_quasi_yaml(metadata)
     else
