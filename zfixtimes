@@ -9,7 +9,7 @@ fi
 cd $ZETTEL_DIR
 hg status --added --modified --include "**.txt" | while read line
 do
-    fname=$(echo $line | sed -re 's/^([AM] )*//')
+    fname=$(echo $line | sed -e 's/^\([AM] \)*//')
 
     # Fix DOS line endings, if present
     doslines=$(dos2unix -id "$fname" | awk '{ print $1 }')
