@@ -1,10 +1,10 @@
 #!/bin/bash
 # Fix the timestamps and commit with the given commit string
 
-modified=$(hg status --modified | wc -l)
-removed=$(hg status --removed | wc -l)
-added=$(hg status --added | wc -l)
-unknown=$(hg status --unknown | wc -l)
+modified=$(hg status --modified | wc -l | awk '{ print $1 }')
+removed=$(hg status --removed | wc -l | awk '{ print $1 }')
+added=$(hg status --added | wc -l | awk '{ print $1 }')
+unknown=$(hg status --unknown | wc -l | awk '{ print $1 }')
 
 zfixtimes
-echo "$(modified)M, $(removed)R, $(added)A, $(unknown)U"
+echo "${modified}m, ${removed}r, ${added}a, ${unknown}u"
