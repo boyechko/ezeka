@@ -68,7 +68,7 @@ class Zettelkaesten
     elsif kasten
       return Tempus.new_from_path(path)
     else
-      raise "The file at given path is not a Zettel: #{path}"
+      raise "The file is not a Zettel: #{path}"
     end
   end
 
@@ -192,10 +192,11 @@ class Zettel
         # Fix legacy keys
         if $1 == "first-reading" || $1 == "second-reading"
           key = :readings
+          value = [ $2 ]
         else
           key = $1.to_sym
+          value = $2
         end
-        value = $2
 
         if value =~ ISO8601_PATTERN
           value = Time.parse(value).to_date
@@ -211,7 +212,8 @@ class Zettel
           hash[key] = value
         end
       else
-        raise "Malformed line (#{index+1}) `#{line}'"
+        # Ignore otherwise
+        STDERR.puts "Malformed line ##{index+1}?: #{line}"
       end
     end
     return hash
