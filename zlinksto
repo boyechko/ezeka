@@ -2,13 +2,34 @@
 # List zettel with wiki links to the given slug
 
 require 'clamp'
+require 'open3'
 require_relative 'zettel'
 
 Clamp do
   parameter "SLUG", "slug to find links to", :attribute_name => :slug
+  option ["-p", "--pprint"], :flag, "pretty print", :attribute_name => :pretty_print
 
   def execute
-    Dir.chdir(Zettelkaesten.root)
-    system("grep --include=*#{Zettelkaesten.ext} --exclude-dir=test-zettel -lR '\\[\\[#{slug}\\]\\]' *")
+    format_string = "%-10s  %s"
+    cmd = "grep --include=*#{Zettelkaesten.ext} -lR '\\[\\[#{slug}\\]\\]' *"
+
+    if pretty_print?
+      puts format_string % ["Slug", "Title"]
+      puts format_string % ["----", "-----"]
+    end
+    
+    Dir.chdir(Zettelkaesten.root)    
+    Open3.popen3(cmd) do |stdin, stdout, stderr|
+      while file = stdout.gets
+        path = Zettelkaesten.root + file.chomp
+        zettel = Zettelkaesten.zettel_from_path(path)
+        
+        if zettel && pretty_print?
+          puts format_string % [zettel.slug, zettel.metadata[:title]]
+        else
+          puts file
+        end
+      end
+    end
   end
 end
