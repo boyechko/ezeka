@@ -1306,21 +1306,19 @@ bookmark's filename property to the Zettel link."
  ;; character" than {, }, <, >, : or ;, which are reserved for major modes.
 ;;;-----------------------------------------------------------------------------
 
-(define-key zettel-mode-map (kbd "C-c #") 'zettel-match-title-to-filename)
-
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
-(define-key zettel-mode-map (kbd "C-c .") 'zettel-insert-new-child)
+(define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
 
 (define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 ;;(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 
-(define-key zettel-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c !") 'zettel-kill-ring-save-link)
+(define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 
-(define-key deft-mode-map (kbd "C-c '") 'zettel-filter-add-subtree)
+(define-key deft-mode-map (kbd "C-c '") 'zettel-add-subtree-to-deft-filter)
 ;; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-numerus-currens)
 (define-key zettel-mode-map (kbd "C-c \"") 'zettel-find-numerus-currens)
@@ -1334,7 +1332,6 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c C-M-S-l")
             'zettel-insert-link-from-clipboard)
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
-(define-key zettel-mode-map (kbd "C-c C-b") 'zettel-insert-backlink)
-(define-key zettel-mode-map (kbd "C-c C-r") 'zettel-replace-link-at-point)
+(define-key zettel-mode-map (kbd "C-c C-S-b") 'zettel-insert-backlink)
 
 (provide 'zettel)
