@@ -226,21 +226,26 @@ Group 8 is the title itself.")
            (first (split-string
                    ;; do a sane thing when I opened a Zettel file directly
                    ;; rather than through Deft interface
-                   (progn
-                     (when (not deft-hash-contents)
-                       (deft-cache-initialize)
-                       (deft-cache-file file))
-                     (deft-file-contents file))
+                   (or (progn
+                         (when (not deft-hash-contents)
+                           (deft-cache-initialize))
+                         (deft-cache-file file)
+                         (deft-file-contents file))
+                       "")
                    "\n\n"))
            "\n"))
          (metadata
           (mapcar #'(lambda (line)
-                      (let ((pair (split-string line ": ")))
-                        (cons (intern (concat ":" (first pair))) (second pair))))
+                      (when (> (length line) 0)
+                        (if (string-match "\\(\\w+\\):\\s-+\\(.*\\)" line)
+                            (cons (intern (concat ":" (match-string 1 line)))
+                                  (match-string 2 line))
+                          (error "Malformed metadata line: '%s'" line))))
                   metadata-section))
-         (title ))
-    (append (zettel-combined-title-metadata (alist-get :title metadata))
-            metadata)))
+         (title (alist-get :title metadata)))
+    (if title
+        (append (zettel-combined-title-metadata title) metadata)
+      metadata)))
 
 ;;;=============================================================================
 ;;; Deft Buffer
