@@ -293,7 +293,7 @@ number."
   (interactive
    (list (if current-prefix-arg
              (read-string "Numerus currens to find: ")
-             (when (string-equal (buffer-name) "*Deft*")
+             (when (string-equal (buffer-name) deft-buffer)
                (file-name-sans-extension
                 (file-name-nondirectory
                  (widget-get (widget-at (point)) :tag)))))))
@@ -679,10 +679,7 @@ ring."
     (deft-cache-file file)
     (let ((title (alist-get :title (zettel-metadata file))))
       (cond (title
-             (kill-new
-              ;; FIXME: Remove the now obsolete unguillemet
-              (replace-regexp-in-string
-               "[«»]" "_" (second (split-string title "[[:space:]]\\{2,\\}"))))
+             (kill-new title)
              (message "Link title to %s saved in kill ring."
                       (file-name-base file)))
             (t
@@ -714,7 +711,8 @@ elsewhere. With prefix argument, save the file name relative to
 (defun org-open-at-point--zettel-links (orig-fun &rest args)
   "Around advice for `org-open-at-point' that adds support for
 following internal Zettel links."
-  (if (markdown-wiki-link-p)
+  (if (and (markdown-wiki-link-p)
+           (zettel-link-p (markdown-wiki-link-link)))
       (markdown-follow-wiki-link-at-point)
     (apply orig-fun args)))
 (advice-add 'org-open-at-point :around #'org-open-at-point--zettel-links)
