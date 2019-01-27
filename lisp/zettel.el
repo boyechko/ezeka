@@ -552,17 +552,7 @@ link."
     (cond (include-title
            ;; Make sure cache is updated for the linked file
            (deft-cache-file file)
-           ;; NOTE: This works on the assumption that there will be at least two
-           ;; spaces separating the zettel number from its title, which might be
-           ;; affected by `deft-strip-title-regexp' and/or
-           ;; `zettel-separate-deft-file-title'.
-           (let ((title
-                  ;; Strip any {...} type keyword, if any
-                  (replace-regexp-in-string
-                   "^{.*} " ""
-                   (second
-                    (split-string (deft-file-title file)
-                                  "[[:space:]]\\{2,\\}")))))
+           (let ((title (alist-get :title (zettel-metadata file))))
              (if (or (null title-location) (eq title-location 'left))
                  (format "%s [[%s]]" title link-text)
                (format "[[%s]] %s" link-text title))))
@@ -687,7 +677,7 @@ ring."
                     ((zettel-p buffer-file-name)
                      buffer-file-name))))
     (deft-cache-file file)
-    (let ((title (deft-file-title file)))
+    (let ((title (alist-get :title (zettel-metadata file))))
       (cond (title
              (kill-new
               ;; FIXME: Remove the now obsolete unguillemet
@@ -1292,7 +1282,9 @@ bookmark's filename property to the Zettel link."
   (interactive)
   (let ((buffers
          (mapcar #'(lambda (buf)
-                     (cons (deft-file-title (buffer-file-name buf)) buf))
+                     (cons (alist-get :title
+                                      (zettel-metadata (buffer-file-name buf)))
+                           buf))
                  (remove-if-not #'(lambda (buf)
                                     (zettel-p (buffer-file-name buf)))
                                 (buffer-list)))))
