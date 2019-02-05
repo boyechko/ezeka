@@ -117,6 +117,10 @@ acceptable."
   "Upper limit for generating random numeri currenses; exclusive."
   :type 'integer)
 
+(defcustom zettel-categories nil
+  "A list of categories used for Zettel."
+  :type 'list)
+
 ;;;=============================================================================
 ;;; Useful Functions
 ;;;=============================================================================
@@ -206,7 +210,7 @@ the slug."
           "\\. \\({\\([^}]+\\)} \\)*\\(.*\\)$")
   "Regular expression for a combined title string, used in `zettel-metadata'.
 Group 1 is the slug.
-Group 7 is the kind.
+Group 7 is the category.
 Group 8 is the title itself.")
 
 (defun zettel-combined-title-metadata (title)
@@ -217,7 +221,7 @@ Group 8 is the title itself.")
             (cons :style (if (string-match-p zettel-regexp-numerus-currens slug)
                              :numerus
                            :tempus))
-            (cons :type (match-string 7 title))
+            (cons :category (match-string 7 title))
             (cons :title (match-string 8 title))))))
 
 (defun zettel-metadata (file)
@@ -279,10 +283,10 @@ currens) will be indented to.")
             ;; FIXME: Use variables rather than magic numbers?
             (format "%-15s%-13s%s"
                     (alist-get :slug metadata)
-                    (let ((type (alist-get :type metadata)))
-                      (if (> (length type) 12)
-                          (concat (subseq type 0 10) "..")
-                        type))
+                    (let ((category (alist-get :category metadata)))
+                      (if (> (length category) 12)
+                          (concat (subseq category 0 10) "..")
+                        category))
                     (alist-get :title metadata)))
         title))))
 (advice-add 'deft-file-title :around #'deft-file-title--separate)
@@ -1294,6 +1298,29 @@ bookmark's filename property to the Zettel link."
                             (switch-to-buffer (cdr choice))))
       (user-error "No open Zettel buffers to switch to"))))
 
+(defun zettel-add-category (category)
+  "Add a category to the Zettel title based on `zettel-categories'."
+  (interactive (list (ivy-read "Category: " zettel-categories)))
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "^title: §?\\([0-9a-z-]+\\)\\.")
+      (replace-match (format "title: §\\1. {%s}" category)))))
+
+(defun zettel-add-bibliographic-category ()
+  "Add a category to the Zettel title based on the bibliographic title."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    ;; 1: slug
+    ;; 2: given name(s)
+    ;; 3: family name
+    ;; 4: title
+    ;; 5: year
+    (when (re-search-forward "^title: §?\\([0-9a-z-]+\\)\\. \
+\\(\\w+ \\)+\\(\\w+\\), \\([^(]+\\) (\\([0-9]+\\))")
+      (replace-match (subseq (match-string 2) 0 1) nil nil nil 2)
+      (replace-match "title: §\\1. {\\3\\5} \\2. \\3's \\4 (\\5)"))))
+
 ;;;-----------------------------------------------------------------------------
 ;;; Key Bindings
 ;;;
@@ -1305,6 +1332,7 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
+(define-key zettel-mode-map (kbd "C-c %") 'zettel-add-category)
 
 (define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
