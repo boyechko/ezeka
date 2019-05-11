@@ -7,9 +7,14 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;;
 ;;;; TODO:
-;;;; * Write `zettel-link-p'
-;;;; * Write `zettel-slug-new-sibling'
 ;;;;
+;;;; - Write `zettel-link-p'
+;;;; - Write `zettel-numerus-new-sibling'
+;;;; - Add `zettel-switch-to-child' that provides a nice list of children a la
+;;;;   `zettel-switch-to-zettel'
+
+;;;; - Finish replacing zettel-numerus-p with zettel-type, watching out for
+;;;;   multiple-value-bind
 
 (require 'deft)
 (require 'markdown-mode)
@@ -133,6 +138,18 @@ acceptable."
          (or (string-match zettel-regexp-numerus-currens (file-name-base file))
              (string-match zettel-regexp-tempus-currens (file-name-base file))))))
 
+(defun zettel-slug (file)
+  "Returns the slug part of the given Zettel file."
+  (when (zettel-p file)
+    (file-name-base file)))
+
+(defun zettel-kasten (file)
+  "Returns the kasten of the given Zettel file."
+  (when (zettel-p file)
+    (message (directory-file-name
+              (file-relative-name (file-name-directory file)
+                                  zettel-directory)))))
+
 (defun zettel-link-p (string)
   "Returns non-NIL if the string could be a link to a zettel."
   ;; TODO: Deal with subkasten in the link
@@ -168,33 +185,31 @@ This function replaces `deft-absolute-filename' for zettels."
   (apply #'zettel-absolute-filename args))
 (advice-add 'deft-absolute-filename :around 'deft-absolute-filename--around)
 
-(defun zettel-slug (number letters)
-  "Returns a Zettel slug composed of the NUMBER and LETTERS, both
-of which are strings."
+(defun zettel-make-numerus (number letters)
+  "Returns a new numerus currens slug composed of the NUMBER and LETTERS,
+both of which are strings."
   (concat number "-" letters))
 
-(defun zettel-slug-p (slug)
-  "Returns NIL if the slug is not a Zettel slug, and otherwise
-returns a list of two elements: the number and letters part of
-the slug."
+(defun zettel-numerus-p (slug)
+  "Returns NIL if the slug is not a numerus currens slug, and otherwise
+returns a list of two elements: the number and letters part of the slug."
   (when (and (stringp slug)
              (string-match zettel-regexp-numerus-currens slug))
     (list (match-string 1 slug) (match-string 3 slug))))
 
-(defun zettel-slug-number (slug)
+(defun zettel-numerus-number (slug)
   "Returns the number part of the slug."
   (when (string-match zettel-regexp-numerus-currens slug)
     (match-string 1 slug)))
 
-(defun zettel-slug-letters (slug)
+(defun zettel-numerus-letters (slug)
   "Returns the letters part of the slug as a string."
   (when (string-match zettel-regexp-numerus-currens slug)
     (match-string 3 slug)))
 
-(defun zettel-split-slug (slug)
+(defun zettel-numerus-split (slug)
   "Returns the slug in its split form as a vector: 234-abc ->
 #('234' 'a' 'b''c')."
-  (when (zettel-slug-p slug))
   (when (string-match zettel-regexp-numerus-currens slug)
     (let ((number (match-string 1 slug))
           (letters (split-string (match-string 3 slug) "" t)))
@@ -1005,25 +1020,25 @@ enclosing it in [[]]."
 ;;;=============================================================================
 
 ;; TODO: Tired, needs a rewrite.
-(defun zettel-slug-ancestor (slug &optional n)
+(defun zettel-numerus-ancestor (slug &optional n)
   "Returns the slug's ancestor, or NIL if could not figure out.
 With the optional N, try to find the Nth ancestor (i.e.
 grandparent if N is 2, an so on), returning the most remote
 ancestor that could find."
   (let ((n (if (integerp n) (abs n) 1)))
-   (multiple-value-bind (number letters)
-       (zettel-slug-p slug)
-     (when number
-       (cond ((zerop (length letters)) nil)
-             ((<= (length letters) n) number)
-             (t
-              (concat number "-" (substring letters 0 (- n)))))))))
+    (multiple-value-bind (number letters)
+        (zettel-numerus-p slug)
+      (when number
+        (cond ((zerop (length letters)) nil)
+              ((<= (length letters) n) number)
+              (t
+               (concat number "-" (substring letters 0 (- n)))))))))
 
-(defun zettel-slug-children (slug)
+(defun zettel-numerus-children (slug)
   "Returns a list of the slugs of Zettel's children. If the Zettel doesn't
 have any children, returns NIL."
   (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
+      (zettel-numerus-p slug)
     (let ((children-regex (format "%s-%s[a-z]$" number (or letters ""))))
       (sort
        (mapcar #'file-name-base
@@ -1042,7 +1057,7 @@ the links are on the right of titles; otherwise, to the left."
                  nil nil (file-name-base buffer-file-name))
                 current-prefix-arg))
   (when (zettel-p buffer-file-name)
-    (dolist (child (zettel-slug-children slug))
+    (dolist (child (zettel-numerus-children slug))
       (beginning-of-line)
       (insert "* ")
       (insert (zettel-link-with-spaces (zettel-absolute-filename child)
@@ -1051,20 +1066,20 @@ the links are on the right of titles; otherwise, to the left."
                                        buffer-file-name))
       (newline))))
 
-(defun zettel-slug-siblings (slug)
+(defun zettel-numerus-siblings (slug)
   "Returns a list of the Zettel's siblings, inclusive. If the
 Zettel is a top-level one, or it doesn't have any siblings,
 returns NIL."
-  (let ((parent (zettel-slug-ancestor slug)))
+  (let ((parent (zettel-numerus-ancestor slug)))
     (when parent
-      (zettel-slug-children parent))))
+      (zettel-numerus-children parent))))
 
 (defun zettel-find-ancestor (n)
   "Opens the current Zettel's ancestor. With a prefix argument, try
 to find the Nth ancestor."
   (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((ancestor (zettel-slug-ancestor (file-name-base buffer-file-name) n)))
+    (let ((ancestor (zettel-numerus-ancestor (file-name-base buffer-file-name) n)))
       (when ancestor
         (find-file
          (zettel-absolute-filename ancestor))))))
@@ -1075,7 +1090,7 @@ numerical prefix argument, try to find Nth ancestor. With
 universal argument, behave like `zettel-insert-link'."
   (interactive "P")
   (when (zettel-p buffer-file-name)
-    (let ((link (zettel-slug-ancestor (file-name-base buffer-file-name)
+    (let ((link (zettel-numerus-ancestor (file-name-base buffer-file-name)
                                       (if (integerp arg) arg 1))))
       (when link
         (insert
@@ -1096,7 +1111,7 @@ siblings as a loop."
   (interactive "p")
   (when (zettel-p buffer-file-name)
     (let* ((slug (file-name-base buffer-file-name))
-           (siblings (zettel-slug-siblings slug))
+           (siblings (zettel-numerus-siblings slug))
            (length (length siblings)))
       (if (> length 1)
           (let* ((pos (position slug siblings :test #'string-equal))
@@ -1112,8 +1127,8 @@ siblings as a loop."
                                  (elt siblings next-sibling-pos))))
             (if next-sibling
                 (find-file (zettel-absolute-filename next-sibling))
-                (message "No other siblings.")))
-          (message "This Zettel has no siblings.")))))
+              (message "No other siblings.")))
+        (message "This Zettel has no siblings.")))))
 
 (defun zettel-prev-sibling (&optional n)
   "Opens the current Zettel's previous Nth sibling (if any).
@@ -1129,53 +1144,53 @@ siblings as a loop."
   (when (zettel-p buffer-file-name)
     (find-file
      (deft-absolute-filename
-         (completing-read "Choose sibling: "
-                          (zettel-slug-siblings
-                           (file-name-base buffer-file-name)))))))
+       (completing-read "Choose sibling: "
+                        (zettel-numerus-siblings
+                         (file-name-base buffer-file-name)))))))
 
-(defun zettel-slug-first-child (slug)
+(defun zettel-numerus-first-child (slug)
   "Returns a new slug that would be a first child of the given one."
   (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
-    (cond (letters (zettel-slug number (concat letters "a")))
-          (number (zettel-slug number "a"))
+      (zettel-numerus-p slug)
+    (cond (letters (zettel-make-numerus number (concat letters "a")))
+          (number (zettel-make-numerus number "a"))
           (t nil))))
 
-(defun zettel-slug-numeric (slug)
+(defun zettel-numerus-numeric (slug)
   "Converts the given alphanumer slug into its numeric version (a list)."
   (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
+      (zettel-numerus-p slug)
     (when number
       (append (list (string-to-number number))
               (mapcar #'(lambda (c) (+ 1 (- c ?a)))
                       (coerce letters 'list))))))
 
-(defun zettel-slug-alphanumeric (numeric-slug)
+(defun zettel-numerus-alphanumeric (numeric-slug)
   "Converts the given numeric slug into its alphanumeric version (a string)."
-  (zettel-slug (number-to-string (first numeric-slug))
-               (coerce (mapcar #'(lambda (num)
-                                   (+ ?a (- num 1)))
-                               (rest numeric-slug))
-                       'string)))
+  (zettel-make-numerus (number-to-string (first numeric-slug))
+                       (coerce (mapcar #'(lambda (num)
+                                           (+ ?a (- num 1)))
+                                       (rest numeric-slug))
+                               'string)))
 
-(defun zettel-slug-new-sibling (slug)
+(defun zettel-numerus-new-sibling (slug)
   "Returns the next unused sibling of the given slug, or NIL if
 there are none. Respects `zettel-new-child-method'."
   )
 
-(defun zettel-slug-new-child (slug)
+(defun zettel-numerus-new-child (slug)
   "Generate a new available child of the given SLUG, respecting
 `zettel-new-child-method'."
   (multiple-value-bind (number letters)
-      (zettel-slug-p slug)
+      (zettel-numerus-p slug)
     (when number
       (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxy" 'list))
              ;; 'z' is left out as reserved letter
              (used-letters (mapcar #'(lambda (s)
                                        (string-to-char
                                         (substring
-                                         (zettel-slug-letters s) -1)))
-                                   (zettel-slug-children slug)))
+                                         (zettel-numerus-letters s) -1)))
+                                   (zettel-numerus-children slug)))
              (unused-letters
               (sort (set-difference alphabet used-letters) #'<)))
         (if unused-letters
@@ -1186,9 +1201,9 @@ there are none. Respects `zettel-new-child-method'."
                (setf (elt letters (- (length letters) 1))
                      (first unused-letters))))
           ;; If no more unused letters, try going into the "z" extension.
-          (zettel-slug-new-child
-           (zettel-slug (zettel-slug-number slug)
-                        (concat (zettel-slug-letters slug) "z"))))))))
+          (zettel-numerus-new-child
+           (zettel-make-numerus (zettel-numerus-number slug)
+                                (concat (zettel-numerus-letters slug) "z"))))))))
 
 (defun zettel-snc--pronounceable (number letters unused-letters)
   "Helper function for `zettel-slug-new-child', which tries to
@@ -1231,7 +1246,7 @@ show the child instead on inserting."
                               (widget-get (widget-at (point)) :tag)))
                             (t
                              (read-string "Slug: " nil))))
-                (new-child-slug (when slug (zettel-slug-new-child slug))))
+                (new-child-slug (when slug (zettel-numerus-new-child slug))))
            (cond ((not slug)
                   (message "Could not figure out which zettel to find a child for."))
                  ((not new-child-slug)
