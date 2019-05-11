@@ -38,13 +38,13 @@
 (eval-after-load "markdown"
   (add-hook 'markdown-mode-hook
     '(lambda ()
-      (when (zettel-p buffer-file-name)
-        (zettel-mode 1)))))
+       (when (zettel-p buffer-file-name)
+         (zettel-mode 1)))))
 (add-hook 'org-mode-hook
   '(lambda ()
      (when (zettel-p buffer-file-name)
-       (zettel-mode 1)
-       (setq org-descriptive-links nil))))
+       (setq org-export-with-broken-links t)
+       (zettel-mode 1))))
 
 ;;;=============================================================================
 ;;; Internal Variables
@@ -313,10 +313,10 @@ number."
   (interactive
    (list (if current-prefix-arg
              (read-string "Numerus currens to find: ")
-             (when (string-equal (buffer-name) deft-buffer)
-               (file-name-sans-extension
-                (file-name-nondirectory
-                 (widget-get (widget-at (point)) :tag)))))))
+           (when (string-equal (buffer-name) deft-buffer)
+             (file-name-sans-extension
+              (file-name-nondirectory
+               (widget-get (widget-at (point)) :tag)))))))
   (let ((subtree (concat "§" slug)))
     (setq deft-filter-regexp (list subtree))
     (deft-refresh-filter)))
@@ -332,7 +332,7 @@ number."
   (interactive)
   (if deft-incremental-search
       (deft-filter "[Index]" t)
-      (deft-filter "\\[Index\\]")))
+    (deft-filter "\\[Index\\]")))
 
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-i") 'zettel-add-index-to-deft-filter)
@@ -724,8 +724,8 @@ elsewhere. With prefix argument, save the file name relative to
       (let ((link (if (= arg 4)
                       (file-relative-name link zettel-directory)
                     (zettel-link-slug link))))
-       (kill-new link)
-       (message "Saved [%s] in the kill ring." link)))))
+        (kill-new link)
+        (message "Saved [%s] in the kill ring." link)))))
 
 ;; Allow handling markdown wiki links in org-mode
 (defun org-open-at-point--zettel-links (orig-fun &rest args)
@@ -757,7 +757,7 @@ following internal Zettel links."
       ;; Use appropriate command depending on if tracked or not
       (if (vc-backend old-name)
           (vc-rename-file old-filename new-filename)
-          (rename-file old-filename new-filename))
+        (rename-file old-filename new-filename))
       ;; Update the title
       (zettel-match-title-to-filename)
       ;; Update Deft
@@ -801,13 +801,13 @@ on its font lock properties."
                          (markdown-convert-wiki-link-to-filename
                           (markdown-wiki-link-link)))))
               (progn (forward-sexp) (point))
-              (point-min)))
+            (point-min)))
          (loc (text-property-any
                from (point-max)
                'font-lock-face 'markdown-missing-link-face)))
     (if loc
         (goto-char loc)
-        (message "No missing links"))))
+      (message "No missing links"))))
 
 (defun zettel-filter-for-link-at-point ()
   "Modifies the Deft filter to look for the Zettel linked with
@@ -888,7 +888,7 @@ With prefix argument ARG, open the file in other window."
   (let ((key (rb-markdown-citation-key-key)))
     (funcall (if (equal arg '(4))
                  #'find-file-other-window
-                 #'find-file)
+               #'find-file)
              (first reftex-default-bibliography))
     (bibtex-search-entry key)))
 
@@ -993,8 +993,8 @@ handling 'subkasten:' notation."
           (let ((orig-ext (match-string 0 name)))
             (if (string-match (concat orig-ext "\\(\\.\\w+\\)$") result)
                 (replace-match orig-ext nil nil result)
-                result))
-          result))))
+              result))
+        result))))
 
 (advice-add 'markdown-convert-wiki-link-to-filename
             :around #'markdown-cwltf--fix-link)
@@ -1008,12 +1008,12 @@ enclosing it in [[]]."
       (modify-syntax-entry ?- "w" table)
       (with-syntax-table table
         (multiple-value-bind (start end)
-         (let* ((bounds (bounds-of-thing-at-point 'word))
-                (start (car bounds))
-                (end (cdr bounds))
-                (word (buffer-substring-no-properties start end)))
-           (delete-region start end)
-           (insert (zettel-link-with-spaces word))))))))
+            (let* ((bounds (bounds-of-thing-at-point 'word))
+                   (start (car bounds))
+                   (end (cdr bounds))
+                   (word (buffer-substring-no-properties start end)))
+              (delete-region start end)
+              (insert (zettel-link-with-spaces word))))))))
 
 ;;;=============================================================================
 ;;; Children, siblings, and ancestors
