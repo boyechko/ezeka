@@ -115,7 +115,7 @@ acceptable."
   :type 'symbol)
 
 (defcustom zettel-new-child-method 'random
-  "How new children are created: RANDOM or NEXT are acceptable."
+  "How new children are created: RANDOM, PRONOUNCEABLE, or NEXT."
   :type 'symbol)
 
 (defcustom zettel-new-numerus-currens-random-limit 200
@@ -909,9 +909,11 @@ support for following citations."
 ;; Set the citation key in `rb-reftex-last-citation'.
 (eval-after-load "markdown"
   '(define-key markdown-mode-map (kbd "C-c |")
-    (cmd
-      (when (rb-markdown-citation-key-p)
-        (push (rb-markdown-citation-key-key) rb-reftex-last-citation)))))
+               (lambda ()
+                 (interactive)
+                 (when (rb-markdown-citation-key-p)
+                   (push (rb-markdown-citation-key-key)
+                         rb-reftex-last-citation)))))
 
 ;;;=============================================================================
 ;;; Wiki Links
@@ -1178,6 +1180,11 @@ siblings as a loop."
 there are none. Respects `zettel-new-child-method'."
   )
 
+(defun zettel--random-elt (sequence)
+  "Return a random element of SEQUENCE."
+  (when (sequencep sequence)
+    (elt sequence (random (length sequence)))))
+
 (defun zettel-numerus-new-child (slug)
   "Generate a new available child of the given SLUG, respecting
 `zettel-new-child-method'."
@@ -1195,8 +1202,13 @@ there are none. Respects `zettel-new-child-method'."
               (sort (set-difference alphabet used-letters) #'<)))
         (if unused-letters
             (case zettel-new-child-method
-              (random
+              (pronounceable
                (zettel-snc--pronounceable number letters unused-letters))
+              (random
+               (zettel-make-numerus number
+                                    (concat letters
+                                            (char-to-string
+                                             (zettel--random-elt unused-letters)))))
               (next
                (setf (elt letters (- (length letters) 1))
                      (first unused-letters))))
@@ -1206,22 +1218,18 @@ there are none. Respects `zettel-new-child-method'."
                                 (concat (zettel-numerus-letters slug) "z"))))))))
 
 (defun zettel-snc--pronounceable (number letters unused-letters)
-  "Helper function for `zettel-slug-new-child', which tries to
-generate a pronounceable new random child of the slug (NUMBERS +
+  "Helper function for `zettel-numerus-new-child', which tries to
+generate a pronounceable new random child of the slug (NUMBER +
 LETTERS) among UNUSED-LETTERS."
-  (cl-flet ((random-elt (sequence)
-              "Return a random element of SEQUENCE."
-              (when (sequencep sequence)
-                (elt sequence (random (length sequence))))))
-    (let ((random-letter (random-elt unused-letters))
-          (attempts '()))
-      (while (and (not (slug-pronounceable-p letters random-letter))
-                  (<= (length attempts) 10))
-        (push (setq random-letter (random-elt unused-letters)) attempts))
-      (message "Attempted letters: %s" (mapcar #'char-to-string
-                                               (nreverse attempts)))
-      (zettel-slug number
-                   (concat letters (char-to-string random-letter))))))
+  (let ((random-letter (zettel--random-elt unused-letters))
+        (attempts '()))
+    (while (and (not (slug-pronounceable-p letters random-letter))
+                (<= (length attempts) 10))
+      (push (setq random-letter (zettel--random-elt unused-letters)) attempts))
+    (message "Attempted letters: %s" (mapcar #'char-to-string
+                                             (nreverse attempts)))
+    (zettel-make-numerus number
+                         (concat letters (char-to-string random-letter)))))
 
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel at the next branching level of the
@@ -1292,7 +1300,7 @@ bookmark's filename property to the Zettel link."
     (setq-local bookmark-make-record-function 'bookmark-make-record-zettel)))
 
 ;;;=============================================================================
-;;; Switch to Buffer
+;;; User Interface
 ;;;=============================================================================
 
 (defun zettel-switch-to-buffer ()
@@ -1355,12 +1363,13 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 
+(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c '") 'zettel-add-subtree-to-deft-filter)
+
 ;; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-numerus-currens)
-(define-key zettel-mode-map (kbd "C-c \"") 'zettel-find-numerus-currens)
+(define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-find-numerus-currens)
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
@@ -1368,9 +1377,9 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
 
 (define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
-(define-key zettel-mode-map (kbd "C-c C-M-S-l")
+(define-key zettel-mode-map (kbd "C-c C-M-l")
             'zettel-insert-link-from-clipboard)
-(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-list-links)
+(define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-list-links)
 (define-key zettel-mode-map (kbd "C-c C-S-b") 'zettel-insert-backlink)
 
 (provide 'zettel)
