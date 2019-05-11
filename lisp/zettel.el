@@ -190,13 +190,6 @@ This function replaces `deft-absolute-filename' for zettels."
 both of which are strings."
   (concat number "-" letters))
 
-(defun zettel-numerus-p (slug)
-  "Returns NIL if the slug is not a numerus currens slug, and otherwise
-returns a list of two elements: the number and letters part of the slug."
-  (when (and (stringp slug)
-             (string-match zettel-regexp-numerus-currens slug))
-    (list (match-string 1 slug) (match-string 3 slug))))
-
 (defun zettel-numerus-number (slug)
   "Returns the number part of the slug."
   (when (string-match zettel-regexp-numerus-currens slug)
@@ -207,13 +200,29 @@ returns a list of two elements: the number and letters part of the slug."
   (when (string-match zettel-regexp-numerus-currens slug)
     (match-string 3 slug)))
 
-(defun zettel-numerus-split (slug)
-  "Returns the slug in its split form as a vector: 234-abc ->
-#('234' 'a' 'b''c')."
+(defun zettel-numerus-parts (slug)
+  "Returns NIL if the slug is not a numerus currens slug, and otherwise
+returns a list of two elements: the number and letters parts of the slug."
+  (when (and (stringp slug)
+             (string-match zettel-regexp-numerus-currens slug))
+    (list (match-string 1 slug) (match-string 3 slug))))
+
+(defun zettel-numerus-vector (slug)
+  "Returns the slug in its split form as a vector: 234-abc -> #('234' 'a' 'b'
+'c')."
   (when (string-match zettel-regexp-numerus-currens slug)
     (let ((number (match-string 1 slug))
           (letters (split-string (match-string 3 slug) "" t)))
       (apply #'vector number letters))))
+
+(defun zettel-type (slug)
+  "Returns the type of the given slug: :NUMERUS or :TEMPUS."
+  (cond ((string-match-p zettel-regexp-numerus-currens slug)
+         :numerus)
+        ((string-match-p zettel-regexp-tempus-currens slug)
+         :tempus)
+        (t
+         (error "The slug is neither numerus nor tempus: %s" slug))))
 
 ;;;=============================================================================
 ;;; Metadata
@@ -1029,7 +1038,7 @@ grandparent if N is 2, an so on), returning the most remote
 ancestor that could find."
   (let ((n (if (integerp n) (abs n) 1)))
     (multiple-value-bind (number letters)
-        (zettel-numerus-p slug)
+        (zettel-numerus-parts slug)
       (when number
         (cond ((zerop (length letters)) nil)
               ((<= (length letters) n) number)
@@ -1040,7 +1049,7 @@ ancestor that could find."
   "Returns a list of the slugs of Zettel's children. If the Zettel doesn't
 have any children, returns NIL."
   (multiple-value-bind (number letters)
-      (zettel-numerus-p slug)
+      (zettel-numerus-parts slug)
     (let ((children-regex (format "%s-%s[a-z]$" number (or letters ""))))
       (sort
        (mapcar #'file-name-base
@@ -1153,7 +1162,7 @@ siblings as a loop."
 (defun zettel-numerus-first-child (slug)
   "Returns a new slug that would be a first child of the given one."
   (multiple-value-bind (number letters)
-      (zettel-numerus-p slug)
+      (zettel-numerus-parts slug)
     (cond (letters (zettel-make-numerus number (concat letters "a")))
           (number (zettel-make-numerus number "a"))
           (t nil))))
@@ -1161,7 +1170,7 @@ siblings as a loop."
 (defun zettel-numerus-numeric (slug)
   "Converts the given alphanumer slug into its numeric version (a list)."
   (multiple-value-bind (number letters)
-      (zettel-numerus-p slug)
+      (zettel-numerus-parts slug)
     (when number
       (append (list (string-to-number number))
               (mapcar #'(lambda (c) (+ 1 (- c ?a)))
@@ -1189,7 +1198,7 @@ there are none. Respects `zettel-new-child-method'."
   "Generate a new available child of the given SLUG, respecting
 `zettel-new-child-method'."
   (multiple-value-bind (number letters)
-      (zettel-numerus-p slug)
+      (zettel-numerus-parts slug)
     (when number
       (let* ((alphabet (coerce "abcdefghijklmnoprqstuvxy" 'list))
              ;; 'z' is left out as reserved letter
