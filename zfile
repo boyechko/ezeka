@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# Prints the full path for the given numerus currens
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "NUMERUS_CURRENS", "numerus currens to get directory for",
+            :attribute_name => :numcur
+
+  def execute
+    puts Zettelkaesten.dir("main") + Numerus.section_of(numcur) + (numcur + Zettelkaesten.ext)
+  end
+end
