@@ -7,4 +7,8 @@ if [[ -z "$ZETTEL_DIR" ]]; then
 fi
 
 cd $ZETTEL_DIR
-find ./ -type f -name "$1*.txt" | sed -e 's!^\./!!' | sort
+files=$(find ./ -type f -name "$1*.txt" | sed -e 's!^./!!' -e 's!.txt$!!' | sort)
+for f in $files; do
+    echo $f
+done
+echo $files | wc -w
