@@ -36,13 +36,18 @@ fi
 # Doesn't do Unicode very well
 # tr -c '[:alnum:]' '[\n*]' < $1 | awk 'NF'
 
-# Replace all special symbols with space to prevent them confusing zwf
-sed -r -e 's/[.,:;?!(){}:@«»*"#\/_”`|]/ /g' -e 's/\[/ /g' -e 's/\]/ /g' < $allzettel |
-    sed -e 's/\s/\n/g' |
+# Generate a nicely normalized list
+sed -E -e 's/[[:punct:]«»§⇒”]/ /g' \
+    -e 's/[[:digit:]]+//g' \
+    -e 's/--+/ /g' \
+    -e "s/(-[[:space:]]|[[:space:]]-)/ /g" \
+    < $allzettel |
     tr '[:upper:]' '[:lower:]' |
-    grep -E '.{3}' |            # matches only words of 3+ characters
+    tr '[:space:]' '\n' |
+    grep -E '.{4}' |
     fgrep -v -w -f $excludefile |
-    sort | uniq -c | sort -nr | sed -re 's/\s+//' > $freqfile
+    sort | uniq -c | sort -nr |
+    awk -v x=10 '$1 >= x' | sed -e 's/^[[:space:]]+//' > $freqfile
 
 # Cleanup
 rm -f $excludefile
