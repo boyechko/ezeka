@@ -17,7 +17,7 @@ Clamp do
 
     # Remove the file
     path = Zettelkaesten.zettel_from_link(slug).relative_path
-    system("hg rm #{path}")
+    system("hg rm -f #{path}")
     if $?.exitstatus != 0
       puts "zmove: Mercurial could not remove the file; aborting"
       exit(1)
