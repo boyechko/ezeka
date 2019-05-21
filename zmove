@@ -16,6 +16,7 @@ Clamp do
             :attribute_name => :source_string
   parameter "TARGET", "where to move the Zettel (link or filepath)",
             :attribute_name => :target_string
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
 
   # Updates the title, replacing oldslug with newslug, and recording oldslug as
   # oldname.
@@ -58,13 +59,17 @@ Clamp do
     end
     target_rel = target.relative_path
 
-    # Give user chance to interrupt
-    puts "Press ENTER to move #{source_rel} to #{target_rel}..."
-    STDIN.gets
+    # Give user chance to interrupt if using interactively
+    if interactive?
+      puts "--> Press [Enter] to move #{source_rel} to #{target_rel}..."
+      STDIN.gets
+    else
+      puts "Moving #{source_rel} to #{target_rel}..."
+    end
 
     # Move the files themselves
     Dir.chdir(Zettelkaesten.root)
-    system("hg mv #{source_rel} #{target_rel}")
+    system("hg mv -f #{source_rel} #{target_rel}")
     if $?.exitstatus != 0
       STDERR.puts "Mercurial could not move the file; aborting"
       exit(1)
@@ -76,8 +81,12 @@ Clamp do
     # Find and replace all wiki links to $source with $target
     links = `zlinksto #{source.slug}`
     if !links.empty?
-      puts links + "Press ENTER to replace links in the above files..."
-      STDIN.gets
+      if interactive?
+        puts links + "--> Press [Enter] to replace links in the above files..."
+        STDIN.gets
+      else
+        puts "Replacing links in the following files:" + links
+      end
 
       IO.popen("zreplacelinks #{source.slug} #{target.slug}", 'w+') do |subproc|
         subproc.write(links)
