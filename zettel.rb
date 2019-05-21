@@ -178,7 +178,7 @@ class Zettel
   end
 
   METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
-  ISO8601_PATTERN = /\d{4}-\d{2}-\d{2}/
+  ISO8601_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
   # Returns a hash representing the YAML block given.
   #
@@ -199,7 +199,11 @@ class Zettel
         end
 
         if value =~ ISO8601_PATTERN
-          value = Time.parse(value).to_date
+          begin
+            value = Time.parse(value).to_date
+          rescue ArgumentError
+            $stderr.puts "Cannot parse #{value} as date in #{link}."
+          end
         elsif value =~ /^\[(.*)\]$/      # YAML array
           value = $1.strip.split(/, */)
         end
@@ -256,17 +260,27 @@ class Numerus < Zettel
 
   def init_link(link)
     if link =~ LINK_PATTERN
-      @slug = link
       @type = :numerus
       @kasten = "main"
       @numerus = $1.to_i
       @litterae = $3
-      @section = self.class.section_of(@slug)
-      @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
+      reinit()
       read_file if @path.exist?
     else
       raise "This does not look like a Numerus Currens Zettel: #{link}"
     end
+  end
+
+  # Sets @slug, @section, and @path based on @numerus and @litterae
+  def reinit()
+    if @litterae.nil? or @litterae.empty?
+      @litterae = ""
+      @slug = "%03d" % @numerus
+    else
+      @slug = "%03d-#{@litterae}" % @numerus
+    end
+    @section = self.class.section_of(@slug)
+    @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
   end
 
   #
@@ -276,6 +290,24 @@ class Numerus < Zettel
   # Returns the wiki link target
   def link()
     return @slug
+  end
+
+  def litterae=(litterae)
+    if litterae =~ /[a-z]+/
+      @litterae = litterae
+      reinit
+    else
+      raise "Litterae can only be a string of letters, not '#{litterae}'"
+    end
+  end
+
+  def numerus=(numerus)
+    if numerus =~ /[0-9]{3}/
+      @numerus = numerus
+      reinit
+    else
+      raise "Numerus can only be three digits, not '#{numerus}'"
+    end
   end
 
   #
