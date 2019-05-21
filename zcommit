@@ -1,10 +1,36 @@
 #!/bin/bash
-# Fix the timestamps and commit with the given commit string
+# Fix the timestamps and commit with default commit string
 
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+# Copy files from ~/Dropbox/Apps/Orgzly
+zorgzly
+
+# Fix times and commit
+cd $ZETTEL_DIR
+
+hg addremove
 modified=$(hg status --modified | wc -l | awk '{ print $1 }')
 removed=$(hg status --removed | wc -l | awk '{ print $1 }')
 added=$(hg status --added | wc -l | awk '{ print $1 }')
 unknown=$(hg status --unknown | wc -l | awk '{ print $1 }')
 
+output=""
+if [ $modified -gt 0 ]; then
+    output="${output}${output:+, }${modified} modified"
+fi
+if [ $removed -gt 0 ]; then
+    output="${output}${output:+, }${removed} removed"
+fi
+if [ $added -gt 0 ]; then
+    output="${output}${output:+, }${added} added"
+fi
+if [ $unknown -gt 0 ]; then
+    output="${output}${output:+, }${unknown} unknown"
+fi
+
 zfixtimes
-echo "${modified}m, ${removed}r, ${added}a, ${unknown}u"
+hg commit -e -m "$output"

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Fix the timestamps and commit with default commit string
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+# Copy files from ~/Dropbox/Apps/Orgzly
+echo -n "Reincorporating files from Apps/Orgzly..."
+work=20190228T1454.txt
+journal=20180727T1421.txt
+todo=20190514T1925.txt
+modified=$(date "+%Y-%m-%d")
+cd $HOME/Dropbox/Apps/Orgzly
+sed -e "s/^modified:.*$/modified: ${modified}/" work.org > $ZETTEL_DIR/limbo/$work
+sed -e "s/^modified:.*$/modified: ${modified}/" journal.org > $ZETTEL_DIR/limbo/$journal
+sed -e "s/^modified:.*$/modified: ${modified}/" todo.org > $ZETTEL_DIR/limbo/$todo
+echo "Done"
