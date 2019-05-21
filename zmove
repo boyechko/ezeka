@@ -1,73 +1,103 @@
-#!/bin/bash
-# Move the given zettel to its new location
+#!/usr/bin/env ruby
+# coding: utf-8
+# Move the given zettel to a new location
 
-if [[ $# -ne 2 ]]; then
-    echo "Usage: zmove <old> <new>"
-    exit 1
-fi
+# FIXME:
+# - the path now must be absolute; allow relative path
 
-if [[ -z "$ZETTEL_DIR" ]]; then
-    echo "$(basename $0): $ZETTEL_DIR is not set"
-    exit 1
-fi
+require 'clamp'
+require_relative 'zettel'
 
-ext=txt
+ZETTEL_DIR = Zettelkaesten.root
+EXT = Zettelkaesten.ext
 
-old="$1"
-oldfull=
-if [[ "$old" =~ ^[0-9]{3}[a-z-]*$ ]]; then
-    oldfull="$(zdirectory $old)/$old.$ext"
-elif [[ -e "$old" ]]; then
-    oldfull=$old
-    old=$(basename -s ".$ext" $oldfull)
-else
-    echo "zmove: Unable to figure out what file '$1' is"
-    exit 1
-fi
-oldfull="${oldfull##$ZETTEL_DIR/}"
+Clamp do
+  parameter "SOURCE", "Zettel to move (link or filepath)",
+            :attribute_name => :source_string
+  parameter "TARGET", "where to move the Zettel (link or filepath)",
+            :attribute_name => :target_string
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
 
-# Figure out where to move to
-new="$2"
-newfull=
-if [[ "$new" =~ ^[0-9]{3}[a-z-]*$ ]]; then
-    newfull="$(zdirectory $new)/$new.txt"
-elif [[ "$new" =~ \.txt$ ]]; then
-    # FIX: Hack, assumes that if a file has extension, then treat as fully
-    # qualified.
-    newfull=$new
-    new=$(basename -s .txt $new)
-else
-    echo "zmove: Unable to figure out what file '$2' is"
-    exit 1
-fi
-newfull="${newfull##$ZETTEL_DIR/}"
+  # Updates the title, replacing oldslug with newslug, and recording oldslug as
+  # oldname.
+  def update_title(zettel, oldslug, newslug)
+    zettel.read_file
 
-echo "zmove: Press [Enter] to move $oldfull to $newfull..."
-read
+    if zettel.metadata
+      zettel.metadata[:title] =
+        zettel.metadata[:title].gsub("§#{oldslug}.", "§#{newslug}.")
 
-# Move the files themselves
-cd $ZETTEL_DIR
-hg mv $oldfull $newfull
-if [[ $? -ne 0 ]]; then
-    echo "zmove: Mercurial could not move the file; aborting"
-    exit 1
-fi
+      zettel.metadata[:oldname] = oldslug
 
-# Change the title and add oldname, and then retouch to original modtime
-sed -i -e "s/§$old\\./§$new\\./" $newfull
-gawk -i inplace "NR==1,/^$/{sub(/^$/, \"oldname: ${old}\\n\")} 1" $newfull
-zfix $newfull
+      #zettel.metadata[:modified] = Time.now.to_date
+      zettel.write_file
+    else
+      STDERR.puts "The file has no metadata; cannot update title"
+      exit(1)
+    end
+  end
 
-# Find and replace all wiki links to $old with $new
-if [[ "$oldfull" =~ ^(limbo|tech|personal)/.* ]]; then
-    old="${BASH_REMATCH[1]}:$old"
-fi
-if [[ "$newfull" =~ ^(limbo|tech|personal)/.* ]]; then
-    new="${BASH_REMATCH[1]}:$new"
-fi
-echo "zmove: Find and replace all wiki links to $old with $new..."
-links=$(zlinksto $old)
-echo "$links"
-echo "zmove: Press [Enter] to replace the links..."
-read
-echo "$links" | zchangelinks $old $new
+  def execute
+    if Numerus.valid_link?(source_string) || Tempus.valid_link?(source_string)
+      source = Zettelkaesten.zettel_from_link(source_string)
+    elsif Numerus.valid_path?(source_string) || Tempus.valid_path?(source_string)
+      source = Zettelkaesten.zettel_from_path(source_string)
+    else
+      STDERR.puts "Source is neither a valid link nor a valid path."
+      exit(1)
+    end
+    raise "Source is not initialized" unless source
+    source_rel = source.relative_path
+
+    if Numerus.valid_link?(target_string) || Tempus.valid_link?(target_string)
+      target = Zettelkaesten.zettel_from_link(target_string)
+    elsif Numerus.valid_path?(target_string) || Tempus.valid_path?(target_string)
+      target = Zettelkaesten.zettel_from_path(target_string)
+    else
+      STDERR.puts "Target is neither a valid link nor a valid path."
+      exit(1)
+    end
+    target_rel = target.relative_path
+
+    # Give user chance to interrupt if using interactively
+    if interactive?
+      puts "--> Press [Enter] to move #{source_rel} to #{target_rel}..."
+      STDIN.gets
+    else
+      puts "Moving #{source_rel} to #{target_rel}..."
+    end
+
+    # Move the files themselves
+    Dir.chdir(Zettelkaesten.root)
+    system("hg mv -f #{source_rel} #{target_rel}")
+    if $?.exitstatus != 0
+      STDERR.puts "Mercurial could not move the file; aborting"
+      exit(1)
+    end
+
+    # Change the title and add oldname
+    update_title(target, source.slug, target.slug)
+
+    # Find and replace all wiki links to $source with $target
+    links = `zlinksto #{source.slug}`
+    if !links.empty?
+      if interactive?
+        puts links + "--> Press [Enter] to replace links in the above files..."
+        STDIN.gets
+      else
+        puts "Replacing links in the following files:" + links
+      end
+
+      IO.popen("zreplacelinks #{source.slug} #{target.slug}", 'w+') do |subproc|
+        subproc.write(links)
+        subproc.close_write
+        subproc.read.split("\n").each do |l|
+          puts "#{l}"
+        end
+        puts
+      end
+    else
+      puts "No links needed to be replaced; we're done."
+    end
+  end
+end

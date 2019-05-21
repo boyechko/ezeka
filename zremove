@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# Does a zlinksto for the slug, and deletes it after confirmation
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "SLUG", "slug to remove", :attribute_name => :slug
+
+  def execute
+    Dir.chdir(Zettelkaesten.root)
+    system("zlinksto #{slug}")
+
+    # Give user chance to interrupt
+    puts "zremove: Press [Enter] to remove #{slug}..."
+    STDIN.gets
+
+    # Remove the file
+    path = Zettelkaesten.zettel_from_link(slug).relative_path
+    system("hg rm -f #{path}")
+    if $?.exitstatus != 0
+      puts "zmove: Mercurial could not remove the file; aborting"
+      exit(1)
+    end
+  end
+end

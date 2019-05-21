@@ -1,27 +1,37 @@
-#!/usr/bin/python
-import argparse
-import subprocess
-import os
+#!/usr/bin/env ruby
+# Move an entire Zettel branch
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Move an entire branch of zettel')
-parser.add_argument('source', help='Branch to move from (a numerus currens)')
-parser.add_argument('target', help='Where to move to (a numerus currens)')
-args = parser.parse_args()
+require 'clamp'
+require_relative 'zettel'
 
-# Get list of matching zettel
-files = subprocess.check_output(["zfind", args.source]).decode('ascii').splitlines()
-files.sort()
+Clamp do
+  parameter "SOURCE", "branch to move from (a numerus currens)"
+  parameter "TARGET", "where to move to (a numerus currens)"
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
 
-# Give user chance to back out
-print('\n'.join(files))
-input('Press [Enter] to continue moving these under {:s}...'.format(args.target))
+  def execute
+    # Get list of matching zettel
+    files = `zfind #{source}`
 
-# Move those zettels
-for file in files:
-    old_slug = os.path.splitext(os.path.basename(file))[0]
-    new_slug = old_slug.replace(args.source, args.target)
-    print('Moving {:s} to {:s}:\n'.format(old_slug, new_slug))
+    # Give user chance to back out
+    puts files
+    puts "Press [Enter] to continue moving these under #{target}..."
+    STDIN.gets
 
-    subprocess.run(['zmove', old_slug, new_slug])
-    print('----------------------------------------')
+    # Move those zettels
+    target_zettel = Numerus.new_from_link(target)
+
+    files = files.split("\n").sort
+    files.each do |file|
+      old_slug = File.basename(file, Zettelkaesten.ext)
+      new_slug = old_slug.gsub(source, target)
+
+      puts "Moving #{old_slug} to #{new_slug}"
+      if interactive?
+          system("zmove", "--interactive", old_slug, new_slug)
+      else
+          system("zmove", old_slug, new_slug)
+      end
+    end
+  end
+end

@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Figure out the right directory for the given numerus currens
+# Prints the full path for the given numerus currens
 
 require 'clamp'
 require_relative 'zettel'
@@ -9,6 +9,6 @@ Clamp do
             :attribute_name => :numcur
 
   def execute
-    puts Zettelkaesten.dir("main") + Numerus.section_of(numcur)
+    puts Zettelkaesten.dir("main") + Numerus.section_of(numcur) + (numcur + Zettelkaesten.ext)
   end
 end
