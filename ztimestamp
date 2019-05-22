@@ -7,4 +7,5 @@ if [[ -z "$ZETTEL_DIR" ]]; then
 fi
 
 tsfile="$ZETTEL_DIR/.hgtimestamp"
-date -d@$(grep '["/]'"$1" $tsfile | grep -oE '[0-9]{10}\.[0-9]+') "+%Y-%m-%d %H:%M"
+timestamp=$(grep '["/]'"$1\.txt" $tsfile | grep -oE '[0-9]{10}\.[0-9]+')
+date -r ${timestamp%%.0} "+%Y-%m-%d %H:%M"
