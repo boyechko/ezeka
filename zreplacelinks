@@ -20,7 +20,7 @@ Clamp do
       line = line.strip
 
       if !line.empty?
-        zettel = Zettelkaesten.zettel_from_path(line)
+        zettel = Zettelkasten.zettel_from_path(line)
 
         # Check that the file exists and is either a numerus currens or datetime
         if zettel

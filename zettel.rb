@@ -10,21 +10,21 @@ require 'yaml'
 require 'pathname'
 
 #-------------------------------------------------------------------------------
-# Zettelkaesten
+# Zettelkasten
 #-------------------------------------------------------------------------------
 
-class Zettelkaesten
+class Zettelkasten
   class << self; attr_accessor :root end
   class << self; attr_accessor :ext end
 
-  # Default extension for Zettelkaesten files
+  # Default extension for Zettelkasten files
   @ext = ".txt"
 
   @root = Pathname(ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel'))
   @kaesten = { "main"    => root + "main",
                "limbo"   => root + "limbo",
                "tech"    => root + "tech",
-               "writing" => root + "writing" }
+               "personal" => root + "personal" }
 
   # Returns the directory for the given kasten
   def self.dir(kasten)
@@ -54,7 +54,7 @@ class Zettelkaesten
     kasten_of(path) == "main" ? :numerus : :tempus
   end
 
-  # Returns true if the given path is in the Zettelkaesten
+  # Returns true if the given path is in the Zettelkasten
   def self.includes?(path)
     return true if kasten_of(path)
   end
@@ -113,7 +113,7 @@ class Zettel
   # More concise representation
   def inspect()
     return "#<#{self.class} @slug=#{@slug}, @kasten=#{@kasten}, "\
-           "@path=#{@path.relative_path_from(Zettelkaesten.root)}>"
+           "@path=#{@path.relative_path_from(Zettelkasten.root)}>"
   end
 
   # Returns true if the zettel exists where it should
@@ -121,10 +121,10 @@ class Zettel
     File.exists?(@path)
   end
 
-  # Returns a relative path to Zettel from the Zettelkaesten root
+  # Returns a relative path to Zettel from the Zettelkasten root
   def relative_path()
     if @path
-      return @path.relative_path_from(Zettelkaesten.root)
+      return @path.relative_path_from(Zettelkasten.root)
     else
       raise "The Zettel has no path set"
     end
@@ -251,10 +251,10 @@ class Numerus < Zettel
   # Custom Initializers
   #
   def init_path(path)
-    if Zettelkaesten.includes?(path)
-      init_link(Pathname(path).basename(Zettelkaesten.ext).to_s)
+    if Zettelkasten.includes?(path)
+      init_link(Pathname(path).basename(Zettelkasten.ext).to_s)
     else
-      raise "The path is not part of the Zettelkaesten: #{path}"
+      raise "The path is not part of the Zettelkasten: #{path}"
     end
   end
 
@@ -280,7 +280,7 @@ class Numerus < Zettel
       @slug = "%03d-#{@litterae}" % @numerus
     end
     @section = self.class.section_of(@slug)
-    @path = Zettelkaesten.dir(@kasten) + @section + (@slug + Zettelkaesten.ext)
+    @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
   end
 
   #
@@ -340,7 +340,7 @@ class Numerus < Zettel
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
     # FIXME: Hardcoded main kasten path pattern
-    return File.basename(string, Zettelkaesten.ext) =~ SLUG_PATTERN &&
+    return File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
            File.dirname(string) =~ /main\/\d{3}-\d{3}$/ ? true : false
   end
 end
@@ -374,12 +374,12 @@ class Tempus < Zettel
   # Custom Initializers
   #
   def init_path(path)
-    if Zettelkaesten.includes?(path)
-      init_link(Zettelkaesten.kasten_of(path) +
+    if Zettelkasten.includes?(path)
+      init_link(Zettelkasten.kasten_of(path) +
                 ":" +
-                Pathname(path).basename(Zettelkaesten.ext).to_s)
+                Pathname(path).basename(Zettelkasten.ext).to_s)
     else
-      raise "The path is not part of the Zettelkaesten: #{path}"
+      raise "The path is not part of the Zettelkasten: #{path}"
     end
   end
 
@@ -389,7 +389,7 @@ class Tempus < Zettel
       @type = :tempus
       @kasten = $1
       @time = Time.parse(@slug)
-      @path = Zettelkaesten.dir(@kasten) + (@slug + Zettelkaesten.ext)
+      @path = Zettelkasten.dir(@kasten) + (@slug + Zettelkasten.ext)
       read_file if @path.exist?
     else
       raise "This does not look like a Tempus Zettel: #{link}"
@@ -416,7 +416,7 @@ class Tempus < Zettel
 
   # Returns true if this is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    return File.basename(string, Zettelkaesten.ext) =~ SLUG_PATTERN &&
-           Zettelkaesten.includes?(string) ? true : false
+    return File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
+           Zettelkasten.includes?(string) ? true : false
   end
 end

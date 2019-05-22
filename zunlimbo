@@ -17,7 +17,7 @@ Clamp do
   parameter "NUMCUR", "numerus currens to which the file should be moved to"
 
   def execute
-    ext = File.extname(file) || Zettelkaesten.ext
+    ext = File.extname(file) || Zettelkasten.ext
     numcur_path = "#{`zdirectory #{numcur}`}/#{numcur}#{ext}"
 
     # Do some parameter checking

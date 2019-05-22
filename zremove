@@ -8,7 +8,7 @@ Clamp do
   parameter "SLUG", "slug to remove", :attribute_name => :slug
 
   def execute
-    Dir.chdir(Zettelkaesten.root)
+    Dir.chdir(Zettelkasten.root)
     system("zlinksto #{slug}")
 
     # Give user chance to interrupt
@@ -16,7 +16,7 @@ Clamp do
     STDIN.gets
 
     # Remove the file
-    path = Zettelkaesten.zettel_from_link(slug).relative_path
+    path = Zettelkasten.zettel_from_link(slug).relative_path
     system("hg rm -f #{path}")
     if $?.exitstatus != 0
       puts "zmove: Mercurial could not remove the file; aborting"

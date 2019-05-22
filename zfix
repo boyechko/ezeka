@@ -5,8 +5,8 @@ require 'clamp'
 require 'time'
 require_relative 'zettel'
 
-HG_TIMESTAMP = File.join(Zettelkaesten.root, ".hgtimestamp")
-EXT = Zettelkaesten.ext
+HG_TIMESTAMP = File.join(Zettelkasten.root, ".hgtimestamp")
+EXT = Zettelkasten.ext
 
 Clamp do
   parameter "FILE", "zettel file for which to fix the timestamp",
@@ -72,7 +72,7 @@ Clamp do
       # Try to get timestamp for the file OR for the supplied oldname (to_s is
       # needed in case oldname is nil) OR for one of the oldname lines in the
       # file itself.
-      zettel = Zettelkaesten.zettel_from_path(file)
+      zettel = Zettelkasten.zettel_from_path(file)
       zettel.read_file
       if (timestamp = hg_timestamp(file) ||
                      timestamp = hg_timestamp(oldname.to_s + EXT) ||
