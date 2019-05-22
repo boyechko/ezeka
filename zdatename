@@ -3,10 +3,10 @@
 
 require 'clamp'
 require 'time'
-require 'yaml'
+require_relative 'zettel'
 
 Clamp do
-  parameter "FILE", "Zettel file for which to return the ISO 8601 date-name"
+  parameter "SLUG", "Slug of a numerus currens Zettel for which to return the ISO 8601 date-name"
 
   option ["-m", "--mtime"], :flag, "use last data modification time", :attribute_name => :use_mtime
   option ["-c", "--ctime"], :flag, "use last status change time", :attribute_name => :use_ctime
@@ -35,33 +35,28 @@ Clamp do
   end
 
   def execute
-    begin
-      metadata = YAML::load(File.read(file).split("\n\n", 2)[0])
-    rescue Exception => e
-      puts "zdatename: Malformed metadata: #{e.message}"
-      exit(1)
-    end
-
-    # Make sure the first paragraph of the file was parsed as YAML metadata
-    if metadata.is_a?(Hash)
-      if use_time
-        time = use_time
-      elsif use_ctime?
-        time = File.ctime(file)
-      elsif use_mtime? || same_day?(metadata['modified'], File.mtime(file))
-        time = File.mtime(file)
-      elsif use_zeros?
-        time = Time.new(1, 1, 1, 0, 0)
-      else
-        # Generate random time between 8:00 and 23:59, since that's when I would
-        # have normally be awake to create the Zettel.
-        time = Time.new(1, 1, 1, rand(8..23), rand(0..59))
-      end
+    numerus = Numerus.new_from_link(slug)
+    if numerus.exists?
+      numerus.read_file
     else
-      puts "zdatename: Cannot parse the metadata"
+      STDERR.puts "Zettel file for #{slug} does not exist: #{numerus.path}"
       exit(1)
     end
 
-    puts datename(metadata['created'], time)
+    if use_time
+      time = use_time
+    elsif use_ctime?
+      time = File.ctime(numerus.path)
+    elsif use_mtime? || same_day?(numerus.metadata['modified'], File.mtime(numerus.path))
+      time = File.mtime(numerus.path)
+    elsif use_zeros?
+      time = Time.new(1, 1, 1, 0, 0)
+    else
+      # Generate random time between 8:00 and 23:59, since that's when I would
+      # have normally be awake to create the Zettel.
+      time = Time.new(1, 1, 1, rand(8..23), rand(0..59))
+    end
+
+    puts datename(numerus.metadata[:created], time)
   end
 end
