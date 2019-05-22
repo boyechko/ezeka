@@ -6,35 +6,19 @@ require_relative 'zettel'
 
 Clamp do
   parameter "SLUG", "slug of the Zettel to move to limbo"
-  option ["-t", "--time"], "HHMM", "use the specified time",
-         :attribute_name => :use_time do |s|
-    if s =~ /^(\d{2}):*(\d{2})$/
-      Time.new(1, 1, 1, $1.to_i, $2.to_i)
-    else
-      signal_usage_error "time should be in the format HHMM, e.g. 1234"
-    end
-  end
+  option ["-t", "--time"], "HHMM", "use the specified time", :attribute_name => :use_time
 
   def execute
-    if File.exists?(slug)
-      puts "The slug should not be a full pathname, just the slug."
-      exit(1)
-    end
-
-    puts "Files with links to #{slug}:"
-    puts "--------------------------"
-    system("zlinksto", "#{slug}")
-    puts ""
-
-    puts "Zettel beginning with #{slug}:"
-    puts "--------------------------"
+    puts "--- Zettel beginning with #{slug}: ---"
     system("zfind", "#{slug}")
     puts ""
 
-    if use_time then
-      system("zmakedate", "-t", use_time.strftime("%H%M"), "-m", "limbo", slug)
+    if use_time
+      datename = `zdatename -t #{use_time} #{slug}`
     else
-      system("zmakedate", "-m", "limbo", slug)
+      datename = `zdatename ${slug}`
     end
+
+    system("zmove", slug, "limbo:#{datename}")
   end
 end
