@@ -217,14 +217,15 @@ returns a list of two elements: the number and letters parts of the slug."
           (letters (split-string (match-string 3 slug) "" t)))
       (apply #'vector number letters))))
 
-(defun zettel-type (slug)
-  "Returns the type of the given slug: :NUMERUS or :TEMPUS."
-  (cond ((string-match-p zettel-regexp-numerus-currens slug)
-         :numerus)
-        ((string-match-p zettel-regexp-tempus-currens slug)
-         :tempus)
-        (t
-         (error "The slug is neither numerus nor tempus: %s" slug))))
+(defun zettel-type (slug-or-file)
+  "Returns the type of the given slug or file: :NUMERUS or :TEMPUS."
+  (let ((slug (file-name-base slug-or-file)))
+    (cond ((string-match-p zettel-regexp-numerus-currens slug)
+           :numerus)
+          ((string-match-p zettel-regexp-tempus-currens slug)
+           :tempus)
+          (t
+           (error "The slug is neither numerus nor tempus: %s" slug)))))
 
 ;;;=============================================================================
 ;;; Metadata
@@ -244,9 +245,7 @@ Group 8 is the title itself.")
   (when (string-match zettel-regexp-combined-title title)
     (let ((slug (match-string 1 title)))
       (list (cons :slug slug)
-            (cons :style (if (string-match-p zettel-regexp-numerus-currens slug)
-                             :numerus
-                           :tempus))
+            (cons :style (zettel-type slug))
             (cons :category (match-string 7 title))
             (cons :title (match-string 8 title))))))
 
