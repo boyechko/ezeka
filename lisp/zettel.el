@@ -334,6 +334,14 @@ currens) will be indented to.")
         title))))
 (advice-add 'deft-file-title :around #'deft-file-title--separate)
 
+(defun deft-new-file-maybe-named (arg)
+  "Extends `deft-new-file' to call `deft-new-file-named' if called with
+ prefix argument."
+  (interactive "p")
+  (if (= arg 4)
+      (call-interactively #'deft-new-file-named)
+    (deft-new-file)))
+
 (defun zettel-add-subtree-to-deft-filter (slug)
   "Replaces the filter with the subtree where the point rests. If
 called with universal argument, ask the user to enter the zettel
@@ -365,6 +373,7 @@ number."
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-i") 'zettel-add-index-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-h") 'zettel-add-subtree-to-deft-filter)
+(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-maybe-named)
 
 ;;;=============================================================================
 ;;; Generating Zettel Slugs
@@ -1326,9 +1335,8 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
-(define-key zettel-mode-map (kbd "C-c %") 'zettel-add-category)
 
-(define-key zettel-mode-map (kbd "C-c %") 'zettel-goto-next-missing-link)
+(define-key zettel-mode-map (kbd "C-c '") 'zettel-add-category)
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 ;;(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
@@ -1352,5 +1360,12 @@ bookmark's filename property to the Zettel link."
             'zettel-insert-link-from-clipboard)
 (define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-list-links)
 (define-key zettel-mode-map (kbd "C-c C-S-b") 'zettel-insert-backlink)
+
+;; Was: org-set-property-and-value
+(define-key zettel-mode-map (kbd "C-c C-x P")
+            (lambda ()
+              (interactive)
+              (org-set-property "FROM"
+                                (zettel-link buffer-file-name t 'right))))
 
 (provide 'zettel)
