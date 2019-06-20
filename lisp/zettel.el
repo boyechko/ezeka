@@ -887,65 +887,6 @@ the alias outside of the link."
                (zettel-insert-link-intrusive nil)))))))
 
 ;;;=============================================================================
-;;; Bibliography
-;;;=============================================================================
-
-(defconst rb-markdown-regex-citation-key
-  "\\(\\[\\)\\(#\\)\\([^]]+\\)\\(\\]\\)\\(:.*\\)*"
-  "Regular expression for a citation key [#CiteKey].
-Group 1 matches the opening square bracket.
-Group 2 matches the hash sign.
-Group 3 matches the text inside the square brackets.
-Group 4 matches the closing square bracket.
-Group 5 matches the citation definition (if present).")
-
-(defun rb-markdown-citation-key-p ()
-  "Returns non-nil when `point' is at a citation key."
-  (let ((case-fold-search nil))
-    (and (not (markdown-wiki-link-p))
-         (thing-at-point-looking-at rb-markdown-regex-citation-key))))
-
-(defun rb-markdown-citation-key-key ()
-  "Returns the citation key of the key at point (relies on match
-data from `rb-markdown-regex-citation-key')."
-  (when (thing-at-point-looking-at rb-markdown-regex-citation-key)
-    (match-string-no-properties 3)))
-
-(defun rb-markdown-follow-citation-key-at-point (arg)
-  "Opens the citation key at point in the default bibliography.
-With prefix argument ARG, open the file in other window."
-  (interactive "P")
-  (let ((key (rb-markdown-citation-key-key)))
-    (funcall (if (equal arg '(4))
-                 #'find-file-other-window
-               #'find-file)
-             (first reftex-default-bibliography))
-    (bibtex-search-entry key)))
-
-(defun rb-markdown-follow-thing-at-point (orig-fun arg)
-  "Around advice for `markdown-follow-thing-at-point' that adds
-support for following citations."
-  (cond ((markdown-link-p)
-         (markdown-follow-link-at-point))
-        ((markdown-wiki-link-p)
-         (markdown-follow-wiki-link-at-point arg))
-        ((rb-markdown-citation-key-p)
-         (rb-markdown-follow-citation-key-at-point arg))
-        (t
-         (error "Nothing to follow at point"))))
-(advice-add 'markdown-follow-thing-at-point
-            :around #'rb-markdown-follow-thing-at-point)
-
-;; Set the citation key in `rb-reftex-last-citation'.
-(eval-after-load "markdown"
-  '(define-key markdown-mode-map (kbd "C-c |")
-               (lambda ()
-                 (interactive)
-                 (when (rb-markdown-citation-key-p)
-                   (push (rb-markdown-citation-key-key)
-                         rb-reftex-last-citation)))))
-
-;;;=============================================================================
 ;;; Wiki Links
 ;;;=============================================================================
 
