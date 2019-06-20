@@ -7,7 +7,6 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;;
 ;;;; TODO:
-;;;;
 ;;;; - Write `zettel-link-p'
 ;;;; - Write `zettel-numerus-new-sibling'
 ;;;; - Add `zettel-switch-to-child' that provides a nice list of children a la
@@ -81,10 +80,15 @@ date and time.")
   "A generalized regexp that matches any slug, whether numerus or tempus
 currens.")
 
-;; This is a rather sloppy regexp, but works for our purposes.
-(defvar zettel-regexp-iso8601-datetime
-  "\\<\\([0-9-]\\{8,10\\}\\(T*[0-9:]\\{4,5\\}\\)*\\)\\>"
-  "The regular expression that matches ISO 8601-like date/time expression.")
+(defvar zettel-regexp-iso8601-date
+  "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
+  "The regular expression that matches ISO 8601-like date.
+Groups 1-3 are year, month, day.")
+
+(defvar zettel-regexp-iso8601-time
+  "T*\\([0-9]\\{2\\}\\):*\\([0-9]\\{2\\}\\)\\>"
+  "The regular expression that matches ISO 8601-like time.
+Groups 1-2 are hour and minute.")
 
 (defvar zettel-stored-links '()
   "A stack of links stored with `zettel-store-link'.")
@@ -226,6 +230,20 @@ returns a list of two elements: the number and letters parts of the slug."
            :tempus)
           (t
            (error "The slug is neither numerus nor tempus: %s" slug)))))
+
+(defun zettel-encode-iso8601-datetime (string)
+  "Returns the internal encoded time given the ISO8601 date/time
+expression, with or without time."
+  (let ((second 0) (minute 0) (hour 0) day month year)
+    (when (string-match (concat "^" zettel-regexp-iso8601-date) string)
+      (setq year  (string-to-int (match-string 1 string))
+            month (string-to-int (match-string 2 string))
+            day   (string-to-int (match-string 3 string)))
+      (when (string-match zettel-regexp-iso8601-time string
+                          (match-end 0))
+        (setq hour   (string-to-int (match-string 1 string))
+              minute (string-to-int (match-string 2 string))))
+      (encode-time second minute hour day month year))))
 
 ;;;=============================================================================
 ;;; Metadata
@@ -461,31 +479,33 @@ Based on `rename-file-and-buffer'."
       (search-forward-regexp "^$" nil)
       (narrow-to-region (point-min) (point))
       (goto-char (point-min))
-      (let ((new-date (format-time-string "%Y-%m-%d"))
+      (let ((today (format-time-string "%Y-%m-%d"))
             old-date)
         (cond ((save-excursion
-                 (re-search-forward (concat "^modified: +"
-                                            zettel-regexp-iso8601-datetime)
+                 (re-search-forward (concat "^modified: +\\("
+                                            zettel-regexp-iso8601-date
+                                            "\\)")
                                     nil t))
                (setq old-date (match-string 1))
-               (when (and (not (string-equal old-date new-date))
+               (when (and (not (string-equal old-date today))
                           (save-match-data
                             (y-or-n-p
                              (format "Saving %s. Update the modified date? "
                                      (file-name-base buffer-file-name)))))
                  (message "Updating metadata modified date in %s from %s to %s."
-                          buffer-file-name old-date new-date)
-                 (replace-match new-date nil t nil 1)))
-              ((re-search-forward (concat "^created: +"
-                                          zettel-regexp-iso8601-datetime)
+                          buffer-file-name old-date today)
+                 (replace-match today nil t nil 1)))
+              ((re-search-forward (concat "^created: +\\("
+                                          zettel-regexp-iso8601-date
+                                          "\\)")
                                   nil t)
                (setq old-date (match-string 1))
-               (when (and (not (string-equal old-date new-date))
+               (when (and (not (string-equal old-date today))
                           (y-or-n-p (format "Saving %s. Add modified date? "
                                             (file-name-base buffer-file-name))))
                  (message "Adding metadata modified date in %s (created on %s)."
                           buffer-file-name old-date)
-                 (insert (format "\nmodified: %s" new-date)))))))))
+                 (insert (format "\nmodified: %s" today)))))))))
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
