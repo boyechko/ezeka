@@ -1306,8 +1306,8 @@ bookmark's filename property to the Zettel link."
   (interactive (list (ivy-read "Category: " zettel-categories)))
   (save-excursion
     (goto-char (point-min))
-    (when (re-search-forward "^title: §?\\([0-9a-z-]+\\)\\.")
-      (replace-match (format "title: §\\1. {%s}" category)))))
+    (when (re-search-forward "^title: §?\\(.+\\)\\. \\({[^}]+} \\)*")
+      (replace-match (format "title: §\\1. {%s} " category)))))
 
 (defun zettel-add-bibliographic-category ()
   "Add a category to the Zettel title based on the bibliographic title."
