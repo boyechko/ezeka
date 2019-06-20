@@ -549,29 +549,18 @@ on the first line with the Zettel title string."
 ;;; Zettel Links
 ;;;=============================================================================
 
-(defun zettel-link-slug (target &optional context)
+(defun zettel-link-slug (target)
   "Returns the slug of the given TARGET, which might be a
-pathname or just the slug itself. If CONTEXT is given and is a
-file, returns a slug relative to it, otherwise returns a 'fully
-qualified' link."
-  (let ((base-slug (file-name-base target))
-        (target-dir (file-name-directory target)))
-    (cond ((and (stringp context)
-                (file-exists-p context)
-                (equal target-dir (file-name-directory context)))
-           ;; The target and context of the link are in the same location,
-           ;; return relative link.
-           base-slug)
-          (target-dir
-           ;; The target is an actual file, return "fully qualified" link with
-           ;; the explicit subkasten.
-           (let* ((dir (car (last (split-string target-dir "/" t))))
-                  (keyval (assoc dir zettel-sub-kasten)))
-             (if keyval
-                 (concat (car keyval) ":" base-slug)
-               base-slug)))
-          (t
-           base-slug))))
+pathname or just the slug itself."
+  (let* ((base-slug (file-name-base target))
+         (dir (directory-file-name
+               (file-relative-name (file-name-directory target)
+                                   zettel-directory)))
+         (kasten (when dir
+                   (assoc (file-name-base dir)) zettel-sub-kasten)))
+    (if (and kasten (nth 2 kasten))
+        (concat (first kasten) ":" base-slug)
+      base-slug)))
 
 (defun zettel-store-link (arg)
   "Store the link 1) to the Deft file at point if in *Deft*
@@ -597,17 +586,15 @@ markdown wiki link."
                     (file-name-base link)
                     (mapcar #'file-name-base zettel-stored-links))))))
 
-(defun zettel-link (target &optional include-title title-location context)
+(defun zettel-link (target &optional include-title title-location)
   "Returns a markdown-formatted link to TARGET, including the
 link title when INCLUDE-TITLE is true. If TITLE-LOCATION is RIGHT
-or T, puts the title on the right; otherwise, on the left. If
-CONTEXT is given, attemps to include the relative form of the
-link."
+or T, puts the title on the right; otherwise, on the left."
   (let* ((file (or (if (file-exists-p target)
                        target
                      (zettel-convert-link-to-filename target))
                    (error "Link target doesn't exist; make sure it's saved.")))
-         (link-text (zettel-link-slug file context)))
+         (link-text (zettel-link-slug file)))
     (cond (include-title
            ;; Make sure cache is updated for the linked file
            (deft-cache-file file)
@@ -618,8 +605,7 @@ link."
           (t
            (format "[[%s]]" link-text)))))
 
-(defun zettel-link-with-spaces (file &optional
-                                     include-title title-location context)
+(defun zettel-link-with-spaces (file &optional include-title title-location)
   "A wrapper around `zettel-link' that returns the link with
 appropriate spaces around."
   ;; FIX: Is it okay that assumes it's called from a buffer?
@@ -628,7 +614,7 @@ appropriate spaces around."
               (when char
                 (string-match-p "[[:space:][:punct:]]" (char-to-string char)))))
     (concat (if (spacep (char-before)) "" " ")
-            (zettel-link file include-title title-location context)
+            (zettel-link file include-title title-location)
             (if (spacep (char-after)) "" " "))))
 
 (defun zettel-insert-link (arg)
@@ -636,21 +622,18 @@ appropriate spaces around."
 prefix argument, insert the link title to the left of the link.
 If with double prefix argument, insert the title to the right."
   (interactive "P")
-  (cond (zettel-stored-links
-         (let ((link (pop zettel-stored-links)))
-           ;; Save the link in link history
-           (push link zettel-stored-links-history)
-           ;; Insert the link
-           (insert
-            (zettel-link-with-spaces link
-                                     (consp arg)
-                                     (equal arg '(16))
-                                     buffer-file-name))
-           ;; Save the backlink
-           (setq zettel-link-backlink buffer-file-name)))
-        (t
-         (message "No link to insert.")
-         )))
+  (if zettel-stored-links
+      (let ((link (pop zettel-stored-links)))
+        ;; Save the link in link history
+        (push link zettel-stored-links-history)
+        ;; Insert the link
+        (insert
+         (zettel-link-with-spaces link
+                                  (consp arg)
+                                  (equal arg '(16))))
+        ;; Save the backlink
+        (setq zettel-link-backlink buffer-file-name))
+    (message "No link to insert")))
 
 (defun zettel-insert-link-intrusive (arg)
   "Like `zettel-insert-link', but also opens the Zettel of the
@@ -683,10 +666,8 @@ current Zettel to the `zettel-link-backlink'."
 `zettel-link-backlink', if set."
   (interactive "P")
   (cond (zettel-link-backlink
-         (insert (zettel-link-with-spaces zettel-link-backlink
-                                          (consp arg)
-                                          (equal arg '(16))
-                                          buffer-file-name))
+         (insert (zettel-link-with-spaces
+                  zettel-link-backlink (consp arg) (equal arg '(16))))
          (setq zettel-link-backlink nil))
         (t
          (message "No backlink to insert."))))
@@ -715,17 +696,35 @@ nil if there is nothing there."
       (darwin (shell-command-to-string "/usr/bin/pbpaste"))
       (t nil))))
 
+(unless (fboundp 'rb-set-clipboard-data)
+  (defun rb-set-clipboard-data (string)
+    "System-independent way to copy the given STRING to clipboard."
+    (case system-type
+      (gnu/linux (error "Not implemented"))
+      (windows-nt (error "Not implemented"))
+      (darwin
+       (save-excursion
+         (with-temp-buffer
+           (insert string)
+           (shell-command-on-region (point-min) (point-max)
+                                    "/usr/bin/pbcopy"))))
+      (t nil))))
+
 (defun zettel-insert-link-from-clipboard (arg)
   "Link `zettel-insert-link' but attempts to get the link slug
 from OS clipboard."
   (interactive "P")
-  (let ((link (rb-get-clipboard-data)))
-    (if (zettel-link-p link)
-        (insert
-         (zettel-link-with-spaces link
-                                  (consp arg)
-                                  (equal arg '(16))
-                                  buffer-file-name)))))
+  (let ((link (rb-get-clipboard-data))
+        (backlink (when buffer-file-name
+                    (zettel-link-slug buffer-file-name))))
+    (when (zettel-link-p link)
+      (insert
+       (zettel-link-with-spaces link
+                                (consp arg)
+                                (equal arg '(16))))
+      (when backlink
+        (rb-set-clipboard-data backlink)
+        (message "Backlink to %s copied to clipboard" backlink)))))
 
 (defun zettel-kill-ring-save-link-title ()
   "Save the title of the wiki link at point or the buffer to kill
@@ -1042,10 +1041,7 @@ the links are on the right of titles; otherwise, to the left."
     (dolist (child (zettel-numerus-children slug))
       (beginning-of-line)
       (insert "* ")
-      (insert (zettel-link-with-spaces (zettel-absolute-filename child)
-                                       t
-                                       arg
-                                       buffer-file-name))
+      (insert (zettel-link-with-spaces (zettel-absolute-filename child) t arg))
       (newline))))
 
 (defun zettel-numerus-siblings (slug)
@@ -1078,8 +1074,7 @@ universal argument, behave like `zettel-insert-link'."
         (insert
          (zettel-link-with-spaces link
                                   (consp arg)
-                                  (equal arg '(16))
-                                  buffer-file-name))))))
+                                  (equal arg '(16))))))))
 
 (defcustom zettel-loop-siblings t
   "When T, commands `zettel-next-sibling' and
