@@ -1211,41 +1211,45 @@ LETTERS) among UNUSED-LETTERS."
     (zettel-make-numerus number
                          (concat letters (char-to-string random-letter)))))
 
+(defun zettel-generate-new-child (parent)
+  "Returns the link to a new child of the given PARENT, which can be a slug
+or a path."
+  (case (zettel-type parent)
+    (:tempus
+     (zettel-timestamp-slug))
+    (:numerus
+     (message "Updating cache...")
+     (deft-cache-update-all)
+     (message "Generating a new child...")
+     (zettel-numerus-new-child (file-name-base parent)))))
+
 (defun zettel-insert-new-child (arg)
-  "Creates a new Zettel at the next branching level of the
-current one, inserting a link to it at point. If called with a
-prefix argument, ask for the slug. With double prefix argument,
-show the child instead on inserting."
+  "Creates a new Zettel at the next branching level of the current one,
+inserting a link to it at point, and sets the `zettel-link-backlink' to
+current Zettel. If called with a prefix argument, ask for the slug. With
+double prefix argument, show the child instead on inserting."
   (interactive "p")
-  (cond ((string-match (concat "^" zettel-regexp-tempus-currens)
-                       (file-name-base buffer-file-name))
-         (insert (zettel-link-with-spaces (zettel-timestamp-slug))))
-        ((string-match (concat "^" zettel-regexp-numerus-currens)
-                       (file-name-base buffer-file-name))
-         (message "Updating cache...")
-         (deft-cache-update-all)
-         (message "Generating a new child...")
-         (let* ((slug (cond ((= arg 4)
-                             (read-string "Slug: " nil))
-                            ((zettel-p buffer-file-name)
-                             (file-name-base buffer-file-name))
-                            ((equal major-mode 'deft-mode)
-                             (file-name-base
-                              (widget-get (widget-at (point)) :tag)))
-                            (t
-                             (read-string "Slug: " nil))))
-                (new-child-slug (when slug (zettel-numerus-new-child slug))))
-           (cond ((not slug)
-                  (message "Could not figure out which zettel to find a child for."))
-                 ((not new-child-slug)
-                  (message "There are no unused children for %s." slug))
-                 ((or (= arg 16) (equal major-mode 'deft-mode))
-                  ;; If invoked from deft buffer or with C-u C-u, just
-                  ;; show child
-                  (message "New child: %s" new-child-slug)
-                  (kill-new new-child-slug))
-                 (t
-                  (insert (zettel-link-with-spaces new-child-slug))))))))
+  (let* ((parent (cond ((= arg 4)
+                        (read-string "Slug: " nil))
+                       ((zettel-p buffer-file-name)
+                        (file-name-base buffer-file-name))
+                       ((equal major-mode 'deft-mode)
+                        (file-name-base
+                         (widget-get (widget-at (point)) :tag)))
+                       (t
+                        (read-string "Slug: " nil))))
+         (child (when parent (zettel-generate-new-child parent))))
+    (cond ((not parent)
+           (message "Could not figure out which zettel to find a child for"))
+          ((not child)
+           (message "There are no unused children for %s" parent))
+          ((or (= arg 16) (equal major-mode 'deft-mode))
+           ;; If invoked from deft buffer or with C-u C-u, just
+           ;; show child
+           (message "New child: %s" child))
+          (t
+           (insert (zettel-link-with-spaces child))
+           (setq zettel-link-backlink buffer-file-name)))))
 
 (defun zettel-new-sibling ()
   "Creates a new Zettel at the same level as current one."
