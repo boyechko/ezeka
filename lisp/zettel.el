@@ -12,7 +12,7 @@
 ;;;; - Write `zettel-numerus-new-sibling'
 ;;;; - Add `zettel-switch-to-child' that provides a nice list of children a la
 ;;;;   `zettel-switch-to-zettel'
-
+;;;; - Get rid of the ugly "sub-kasten" in favor of just "kasten"?
 ;;;; - Finish replacing zettel-numerus-p with zettel-type, watching out for
 ;;;;   multiple-value-bind
 
@@ -106,7 +106,8 @@ of backlinks.")
   :type 'string)
 
 (defcustom zettel-sub-kasten nil
-  "An alist of translating various sub-Zettelkasten into pathnames."
+  "An alist containing the names, directories, and whether the kasten should
+be explicitly stated in the links."
   :type 'alist)
 
 (defcustom zettel-new-numerus-currens-method 'random
@@ -176,7 +177,8 @@ This function replaces `deft-absolute-filename' for zettels."
    (concat slug "." (or extension deft-extension))
    (if (string-match (concat "^" zettel-regexp-numerus-currens) slug)
        (expand-file-name (zettel-right-directory slug)
-                         (cdr (assoc "main" zettel-sub-kasten)))
+                         ;; FIXME: Hardcoded kasten that's left to user
+                         (second (assoc "main" zettel-sub-kasten)))
      deft-directory)))
 
 (defun deft-absolute-filename--around (orig-fun &rest args)
@@ -980,7 +982,7 @@ Zettelkasten."
          (let* ((split (split-string name ":"))
                 (subkasten (first split))
                 (name-only (second split))
-                (sk-dir (cdr (assoc subkasten zettel-sub-kasten))))
+                (sk-dir (second (assoc subkasten zettel-sub-kasten))))
            (when sk-dir
              (expand-file-name (concat name-only "." deft-extension) sk-dir))))
         ((string-match (concat "^" zettel-regexp-tempus-currens) name)
