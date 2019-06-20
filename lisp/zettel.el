@@ -1288,9 +1288,11 @@ bookmark's filename property to the Zettel link."
   (interactive)
   (let ((buffers
          (mapcar #'(lambda (buf)
-                     (cons (alist-get :title
-                                      (zettel-metadata (buffer-file-name buf)))
-                           buf))
+                     (let ((metadata (zettel-metadata (buffer-file-name buf))))
+                       (cons (format "%-12s %s"
+                                     (alist-get :slug metadata)
+                                     (alist-get :title metadata))
+                             buf)))
                  (remove-if-not #'(lambda (buf)
                                     (zettel-p (buffer-file-name buf)))
                                 (buffer-list)))))
