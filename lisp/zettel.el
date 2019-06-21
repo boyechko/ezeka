@@ -686,6 +686,13 @@ current Zettel to the `zettel-link-backlink'."
            (file-name-base (pop zettel-stored-links))
            (mapcar #'file-name-base zettel-stored-links)))
 
+(defun zettel-clear-links ()
+  "Clears `zettel-stored-links' and `zettel-link-backlink'."
+  (interactive)
+  (setq zettel-stored-links nil
+        zettel-link-backlink nil)
+  (message "Zettel links and backlink cleared"))
+
 (unless (fboundp 'rb-get-clipboard-data)
   (defun rb-get-clipboard-data ()
     "System-independent way to get current clipboard data. Returns
@@ -745,15 +752,12 @@ ring."
                       (file-name-base file)))))))
 
 (defun zettel-kill-ring-save-link (arg)
-  "Save the current link, the deft note at point, or the buffer
-base filename in the kill ring to be used as a wiki link
-elsewhere. With prefix argument, save the file name relative to
-`zettel-directory' instead."
+  "Save the deft note at point or the buffer base filename in the kill ring
+to be used as a wiki link elsewhere. With prefix argument, save the file name
+relative to `zettel-directory' instead."
   (interactive "p")
   (let ((link (cond ((equal major-mode 'deft-mode)
                      (widget-get (widget-at (point)) :tag))
-                    ((markdown-wiki-link-p)
-                     (markdown-wiki-link-link))
                     (buffer-file-name
                      buffer-file-name)
                     (t
@@ -918,7 +922,6 @@ the alias outside of the link."
 default behavir of ensuring that the buffer is in markdown mode,
 and instead sets it back to the mode it 'wants to be'."
   (set-auto-mode t))
-
 (advice-add 'markdown-follow-wiki-link :after #'markdown-fwl--set-auto-mode)
 
 (defun zettel-right-directory (numerus-currens)
