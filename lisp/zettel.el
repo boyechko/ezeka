@@ -563,28 +563,28 @@ pathname or just the slug itself."
       base-slug)))
 
 (defun zettel-store-link (arg)
-  "Store the link 1) to the Deft file at point if in *Deft*
-buffer, or 2) to the file in current buffer. With prefix
-argument, stores the link to the markdown wiki link if at a
-markdown wiki link."
+  "Store the link 1) to the Deft file at point if in *Deft* buffer, or 2) to
+the file in current buffer. With prefix argument, stores the link to the
+markdown wiki link if at a markdown wiki link."
   (interactive "p")
-  (let ((link (cond ((equal major-mode 'deft-mode)
-                     (widget-get (widget-at (point)) :tag))
-                    ((and (= arg 4) (markdown-wiki-link-p))
-                     (zettel-absolute-filename (markdown-wiki-link-link)))
-                    (buffer-file-name
-                     buffer-file-name)
-                    (t
-                     (message "No file to store a link to.")))))
-    (cond ((string-equal link (first zettel-stored-links))
-           (message "Link to %s is already in the stored links: %s"
-                    (file-name-base link)
-                    (mapcar #'file-name-base zettel-stored-links)))
-          (t
-           (push link zettel-stored-links)
-           (message "Link to %s stored: %s"
-                    (file-name-base link)
-                    (mapcar #'file-name-base zettel-stored-links))))))
+  (let* ((link (cond ((equal major-mode 'deft-mode)
+                      (widget-get (widget-at (point)) :tag))
+                     ((and (= arg 4) (markdown-wiki-link-p))
+                      (zettel-absolute-filename (markdown-wiki-link-link)))
+                     (buffer-file-name
+                      buffer-file-name)
+                     (t
+                      (message "No file to store a link to."))))
+         (already-stored (member link zettel-stored-links)))
+    (when already-stored
+      (setq zettel-stored-links (remove link zettel-stored-links)))
+    (push link zettel-stored-links)
+    (message (if already-stored
+                 "Link to %s moved to the front: %s"
+               "Link to %s stored: %s")
+             (file-name-base link)
+             (mapcar #'file-name-base
+                     (remove-if #'null zettel-stored-links)))))
 
 (defun zettel-link (target &optional include-title title-location)
   "Returns a markdown-formatted link to TARGET, including the
