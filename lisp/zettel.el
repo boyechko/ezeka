@@ -140,8 +140,7 @@ acceptable."
   (interactive "f")
   (when file
     (and (string-equal (file-name-extension file) deft-extension)
-         (or (string-match zettel-regexp-numerus-currens (file-name-base file))
-             (string-match zettel-regexp-tempus-currens (file-name-base file))))))
+         (string-match zettel-regexp-slug (file-name-base file)))))
 
 (defun zettel-slug (file)
   "Returns the slug part of the given Zettel file."
@@ -158,8 +157,7 @@ acceptable."
 (defun zettel-link-p (string)
   "Returns non-NIL if the string could be a link to a zettel."
   ;; TODO: Deal with subkasten in the link
-  (or (string-match zettel-regexp-numerus-currens string)
-      (string-match zettel-regexp-tempus-currens string)))
+  (string-match zettel-regexp-slug string))
 
 (defun backup-file-name-p (file)
   "Return non-nil if FILE is a backup file name (numeric or not)
@@ -307,7 +305,8 @@ Group 8 is the title itself.")
       deft-strip-summary-regexp "\\(^\\w+: .*\\)"
       ;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
       deft-time-format nil
-      deft-use-filename-as-title nil)
+      deft-use-filename-as-title nil
+      deft-current-sort-method 'name)
 
 (add-hook 'deft-mode-hook
   (lambda ()
