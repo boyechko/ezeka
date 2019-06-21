@@ -947,6 +947,11 @@ Zettelkasten."
   (cond ((string-match (concat "^" zettel-regexp-numerus-currens) name)
          ;; name is a numerus currens
          (zettel-absolute-filename name))
+        ((string-match (concat "^" zettel-regexp-tempus-currens) name)
+         ;; name is a tempus currens by itself, assume it's in "limbo"
+         ;; FIXME: This needs to be written more elegantly
+         (expand-file-name (concat name "." deft-extension)
+                           (second (assoc "limbo" zettel-sub-kasten))))
         ((string-match "[[:alpha:]]+:[[:alnum:]]+" name)
          ;; name is a 'subkasten:zettel' link
          (let* ((split (split-string name ":"))
@@ -955,9 +960,6 @@ Zettelkasten."
                 (sk-dir (second (assoc subkasten zettel-sub-kasten))))
            (when sk-dir
              (expand-file-name (concat name-only "." deft-extension) sk-dir))))
-        ((string-match (concat "^" zettel-regexp-tempus-currens) name)
-         ;; name is a tempus currens by itself, assume it's in `deft-directory'
-         (expand-file-name (concat name "." deft-extension) deft-directory))
         (t
          ;; name is something else, return nil
          nil)))
