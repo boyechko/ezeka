@@ -28,9 +28,9 @@ Clamp do
 
       puts "Moving #{old_slug} to #{new_slug}"
       if interactive?
-          system("zmove", "--interactive", old_slug, new_slug)
+        system("zmove", "--interactive", old_slug, new_slug)
       else
-          system("zmove", old_slug, new_slug)
+        system("zmove", old_slug, new_slug)
       end
     end
   end

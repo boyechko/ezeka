@@ -64,7 +64,7 @@ Clamp do
       puts "--> Press [Enter] to move #{source_rel} to #{target_rel}..."
       STDIN.gets
     else
-      puts "Moving #{source_rel} to #{target_rel}..."
+      puts "===> Moving #{source_rel} to #{target_rel}... <==="
     end
 
     # Move the files themselves
@@ -85,7 +85,7 @@ Clamp do
         puts links + "--> Press [Enter] to replace links in the above files..."
         STDIN.gets
       else
-        puts "Replacing links in the following files:" + links
+        puts "Replacing links in the following files:\n" + links
       end
 
       IO.popen("zreplacelinks #{source.slug} #{target.slug}", 'w+') do |subproc|
