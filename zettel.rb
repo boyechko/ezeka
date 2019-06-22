@@ -21,15 +21,17 @@ class Zettelkasten
   @ext = ".txt"
 
   @root = Pathname(ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel'))
-  @kaesten = { "main"    => root + "main",
-               "limbo"   => root + "limbo",
-               "tech"    => root + "tech",
-               "personal" => root + "personal" }
+  @kaesten = { "numerus"  => "main",  # main numerus kasten
+               "tempus"   => "limbo", # main tempus kasten
+               "tech"     => "tech",
+               "personal" => "personal",
+               "rp"       => "rp"
+             }
 
   # Returns the directory for the given kasten
   def self.dir(kasten)
     if @kaesten[kasten]
-      return @kaesten[kasten]
+      return @root + @kaesten[kasten]
     else
       raise "Unknown kasten '#{kasten}'"
     end
@@ -44,14 +46,14 @@ class Zettelkasten
   def self.kasten_of(path)
     p = Pathname(path)
     p = Pathname.pwd() + p unless p.absolute?
-    relv = p.relative_path_from(@root)
-    kasten = relv.each_filename.to_a[0]
-    return kasten if @kaesten[kasten]
+    relative = p.relative_path_from(@root)
+    topmost_dir = relative.each_filename.to_a[0]
+    return @kaesten.invert[topmost_dir]
   end
 
   # Returns the type of the zettel found at the given path
   def self.zettel_type(path)
-    kasten_of(path) == "main" ? :numerus : :tempus
+    kasten_of(path) == "numerus" ? :numerus : :tempus
   end
 
   # Returns true if the given path is in the Zettelkasten
@@ -221,7 +223,7 @@ class Numerus < Zettel
 
   attr_reader :numerus,         # the number portion of the slug
               :litterae,        # the letter portion of thes lug
-              :section          # the section of the main Kasten
+              :section          # the section of the numerus Kasten
 
   #
   # Custom Constructors
@@ -252,7 +254,7 @@ class Numerus < Zettel
   def init_link(link)
     if link =~ FQN_PATTERN
       @type = :numerus
-      @kasten = "main"
+      @kasten = "numerus"
       @numerus = $1.to_i
       @litterae = $3
       reinit()
@@ -305,8 +307,8 @@ class Numerus < Zettel
   # Class Methods
   #
 
-  # Returns the appropriate sub-directory in the main Kasten based on the Zettel
-  # slug.
+  # Returns the appropriate sub-directory in the numerus Kasten based on the
+  # Zettel slug.
   def self.section_of(slug)
     if slug =~ SLUG_PATTERN
       num = $1.to_i
@@ -330,9 +332,12 @@ class Numerus < Zettel
 
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    # FIXME: Hardcoded main kasten path pattern
-    return File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
-           File.dirname(string) =~ /main\/\d{3}-\d{3}$/ ? true : false
+    if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
+       Zettelkasten.kasten_of(string) == "numerus"
+      return true
+    else
+      return false
+    end
   end
 end
 
