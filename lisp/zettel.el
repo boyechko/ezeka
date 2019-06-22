@@ -144,8 +144,7 @@ acceptable."
 
 (defun zettel-slug (file)
   "Returns the slug part of the given Zettel file."
-  (when (zettel-p file)
-    (file-name-base file)))
+  (file-name-base file))
 
 (defun zettel-kasten (file)
   "Returns the kasten of the given Zettel file."
