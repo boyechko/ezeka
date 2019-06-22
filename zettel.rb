@@ -217,7 +217,7 @@ end
 
 class Numerus < Zettel
   SLUG_PATTERN = /^([0-9]{3})(-([a-z]+))*$/
-  LINK_PATTERN = SLUG_PATTERN
+  FQN_PATTERN = SLUG_PATTERN
 
   attr_reader :numerus,         # the number portion of the slug
               :litterae,        # the letter portion of thes lug
@@ -250,7 +250,7 @@ class Numerus < Zettel
   end
 
   def init_link(link)
-    if link =~ LINK_PATTERN
+    if link =~ FQN_PATTERN
       @type = :numerus
       @kasten = "main"
       @numerus = $1.to_i
@@ -325,7 +325,7 @@ class Numerus < Zettel
 
   # Returns true if the link (a string) is a valid link to Numerus Currens Zettel
   def self.valid_link?(string)
-    return string =~ LINK_PATTERN ? true : false
+    return string =~ FQN_PATTERN ? true : false
   end
 
   # Returns true if the string is a valid path a to numerus currens zettel
@@ -341,7 +341,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Tempus < Zettel
-  LINK_PATTERN = /^([a-z]+):(\d{8}T\d{4})$/
+  FQN_PATTERN = /^(([a-z]+):)*(\d{8}T\d{4})$/
   SLUG_PATTERN = /^\d{8}T\d{4}$/
 
   attr_reader :time             # the time of the Zettel as a Time object
@@ -375,10 +375,15 @@ class Tempus < Zettel
   end
 
   def init_link(link)
-    if link =~ LINK_PATTERN
-      @slug = $2
+    if link =~ FQN_PATTERN
+      if $2.nil?
+        @kasten = "tempus"
+      else
+        @kasten = $2
+      end
+
+      @slug = $3
       @type = :tempus
-      @kasten = $1
       @time = Time.parse(@slug)
       @path = Zettelkasten.dir(@kasten) + (@slug + Zettelkasten.ext)
       read_file if @path.exist?
@@ -402,7 +407,7 @@ class Tempus < Zettel
 
   # Returns true if the link (a string) is a valid link to Tempus Zettel
   def self.valid_link?(string)
-    return string =~ LINK_PATTERN ? true : false
+    return string =~ FQN_PATTERN ? true : false
   end
 
   # Returns true if this is a valid path a to numerus currens zettel
