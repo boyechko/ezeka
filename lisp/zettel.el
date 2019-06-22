@@ -556,7 +556,7 @@ pathname or just the slug itself."
                (file-relative-name (file-name-directory target)
                                    zettel-directory)))
          (kasten (when dir
-                   (assoc (file-name-base dir)) zettel-sub-kasten)))
+                   (assoc (file-name-base dir) zettel-sub-kasten))))
     (if (and kasten (nth 2 kasten))
         (concat (first kasten) ":" base-slug)
       base-slug)))
