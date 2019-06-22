@@ -221,8 +221,8 @@ class Numerus < Zettel
   SLUG_PATTERN = /^([0-9]{3})(-([a-z]+))*$/
   FQN_PATTERN = SLUG_PATTERN
 
-  attr_reader :numerus,         # the number portion of the slug
-              :litterae,        # the letter portion of thes lug
+  attr_reader :numbers,         # the number portion of the slug
+              :letters,         # the letter portion of the slug
               :section          # the section of the numerus Kasten
 
   #
@@ -255,8 +255,8 @@ class Numerus < Zettel
     if link =~ FQN_PATTERN
       @type = :numerus
       @kasten = "numerus"
-      @numerus = $1.to_i
-      @litterae = $3
+      @numbers = $1.to_i
+      @letters = $3
       reinit()
       read_file if @path.exist?
     else
@@ -264,13 +264,13 @@ class Numerus < Zettel
     end
   end
 
-  # Sets @slug, @section, and @path based on @numerus and @litterae
+  # Sets @slug, @section, and @path based on @numbers and @letters
   def reinit()
-    if @litterae.nil? or @litterae.empty?
-      @litterae = ""
-      @slug = "%03d" % @numerus
+    if @letters.nil? or @letters.empty?
+      @letters = ""
+      @slug = "%03d" % @numbers
     else
-      @slug = "%03d-#{@litterae}" % @numerus
+      @slug = "%03d-#{@letters}" % @numbers
     end
     @section = self.class.section_of(@slug)
     @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
@@ -285,21 +285,21 @@ class Numerus < Zettel
     return @slug
   end
 
-  def litterae=(litterae)
-    if litterae =~ /[a-z]+/
-      @litterae = litterae
+  def letters=(letters)
+    if letters =~ /[a-z]+/
+      @letters = letters
       reinit
     else
-      raise "Litterae can only be a string of letters, not '#{litterae}'"
+      raise "Letters can only be a string of letters, not '#{letters}'"
     end
   end
 
-  def numerus=(numerus)
-    if numerus =~ /[0-9]{3}/
-      @numerus = numerus
+  def numbers=(numbers)
+    if numbers =~ /[0-9]{3}/
+      @numbers = numbers
       reinit
     else
-      raise "Numerus can only be three digits, not '#{numerus}'"
+      raise "Numbers can only be three digits, not '#{numbers}'"
     end
   end
 
@@ -355,15 +355,15 @@ class Tempus < Zettel
   # Custom Constructors
   #
   def self.new_from_path(*args)
-    numerus = allocate
-    numerus.init_path(*args)
-    numerus
+    tempus = allocate
+    tempus.init_path(*args)
+    tempus
   end
 
   def self.new_from_link(*args)
-    numerus = allocate
-    numerus.init_link(*args)
-    numerus
+    tempus = allocate
+    tempus.init_link(*args)
+    tempus
   end
 
   #
