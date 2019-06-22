@@ -58,43 +58,6 @@ class Zettelkasten
   def self.includes?(path)
     return true if kasten_of(path)
   end
-
-  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel at
-  # the given path.
-  def self.zettel_at(path)
-    kasten = kasten_of(path)
-    if kasten == "main"
-      return Numerus.new_from_path(path)
-    elsif kasten
-      return Tempus.new_from_path(path)
-    else
-      raise "The file is not a Zettel: #{path}"
-    end
-  end
-
-  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
-  # from the given link.
-  def self.zettel_from_link(link)
-    if Numerus.valid_link?(link)
-      return Numerus.new_from_link(link)
-    elsif Tempus.valid_link?(link)
-      return Tempus.new_from_link(link)
-    else
-      return nil
-    end
-  end
-
-  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
-  # from the given path.
-  def self.zettel_from_path(path)
-    if Numerus.valid_path?(path)
-      return Numerus.new_from_path(path)
-    elsif Tempus.valid_path?(path)
-      return Tempus.new_from_path(path)
-    else
-      return nil
-    end
-  end
 end
 
 #-------------------------------------------------------------------------------
@@ -109,6 +72,34 @@ class Zettel
               :path             # full path, as Pathname
   attr_accessor :metadata,      # hash of symbol -> value
                 :text           # the text of the Zettel
+
+  #
+  # Custom Constructors
+  #
+
+  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
+  # from the given link.
+  def self.new_from_link(link)
+    if Numerus.valid_link?(link)
+      return Numerus.new_from_link(link)
+    elsif Tempus.valid_link?(link)
+      return Tempus.new_from_link(link)
+    else
+      return nil
+    end
+  end
+
+  # Returns the appropriate Zettel subclass (Numerus or Tempus) of the Zettel
+  # from the given path.
+  def self.new_from_path(path)
+    if Numerus.valid_path?(path)
+      return Numerus.new_from_path(path)
+    elsif Tempus.valid_path?(path)
+      return Tempus.new_from_path(path)
+    else
+      return nil
+    end
+  end
 
   # More concise representation
   def inspect()

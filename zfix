@@ -72,7 +72,7 @@ Clamp do
       # Try to get timestamp for the file OR for the supplied oldname (to_s is
       # needed in case oldname is nil) OR for one of the oldname lines in the
       # file itself.
-      zettel = Zettelkasten.zettel_from_path(file)
+      zettel = Zettel.new_from_path(file)
       zettel.read_file
       if (timestamp = hg_timestamp(file) ||
                      timestamp = hg_timestamp(oldname.to_s + EXT) ||

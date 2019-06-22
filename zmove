@@ -39,9 +39,9 @@ Clamp do
 
   def execute
     if Numerus.valid_link?(source_string) || Tempus.valid_link?(source_string)
-      source = Zettelkasten.zettel_from_link(source_string)
+      source = Zettel.new_from_link(source_string)
     elsif Numerus.valid_path?(source_string) || Tempus.valid_path?(source_string)
-      source = Zettelkasten.zettel_from_path(source_string)
+      source = Zettel.new_from_path(source_string)
     else
       STDERR.puts "Source is neither a valid link nor a valid path."
       exit(1)
@@ -50,9 +50,9 @@ Clamp do
     source_rel = source.relative_path
 
     if Numerus.valid_link?(target_string) || Tempus.valid_link?(target_string)
-      target = Zettelkasten.zettel_from_link(target_string)
+      target = Zettel.new_from_link(target_string)
     elsif Numerus.valid_path?(target_string) || Tempus.valid_path?(target_string)
-      target = Zettelkasten.zettel_from_path(target_string)
+      target = Zettel.new_from_path(target_string)
     else
       STDERR.puts "Target is neither a valid link nor a valid path."
       exit(1)

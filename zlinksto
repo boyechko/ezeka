@@ -22,7 +22,7 @@ Clamp do
     Open3.popen3(cmd) do |stdin, stdout, stderr|
       while file = stdout.gets
         path = Zettelkasten.root + file.chomp
-        zettel = Zettelkasten.zettel_from_path(path)
+        zettel = Zettel.new_from_path(path)
         
         if zettel && pretty_print?
           puts format_string % [zettel.slug, zettel.metadata[:title]]
