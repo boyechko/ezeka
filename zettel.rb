@@ -255,7 +255,7 @@ class Numerus < Zettel
     if link =~ FQN_PATTERN
       @type = :numerus
       @kasten = "numerus"
-      @numbers = $1.to_i
+      @numbers = $1
       @letters = $3
       reinit()
       read_file if @path.exist?
@@ -268,9 +268,9 @@ class Numerus < Zettel
   def reinit()
     if @letters.nil? or @letters.empty?
       @letters = ""
-      @slug = "%03d" % @numbers
+      @slug = @numbers
     else
-      @slug = "%03d-#{@letters}" % @numbers
+      @slug = @numbers + "-" + @letters
     end
     @section = self.class.section_of(@slug)
     @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
