@@ -129,6 +129,7 @@ class Zettel
       content = File.read(path).gsub(/\r\n/, "\n") # fix DOS line endings too
       metadata, @text = content.split("\n\n", 2)
       @metadata = from_quasi_yaml(metadata)
+      @text = "" if @text.nil?
     else
       raise "The file for Zettel '#{@slug}' is not readable: #{@path}"
     end
