@@ -286,11 +286,11 @@ class Numerus < Zettel
   end
 
   def letters=(letters)
-    if letters =~ /[a-z]+/
+    if letters =~ /[a-z]+/ or letters.nil? or letters.empty?
       @letters = letters
       reinit
     else
-      raise "Letters can only be a string of letters, not '#{letters}'"
+      raise "Letters can be English letters or nil/empty, not '#{letters}'"
     end
   end
 
