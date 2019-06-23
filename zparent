@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# Set the parents of the given zettel
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "SLUG", "numerus currens to set the parent of",
+            :attribute_name => :slug
+
+  # Returns the parent of the given zettel, or null
+  def parent_of(numerus)
+    if numerus.letters.empty?
+      return ""
+    elsif numerus.letters.length == 1
+      return numerus.numbers
+    else
+      return numerus.numbers + "-" + numerus.letters.chop
+    end
+  end
+
+  def execute
+    numerus = Zettel.new_from_link(slug)
+    numerus.read_file
+
+    if not parent_of(numerus).empty?
+      parent = Zettel.new_from_link(parent_of(numerus))
+      numerus.metadata[:parent] = "[[#{parent.link}]]"
+      numerus.write_file
+      puts "Parent set for #{slug}"
+    else
+      puts "No parent for #{slug}"
+    end
+  end
+end
