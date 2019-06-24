@@ -26,7 +26,7 @@ Clamp do
         if zettel
           n = zettel.replace_links(before, after)
           zettel.write_file
-          puts "Replaced #{n.to_s} occurence(s) in #{zettel.slug}"
+          puts "#{n.to_s} link(s) in #{zettel.slug}"
         else
           STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
         end

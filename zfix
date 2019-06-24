@@ -85,8 +85,7 @@ Clamp do
         new_time = old_time + 1
 
         if retouch(file, new_time)
-          p_status(file, "Retouched to #{new_time.strftime("%F %H:%M:%S")} "\
-                         "(was #{old_time.strftime("%H:%M:%S")})")
+          p_status(file, "Retouched to #{new_time.strftime("%F %H:%M:%S")}")
         end
       else
         p_status(file, "Could not get the timestamp")

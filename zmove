@@ -17,6 +17,7 @@ Clamp do
   parameter "TARGET", "where to move the Zettel (link or filepath)",
             :attribute_name => :target_string
   option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
+  option ["-v", "--verbose"], :flag, "verbose", :attribute_name => :verbose
 
   # Updates the title, replacing oldslug with newslug, and recording oldslug as
   # oldname.
@@ -24,6 +25,7 @@ Clamp do
     zettel.read_file
 
     if zettel.metadata
+      $stdout.write("Updating metadata...") if verbose?
       zettel.metadata[:title] =
         zettel.metadata[:title].gsub("§#{oldslug}.", "§#{newslug}.")
 
@@ -31,6 +33,7 @@ Clamp do
 
       #zettel.metadata[:modified] = Time.now.to_date
       zettel.write_file
+      puts "Done" if verbose?
     else
       STDERR.puts "The file has no metadata; cannot update title"
       exit(1)
@@ -63,8 +66,10 @@ Clamp do
     if interactive?
       puts "--> Press [Enter] to move #{source_rel} to #{target_rel}..."
       STDIN.gets
+    elsif verbose?
+      puts "===> Moving #{source.slug} to #{target.slug}... <==="
     else
-      puts "===> Moving #{source_rel} to #{target_rel}... <==="
+      puts "#{source.slug} --> #{target.slug}"
     end
 
     # Move the files themselves
@@ -84,20 +89,20 @@ Clamp do
       if interactive?
         puts links + "--> Press [Enter] to replace links in the above files..."
         STDIN.gets
-      else
-        puts "Replacing links in the following files:\n" + links
+      elsif verbose?
+        puts "Replacing links:"
       end
 
       IO.popen("zreplacelinks #{source.slug} #{target.slug}", 'w+') do |subproc|
         subproc.write(links)
         subproc.close_write
         subproc.read.split("\n").each do |l|
-          puts "#{l}"
+          puts "#{l}" if verbose?
         end
-        puts
       end
+      puts if verbose?
     else
-      puts "No links needed to be replaced; we're done."
+      puts "No links needed to be replaced; we're done\n" if verbose?
     end
   end
 end
