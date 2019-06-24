@@ -198,6 +198,8 @@ class Zettel
           rescue ArgumentError
             $stderr.puts "Cannot parse #{value} as date in #{link}."
           end
+        elsif value =~ /^\[\[.*\]\]$/    # markdown/org-mode link
+          value = value
         elsif value =~ /^\[(.*)\]$/      # YAML array
           value = $1.strip.split(/, */)
         end
