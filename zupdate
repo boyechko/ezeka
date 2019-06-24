@@ -12,7 +12,9 @@ Clamp do
     end
 
     # Get the list of new slugs
-    new_slugs = File.readlines("/Users/richard/Dropbox/Zettel/auto/new-to-replace-with").each {|line| line.chomp!}
+    new_slugs_file = "/Users/richard/Dropbox/Zettel/auto/new-slugs"
+    new_slugs = File.readlines(new_slugs_file).each {|line| line.chomp!}
+    used_slugs = Array.new
 
     # Read list of files to replace the links in from STDIN
     ARGF.each_line do |line|
@@ -21,7 +23,9 @@ Clamp do
       if !line.empty?
         old = Zettel.new_from_link(line)
 
+        used_slugs.push("#{old.slug} => #{new_slugs.last}")
         new = Zettel.new_from_link(new_slugs.pop)
+
         while new.exists?
           puts "Warning: Zettel #{new.slug} exists; skipping"
           new = Zettel.new_from_link(new_slugs.pop)
@@ -37,8 +41,14 @@ Clamp do
     end
 
     puts "Writing remaining unused slugs back..."
-    File.open("/Users/richard/Dropbox/Zettel/auto/new-to-replace-with", "w+") do |f|
+    File.open(new_slugs_file, "w") do |f|
       f.puts(new_slugs)
+    end
+
+    puts "Saving used slugs..."
+    used_slugs_file = "/Users/richard/Dropbox/Zettel/auto/used-new-slugs"
+    File.open(used_slugs_file, "a") do |f|
+      f.puts(used_slugs)
     end
   end
 end
