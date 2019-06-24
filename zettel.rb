@@ -144,9 +144,14 @@ class Zettel
     end
   end
 
-  # Replaces the links in the @text
+  # Replaces the links in the @text and @metadata[:parent]
   def replace_links(before, after)
     counter = 0
+    if @metadata[:parent] &&
+       @metadata[:parent].gsub!(/\[\[#{before}\]\]/, "[[#{after}]]")
+      counter += 1
+    end
+
     @text = @text.gsub(/#{before}\]\]/) do |match|
       counter += 1
       "#{after}]]"
