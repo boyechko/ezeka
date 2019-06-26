@@ -1305,13 +1305,33 @@ bookmark's filename property to the Zettel link."
                             (switch-to-buffer (cdr choice))))
       (user-error "No open Zettel buffers to switch to"))))
 
-(defun zettel-add-category (category)
-  "Add a category to the Zettel title based on `zettel-categories'."
-  (interactive (list (ivy-read "Category: " zettel-categories)))
-  (save-excursion
-    (goto-char (point-min))
-    (when (re-search-forward "^title: §?\\(.+\\)\\. \\({[^}]+} \\)*")
-      (replace-match (format "title: §\\1. {%s} " category)))))
+(defun zettel-set-category (file category)
+  "Sets the category to the Zettel title based on `zettel-categories'. With
+prefix argument, allows the user to type in a custom category."
+  (interactive (list (if (eq major-mode 'deft-mode)
+                         (widget-get (widget-at (point)) :tag)
+                       buffer-file-name)
+                     (if current-prefix-arg
+                         (read-string "Category: ")
+                       (ivy-read "Category: " zettel-categories))))
+  (let ((orig-buffer (current-buffer)))
+    (save-excursion
+      (with-current-buffer (find-file-noselect file)
+        (goto-char (point-min))
+        (when (re-search-forward "^title: §?\\([^.]+\\)\\. \\({[^}]+} \\)*")
+          (replace-match (format "title: §\\1. {%s} " category)))
+        ;; only save buffer if was not initially visiting it
+        (unless (eq orig-buffer (current-buffer))
+          (save-buffer))))))
+
+(defun zettel-populate-categories ()
+  "Populate `zettel-categories' based on the titles in Deft cache."
+  (interactive)
+  (setq zettel-categories '())
+  (dolist (file deft-all-files)
+    (add-to-list 'zettel-categories
+      (alist-get :category (zettel-metadata file))))
+  (message "Populated with %d categories" (length zettel-categories)))
 
 (defun zettel-add-bibliographic-category ()
   "Add a category to the Zettel title based on the bibliographic title."
@@ -1340,7 +1360,10 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
 
-(define-key zettel-mode-map (kbd "C-c '") 'zettel-add-category)
+(define-key zettel-mode-map (kbd "C-c '") 'zettel-set-category)
+(define-key deft-mode-map (kbd "C-c '") 'zettel-set-category)
+(define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
+
 (define-key zettel-mode-map (kbd "C-c `") 'zettel-filter-for-link-at-point)
 ;;(define-key zettel-mode-map (kbd "C-c *") 'zettel-make-word-wiki-link)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
@@ -1348,7 +1371,6 @@ bookmark's filename property to the Zettel link."
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c '") 'zettel-add-subtree-to-deft-filter)
 
 ;; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-numerus-currens)
