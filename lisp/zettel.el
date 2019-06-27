@@ -11,7 +11,6 @@
 ;;;; - Write `zettel-numerus-new-sibling'
 ;;;; - Add `zettel-switch-to-child' that provides a nice list of children a la
 ;;;;   `zettel-switch-to-zettel'
-;;;; - Get rid of the ugly "sub-kasten" in favor of just "kasten"?
 ;;;; - Finish replacing zettel-numerus-p with zettel-type, watching out for
 ;;;;   multiple-value-bind
 
@@ -106,10 +105,10 @@ of backlinks.")
 ;;;=============================================================================
 
 (defcustom zettel-directory nil
-  "The central Zettelkasten directory housing all the sub-Zettelkasten."
+  "The central Zettelkasten directory."
   :type 'string)
 
-(defcustom zettel-sub-kasten nil
+(defcustom zettel-kasten nil
   "An alist containing the names, directories, and whether the kasten should
 be explicitly stated in the links."
   :type 'alist)
@@ -555,7 +554,7 @@ pathname or just the slug itself."
                (file-relative-name (file-name-directory target)
                                    zettel-directory)))
          (kasten (when dir
-                   (assoc (file-name-base dir) zettel-sub-kasten))))
+                   (assoc (file-name-base dir) zettel-kasten))))
     (if (and kasten (nth 2 kasten))
         (concat (first kasten) ":" base-slug)
       base-slug)))
@@ -950,15 +949,15 @@ Zettelkasten."
          ;; name is a tempus currens by itself, assume it's in "limbo"
          ;; FIXME: This needs to be written more elegantly
          (expand-file-name (concat name "." deft-extension)
-                           (second (assoc "limbo" zettel-sub-kasten))))
+                           (second (assoc "tempus" zettel-kasten))))
         ((string-match "[[:alpha:]]+:[[:alnum:]]+" name)
-         ;; name is a 'subkasten:zettel' link
+         ;; name is a 'kasten:slug' link
          (let* ((split (split-string name ":"))
-                (subkasten (first split))
-                (name-only (second split))
-                (sk-dir (second (assoc subkasten zettel-sub-kasten))))
-           (when sk-dir
-             (expand-file-name (concat name-only "." deft-extension) sk-dir))))
+                (kasten (first split))
+                (slug (second split))
+                (kasten-dir (second (assoc kasten zettel-kasten))))
+           (when kasten-dir
+             (expand-file-name (concat slug "." deft-extension) kasten-dir))))
         (t
          ;; name is something else, return nil
          nil)))
