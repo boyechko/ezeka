@@ -6,14 +6,24 @@ if [[ -z "$ZETTEL_DIR" ]]; then
     exit 1
 fi
 
-# Copy files from ~/Dropbox/Apps/Orgzly
-echo -n "Reincorporating files from Apps/Orgzly..."
-work=20190228T1454.txt
+#work=20190228T1454.txt
 journal=20180727T1421.txt
 todo=20190514T1925.txt
-modified=$(date "+%Y-%m-%d")
+
 cd $HOME/Dropbox/Apps/Orgzly
-sed -e "s/^modified:.*$/modified: ${modified}/" work.org > $ZETTEL_DIR/limbo/$work
-sed -e "s/^modified:.*$/modified: ${modified}/" journal.org > $ZETTEL_DIR/limbo/$journal
-sed -e "s/^modified:.*$/modified: ${modified}/" todo.org > $ZETTEL_DIR/limbo/$todo
-echo "Done"
+if [[ $1 == "push" ]]; then
+    # Copy files to ~/Dropbox/Apps/Orgzly
+    echo -n "Pushing files to Apps/Orgzly..."
+#    cp $ZETTEL_DIR/limbo/$work work.org
+    cp $ZETTEL_DIR/limbo/$journal journal.org
+    cp $ZETTEL_DIR/limbo/$todo todo.org
+    echo "Done"
+else
+    # Copy files from ~/Dropbox/Apps/Orgzly
+    echo -n "Pulling files from Apps/Orgzly..."
+    modified=$(date "+%Y-%m-%d")
+#    sed -e "s/^modified:.*$/modified: ${modified}/" work.org > $ZETTEL_DIR/limbo/$work
+    sed -e "s/^modified:.*$/modified: ${modified}/" journal.org > $ZETTEL_DIR/limbo/$journal
+    sed -e "s/^modified:.*$/modified: ${modified}/" todo.org > $ZETTEL_DIR/limbo/$todo
+    echo "Done"
+fi

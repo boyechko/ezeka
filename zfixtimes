@@ -7,10 +7,9 @@ if [[ -z "$ZETTEL_DIR" ]]; then
 fi
 
 cd $ZETTEL_DIR
-hg status --added --modified --include "**.txt" | while read line
+#find ./ -name "*.txt" | sort | while read line
+hg status -a -m -I "**.txt" | sed -e 's/^\([AM] \)*//' | sort | while read fname
 do
-    fname=$(echo $line | sed -e 's/^\([AM] \)*//')
-
     # Fix DOS line endings, if present
     doslines=$(dos2unix -id "$fname" | awk '{ print $1 }')
     if [ $doslines -gt 0 ]; then
@@ -19,4 +18,3 @@ do
 
     zfix "$fname"
 done
-
