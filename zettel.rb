@@ -1,3 +1,4 @@
+# coding: utf-8
 # -----------------------------------------------------------------------------
 #      Author: Richard Boyechko <rb-mercurial@diachronic.net>
 # Description: A collection of methods for working with Zettel
@@ -8,6 +9,7 @@
 require 'time'
 require 'yaml'
 require 'pathname'
+require 'open3'
 
 #-------------------------------------------------------------------------------
 # Zettelkasten
@@ -24,8 +26,10 @@ class Zettelkasten
   @kaesten = { "numerus"  => "main",  # main numerus kasten
                "tempus"   => "limbo", # main tempus kasten
                "tech"     => "tech",
+               "life"     => "personal",
                "personal" => "personal",
-               "rp"       => "rp"
+               "rp"       => "rp",
+               "play"     => "rp"
              }
 
   # Returns the directory for the given kasten
@@ -138,23 +142,57 @@ class Zettel
   # Writes to the Zettel file the content of metadata (in YAML) and @text.
   def write_file()
     if File.writable?(@path)
+      # Make sure the title has the correct slug
+      @metadata[:title].gsub!(/§[^.]+\./, "§#{@slug}.")
+
       File.write(@path, to_yaml(metadata) + "\n" + @text)
     else
       raise "The file for Zettel '#{@slug}' is not writable: #{@path}"
     end
   end
 
-  # Replaces the links in the @text and @metadata[:parent]
+  # Returns a list of Zettel that have links to the current Zettel
+  def links_to()
+    links = Array.new()
+
+    Dir.chdir(Zettelkasten.root)
+    cmd = "grep --include=*#{Zettelkasten.ext} -lR -e '#{slug}\\]\\]' -e 'parent: #{slug}' *"
+    Open3.popen3(cmd) do |stdin, stdout, stderr|
+      while file = stdout.gets
+        z = Zettel.new_from_path(Zettelkasten.root + file.chomp)
+
+        if z
+          links.push(z)
+        else
+          raise "Cannot create Zettel from file #{file}"
+        end
+      end
+    end
+
+    return links
+  end
+
+  # Replaces the links in the @text and @metadata[:parent].
   def replace_links(before, after)
     counter = 0
     if @metadata[:parent] &&
-       @metadata[:parent].gsub!(/\[\[#{before}\]\]/, "[[#{after}]]")
+       @metadata[:parent].gsub!(/#{before}/, "#{after}")
       counter += 1
     end
 
     @text = @text.gsub(/#{before}\]\]/) do |match|
       counter += 1
       "#{after}]]"
+    end
+    return counter
+  end
+
+  # Removes the links to BEFORE in the @text, returning number of links removed
+  def remove_links(before)
+    counter = 0
+    @text = @text.gsub(/#{before}\]\]/) do |match|
+      counter += 1
+      "REMOVED_#{before}]]"
     end
     return counter
   end
@@ -411,7 +449,9 @@ class Tempus < Zettel
 
   # Returns the wiki link target
   def link()
-    return "#{@kasten}:#{@slug}"
+    if @kasten == "tempus" then return @slug
+    else return "#{@kasten}:#{@slug}"
+    end
   end
 
   #
