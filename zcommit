@@ -12,6 +12,9 @@ zorgzly
 # Fix times and commit
 cd $ZETTEL_DIR
 
+# Get rid of extraneous files
+find ./ -name "*.html" -or -name "*.odt" -exec rm -i {} \;
+
 hg addremove
 modified=$(hg status --modified | wc -l | awk '{ print $1 }')
 removed=$(hg status --removed | wc -l | awk '{ print $1 }')
