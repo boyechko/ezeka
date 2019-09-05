@@ -11,24 +11,18 @@ Clamp do
 
   def execute
     format_string = "%-10s  %s"
-    cmd = "grep --include=*#{Zettelkasten.ext} -lR '\\[\\[#{slug}\\]\\]' *"
 
     if pretty_print?
       puts format_string % ["Slug", "Title"]
       puts format_string % ["----", "-----"]
     end
-    
-    Dir.chdir(Zettelkasten.root)    
-    Open3.popen3(cmd) do |stdin, stdout, stderr|
-      while file = stdout.gets
-        path = Zettelkasten.root + file.chomp
-        zettel = Zettel.new_from_path(path)
-        
-        if zettel && pretty_print?
-          puts format_string % [zettel.slug, zettel.metadata[:title]]
-        else
-          puts file
-        end
+
+    zettel = Zettel.new_from_link(slug)
+    zettel.links_to.each do |z|
+      if pretty_print?
+        puts format_string % [z.slug, z.metadata[:title]]
+      else
+        puts z.link
       end
     end
   end

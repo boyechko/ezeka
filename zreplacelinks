@@ -19,17 +19,12 @@ Clamp do
     ARGF.each_line do |line|
       line = line.strip
 
-      if !line.empty?
-        zettel = Zettel.new_from_path(line)
-
-        # Check that the file exists and is either a numerus currens or datetime
-        if zettel
-          n = zettel.replace_links(before, after)
-          zettel.write_file
-          puts "#{n.to_s} link(s) in #{zettel.slug}"
-        else
-          STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
-        end
+      if !line.empty? && z = Zettel.new_from_link(line)
+        n = z.replace_links(before, after)
+        z.write_file
+        puts "#{n.to_s} link(s) in #{z.link}"
+      else
+        STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
       end
     end
   end

@@ -6,20 +6,37 @@ require_relative 'zettel'
 
 Clamp do
   parameter "SLUG", "slug to remove", :attribute_name => :slug
+  option ["-v", "--verbose"], :flag, "verbose", :attribute_name => :verbose
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
 
   def execute
+    zettel = Zettel.new_from_link(slug)
+
+    puts "The following notes have links to #{zettel.link}:"
     Dir.chdir(Zettelkasten.root)
     system("zlinksto #{slug}")
 
     # Give user chance to interrupt
-    puts "zremove: Press [Enter] to remove #{slug}..."
+    puts "zremove: Press [Enter] to remove #{zettel.link}..."
     STDIN.gets
 
+    # Replace links with REMOVED, parent with grandparent
+    grandparent = zettel.metadata[:parent]
+    zettel.links_to().each do |z|
+      if /#{zettel.link}/ =~ z.metadata[:parent]
+        STDERR.puts "Replacing #{zettel.link}'s parent with #{grandparent}"
+        z.metadata[:parent] = grandparent
+      end
+
+      removed = z.remove_links(zettel.link)
+      STDERR.puts "Removed #{removed} links in #{z.link}"
+      z.write_file
+    end
+
     # Remove the file
-    path = Zettel.new_from_link(slug).relative_path
-    system("hg rm -f #{path}")
+    system("hg rm -f #{zettel.relative_path}")
     if $?.exitstatus != 0
-      puts "zmove: Mercurial could not remove the file; aborting"
+      STDERR.puts "zmove: Mercurial could not remove the file; aborting"
       exit(1)
     end
   end
