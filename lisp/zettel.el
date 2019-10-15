@@ -228,6 +228,12 @@ specified, returns the main numerus or tempus kasten."
   (when (string-match zettel-regexp-link link)
     (match-string 3 link)))
 
+(defun zettel-make-link (kasten slug)
+  "Make a new proper link to SLUG in KASTEN."
+  (if (equal kasten zettel-default-numerus-kasten)
+      slug
+    (concat kasten ":" slug)))
+
 (defun zettel-numerus-directory (slug)
   "Finds the right directory for the given numerus currens slug."
   (when (stringp slug)
@@ -299,6 +305,21 @@ expression, with or without time."
               minute (string-to-int (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
+(defun zettel-file-content (file)
+  "Returns the content of the file, getting it either from an opened buffer,
+Deft cache, or the file itself."
+  (cond ((find-buffer-visiting file)
+         (with-current-buffer (find-buffer-visiting file)
+           (buffer-substring-no-properties (point-min) (point-max))))
+        ((and deft-hash-contents (deft-file-contents file))
+         (deft-file-contents file))
+        ((file-exists-p file)
+         (with-temp-buffer
+           (insert-file-contents file)
+           (buffer-string)))
+        (t
+         (error "Cannot get content for %s" file))))
+
 ;;;=============================================================================
 ;;; Metadata
 ;;;=============================================================================
@@ -362,7 +383,7 @@ alist."
                                     (zettel-metadata-key-name (car cons))
                                     (cdr cons)))
                     (newline))
-                rest))))))
+                (cl-sort rest #'string-lessp :key #'car)))))))
 
 (defun zettel-update-metadata (key value)
   "Updates the Zettel metadata section in the current buffer, setting the KEY
@@ -398,12 +419,7 @@ to VALUE."
            (first (split-string
                    ;; Do a sane thing when I opened a Zettel file directly
                    ;; rather than through Deft interface.
-                   (if (and deft-hash-contents
-                            (progn (deft-cache-file file)
-                                   (deft-file-contents file)))
-                       (deft-file-contents file)
-                     (with-current-buffer (find-buffer-visiting file)
-                       (buffer-substring-no-properties (point-min) (point-max))))
+                   (zettel-file-content file)
                    "\n\n"))
            "\n"))
          (metadata
@@ -570,6 +586,20 @@ Based on `rename-file-and-buffer'."
 ;;; Zettel Links
 ;;;=============================================================================
 
+(defvar zettel-regexp-wiki-link
+  "\\[\\[\\([[:alnum:]-:]+\\)]]"
+  "The regexp of a simple wiki link syntax (i.e. word enclosed in double
+brackets).")
+
+(defun zettel-wiki-link-at-point-p ()
+  "Returns T if the thing at point is a wiki link (i.e. enlcosed in double
+square brackets)."
+  (thing-at-point-looking-at zettel-regexp-wiki-link))
+
+(defun zettel-wiki-link-link ()
+  "Return the link part of the wiki link using current match data."
+  (match-string 1))
+
 ;; TODO: Implement markdown-wiki-link stuff locally to remove requirement of
 ;;       markdown mode?
 (defun zettel-store-link (arg)
@@ -578,8 +608,8 @@ the file in current buffer into `zettel-stored-links'."
   (interactive "p")
   (let* ((file (cond ((equal major-mode 'deft-mode)
                       (widget-get (widget-at (point)) :tag))
-                     ((and (= arg 4) (markdown-wiki-link-p))
-                      (zettel-absolute-filename (markdown-wiki-link-link)))
+                     ((and (= arg 4) (zettel-wiki-link-at-point-p))
+                      (zettel-absolute-filename (zettel-wiki-link-link)))
                      (buffer-file-name
                       buffer-file-name)
                      (t
@@ -598,21 +628,19 @@ the file in current buffer into `zettel-stored-links'."
 (defun zettel-wiki-link (target &optional include-title where add-spaces)
   "Returns a wiki link to TARGET, which can be either a link or a filepath.
 WHERE can be RIGHT or LEFT."
-  (let* ((file (or (if (file-exists-p target)
+  (let* ((file (or (if (file-name-absolute-p target)
                        target
                      (zettel-absolute-filename target))
                    (error "Link target doesn't exist; make sure it's saved")))
          (link-text (zettel-file-link file)))
+    ;; FIXME: More elegant way to do the following?
     (concat (if (or (not add-spaces) (spacep (char-before))) "" " ")
-            (cond (include-title
-                   ;; Make sure cache is updated for the linked file
-                   (deft-cache-file file)
-                   (let ((title (alist-get :title (zettel-metadata file))))
-                     (if (or (eq where 'left) (null where))
-                         (format "%s [[%s]]" title link-text)
-                       (format "[[%s]] %s" link-text title))))
-                  (t
-                   (format "[[%s]]" link-text)))
+            (if include-title
+                (let ((title (alist-get :title (zettel-metadata file))))
+                  (if (or (eq where 'left) (null where))
+                      (format "%s [[%s]]" title link-text)
+                    (format "[[%s]] %s" link-text title)))
+              (format "[[%s]]" link-text)) 
             (if (or (not add-spaces) (spacep (char-after))) "" " "))))
 
 (defun zettel-insert-link (arg)
@@ -637,26 +665,21 @@ link inserted if it doesn't already have a backlink, and adds the
 current Zettel to the `zettel-link-backlink'."
   (interactive "P")
   (when zettel-stored-links
-    ;; Make sure the current buffer is saved and cached properly
-    (save-buffer)
-    (deft-cache-update-file buffer-file-name)
     (let* ((link (first zettel-stored-links))
            (file (zettel-absolute-filename link)))
       (zettel-insert-link arg)
       ;; If the linked file doesn't already have a link to the current one,
       ;; opens the linked file in a new window, but does not switch to it.
       (cond ((string-match (regexp-quote (zettel-wiki-link buffer-file-name))
-                           ;; Try to get the `deft-file-contents', updating the
-                           ;; cache if neccessary.
-                           (or (deft-file-contents file)
-                               (progn (deft-cache-file file)
-                                      (deft-file-contents file))
-                               ""))
+                           (zettel-file-content file))
              (message "The linked note %s has a backlink to %s already"
-                      (file-name-base link)
-                      (file-name-base buffer-file-name)))
+                      link
+                      (zettel-file-link buffer-file-name)))
             (t
-             (deft-open-file link t t))))))
+             (deft-open-file file t t))))))
+
+;; TODO: Implement `zettel-insert-link-from-open' that presents choice of open
+;; buffers to link to.
 
 (defun zettel-insert-backlink (arg)
   "Like `zettel-insert-link', but instead of popping a link from
@@ -709,11 +732,10 @@ from OS clipboard."
   "Save the title of the wiki link at point or the buffer to kill
 ring."
   (interactive)
-  (let ((file (cond ((markdown-wiki-link-p)
-                     (zettel-absolute-filename (markdown-wiki-link-link)))
+  (let ((file (cond ((zettel-wiki-link-at-point-p)
+                     (zettel-absolute-filename (zettel-wiki-link-link)))
                     ((zettel-p buffer-file-name)
                      buffer-file-name))))
-    (deft-cache-file file)
     (let ((title (alist-get :title (zettel-metadata file))))
       (cond (title
              (kill-new title)
@@ -736,7 +758,7 @@ relative to `zettel-directory' instead."
                      (message "Save a link to what?")))))
     (when file
       (let ((link (if (= arg 4)
-                      (file-relative-name link zettel-directory)
+                      (file-relative-name file zettel-directory)
                     (zettel-file-link file))))
         (if select-enable-clipboard
             (kill-new link)
@@ -783,23 +805,26 @@ universal argument, behave like `zettel-insert-link'."
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel in the current `deft-directory', inserting a link to
 it at point, saves the current Zettel as its parent, and sets the
-`zettel-link-backlink' to current Zettel. With prefix argument, doesn't
-actually insert the link."
+`zettel-link-backlink' to current Zettel. With prefix argument, allows the
+user to select the Zettelkasten."
   (interactive "p")
   (let* ((parent (cond ((zettel-p buffer-file-name)
                         buffer-file-name)
                        ((equal major-mode 'deft-mode)
                         (widget-get (widget-at (point)) :tag))))
-         (child (if (equal zettel-default-numerus-kasten
-                           (zettel-directory-kasten deft-directory))
-                    (zettel-next-unused-slug)
-                  (zettel-timestamp-slug))))
-    (cond ((or (equal major-mode 'deft-mode) (> arg 1))
-           (deft-new-file-named child))
+         (kasten (if (> arg 1)
+                     (ivy-read "Zettelkasten: "
+                               (if (listp zettel-kasten)
+                                   (mapcar #'first zettel-kasten)
+                                 (error "No Zettelkasten defined")))
+                   (zettel-directory-kasten deft-directory)))
+         (slug (if (equal kasten zettel-default-numerus-kasten)
+                   (zettel-next-unused-slug)
+                 (zettel-timestamp-slug))))
+    (cond ((equal major-mode 'deft-mode)
+           (deft-new-file-named slug))
           (t
-           (insert (zettel-wiki-link
-                    (concat (zettel-directory-kasten deft-directory) ":" child)
-                    nil nil t))
+           (insert (zettel-wiki-link (zettel-make-link kasten slug) nil nil t))
            (setq zettel-link-backlink (zettel-file-link buffer-file-name))))))
 
 (defun zettel-set-parent ()
@@ -991,7 +1016,7 @@ prefix argument."
   "Like `zettel-set-category', but works in deft buffer to filter for the
 given category."
   (interactive (list (zettel-ivy-read-category)))
-  (deft-filter (format "{%s}" category)))
+  (deft-filter (format "{%s}" category) t))
 
 ;;
 ;; Insert my zettel title string into new zettel rather than contents of deft's
@@ -1013,6 +1038,26 @@ on the first line with the Zettel title string."
 
 (advice-add 'deft-new-file-named :around #'deft-new-file--add-zettel-title)
 
+;;
+;; Sorting deft-buffer by filename
+;;
+(defun deft-sort-files-by-name (files)
+  "Sort FILES by name, in reverse, ignoring case."
+  (sort files (lambda (f1 f2)
+                (string-lessp (downcase (file-name-base f2))
+                              (downcase (file-name-base f1))))))
+(eval-after-load "deft"
+  '(defalias 'deft-sort-files-by-title 'deft-sort-files-by-name))
+
+;; Having a visual indicator of the sort method is helpful
+(defun deft-set-mode-name ()
+  "Set the mode line text based on search mode."
+  (setq mode-name
+    (format "Deft[%s]%s"
+            deft-current-sort-method
+            (if deft-incremental-search "" "/R"))))
+(advice-add 'deft-toggle-sort-method :after 'deft-set-mode-name)
+
 ;;;=============================================================================
 ;;; Org-Mode Intergration
 ;;;=============================================================================
@@ -1023,8 +1068,8 @@ on the first line with the Zettel title string."
      (defun org-open-at-point--zettel-links (orig-fun &rest args)
        "Around advice for `org-open-at-point' that adds support for
 following internal Zettel links."
-       (if (and (markdown-wiki-link-p)
-                (zettel-link-p (markdown-wiki-link-link)))
+       (if (and (zettel-wiki-link-at-point-p)
+                (zettel-link-p (zettel-wiki-link-link)))
            (markdown-follow-wiki-link-at-point (first args))
          (apply orig-fun args)))
      (advice-add 'org-open-at-point :around #'org-open-at-point--zettel-links)
@@ -1187,10 +1232,10 @@ Adds an 'oldname' tag with the previous name."
 on its font lock properties."
   (interactive)
   (let* ((from
-          (if (and (markdown-wiki-link-p)
+          (if (and (zettel-wiki-link-at-point-p)
                    (not (file-exists-p
                          (markdown-convert-wiki-link-to-filename
-                          (markdown-wiki-link-link)))))
+                          (zettel-wiki-link-link)))))
               (progn (forward-sexp) (point))
             (point-min)))
          (loc (text-property-any
@@ -1206,8 +1251,8 @@ the link at point. If there is only one match, opens the note in
 another window."
   (interactive)
   (push (buffer-file-name) zettel-stored-links)
-  (when (markdown-wiki-link-p)
-    (let ((link (markdown-wiki-link-link))
+  (when (zettel-wiki-link-at-point-p)
+    (let ((link (zettel-wiki-link-link))
           (deft-incremental-search nil))
       (deft-filter (concat "oldname: " link "$") t)
       (unless deft-current-files
@@ -1225,9 +1270,9 @@ argument, or if there are no stored links, replaces with the
 backlink. With C-u C-u, simply fixes the [[alias|link]] to put
 the alias outside of the link."
   (interactive "P")
-  (when (markdown-wiki-link-p)
+  (when (zettel-wiki-link-at-point-p)
     (let ((alias (markdown-wiki-link-alias))
-          (link  (markdown-wiki-link-link)))
+          (link  (zettel-wiki-link-link)))
       (save-excursion
         ;; Make sure we are at the start of the link
         (unless (string-match "\\[\\[[^]]+\\]\\]" (thing-at-point 'sexp))
