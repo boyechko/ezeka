@@ -802,6 +802,9 @@ universal argument, behave like `zettel-insert-link'."
         (insert (zettel-wiki-link link (consp arg) (equal arg '(16))))
       (message "Could not find such ancestor"))))
 
+(defvar zettel-parent-of-new-child nil
+  "An alist of new children and their respective parents.")
+
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel in the current `deft-directory', inserting a link to
 it at point, saves the current Zettel as its parent, and sets the
@@ -820,12 +823,16 @@ user to select the Zettelkasten."
                    (zettel-directory-kasten deft-directory)))
          (slug (if (equal kasten zettel-default-numerus-kasten)
                    (zettel-next-unused-slug)
-                 (zettel-timestamp-slug))))
+                 (zettel-timestamp-slug)))
+         (child-link (zettel-make-link kasten slug))
+         (parent-link (zettel-file-link buffer-file-name)))
     (cond ((equal major-mode 'deft-mode)
+           ;; TODO: Set parent from the currently selected note?
            (deft-new-file-named slug))
           (t
-           (insert (zettel-wiki-link (zettel-make-link kasten slug) nil nil t))
-           (setq zettel-link-backlink (zettel-file-link buffer-file-name))))))
+           (insert (zettel-wiki-link child-link nil nil t))
+           (add-to-list 'zettel-parent-of-new-child (cons child-link parent-link))
+           (setq zettel-link-backlink parent-link)))))
 
 (defun zettel-set-parent ()
   "Sets the parent metadata of the current Zettel to the open Zettel chosen
@@ -1006,6 +1013,8 @@ prefix argument."
       (call-interactively #'deft-new-file-named)
     (deft-new-file)))
 
+(advice-add 'deft-auto-populate-title-maybe :around #'list)
+
 (defun zettel-add-section-sign-to-deft-filter ()
   "Inserts the Unicode section sign (§) to Deft filter string."
   (interactive)
@@ -1022,6 +1031,26 @@ given category."
 ;; Insert my zettel title string into new zettel rather than contents of deft's
 ;; filter string.
 ;;
+(defun zettel-insert-metadata-template ()
+  "Inserts the metadata template into the current buffer."
+  (let ((base (file-name-base buffer-file-name))
+        (link (zettel-file-link buffer-file-name))
+        insert-point)
+    (insert "title: §" base ". ")
+    (setq insert-point (point))
+    (newline)
+    (insert "created: "
+            ;; Insert creation date, making it match a tempus currens filename
+            (format-time-string "%Y-%m-%d"
+                                (if (eq :tempus (zettel-type buffer-file-name))
+                                    (zettel-encode-iso8601-datetime base)
+                                  nil))) ; i.e. current time
+    (newline)
+    (when (assoc link zettel-parent-of-new-child)
+      (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)))
+      (newline))
+    (goto-char insert-point)))
+
 (defun deft-new-file--add-zettel-title (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
 on the first line with the Zettel title string."
@@ -1032,9 +1061,7 @@ on the first line with the Zettel title string."
     (let ((file (deft-absolute-filename slug)))
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
-        ;; FIXME: Relying on an external yasnippet
-        (insert "title")
-        (yas-expand)))))
+        (zettel-insert-metadata-template)))))
 
 (advice-add 'deft-new-file-named :around #'deft-new-file--add-zettel-title)
 
@@ -1062,16 +1089,21 @@ on the first line with the Zettel title string."
 ;;; Org-Mode Intergration
 ;;;=============================================================================
 
+(defun org-open-at-point--zettel-links (orig-fun &rest args)
+  "Around advice for `org-open-at-point' that adds support for
+following internal Zettel links. Additionally, inserts the title
+snippet if the file is new (i.e. empty)."
+  (if (and (zettel-wiki-link-at-point-p)
+           (zettel-link-p (zettel-wiki-link-link)))
+      (progn
+        (markdown-follow-wiki-link-at-point (first args))
+        (when (= (point-min) (point-max)) ; file is empty
+          (zettel-insert-metadata-template)))
+    (apply orig-fun args)))
+
 (eval-after-load "org"
   '(progn
      ;; Allow handling markdown wiki links in org-mode
-     (defun org-open-at-point--zettel-links (orig-fun &rest args)
-       "Around advice for `org-open-at-point' that adds support for
-following internal Zettel links."
-       (if (and (zettel-wiki-link-at-point-p)
-                (zettel-link-p (zettel-wiki-link-link)))
-           (markdown-follow-wiki-link-at-point (first args))
-         (apply orig-fun args)))
      (advice-add 'org-open-at-point :around #'org-open-at-point--zettel-links)
 
      (org-add-link-type "zettel" 'org-zettel-open)
