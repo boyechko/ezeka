@@ -230,7 +230,8 @@ specified, returns the main numerus or tempus kasten."
 
 (defun zettel-make-link (kasten slug)
   "Make a new proper link to SLUG in KASTEN."
-  (if (equal kasten zettel-default-numerus-kasten)
+  (if (or (equal kasten zettel-default-numerus-kasten)
+          (equal kasten zettel-default-tempus-kasten))
       slug
     (concat kasten ":" slug)))
 
