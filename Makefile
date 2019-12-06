@@ -1,6 +1,7 @@
 bindir=$(HOME)/bin
 
 install:
+	mkdir -p $(bindir)
 	cd $(bindir)
 	ln -s $(PWD)/z* "$(bindir)/"
 
