@@ -9,11 +9,11 @@ fi
 # Copy files from ~/Dropbox/Apps/Orgzly
 zorgzly
 
-# Fix times and commit
 cd $ZETTEL_DIR
 
-# Get rid of extraneous files
-find ./ -name "*.html" -or -name "*.odt" -exec rm -i {} \;
+# Get rid of extraneous files (maxdepth needed to exclude **/files/)
+find ./ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
+find main/ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
 
 hg addremove
 modified=$(hg status --modified | wc -l | awk '{ print $1 }')
