@@ -237,7 +237,7 @@ class Zettel
 
         if value =~ ISO8601_PATTERN
           begin
-            value = Time.parse(value).to_date
+            value = Time.parse(value)
           rescue ArgumentError
             $stderr.puts "Cannot parse #{value} as date in #{link}."
           end
