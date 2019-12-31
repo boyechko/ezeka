@@ -22,7 +22,7 @@ class Zettelkasten
   # Default extension for Zettelkasten files
   @ext = ".txt"
 
-  @root = Pathname(ENV['ZETTEL_DIR'] || File.expand_path('~/Dropbox/Zettel'))
+  @root = Pathname(ENV['ZETTEL_DIR']) || File.expand_path('~/Dropbox/Zettel')
   @kaesten = { "numerus"  => "main",  # main numerus kasten
                "tempus"   => "limbo", # main tempus kasten
                "tech"     => "tech",
