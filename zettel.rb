@@ -134,6 +134,7 @@ class Zettel
       metadata, @text = content.split("\n\n", 2)
       @metadata = from_quasi_yaml(metadata)
       @text = "" if @text.nil?
+      return true
     else
       raise "The file for Zettel '#{@slug}' is not readable: #{@path}"
     end
@@ -226,23 +227,15 @@ class Zettel
     hash = Hash.new
     string.each_line.with_index do |line, index|
       if line =~ METADATA_LINE  # $1 = key, $2 = value
-        # Fix legacy keys
-        if $1 == "first-reading" || $1 == "second-reading"
-          key = :readings
-          value = [ $2 ]
-        else
-          key = $1.to_sym
-          value = $2
-        end
+        key = $1.to_sym
+        value = $2
 
         if value =~ ISO8601_PATTERN
           begin
-            value = Time.parse(value).to_date
+            value = Time.parse(value)
           rescue ArgumentError
             $stderr.puts "Cannot parse #{value} as date in #{link}."
           end
-        elsif value =~ /^\[\[.*\]\]$/    # markdown/org-mode link
-          value = value
         elsif value =~ /^\[(.*)\]$/      # YAML array
           value = $1.strip.split(/, */)
         end

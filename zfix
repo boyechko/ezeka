@@ -11,16 +11,20 @@ EXT = Zettelkasten.ext
 Clamp do
   parameter "FILE", "zettel file for which to fix the timestamp",
             :attribute_name => :file
-  option ["-o", "--oldname"], "SLUG", "the old name for the zettel",
-         :attribute_name => :oldname
   option ["-f", "--fromname"], :flag, "parse the time from filename",
          :attribute_name => :fromname
 
   # Get the modified or created date from the Zettel, returning a Time object
-  def zettel_last_modified(file)
-    if `egrep '^modified:' #{file}` =~ /^modified:\s+(\d{4}-\d{2}-\d{2})/ or
-      `egrep '^created:' #{file}` =~ /^created:\s+(\d{4}-\d{2}-\d{2})/
-      return Time.parse($1)
+  def metadata_date(file)
+    zettel = Zettel.new_from_path(file)
+    if zettel && zettel.read_file
+      if zettel.metadata[:modified]
+        return zettel.metadata[:modified]
+      else
+        return zettel.metadata[:created]
+      end
+    else
+      raise "Could not create zettel object from #{file}"
     end
   end
 
@@ -29,67 +33,34 @@ Clamp do
     time1.year == time2.year and time1.yday == time2.yday
   end
 
-  # Print the status message
-  def p_status(file, message)
-    printf("%20s: %s\n", File.basename(file), message)
-  end
-
-  # Retouch the given file with the new mtime
+  # Retouch the given file with the new mtime (as Time)
   def retouch(file, new_mtime)
     return system("touch", "-t", "#{new_mtime.strftime "%Y%m%d%H%M"}", file)
   end
 
-  # Returns the .hgtimestamp for file as a Time object
-  def hg_timestamp(file)
-    File.open(HG_TIMESTAMP) do |ts|
-      return ts.grep(/["\/]#{Regexp.quote(File.basename(file))}/).last
-    end
-  end
-
   # Script point of entry
   def execute
-    # Only fix modified time if it's different from the date in the Zettel
-    if same_date?(File.mtime(file), zettel_last_modified(file))
-      p_status(file, "nothing to be done")
-      exit(0)
-    elsif fromname? && basename =~ /^[0-9]{8}T[0-9]{4}\./
-      # Get the timestamp from filename, and the filename is a datename
-      p_status(file, "Using filename date: $1")
-    elsif fromname?
-      # Get the timestamp from filename, but it's not a datename
-      p_status(file, "Can't parse filename to get time from it")
-      exit(1)
-    elsif !File.exists?(HG_TIMESTAMP)
-      # No timestamp file
-      puts "zfix: No timestamp file, not getting time from name, so nothing to do"
-      exit(0)
+    # Show which file we're working on
+    printf("%20s: ", File.basename(file))
+
+    # Get the date from filename, if available, otherwise us internal metadata
+    if fromname? && File.basename(file) =~ /^([0-9]{8}T[0-9]{4})\./
+      metadata_time = Time.parse($1)
     else
-      # Get the timestamp for file or its oldname from .hgtimestamp
-      #
-      # sample line from .hgtimestamp:
-      #       "tech/363-d.txt": {"timestamp": 1436311993.0},
+      metadata_time = metadata_date(file)
+    end
 
-      # Try to get timestamp for the file OR for the supplied oldname (to_s is
-      # needed in case oldname is nil) OR for one of the oldname lines in the
-      # file itself.
-      zettel = Zettel.new_from_path(file)
-      zettel.read_file
-      if (timestamp = hg_timestamp(file) ||
-                     timestamp = hg_timestamp(oldname.to_s + EXT) ||
-                     timestamp = hg_timestamp(zettel.metadata[:oldname].to_s + EXT)) &&
-        (timestamp =~ /([0-9]{10}\.[0-9]+)},*$/)
-
-        # Everything checks out, so retouch with slightly increased time so that
-        # mercurial registers that there is a change
-        old_time = Time.at($1.to_i)
-        new_time = old_time + 1
-
-        if retouch(file, new_time)
-          p_status(file, "Retouched to #{new_time.strftime("%F %H:%M:%S")}")
-        end
-      else
-        p_status(file, "Could not get the timestamp")
-        exit(1)
+    # Retouch the file if needed
+    if same_date?(File.mtime(file), metadata_time)
+      # Everything is good, nothing to do
+      puts "Nothing to do"
+    else
+      # Retouch to most precise available metadata time, but increase by a
+      # second to make sure git notices the change (since might include cleanup,
+      # etc.).
+      new_time = metadata_time + 1
+      if retouch(file, new_time)
+        puts "Retouched to #{new_time.strftime("%F %H:%M:%S")}"
       end
     end
   end

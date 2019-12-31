@@ -6,9 +6,8 @@ if [[ -z "$ZETTEL_DIR" ]]; then
     exit 1
 fi
 
-cd $ZETTEL_DIR
-#find ./ -name "*.txt" | sort | while read line
-hg status -a -m -I "**.txt" | sed -e 's/^\([AM] \)*//' | sort | while read fname
+#cd $ZETTEL_DIR
+find ./ -name "*.txt" | sort | while read fname
 do
     # Fix DOS line endings, if present
     doslines=$(dos2unix -id "$fname" | awk '{ print $1 }')
@@ -16,5 +15,13 @@ do
         dos2unix "$fname"
     fi
 
-    zfix "$fname"
+    zfix --fromname "$fname"
+    if [ $? -gt 0 ]; then
+        echo "$fname" >> /tmp/problems.$$
+    fi
 done
+
+if [ -f /tmp/problems.$$ ]; then
+    echo "\n\nProblem files:"
+    cat /tmp/problems.$$
+fi
