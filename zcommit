@@ -15,25 +15,29 @@ cd $ZETTEL_DIR
 find ./ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
 find main/ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
 
-hg addremove
-modified=$(hg status --modified | wc -l | awk '{ print $1 }')
-removed=$(hg status --removed | wc -l | awk '{ print $1 }')
-added=$(hg status --added | wc -l | awk '{ print $1 }')
-unknown=$(hg status --unknown | wc -l | awk '{ print $1 }')
+git add --all
+modified=$(git status --short | grep -c '^M')
+deleted=$(git status --short | grep -c '^D')
+added=$(git status --short | grep -c '^A')
+renamed=$(git status --short | grep -c '^R')
 
 output=""
 if [ $modified -gt 0 ]; then
     output="${output}${output:+, }${modified} modified"
 fi
-if [ $removed -gt 0 ]; then
-    output="${output}${output:+, }${removed} removed"
+if [ $renamed -gt 0 ]; then
+    output="${output}${output:+, }${renamed} renamed"
+fi
+if [ $deleted -gt 0 ]; then
+    output="${output}${output:+, }${deleted} deleted"
 fi
 if [ $added -gt 0 ]; then
     output="${output}${output:+, }${added} added"
 fi
-if [ $unknown -gt 0 ]; then
-    output="${output}${output:+, }${unknown} unknown"
-fi
+echo $output > /tmp/zcommit.$$
 
 zfixtimes
-hg commit -e -m "$output"
+git commit --template=/tmp/zcommit.$$
+if [ $? -eq 0 ]; then
+    rm -f /tmp/zcommit.$$
+fi

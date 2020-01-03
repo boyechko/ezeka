@@ -48,9 +48,9 @@ Clamp do
 
     # Move the files themselves
     Dir.chdir(Zettelkasten.root)
-    system("hg mv -f #{source.relative_path} #{target.relative_path}")
+    system("git mv #{source.relative_path} #{target.relative_path}")
     if $?.exitstatus != 0
-      STDERR.puts "Mercurial could not move the file; aborting"
+      STDERR.puts "Git could not move the file; aborting"
       exit(1)
     end
 

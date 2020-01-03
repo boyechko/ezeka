@@ -6,8 +6,13 @@ if [[ -z "$ZETTEL_DIR" ]]; then
     exit 1
 fi
 
-#cd $ZETTEL_DIR
-find ./ -name "*.txt" | sort | while read fname
+cd $ZETTEL_DIR
+
+#find ./ -name "*.txt" | sort | while read fname
+git status --short | grep '*.txt' |
+    awk '/^R/ { print $4 } /^[AM]/ { print $2 }' |
+    sort |
+    while read fname
 do
     # Fix DOS line endings, if present
     doslines=$(dos2unix -id "$fname" | awk '{ print $1 }')

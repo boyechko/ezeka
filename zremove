@@ -34,9 +34,9 @@ Clamp do
     end
 
     # Remove the file
-    system("hg rm -f #{zettel.relative_path}")
+    system("git rm -f #{zettel.relative_path}")
     if $?.exitstatus != 0
-      STDERR.puts "zmove: Mercurial could not remove the file; aborting"
+      STDERR.puts "Git could not remove the file; aborting"
       exit(1)
     end
   end
