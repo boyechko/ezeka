@@ -9,7 +9,7 @@ fi
 cd $ZETTEL_DIR
 
 #find ./ -name "*.txt" | sort | while read fname
-git status --short | grep '*.txt' |
+git status --short | grep '.*.txt' |
     awk '/^R/ { print $4 } /^[AM]/ { print $2 }' |
     sort |
     while read fname
