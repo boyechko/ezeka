@@ -7,6 +7,5 @@ fi
 
 azfile=$ZETTEL_DIR/auto/all-zettel.dat
 
-shopt -s globstar
 cd $ZETTEL_DIR
-cat **/*.txt > $azfile
+find ./ -name "*.txt" -exec cat {} >> $azfile \;
