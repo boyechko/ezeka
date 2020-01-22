@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# coding: utf-8
 # List zettel with wiki links to the given slug
 
 require 'clamp'
@@ -10,7 +11,7 @@ Clamp do
   option ["-p", "--pprint"], :flag, "pretty print", :attribute_name => :pretty_print
 
   def execute
-    format_string = "%-10s  %s"
+    format_string = "%-13s  %s"
 
     if pretty_print?
       puts format_string % ["Slug", "Title"]
@@ -20,7 +21,8 @@ Clamp do
     zettel = Zettel.new_from_link(slug)
     zettel.links_to.each do |z|
       if pretty_print?
-        puts format_string % [z.slug, z.metadata[:title]]
+        just_title = z.metadata[:title].gsub(/§[^.]+\. /, "")
+        puts format_string % [z.slug, just_title]
       else
         puts z.link
       end
