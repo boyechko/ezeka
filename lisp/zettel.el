@@ -324,7 +324,9 @@ expression, with or without time."
 Deft cache, or the file itself."
   (cond ((find-buffer-visiting file)
          (with-current-buffer (find-buffer-visiting file)
-           (buffer-substring-no-properties (point-min) (point-max))))
+           (save-restriction
+             (widen)
+             (buffer-substring-no-properties (point-min) (point-max)))))
         ((and deft-hash-contents (deft-file-contents file))
          (deft-file-contents file))
         ((file-exists-p file)
