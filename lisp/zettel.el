@@ -1097,7 +1097,9 @@ changes it."
     (when (assoc link zettel-parent-of-new-child)
       (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)))
       (newline))
-    (goto-char insert-point)))
+    (goto-char insert-point)
+    (call-interactively 'zettel-set-category)
+    (end-of-line)))
 
 (defun deft-new-file--add-zettel-title (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
