@@ -606,19 +606,15 @@ Based on `rename-file-and-buffer'."
 ;;; Zettel Links
 ;;;=============================================================================
 
-(defvar zettel-regexp-wiki-link
-  "\\[\\[\\([[:alnum:]-:]+\\)]]"
-  "The regexp of a simple wiki link syntax (i.e. word enclosed in double
-brackets).")
+(defun zettel-link-at-point-p ()
+  "Returns T if the thing at point is a wiki link (i.e. [[XXX]])."
+  (thing-at-point-looking-at
+   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\]")))
 
-(defun zettel-wiki-link-at-point-p ()
-  "Returns T if the thing at point is a wiki link (i.e. enlcosed in double
-square brackets)."
-  (thing-at-point-looking-at zettel-regexp-wiki-link))
-
-(defun zettel-wiki-link-link ()
-  "Return the link part of the wiki link using current match data."
-  (match-string 1))
+(defun zettel-link-at-point ()
+  "Return the Zettel link at point. Needs to be called after
+`zettel-link-at-point-p'."
+  (match-string-no-properties 1))
 
 ;; TODO: Implement markdown-wiki-link stuff locally to remove requirement of
 ;;       markdown mode?
@@ -628,8 +624,8 @@ the file in current buffer into `zettel-stored-links'."
   (interactive "p")
   (let* ((file (cond ((equal major-mode 'deft-mode)
                       (widget-get (widget-at (point)) :tag))
-                     ((and (= arg 4) (zettel-wiki-link-at-point-p))
-                      (zettel-absolute-filename (zettel-wiki-link-link)))
+                     ((and (= arg 4) (zettel-link-at-point-p))
+                      (zettel-absolute-filename (zettel-link-at-point)))
                      (buffer-file-name
                       buffer-file-name)
                      (t
@@ -752,8 +748,8 @@ from OS clipboard."
   "Save the title of the wiki link at point or the buffer to kill
 ring."
   (interactive)
-  (let ((file (cond ((zettel-wiki-link-at-point-p)
-                     (zettel-absolute-filename (zettel-wiki-link-link)))
+  (let ((file (cond ((zettel-link-at-point-p)
+                     (zettel-absolute-filename (zettel-link-at-point)))
                     ((zettel-p buffer-file-name)
                      buffer-file-name))))
     (let ((title (alist-get :title (zettel-metadata file))))
@@ -1303,8 +1299,8 @@ the link at point. If there is only one match, opens the note in
 another window."
   (interactive)
   (push (buffer-file-name) zettel-stored-links)
-  (when (zettel-wiki-link-at-point-p)
-    (let ((link (zettel-wiki-link-link))
+  (when (zettel-link-at-point-p)
+    (let ((link (zettel-link-at-point))
           (deft-incremental-search nil))
       (deft-filter (concat "oldname: " link "$") t)
       (unless deft-current-files
@@ -1319,29 +1315,21 @@ another window."
 (defun zettel-replace-link-at-point (arg)
   "Replaces the link at point with the stored link. With a prefix
 argument, or if there are no stored links, replaces with the
-backlink. With C-u C-u, simply fixes the [[alias|link]] to put
-the alias outside of the link."
+backlink."
   (interactive "P")
-  (when (zettel-wiki-link-at-point-p)
-    (let ((alias (markdown-wiki-link-alias))
-          (link  (zettel-wiki-link-link)))
+  (when (zettel-link-at-point-p)
+    (let ((link  (zettel-link-at-point)))
       (save-excursion
         ;; Make sure we are at the start of the link
         (unless (string-match "\\[\\[[^]]+\\]\\]" (thing-at-point 'sexp))
           (re-search-backward "\\[\\["))
         (kill-sexp)
-        (cond ((equal arg '(16))
-               (unless (string-equal link alias) (insert alias " "))
-               (insert (zettel-wiki-link link nil nil t)))
-              ((or (equal arg '(4))
+        (cond ((or (equal arg '(4))
                    (not zettel-stored-links))
-               (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-backlink nil))
               ((integerp arg)
-               (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-link-intrusive arg))
               (t
-               (unless (string-equal link alias) (insert alias " "))
                (zettel-insert-link-intrusive nil)))))))
 
 (defun zettel-generate-new-slugs (how-many)
