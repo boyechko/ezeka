@@ -1288,24 +1288,6 @@ Adds an 'oldname' tag with the previous name."
     (find-file zettel)
     (zettel-match-title-to-filename)))
 
-(defun zettel-goto-next-missing-link ()
-  "Moves the point to the first instance of a missing link based
-on its font lock properties."
-  (interactive)
-  (let* ((from
-          (if (and (zettel-wiki-link-at-point-p)
-                   (not (file-exists-p
-                         (markdown-convert-wiki-link-to-filename
-                          (zettel-wiki-link-link)))))
-              (progn (forward-sexp) (point))
-            (point-min)))
-         (loc (text-property-any
-               from (point-max)
-               'font-lock-face 'markdown-missing-link-face)))
-    (if loc
-        (goto-char loc)
-      (message "No missing links"))))
-
 (defun zettel-filter-for-link-at-point ()
   "Modifies the Deft filter to look for the Zettel linked with
 the link at point. If there is only one match, opens the note in
