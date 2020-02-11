@@ -1139,18 +1139,6 @@ on the first line with the Zettel title string."
 ;;; Org-Mode Intergration
 ;;;=============================================================================
 
-(defun org-open-at-point--zettel-links (orig-fun &rest args)
-  "Around advice for `org-open-at-point' that adds support for
-following internal Zettel links. Additionally, inserts the title
-snippet if the file is new (i.e. empty)."
-  (if (and (zettel-wiki-link-at-point-p)
-           (zettel-link-p (zettel-wiki-link-link)))
-      (progn
-        (markdown-follow-wiki-link-at-point (first args))
-        (when (= (point-min) (point-max)) ; file is empty
-          (zettel-insert-metadata-template)))
-    (apply orig-fun args)))
-
 (defun zettel-org-set-todo-properties ()
   "Set the FROM, CREATED, and ID properties for the current heading to
 facilitate refiling."
@@ -1162,40 +1150,40 @@ facilitate refiling."
                     (format-time-string
                      (format "[%s]"
                              (subseq (cdr org-time-stamp-formats) 1 -1)))))
+;; Org links
 (eval-after-load "org"
   '(progn
-     ;; Allow handling markdown wiki links in org-mode
-     (advice-add 'org-open-at-point :around #'org-open-at-point--zettel-links)
+     ;; Add zettel link handling
+     (org-link-set-parameters "zettel"
+                              :store 'org-zettel-store-link
+                              :follow 'org-zettel-follow-link)
 
-     (org-add-link-type "zettel" 'org-zettel-open)
-     (org-link-set-parameters "zettel" :store 'org-zettel-store-link)
+     ;; Try to resolve "fuzzy" links (i.e. without explicit protocol)
+     (push #'zettel-find-file org-open-link-functions)))
 
-     (defcustom org-zettel-command 'zettel
-       "The Emacs command to be used to display a Zettel."
-       :group 'org-link
-       :type '(choice (const zettel)))
+(defun org-zettel-follow-link (slug)
+  "Visit the Zettel with the given slug."
+  (find-file (zettel-convert-link-to-filename slug)))
 
-     (defun org-zettel-open (slug)
-       "Visit the Zettel with the given slug."
-       (find-file (zettel-convert-link-to-filename slug)))
+(defun org-zettel-store-link ()
+  "Store a link to a Zettel."
+  (when (zettel-p buffer-file-name)
+    (let ((link (zettel-link-slug buffer-file-name))
+          (title (alist-get :title (zettel-metadata buffer-file-name))))
+      (org-store-link-props
+       :type "zettel"
+       :link link
+       :title title
+       :description title))))
 
-     (defun org-zettel-context-link (file)
-       "Returns a string of Zettel context."
-       (if (zettel-p file)
-           (format "([[%s]]) %s"
-                   (file-name-base file)
-                   (or (alist-get :title (zettel-metadata file)) ""))
-         (format "[[%s][%s]]" file (file-name-base file))))
-
-     (defun org-zettel-store-link ()
-       "Store a link to a Zettel."
-       (when (zettel-p buffer-file-name)
-         (let ((link (zettel-link-slug buffer-file-name))
-               (title (alist-get :title (zettel-metadata buffer-file-name))))
-           (org-store-link-props
-            :type "zettel"
-            :link link
-            :description (format "(%s) %s" link title)))))))
+(defun org-zettel-link-context (file)
+  "Returns a string of Zettel context."
+  (if (zettel-p file)
+      (format "[[%s]] %s"
+              (file-name-base file)
+              (or (alist-get :title (zettel-metadata file)) ""))
+    ;; (format "[[%s][%s]]" file (file-name-base file))
+    (error "Not a Zettel")))
 
 ;;;=============================================================================
 ;;; Markdown-Mode Integration
