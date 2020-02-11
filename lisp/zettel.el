@@ -855,14 +855,11 @@ user to select the Zettelkasten."
 by the user."
   (interactive)
   (ivy-read "Set parent: "
-            (zettel-buffer-list t)
+            (zettel-ivy-collection-alist (zettel-visiting-buffer-list t))
             :require-match nil
             :action (lambda (choice)
-                      (zettel-update-metadata :parent
-                                              (if (consp choice)
-                                                  (zettel-file-link
-                                                   (buffer-file-name (cdr choice)))
-                                                choice)))))
+                      (zettel-update-metadata
+                       :parent (zettel-file-link (cdr choice))))))
 
 ;; TODO: Remove or update
 (defun zettel-numerus-children (slug)
@@ -899,34 +896,50 @@ the links are on the right of titles; otherwise, to the left."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
-(defun zettel-buffer-list (&optional skip-current)
-  "Returns the open Zettel buffers as an alist of choices suitable for
-`ivy-read'. If SKIP-CURRENT is T, remove the current buffer."
-  (mapcar #'(lambda (buf)
-              (let ((metadata (zettel-metadata (buffer-file-name buf))))
-                (cons (format "%s%-12s %s"
-                              (if (buffer-modified-p buf) "*" " ")
-                              (alist-get :slug metadata)
-                              (alist-get :title metadata))
-                      buf)))
+(defun zettel-ivy-collection-alist (files)
+  "Given a list of Zettel files, returns a nicely formatted list of choices
+suitable for passing to `ivy-read' as collection."
+  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
+    (mapcar #'(lambda (file)
+                (let ((metadata (zettel-metadata file))
+                      (buf (get-file-buffer file)))
+                  (cons (format fmt
+                                (if (and buf (buffer-modified-p buf)) "*" " ")
+                                (alist-get :slug metadata)
+                                (alist-get :category metadata)
+                                (subseq (alist-get :title metadata) 0
+                                        (min (length (alist-get :title metadata))
+                                             53))
+                                (or (alist-get :keywords metadata) ""))
+                        file)))
+            files)))
+
+(defun zettel-visiting-buffer-list (&optional skip-current)
+  "Returns a list of Zettel files that are currently being visited. If
+SKIP-CURRENT is T, remove the current buffer."
+  (mapcar #'buffer-file-name
           (remove-if-not #'(lambda (buf)
                              (zettel-p (buffer-file-name buf)))
                          (remove (when skip-current
                                    (current-buffer))
                                  (buffer-list)))))
 
-(defun zettel-switch-to-buffer ()
-  "Quickly switch to other open Zettel buffer via `helm'."
-  (interactive)
-  (let* ((choices (zettel-buffer-list t)))
-    (if choices
-        (ivy-read "Switch to Zettel buffer: "
-                  choices
-                  :action (lambda (choice)
-                            (switch-to-buffer (cdr choice))))
-      (user-error "No open Zettel buffers to switch to"))))
+(defun zettel-ivy-read-file (files func)
+  "Uses `ivy-read' to select from list of Zettel FILES. Upon selection, call
+the given FUNC, a function accepting one argument that is a pathname. Returns
+the result of FUNC."
+  (let* ((choices (zettel-ivy-collection-alist files)))
+    (let (result)
+      (ivy-read "Zettel: "
+                choices
+                :action (lambda (choice)
+                          (setq result (funcall func (cdr choice)))))
+      result)))
 
-;; TODO: Add `zettel-switch-to-child' that allows selection of immediate children?
+(defun zettel-switch-to-buffer ()
+  "Quickly switch to other open Zettel buffers."
+  (interactive)
+  (zettel-ivy-read-file (zettel-visiting-buffer-list t) 'find-file))
 
 (defun zettel-ivy-read-category ()
   "Returns a list, suitable to be passed to `interactive', asking the user to
