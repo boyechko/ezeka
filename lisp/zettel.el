@@ -911,6 +911,18 @@ the links are on the right of titles; otherwise, to the left."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
+(defun zettel-find-file (link)
+  "Finds the Zettel with the given link specified interactively by the user,
+returning T if it's a Zettel link. If the file is empty, inserts the metadata
+template."
+  (interactive "sZettel link to find: ")
+  (when (zettel-link-p link)
+    (find-file (zettel-absolute-filename link))
+    (when (= (point-min) (point-max)) ; file is empty
+      (message "Empty Zettel, inserting metadata template")
+      (zettel-insert-metadata-template))
+    t))
+
 (defun zettel-ivy-collection-alist (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `ivy-read' as collection."
@@ -962,11 +974,6 @@ choose a category from `zettel-categories'."
   (if current-prefix-arg
       (read-string "Category: ")
     (ivy-read "Category: " zettel-categories)))
-
-(defun zettel-find-file (link)
-  "Finds the Zettel with the given link specified interactively by the user."
-  (interactive "sZettel link to find: ")
-  (find-file (zettel-absolute-filename link)))
 
 (defun zettel-set-category (file category)
   "Sets the category to the Zettel title based on `zettel-categories'. With
