@@ -694,8 +694,23 @@ current Zettel to the `zettel-link-backlink'."
             (t
              (deft-open-file file t t))))))
 
-;; TODO: Implement `zettel-insert-link-from-open' that presents choice of open
-;; buffers to link to.
+(defun zettel-insert-link-to-stored-or-visiting (arg)
+  "Inserts a link to another Zettel being currently visited or to those in
+`zettel-stored-links'."
+  (interactive "P")
+  (let* ((files (delete-dups (append (mapcar #'zettel-absolute-filename
+                                             zettel-stored-links)
+                                     (zettel-visiting-buffer-list t)))))
+    (if files
+        (progn
+          (push (zettel-ivy-read-file files 'zettel-file-link)
+                zettel-stored-links)
+          (zettel-insert-link arg)
+          ;; FIXME: This is very brute force to remove the inserted link from
+          ;; the list, so need to rewrite once I figure out what to do about
+          ;; links.
+          (setq zettel-stored-links '()))
+      (user-error "No stored links or visited Zettel"))))
 
 (defun zettel-insert-backlink (arg)
   "Like `zettel-insert-link', but instead of popping a link from
@@ -1372,9 +1387,9 @@ backlink."
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
-(define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-intrusive)
+(define-key zettel-mode-map (kbd "C-c C-S-l")
+            'zettel-insert-link-to-stored-or-visiting)
 
-(define-key zettel-mode-map (kbd "C-c C-S-l") 'zettel-insert-link)
 (define-key zettel-mode-map (kbd "C-c C-M-l")
             'zettel-insert-link-from-clipboard)
 (define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-list-links)
