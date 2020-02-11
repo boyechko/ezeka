@@ -349,11 +349,12 @@ Group 2 is the value.")
 (defvar zettel-regexp-combined-title
   (concat "^§"
           zettel-regexp-slug
-          "\\. \\({\\([^}]+\\)} \\)*\\(.*\\)$")
+          "\\. \\({\\([^}]+\\)} \\)*\\([^#]+\\)\\( \\(#.*\\)\\)*$")
   "Regular expression for a combined title string, used in `zettel-metadata'.
 Group 1 is the slug.
-Group 6 is the category.
-Group 7 is the title itself.")
+Group 3 is the category.
+Group 4 is the title itself.
+Group 6 is the keyword block.")
 
 (defun zettel-combined-title-metadata (title)
   "Returns an alist of metadata from a combined title."
@@ -361,8 +362,11 @@ Group 7 is the title itself.")
     (let ((slug (match-string 1 title)))
       (list (cons :slug slug)
             (cons :type (zettel-type slug))
-            (cons :category (match-string 6 title))
-            (cons :title (match-string 7 title))))))
+            (cons :category (match-string 3 title))
+            (cons :title (match-string 4 title))
+            (cons :keywords
+                  (when (match-string 6 title)
+                    (split-string (match-string 6 title))))))))
 
 (defun zettel-combined-title (metadata)
   "Returns a list of two elements: 1) a string that encodes into the title
