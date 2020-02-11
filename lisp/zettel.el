@@ -210,7 +210,11 @@ nil if there is nothing there."
 
 (defun zettel-link-p (string)
   "Returns non-NIL if the string could be a link to a Zettel."
-  (string-match (concat "^" zettel-regexp-link "$") string))
+  (and (string-match (concat "^" zettel-regexp-link "$") string)
+       ;; If kasten is specified, make sure it's a valid one
+       (if (match-string-no-properties 2 string)
+           (assoc (match-string-no-properties 2 string) zettel-kasten)
+         t)))
 
 (defun zettel-link-kasten (link)
   "Returns the kasten part of the given LINK. If no kasten is explicitly
