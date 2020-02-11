@@ -310,13 +310,13 @@ This function replaces `deft-absolute-filename' for Zettel."
 expression, with or without time."
   (let ((second 0) (minute 0) (hour 0) day month year)
     (when (string-match (concat "^" zettel-regexp-iso8601-date) string)
-      (setq year  (string-to-int (match-string 1 string))
-            month (string-to-int (match-string 2 string))
-            day   (string-to-int (match-string 3 string)))
+      (setq year  (string-to-number (match-string 1 string))
+            month (string-to-number (match-string 2 string))
+            day   (string-to-number (match-string 3 string)))
       (when (string-match zettel-regexp-iso8601-time string
                           (match-end 0))
-        (setq hour   (string-to-int (match-string 1 string))
-              minute (string-to-int (match-string 2 string))))
+        (setq hour   (string-to-number (match-string 1 string))
+              minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
 (defun zettel-file-content (file)
