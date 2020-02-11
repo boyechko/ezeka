@@ -1130,6 +1130,17 @@ snippet if the file is new (i.e. empty)."
           (zettel-insert-metadata-template)))
     (apply orig-fun args)))
 
+(defun zettel-org-set-todo-properties ()
+  "Set the FROM, CREATED, and ID properties for the current heading to
+facilitate refiling."
+  (interactive)
+  (org-set-property "ID" (org-id-get-create))
+  (org-set-property "FROM" (zettel-wiki-link buffer-file-name t 'right))
+  (org-set-property "CREATED"
+                    ;; FIXME: Surely there is a better function to do this, no?
+                    (format-time-string
+                     (format "[%s]"
+                             (subseq (cdr org-time-stamp-formats) 1 -1)))))
 (eval-after-load "org"
   '(progn
      ;; Allow handling markdown wiki links in org-mode
@@ -1371,11 +1382,7 @@ backlink."
 
 ;; Was: org-set-property-and-value
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-set-parent)
-(define-key zettel-mode-map (kbd "C-c C-x F")
-            (lambda ()
-              (interactive)
-              (org-set-property "FROM"
-                                (zettel-wiki-link buffer-file-name t 'right))))
+(define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
 
 ;;;-----------------------------------------------------------------------------
 ;;; Deft-Mode Keybindings
