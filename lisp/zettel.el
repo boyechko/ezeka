@@ -1065,11 +1065,15 @@ prefix argument."
   (setq last-command-event 167)
   (deft-filter-increment))
 
-(defun deft-filter-zettel-category (category)
-  "Like `zettel-set-category', but works in deft buffer to filter for the
-given category."
-  (interactive (list (zettel-ivy-read-category)))
-  (deft-filter (format "{%s}" category) t))
+(defun deft-filter-zettel-category (category &optional arg)
+  "Inserts a category into deft-filter if there is no category there. With
+prefix argument, if there is already a category in the filter string,
+changes it."
+  (interactive (list (zettel-ivy-read-category) prefix-arg))
+  (when deft-incremental-search
+    ;; Duplicate car of the `deft-filter-regexp', since `deft-filter' replaces it.
+    (push (car deft-filter-regexp) deft-filter-regexp)
+    (deft-filter (format "{%s}" category) nil)))
 
 ;;
 ;; Insert my zettel title string into new zettel rather than contents of deft's
@@ -1413,7 +1417,7 @@ backlink."
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-maybe-named)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-file) ; Was: deft-find-file
-(define-key deft-mode-map (kbd "C-c '") 'deft-filter-zettel-category)
+(define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 
 (provide 'zettel)
