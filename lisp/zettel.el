@@ -57,15 +57,18 @@ the Zettel directory."
   "The regular expression that matches numerus currens like 261-cab.")
 
 (defvar zettel-regexp-tempus-currens
-  "\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)"
+  "\\([0-9]\\{4\\}\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)T\\([0-9][0-9]\\)\\([0-9][0-9]\\)"
   "The regular expression that matches the basic (but not extended) ISO 8601
-date and time.")
+date and time.
+Groups 1-3 are year, month, day.
+Groups 4-5 are hour, minute.")
 
 (defvar zettel-regexp-slug
+  ;; Strip the groups in the component regexps
   (concat "\\("
-          zettel-regexp-numerus-currens
+          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-numerus-currens)
           "\\|"
-          zettel-regexp-tempus-currens
+          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-tempus-currens)
           "\\)")
   "A generalized regexp that matches any slug, whether numerus or tempus
 currens.")
@@ -239,6 +242,11 @@ specified, returns the main numerus or tempus kasten."
       slug
     (concat kasten ":" slug)))
 
+(defun zettel-tempus-directory (slug)
+  "Returns the right subdirectory for the given tempus currens slug."
+  (when (string-match zettel-regexp-tempus-currens slug)
+    (file-name-as-directory (match-string 1 slug))))
+
 (defun zettel-numerus-directory (slug)
   "Finds the right directory for the given numerus currens slug."
   (when (stringp slug)
@@ -271,7 +279,8 @@ This function replaces `deft-absolute-filename' for Zettel."
                                   (zettel-kasten-directory
                                    zettel-default-numerus-kasten)))
                ((eq (zettel-type slug) :tempus)
-                (zettel-kasten-directory kasten))
+                (expand-file-name (zettel-tempus-directory slug)
+                                  (zettel-kasten-directory kasten)))
                (t
                 (error "This is not a proper Zettel link: %s" link)))))
     (error "This is not a proper Zettel link: %s" link)))
