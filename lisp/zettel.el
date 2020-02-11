@@ -1013,9 +1013,7 @@ prefix argument, allows the user to type in a custom category."
 ;;; Deft-Mode Integration
 ;;;=============================================================================
 
-;;
 ;; Adjust how Deft lists Zettel
-;;
 (setq deft-strip-title-regexp "^\\(title: +\\)"
       ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
       deft-strip-summary-regexp "\\(^\\w+: .*\\)"
@@ -1028,26 +1026,21 @@ prefix argument, allows the user to type in a custom category."
   (lambda ()
     (setq show-trailing-whitespace nil)))
 
-(defvar zettel-indent-title-column 15
-  "The column number where the Zettel title (without the numerus
-currens) will be indented to.")
-
-(defun deft-file-title--separate (orig-fun file-name)
-  "Create mock columns in Deft buffer when displaying Zettel."
-  (let ((title (funcall orig-fun file-name)))
-    (when title
-      (if (zettel-p file-name)
-          (let ((metadata (zettel-combined-title-metadata title)))
-            ;; FIXME: Use variables rather than magic numbers?
-            (format "%-15s%-13s%s"
-                    (alist-get :slug metadata)
-                    (let ((category (alist-get :category metadata)))
-                      (if (> (length category) 12)
-                          (concat (subseq category 0 10) "..")
-                        category))
-                    (alist-get :title metadata)))
-        title))))
-(advice-add 'deft-file-title :around #'deft-file-title--separate)
+(defun zettel-deft-parse-title-function (line)
+  "Function for post-processing titles for display in Deft buffer, intended
+as the value for `deft-parse-title-function'."
+  (let ((metadata (zettel-combined-title-metadata
+                   (replace-regexp-in-string "^\\(title: +\\)" "" line))))
+    ;; SLUG CATEGORY TITLE KEYWORDS
+    (format "%-15s%-13s%s %s"
+            (alist-get :slug metadata)
+            (let ((category (alist-get :category metadata)))
+              (if (> (length category) 12)
+                  (concat (subseq category 0 10) "..")
+                category))
+            (alist-get :title metadata)
+            (or (alist-get :keywords metadata) ""))))
+(setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
 (defun deft-new-file-maybe-named (arg)
   "Extends `deft-new-file' to call `deft-new-file-named' if called with
