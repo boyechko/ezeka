@@ -24,7 +24,7 @@ Clamp do
     grandparent = zettel.metadata[:parent]
     zettel.links_to().each do |z|
       if /#{zettel.link}/ =~ z.metadata[:parent]
-        STDERR.puts "Replacing #{zettel.link}'s parent with #{grandparent}"
+        STDERR.puts "Replacing #{z.link}'s parent with #{grandparent}"
         z.metadata[:parent] = grandparent
       end
 
