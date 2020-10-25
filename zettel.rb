@@ -200,19 +200,38 @@ class Zettel
 
   private
 
+  METADATA_DATE_FORMAT = "%F"   # ISO-8601 date format (%Y-%m-%d)
+
   # Returns a YAML block as a string, using inline sequence style.
   #
   # Can't use YAML::to_yaml() because it does not support inline style.
   def to_yaml(hash)
     result = ""
-    hash.each do |key, val|
-      if val.is_a?(Array)
-        result += "#{key}: [ #{val.join(', ')} ]\n"
-      else
-        result += "#{key}: #{val}\n"
-      end
-    end
+
+    # Manually order the metadata lines
+    result += "#{to_yaml_line(:title)}\n" if @metadata[:title]
+    result += "#{to_yaml_line(:kasten)}\n" if @metadata[:kasten]
+    result += "#{to_yaml_line(:created)}\n" if @metadata[:created]
+    result += "#{to_yaml_line(:modified)}\n" if @metadata[:modified]
+    result += "#{to_yaml_line(:readings)}\n" if @metadata[:readings]
+    result += "#{to_yaml_line(:parent)}\n" if @metadata[:parent]
+    result += "#{to_yaml_line(:firstborn)}\n" if @metadata[:firstborn]
+    result += "#{to_yaml_line(:oldname)}\n" if @metadata[:oldname]
+
     return result
+  end
+
+  # Returns a formatted YAML line for the given metadat key, treating the value
+  # types appropriately.
+  def to_yaml_line(key)
+    val = @metadata[key]
+    if val.is_a?(Array)
+      return "#{key}: [ #{val.join(', ')} ]"
+    elsif val.is_a?(Time)
+      return "#{key}: #{val.strftime(METADATA_DATE_FORMAT)}"
+    else
+      return "#{key}: #{val}"
+    end
   end
 
   METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
