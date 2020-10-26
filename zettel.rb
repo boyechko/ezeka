@@ -23,13 +23,15 @@ class Zettelkasten
   @ext = ".txt"
 
   @root = Pathname(ENV['ZETTEL_DIR']) || File.expand_path('~/Dropbox/Zettel')
-  @kaesten = { "numerus"  => "main",  # main numerus kasten
-               "tempus"   => "limbo", # main tempus kasten
+  @kaesten = { "numerus"  => "main",    # main numerus kasten
+               "tempus"   => "limbo",   # main tempus kasten
+               "scriptum" => "writing", # main writing kasten
                "tech"     => "tech",
                "life"     => "personal",
                "personal" => "personal",
                "rp"       => "rp",
-               "play"     => "rp"
+               "play"     => "rp",
+               "ludus"    => "rp"
              }
 
   # Returns the directory for the given kasten
@@ -213,6 +215,7 @@ class Zettel
     result += "#{to_yaml_line(:kasten)}\n" if @metadata[:kasten]
     result += "#{to_yaml_line(:created)}\n" if @metadata[:created]
     result += "#{to_yaml_line(:modified)}\n" if @metadata[:modified]
+    result += "#{to_yaml_line(:keywords)}\n" if @metadata[:keywords]
     result += "#{to_yaml_line(:readings)}\n" if @metadata[:readings]
     result += "#{to_yaml_line(:parent)}\n" if @metadata[:parent]
     result += "#{to_yaml_line(:firstborn)}\n" if @metadata[:firstborn]
