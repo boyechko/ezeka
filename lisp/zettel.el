@@ -780,7 +780,8 @@ ring."
 (defun zettel-kill-ring-save-link (arg)
   "Save the deft note at point or the buffer base filename in the kill ring
 to be used as a wiki link elsewhere. With prefix argument, save the file name
-relative to `zettel-directory' instead."
+relative to `zettel-directory' instead. With two prefix arguments, open the
+file in Finder with it selected."
   (interactive "p")
   (let ((file (cond ((equal major-mode 'deft-mode)
                      (widget-get (widget-at (point)) :tag))
@@ -795,7 +796,9 @@ relative to `zettel-directory' instead."
         (if select-enable-clipboard
             (kill-new link)
           (rb-set-clipboard-data link))
-        (message "Saved [%s] in the kill ring" link)))))
+        (message "Saved [%s] in the kill ring" link)
+        (when (= arg 16)
+          (shell-command (format "open -R %s &" file)))))))
 
 ;;;=============================================================================
 ;;; Genealogical
