@@ -180,12 +180,12 @@ nil if there is nothing there."
 
 (defun zettel-kasten-directory (kasten)
   "Returns the directory of the given KASTEN."
-  (cdr (assoc (zettel-kasten-truename kasten) zettel-kasten)))
+  (second (assoc (zettel-kasten-truename kasten) zettel-kasten)))
 
 ;; TODO: Do I need this in addition to `zettel-file-kasten'?
 (defun zettel-directory-kasten (directory)
   "Returns the kasten name of the given Zettel directory."
-  (car (rassoc directory zettel-kasten)))
+  (car (cl-rassoc directory zettel-kasten :key #'first)))
 
 (defun zettel-kasten-truename (kasten)
   "Returns the true name of the given KASTEN."
@@ -216,7 +216,8 @@ nil if there is nothing there."
   (and (string-match (concat "^" zettel-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if (match-string-no-properties 2 string)
-           (assoc (match-string-no-properties 2 string) zettel-kasten)
+           (or (assoc (match-string-no-properties 2 string) zettel-kasten)
+               (assoc (match-string-no-properties 2 string) zettel-kasten-aliases))
          t)))
 
 (defun zettel-link-kasten (link)
