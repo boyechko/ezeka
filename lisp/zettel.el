@@ -1154,31 +1154,39 @@ facilitate refiling."
                     (format-time-string
                      (format "[%s]"
                              (subseq (cdr org-time-stamp-formats) 1 -1)))))
+
+(defun zettel-org-interactive-tempus ()
+  "Inserts a tempus currens link after having the user select the date using
+org-mode's interactive `org-time-stamp' command."
+  (interactive)
+  (let ((start (point)))
+    (org-time-stamp '(4) t)
+    (insert
+     "[["
+     (org-timestamp-format (org-timestamp-from-string
+                            (delete-and-extract-region start (point)))
+                           "%Y%m%dT%H%M")
+     "]]")))
+
 ;; Org links
 (eval-after-load "org"
   '(progn
-     ;; Add zettel link handling
-     (org-link-set-parameters "zettel"
-                              :store 'org-zettel-store-link
-                              :follow 'org-zettel-follow-link)
+     ;; Try to resolve "fuzzy" links (i.e. without explicit protocol). This is
+     ;; all that is needed to handle links in the form [[ZETTEL-LINK]].
+     (push #'zettel-find-file org-open-link-functions)
 
-     ;; Try to resolve "fuzzy" links (i.e. without explicit protocol)
-     (push #'zettel-find-file org-open-link-functions)))
+     ;; Do the same for Zettel links that lack even the link markup. This is
+     ;; useful for following parents/children.
+     (push 'org-zettel-open-link-at-point org-open-at-point-functions)
+     ))
 
-(defun org-zettel-follow-link (slug)
-  "Visit the Zettel with the given slug."
-  (find-file (zettel-convert-link-to-filename slug)))
-
-(defun org-zettel-store-link ()
-  "Store a link to a Zettel."
-  (when (zettel-p buffer-file-name)
-    (let ((link (zettel-link-slug buffer-file-name))
-          (title (alist-get :title (zettel-metadata buffer-file-name))))
-      (org-store-link-props
-       :type "zettel"
-       :link link
-       :title title
-       :description title))))
+(defun org-zettel-open-link-at-point ()
+  "Open a Zettel link at point even if it's not formatted as a link."
+  (save-excursion
+    (search-forward-regexp "\\>")
+    (search-backward-regexp "[^0-9a-zT:-]") ; FIXME: hard-coded
+    (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
+      (zettel-find-file (match-string-no-properties 1)))))
 
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
