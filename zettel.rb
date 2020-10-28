@@ -25,7 +25,6 @@ class Zettelkasten
   @root = Pathname(ENV['ZETTEL_DIR']) || File.expand_path('~/Dropbox/Zettel')
   @kaesten = { "numerus"  => "main",    # main numerus kasten
                "tempus"   => "limbo",   # main tempus kasten
-               "scriptum" => "writing", # main writing kasten
                "tech"     => "tech",
                "life"     => "personal",
                "personal" => "personal",
@@ -212,6 +211,7 @@ class Zettel
 
     # Manually order the metadata lines
     result += "#{to_yaml_line(:title)}\n" if @metadata[:title]
+    result += "#{to_yaml_line(:subtitle)}\n" if @metadata[:subtitle]
     result += "#{to_yaml_line(:kasten)}\n" if @metadata[:kasten]
     result += "#{to_yaml_line(:created)}\n" if @metadata[:created]
     result += "#{to_yaml_line(:modified)}\n" if @metadata[:modified]
@@ -220,6 +220,10 @@ class Zettel
     result += "#{to_yaml_line(:parent)}\n" if @metadata[:parent]
     result += "#{to_yaml_line(:firstborn)}\n" if @metadata[:firstborn]
     result += "#{to_yaml_line(:oldname)}\n" if @metadata[:oldname]
+    # FIXME: This means only these metadata lines are preserved, so I either
+    # need to avoid creating new ones "one the fly" or add all other metadata at
+    # the end. It might be worthwhile to write this more programatically (i.e.
+    # have an array specifying the order rather than repeating the lines).
 
     return result
   end
