@@ -22,9 +22,14 @@ class Zettelkasten
   # Default extension for Zettelkasten files
   @ext = ".txt"
 
-  @root = Pathname(ENV['ZETTEL_DIR']) || File.expand_path('~/Dropbox/Zettel')
   @kaesten = { "numerus"  => "main",    # main numerus kasten
                "tempus"   => "limbo",   # main tempus kasten
+  # Abort if $ZETTEL_DIR is not set
+  if File.exists?(Pathname(ENV['ZETTEL_DIR']))
+    @root = Pathname(ENV['ZETTEL_DIR'])
+  else
+    raise "$ZETTEL_DIR is not set"
+  end
                "tech"     => "tech",
                "life"     => "personal",
                "personal" => "personal",
