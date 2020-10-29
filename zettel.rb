@@ -55,7 +55,8 @@ class Zettelkasten
   # Returns the Kasten that the Zettel path is under
   def self.kasten_of(path)
     p = Pathname(path)
-    p = Pathname.pwd() + p unless p.absolute?
+    p = @root + p unless p.absolute?
+    print p
     relative = p.relative_path_from(@root)
     topmost_dir = relative.each_filename.to_a[0]
     return @kaesten.invert[topmost_dir]
