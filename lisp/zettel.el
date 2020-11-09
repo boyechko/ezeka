@@ -113,7 +113,8 @@ of backlinks.")
   :type 'alist)
 
 (defcustom zettel-kasten-aliases nil
-  "An alist of any other aliases for the `zettel-kasten'."
+  "An alist of any other aliases for the `zettel-kasten'. This is an alist of
+the actual name followed by the alias."
   :type 'alist)
 
 (defcustom zettel-default-numerus-kasten "numerus"
@@ -231,6 +232,20 @@ specified, returns the main numerus or tempus kasten."
               zettel-default-numerus-kasten
             zettel-default-tempus-kasten)))))
 
+(defun zettel-set-default-kasten (type kasten)
+  "Interactively set the default kasten for the given type (:NUMERUS or :TEMPUS)."
+  (interactive
+   (list (intern (concat ":" (ivy-read "Set default for which type of Zettel? "
+                                       '(NUMERUS TEMPUS))))
+         (ivy-read "Set the default to what Kasten? "
+                   (if (listp zettel-kasten)
+                       (mapcar #'first zettel-kasten)
+                     (error "No Zettelkästen defined")))))
+  (case type
+    (:NUMERUS (setq zettel-default-numerus-kasten kasten))
+    (:TEMPUS (setq zettel-default-tempus-kasten kasten))
+    (t (error "Zettel type not selected"))))
+
 (defun zettel-link-slug (link)
   "Returns the slug part of the given LINK."
   (when (string-match zettel-regexp-link link)
@@ -275,15 +290,12 @@ This function replaces `deft-absolute-filename' for Zettel."
             (slug (zettel-link-slug link)))
         (expand-file-name
          (concat slug "." deft-extension)
-         (cond ((eq (zettel-type slug) :numerus)
-                (expand-file-name (zettel-numerus-directory slug)
-                                  (zettel-kasten-directory
-                                   zettel-default-numerus-kasten)))
-               ((eq (zettel-type slug) :tempus)
-                (expand-file-name (zettel-tempus-directory slug)
-                                  (zettel-kasten-directory kasten)))
-               (t
-                (error "This is not a proper Zettel link: %s" link)))))
+         (expand-file-name
+          (case (zettel-type slug)
+            (:numerus (zettel-numerus-directory slug))
+            (:tempus (zettel-tempus-directory slug))
+            (t (error "This is not a proper Zettel link: %s" link)))
+          (zettel-kasten-directory kasten))))
     (error "This is not a proper Zettel link: %s" link)))
 
 (defun deft-absolute-filename--zettel (orig-fun &rest args)
@@ -856,9 +868,12 @@ user to select the Zettelkasten."
                                    (mapcar #'first zettel-kasten)
                                  (error "No Zettelkasten defined")))
                    (zettel-directory-kasten deft-directory)))
-         (slug (if (equal kasten zettel-default-numerus-kasten)
-                   (zettel-next-unused-slug)
-                 (zettel-timestamp-slug)))
+         (slug (progn
+                 (unless zettel-default-numerus-kasten
+                   (call-interactively #'zettel-set-default-kasten))
+                 (if (equal kasten zettel-default-numerus-kasten)
+                     (zettel-next-unused-slug)
+                   (zettel-timestamp-slug))))
          (child-link (zettel-make-link kasten slug))
          (parent-link (zettel-file-link buffer-file-name)))
     (cond ((equal major-mode 'deft-mode)
@@ -1392,7 +1407,6 @@ backlink."
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
-(define-key zettel-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c C-S-l")
             'zettel-insert-link-to-stored-or-visiting)
 
