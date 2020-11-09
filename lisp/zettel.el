@@ -1057,15 +1057,22 @@ prefix argument, allows the user to type in a custom category."
 as the value for `deft-parse-title-function'."
   (let ((metadata (zettel-combined-title-metadata
                    (replace-regexp-in-string "^\\(title: +\\)" "" line))))
-    ;; SLUG CATEGORY TITLE KEYWORDS
-    (format "%-15s%-13s%s %s"
-            (alist-get :slug metadata)
-            (let ((category (alist-get :category metadata)))
-              (if (> (length category) 12)
-                  (concat (subseq category 0 10) "..")
-                category))
-            (alist-get :title metadata)
-            (or (alist-get :keywords metadata) ""))))
+    (when metadata
+     ;; FIXME: Any more elegant way to do this?
+     (if (eq (zettel-type (alist-get :slug metadata)) :numerus)
+         (setq slug-len 7               ; 000-aaa
+               cat-len 20)
+       (setq slug-len 13                ; 19700101T0000
+             cat-len 15))
+     ;; SLUG CATEGORY TITLE KEYWORDS
+     (format (format "%%-%ds%%-%ds%%s %%s" (+ slug-len 2) cat-len)
+             (alist-get :slug metadata)
+             (let ((cat (alist-get :category metadata)))
+               (if (> (length cat) cat-len)
+                   (concat (subseq cat 0 (- cat-len 2)) "..")
+                 cat))
+             (alist-get :title metadata)
+             (or (alist-get :keywords metadata) "")))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
 (defun deft-new-file-maybe-named (arg)
