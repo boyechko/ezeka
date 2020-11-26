@@ -117,11 +117,11 @@ of backlinks.")
 the actual name followed by the alias."
   :type 'alist)
 
-(defcustom zettel-default-numerus-kasten "numerus"
+(defcustom zettel-default-numerus-kasten "reticulum"
   "Name of the main numerus currens kasten."
   :type 'string)
 
-(defcustom zettel-default-tempus-kasten "tempus"
+(defcustom zettel-default-tempus-kasten "rumen"
   "Name of the main tempus currens kasten."
   :type 'string)
 
@@ -223,14 +223,28 @@ nil if there is nothing there."
 
 (defun zettel-link-kasten (link)
   "Returns the kasten part of the given LINK. If no kasten is explicitly
-specified, returns the main numerus or tempus kasten."
+specified, asks the user to resolve the ambiguity."
   (when (string-match zettel-regexp-link link)
-    (let ((kasten (match-string 2 link))
-          (slug (match-string 3 link)))
+    (let* ((kasten (match-string 2 link))
+           (slug (match-string 3 link))
+           (type (zettel-type slug)))
       (or kasten
-          (if (string-match zettel-regexp-numerus-currens slug)
-              zettel-default-numerus-kasten
-            zettel-default-tempus-kasten)))))
+          (let ((default-kasten (if (eq type :numerus)
+                                    zettel-default-numerus-kasten
+                                  zettel-default-tempus-kasten)))
+            (cond ((equal current-prefix-arg '(4))
+                   (ivy-read (format "Ambiguous link [[%s]], select Kasten: " link)
+                             (if (listp zettel-kasten)
+                                 (mapcar #'first zettel-kasten)
+                               (error "No Zettelkästen defined"))
+                             :preselect default-kasten))
+                  (default-kasten
+                    default-kasten)
+                  ((not default-kasten)
+                   (call-interactively #'zettel-set-default-kasten)
+                   (zettel-link-kasten link))
+                  (t
+                   (error "Umm, this shouldn't happen"))))))))
 
 (defun zettel-set-default-kasten (type kasten)
   "Interactively set the default kasten for the given type (:NUMERUS or :TEMPUS)."
