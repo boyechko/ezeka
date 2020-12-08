@@ -22,17 +22,26 @@ class Zettelkasten
   # Default extension for Zettelkasten files
   @ext = ".txt"
 
-  @kaesten = { "numerus"  => "main",    # main numerus kasten
-               "tempus"   => "limbo",   # main tempus kasten
   # Abort if $ZETTEL_DIR is not set
   if File.exists?(Pathname(ENV['ZETTEL_DIR']))
     @root = Pathname(ENV['ZETTEL_DIR'])
   else
     raise "$ZETTEL_DIR is not set"
   end
-               "tech"     => "tech",
-               "life"     => "personal",
-               "personal" => "personal",
+
+  @kaesten = { "numerus"  => "reticulum",    # main numerus kasten
+               "tempus"   => "rumen",        # main tempus kasten
+               "omasum"   => "omasum",       # writing snippets
+               "abomasum" => "abomasum",     # writing drafts
+               "tech"     => "tech",         # technical notes
+
+               # Backward compatibility
+               "main"     => "main",
+               "life"     => "rumen",
+               "personal" => "rumen",
+               "limbo"    => "limbo",
+
+               # To be removed
                "rp"       => "rp",
                "play"     => "rp",
                "ludus"    => "rp"
@@ -56,7 +65,6 @@ class Zettelkasten
   def self.kasten_of(path)
     p = Pathname(path)
     p = @root + p unless p.absolute?
-    print p
     relative = p.relative_path_from(@root)
     topmost_dir = relative.each_filename.to_a[0]
     return @kaesten.invert[topmost_dir]
