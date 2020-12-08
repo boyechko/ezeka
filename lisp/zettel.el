@@ -478,10 +478,11 @@ to VALUE."
                           (error "Malformed metadata line: '%s'" line))))
                   metadata-section))
          (title (alist-get :title metadata)))
-    (if title
+    (when title
+      (setq metadata
         (append (zettel-combined-title-metadata title)
-                (cl-remove :title metadata :key #'car))
-      metadata)))
+                (cl-remove :title metadata :key #'car))))
+    (push (list :kasten (zettel-file-kasten file)) metadata)))
 
 (defun zettel-update-metadata-date ()
   "Updates the date in the metadata section of the Zettel in the current
