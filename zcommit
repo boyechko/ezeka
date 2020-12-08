@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 # Fix the timestamps and commit with default commit string
 
 if [[ -z "$ZETTEL_DIR" ]]; then
@@ -7,15 +7,17 @@ if [[ -z "$ZETTEL_DIR" ]]; then
 fi
 
 # Copy files from ~/Dropbox/Apps/Orgzly
-zorgzly
+#zorgzly
 
 cd $ZETTEL_DIR
 
 # Get rid of extraneous files (maxdepth needed to exclude **/files/)
-find ./ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
-find main/ -maxdepth 2 -name "*.html" -or -name "*.odt" -exec rm -i {} \;
+#find ./ -maxdepth 2 -name "*.html" -or -name "*.docx" -exec rm -i {} \;
+#find main/ -maxdepth 2 -name "*.html" -or -name "*.docx" -exec rm -i {} \;
 
-git add --all
+echo "Adding all TXT, BIB, and SCAP files..."
+git add **/*.txt **/*.bib **/*.scap
+
 modified=$(git status --short | grep -c '^M')
 deleted=$(git status --short | grep -c '^D')
 added=$(git status --short | grep -c '^A')
@@ -34,10 +36,12 @@ fi
 if [ $added -gt 0 ]; then
     output="${output}${output:+, }${added} added"
 fi
-echo $output > /tmp/zcommit.$$
+echo $output
 
-zfixtimes
-git commit --template=/tmp/zcommit.$$
-if [ $? -eq 0 ]; then
-    rm -f /tmp/zcommit.$$
-fi
+#echo $output > /tmp/zcommit.$$
+#
+#zfixtimes
+#git commit --template=/tmp/zcommit.$$
+#if [ $? -eq 0 ]; then
+#    rm -f /tmp/zcommit.$$
+#fi

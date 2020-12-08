@@ -8,22 +8,20 @@ fi
 
 modified=$(date "+%Y-%m-%d")
 
-# These should be the only files directly in their respective Kästen
-study=$ZETTEL_DIR/limbo/20180727T1421.txt
-todo=$ZETTEL_DIR/limbo/20190514T1925.txt
-#work=$ZETTEL_DIR/limbo/20200106T1824t.xt
-fate=$ZETTEL_DIR/rp/20180802T2002.txt
-mouse=$ZETTEL_DIR/rp/20191026T1954.txt
+study=$ZETTEL_DIR/limbo/2018/20180727T1421.txt
+todo=$ZETTEL_DIR/limbo/2019/20190514T1925.txt
+middle=$ZETTEL_DIR/rp/2020/20200308T1154.txt
 
 cd $HOME/Dropbox/Apps/Orgzly
-echo "Pulling files from Apps/Orgzly..."
+echo "Pulling study.org and todo.org from Apps/Orgzly..."
 
 sed -e "s/^modified:.*$/modified: ${modified}/" study.org > $study
 sed -e "s/^modified:.*$/modified: ${modified}/" todo.org > $todo
-#sed -e "s/^modified:.*$/modified: ${modified}/" work.org > $work
-sed -e "s/^modified:.*$/modified: ${modified}/" mouse.org > $mouse
-sed -e "s/^modified:.*$/modified: ${modified}/" fate.org > $fate
 
-echo "Pushing work to Apps/Orgzly..."
+echo "Merging changes to middle-earth.org..."
+vimdiff $middle middle-earth.org
+sed -e "s/^modified:.*$/modified: ${modified}/" $middle
+echo "Pushing middle.org to Apps/Orgzly..."
+cp -i $middle middle-earth.org
 
 echo "Done"
