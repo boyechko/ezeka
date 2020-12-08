@@ -1204,6 +1204,19 @@ org-mode's interactive `org-time-stamp' command."
                            "%Y%m%dT%H%M")
      "]]")))
 
+(defun zettel-org-include-visiting-file ()
+  "Add an org-mode #+INCLUDE to a visiting Zettel."
+  (interactive)
+  (let* ((files (zettel-visiting-buffer-list t)))
+    (cond (files
+           (zettel-ivy-read-file
+            files
+            #'(lambda (file)
+                (insert (format "#+INCLUDE: \"%s::\""
+                                (file-relative-name file))))))
+          (t
+           (user-error "You are not visiting any Zettel")))))
+
 ;; Org links
 (eval-after-load "org"
   '(progn
@@ -1214,6 +1227,9 @@ org-mode's interactive `org-time-stamp' command."
      ;; Do the same for Zettel links that lack even the link markup. This is
      ;; useful for following parents/children.
      (push 'org-zettel-open-link-at-point org-open-at-point-functions)
+
+     ;; This allows following links as part of #+INCLUDE statements.
+     ;; TODO: Add a function to follow #+INCLUDE links
      ))
 
 (defun org-zettel-open-link-at-point ()
