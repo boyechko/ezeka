@@ -42,13 +42,11 @@ Clamp do
     if interactive?
       puts "Press [Enter] to continue"
       STDIN.gets
-    else
-      puts "#{source.link} --> #{target.link}"
     end
 
     # Move the files themselves
     Dir.chdir(Zettelkasten.root)
-    system("git mv #{source.relative_path} #{target.relative_path}")
+    system("git mv -v #{source.relative_path} #{target.relative_path}")
     if $?.exitstatus != 0
       STDERR.puts "Git could not move the file; aborting"
       exit(1)
