@@ -1300,24 +1300,21 @@ Zettelkasten, and also handling 'subkasten:' notation."
              result))))
 
      (advice-add 'markdown-convert-wiki-link-to-filename
-                 :around #'markdown-cwltf--fix-link)
+                 :around #'markdown-cwltf--fix-link)))
 
 ;;;=============================================================================
 ;;; Bookmark Integration
 ;;;=============================================================================
 
-     (defun bookmark-make-record-zettel ()
-       "Bookmark record function for Zettel bookmarks, setting the
+(defun bookmark-make-record-zettel ()
+  "Bookmark record function for Zettel bookmarks, setting the
 bookmark's filename property to the Zettel link."
-       (list (cons 'filename (concat "zettel:" (zettel-link-slug buffer-file-name)))
-             (cons 'handler 'bookmark-zettel-handler)))))
+  (list (cons 'filename (zettel-file-link buffer-file-name))
+        (cons 'handler 'bookmark-zettel-handler)))
 
 (defun bookmark-zettel-handler (bmk-record)
   "Bookmark record handler for Zettel bookmarks."
-  (find-file
-   (zettel-absolute-filename
-    (replace-regexp-in-string "^zettel:" ""
-                              (cdr (assoc 'filename bmk-record))))))
+  (find-file (zettel-absolute-filename (cdr (assoc 'filename bmk-record)))))
 
 ;; Use the special zettel bookmark handler in Zettel buffers
 (add-hook 'zettel-mode-hook
