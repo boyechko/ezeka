@@ -1233,17 +1233,24 @@ org-mode's interactive `org-time-stamp' command."
 
      ;; Do the same for Zettel links that lack even the link markup. This is
      ;; useful for following parents/children.
-     (push 'org-zettel-open-link-at-point org-open-at-point-functions)
+     (push 'zettel-open-link-at-point org-open-at-point-functions)
 
      ;; This allows following links as part of #+INCLUDE statements.
      ;; TODO: Add a function to follow #+INCLUDE links
      ))
 
-(defun org-zettel-open-link-at-point ()
+;; Treat : (colon) as part of the word, allowing forward/backward-word over full
+;; Zettel links.
+(add-hook 'zettel-mode-hook
+  '(lambda ()
+     (modify-syntax-entry ?: "w")))
+
+(defun zettel-open-link-at-point ()
   "Open a Zettel link at point even if it's not formatted as a link."
+  (interactive)
   (save-excursion
-    (search-forward-regexp "\\>")
-    (search-backward-regexp "[^0-9a-zT:-]") ; FIXME: hard-coded
+    (forward-word)
+    (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
       (zettel-find-file (match-string-no-properties 1)))))
 
