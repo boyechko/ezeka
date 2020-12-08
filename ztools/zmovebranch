@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# Move an entire Zettel branch
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "SOURCE", "branch to move from (a numerus currens)"
+  parameter "TARGET", "where to move to (a numerus currens)"
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
+
+  def execute
+    # Get list of matching zettel
+    files = `zfind #{source}`
+
+    # Give user chance to back out
+    puts files
+    puts "Press [Enter] to continue moving these under #{target}..."
+    STDIN.gets
+
+    # Move those zettels
+    target_zettel = Numerus.new_from_link(target)
+
+    files = files.split("\n").sort
+    files.each do |file|
+      old_slug = File.basename(file, Zettelkasten.ext)
+      new_slug = old_slug.gsub(source, target)
+
+      puts "Moving #{old_slug} to #{new_slug}"
+      if interactive?
+        system("zmove", "--interactive", old_slug, new_slug)
+      else
+        system("zmove", old_slug, new_slug)
+      end
+    end
+  end
+end

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+zmove $1 $(zdatename $1)

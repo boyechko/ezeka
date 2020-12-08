@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+azfile=$ZETTEL_DIR/auto/all-zettel.dat
+
+cd $ZETTEL_DIR
+find ./ -name "*.txt" -exec cat {} >> $azfile \;

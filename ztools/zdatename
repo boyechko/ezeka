@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# Outputs the date name (YYYYMMDDThhmm) for the given file
+
+require 'clamp'
+require 'time'
+require_relative 'zettel'
+
+Clamp do
+  parameter "SLUG", "Slug of a numerus currens Zettel for which to return the ISO 8601 date-name"
+
+  option ["-m", "--mtime"], :flag, "use last data modification time", :attribute_name => :use_mtime
+  option ["-c", "--ctime"], :flag, "use last status change time", :attribute_name => :use_ctime
+  option ["-z", "--zero"], :flag, "use 00:00 as the time", :attribute_name => :use_zeros
+  option ["-t", "--time"], "HHMM", "use the specified time", :attribute_name => :use_time do |s|
+    if s =~ /^(\d{2}):*(\d{2})$/
+      Time.new(1, 1, 1, $1.to_i, $2.to_i)
+    else
+      signal_usage_error "time should be in the format HHMM, e.g. 1234"
+    end
+  end
+
+  # Returns true if both times have the same date
+  def same_day?(time1, time2)
+    if time1.nil? || time2.nil?
+      return false
+    else
+      return time1.strftime("%Y%m%d") == time2.strftime("%Y%m%d")
+    end
+  end
+
+  # Returns a string containing the datename of combining the DATE and TIME,
+  # both Time objects
+  def datename(date, time)
+    date.strftime("%Y%m%d") + "T" + time.strftime("%H%M")
+  end
+
+  def execute
+    numerus = Numerus.new_from_link(slug)
+    if numerus.exists?
+      numerus.read_file
+    else
+      STDERR.puts "Zettel file for #{slug} does not exist: #{numerus.path}"
+      exit(1)
+    end
+
+    if use_time
+      time = use_time
+    elsif use_ctime?
+      time = File.ctime(numerus.path)
+    elsif use_mtime? || same_day?(numerus.metadata['modified'], File.mtime(numerus.path))
+      time = File.mtime(numerus.path)
+    elsif use_zeros?
+      time = Time.new(1, 1, 1, 0, 0)
+    else
+      # Generate random time between 8:00 and 23:59, since that's when I would
+      # have normally be awake to create the Zettel.
+      time = Time.new(1, 1, 1, rand(8..23), rand(0..59))
+    end
+
+    puts datename(numerus.metadata[:created], time)
+  end
+end

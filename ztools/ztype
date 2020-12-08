@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# Returns the type of the given Zettel: either 'numerus' or 'tempus'
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "PATH", "the path to Zettel for which to return the type",
+            :attribute_name => :path
+
+  def execute
+      puts Zettelkasten.zettel_type(path)
+  end
+end

@@ -1,0 +1,27 @@
+#!/bin/bash
+# Fix the timestamps and commit with default commit string
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+modified=$(date "+%Y-%m-%d")
+
+study=$ZETTEL_DIR/limbo/2018/20180727T1421.txt
+todo=$ZETTEL_DIR/limbo/2019/20190514T1925.txt
+middle=$ZETTEL_DIR/rp/2020/20200308T1154.txt
+
+cd $HOME/Dropbox/Apps/Orgzly
+echo "Pulling study.org and todo.org from Apps/Orgzly..."
+
+sed -e "s/^modified:.*$/modified: ${modified}/" study.org > $study
+sed -e "s/^modified:.*$/modified: ${modified}/" todo.org > $todo
+
+echo "Merging changes to middle-earth.org..."
+vimdiff $middle middle-earth.org
+sed -e "s/^modified:.*$/modified: ${modified}/" $middle
+echo "Pushing middle.org to Apps/Orgzly..."
+cp -i $middle middle-earth.org
+
+echo "Done"

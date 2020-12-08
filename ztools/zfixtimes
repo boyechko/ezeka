@@ -1,0 +1,32 @@
+#!/bin/bash
+# Fix the timestamps of all modified tracked files text files in $ZETTEL_DIR
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+cd $ZETTEL_DIR
+
+#find ./ -name "*.txt" | sort | while read fname
+git status --short | grep '.*.txt' |
+    awk '/^R/ { print $4 } /^[AM]/ { print $2 }' |
+    sort |
+    while read fname
+do
+    # Fix DOS line endings, if present
+    doslines=$(dos2unix -id "$fname" | awk '{ print $1 }')
+    if [ $doslines -gt 0 ]; then
+        dos2unix "$fname"
+    fi
+
+    zfix --fromname "$fname"
+    if [ $? -gt 0 ]; then
+        echo "$fname" >> /tmp/problems.$$
+    fi
+done
+
+if [ -f /tmp/problems.$$ ]; then
+    echo "\n\nProblem files:"
+    cat /tmp/problems.$$
+fi

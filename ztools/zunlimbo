@@ -1,0 +1,37 @@
+# Not finished; first need to rewrite zmove. Might not need this to begin with,
+# since zmove can handle this situation just fine: zmove filepath numcur
+
+#!/usr/bin/env ruby
+# Move the limbo file to the Zettel in its proper directory
+
+require 'clamp'
+require_relative 'zettel'
+
+ZETTEL_DIR = File.expand_path("~/Dropbox/Doc/zettel")
+LIMBO_DIR =  ZETTEL_DIR + "/limbo"
+MAIN_DIR =  ZETTEL_DIR + "/main"
+
+Clamp do
+  parameter "FILE-OR-DATENAME", "file in limbo to move out of there",
+            :attribute_name => :file
+  parameter "NUMCUR", "numerus currens to which the file should be moved to"
+
+  def execute
+    ext = File.extname(file) || Zettelkasten.ext
+    numcur_path = "#{`zdirectory #{numcur}`}/#{numcur}#{ext}"
+
+    # Do some parameter checking
+    if File.exists?(numcur_path)
+      signal_usage_error "Zettel with that numerus currens already exists: " +
+                         "'#{numcur_path}'"
+    elsif ! File.exists?(file) ||
+          ! (file = "#{LIMBO_DIR}/#{file}.#{DEFAULT_EXT}" && File.exists?(file))
+      signal_usage_error "Could not find file '#{file}'"
+    else
+      system("zmove #{file} #{numcur}")
+
+      # Have to be in ZETTEL_DIR, otherwise Mercurial could complain about nested repos
+      Dir.chdir(ZETTEL_DIR)
+    end
+  end
+end

@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# Prints the full path for the given Zettel link
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "LINK", "Zettel link for which to get the path",
+            :attribute_name => :link
+
+  def execute
+    puts Zettel.new_from_link(link).path
+  end
+end

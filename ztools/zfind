@@ -1,0 +1,14 @@
+#!/bin/bash
+# Find all Zettel with names beginning with the given string
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+cd $ZETTEL_DIR
+files=$(find ./ -type f -name "$1*.txt" | sed -e 's!^./!!' -e 's!.txt$!!' | sort)
+for f in $files; do
+    echo $f
+done
+echo $files | wc -w

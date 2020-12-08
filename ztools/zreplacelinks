@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# Replace wiki links from before to after in files read from STDIN
+
+require 'clamp'
+require_relative 'zettel'
+
+Clamp do
+  parameter "BEFORE", "the link text to replace", :attribute_name => :before
+  parameter "AFTER", "link text to replace with", :attribute_name => :after
+
+  def execute
+    # Need to get rid of ARGV arguments before ARGF.each_line starts reading
+    # from STDIN
+    until ARGV.empty? do
+      ARGV.shift
+    end
+
+    # Read list of files to replace the links in from STDIN
+    ARGF.each_line do |line|
+      line = line.strip
+
+      if !line.empty? && (z = Zettel.new_from_link(line)) && z.exists?
+          n = z.replace_links(before, after)
+          z.write_file
+          puts "#{n.to_s} link(s) in #{z.link}"
+      else
+        STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
+      end
+    end
+  end
+end

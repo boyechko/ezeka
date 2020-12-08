@@ -1,0 +1,17 @@
+#!/bin/bash
+# Check the frequency of the given word or phrase in my Zettel
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+freqfile=$ZETTEL_DIR/auto/word-frequency.dat
+allfile=$ZETTEL_DIR/auto/all-zettel.dat
+
+cd $ZETTEL_DIR
+if [[ $# -eq 1 ]]; then
+    grep -E -i '^[0-9]+ '"$1" $freqfile
+else
+    grep -c -E '\<'"$*" $allfile
+fi

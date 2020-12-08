@@ -1,0 +1,82 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+# Move the given zettel to a new location
+
+# FIXME:
+# - the path now must be absolute; allow relative path
+
+require 'clamp'
+require_relative 'zettel'
+
+ZETTEL_DIR = Zettelkasten.root
+EXT = Zettelkasten.ext
+
+Clamp do
+  parameter "SOURCE", "Zettel to move (link or filepath)",
+            :attribute_name => :source_string
+  parameter "TARGET", "where to move the Zettel (link or filepath)",
+            :attribute_name => :target_string
+  option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
+  option ["-v", "--verbose"], :flag, "verbose", :attribute_name => :verbose
+
+  def execute
+    source = Zettel.new_from_link(source_string) \
+             || Zettel.new_from_path(source_string)
+    if not source
+      STDERR.puts "Source is neither a valid link nor a valid path"
+      exit(1)
+    end
+
+    target = Zettel.new_from_link(target_string) \
+             || target = Zettel.new_from_path(target_string)
+    if not target
+      STDERR.puts "Target is neither a valid link nor a valid path"
+      exit(1)
+    end
+
+    # Give user chance to interrupt if using interactively
+    if verbose? || interactive?
+      puts "===> Moving #{source.link} to #{target.link} <==="
+    end
+
+    if interactive?
+      puts "Press [Enter] to continue"
+      STDIN.gets
+    end
+
+    # Move the files themselves
+    Dir.chdir(Zettelkasten.root)
+    system("git mv -v #{source.relative_path} #{target.relative_path}")
+    if $?.exitstatus != 0
+      STDERR.puts "Git could not move the file; aborting"
+      exit(1)
+    end
+
+    # Update slug, add oldname and save
+    target.read_file
+    target.metadata[:oldname] = source.link
+    target.write_file
+
+    # Find and replace all wiki links to $source with $target
+    links = `zlinksto #{source.link}`
+    if !links.empty?
+      if interactive?
+        puts links + "--> Press [Enter] to replace links in the above files..."
+        STDIN.gets
+      elsif verbose?
+        puts "Replacing links:"
+      end
+
+      IO.popen("zreplacelinks #{source.link} #{target.link}", 'w+') do |subproc|
+        subproc.write(links)
+        subproc.close_write
+        subproc.read.split("\n").each do |l|
+          puts "#{l}" if verbose?
+        end
+      end
+      puts if verbose?
+    else
+      puts "No links needed to be replaced; we're done\n" if verbose?
+    end
+  end
+end

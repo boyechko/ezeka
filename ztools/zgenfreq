@@ -1,0 +1,54 @@
+#!/bin/bash
+# Generates the frequency file
+
+if [[ -z "$ZETTEL_DIR" ]]; then
+    echo "$(basename $0): $ZETTEL_DIR is not set"
+    exit 1
+fi
+
+allzettel="$ZETTEL_DIR/auto/all-zettel.dat"
+freqfile="$ZETTEL_DIR/auto/word-frequency.dat"
+excludefile=/tmp/all-zettel.$$.exclude
+
+# Exclude the metadata keywords and common section names
+cat > $excludefile <<EOF
+created
+title
+modified
+oldname
+readings
+summary
+notes
+connections
+EOF
+
+# Create frequency file if it doesn't exist
+if [[ ! -e $freqfile ]]; then
+    touch $freqfile
+fi
+
+# Check that $allzettel file exists
+if [[ ! -e $allzettel ]]; then
+    echo "Error: No all-zettel file ($allzettel); run zcatall and rerun"
+    exit 1
+fi
+
+# Doesn't do Unicode very well
+# tr -c '[:alnum:]' '[\n*]' < $1 | awk 'NF'
+
+# Generate a nicely normalized list
+sed -E -e 's/[[:punct:]«»§⇒”]/ /g' \
+    -e 's/[[:digit:]]+//g' \
+    -e 's/--+/ /g' \
+    -e "s/(-[[:space:]]|[[:space:]]-)/ /g" \
+    < $allzettel |
+    tr '[:upper:]' '[:lower:]' |
+    tr '[:space:]' '\n' |
+    grep -E '.{4}' |
+    fgrep -v -w -f $excludefile |
+    sort | uniq -c | sort -nr |
+    awk -v x=10 '$1 >= x' | sed -e 's/^[[:space:]]+//' > $freqfile
+
+# Cleanup
+rm -f $excludefile
+
