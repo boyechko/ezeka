@@ -29,22 +29,22 @@ class Zettelkasten
     raise "$ZETTEL_DIR is not set"
   end
 
-  @kaesten = { "numerus"  => "reticulum",    # main numerus kasten
-               "tempus"   => "rumen",        # main tempus kasten
-               "omasum"   => "omasum",       # writing snippets
-               "abomasum" => "abomasum",     # writing drafts
-               "tech"     => "tech",         # technical notes
+  @kaesten = { "reticulum" => "reticulum",    # main numerus kasten
+               "rumen"     => "rumen",        # main tempus kasten
+               "omasum"    => "omasum",       # writing snippets
+               "abomasum"  => "abomasum",     # writing drafts
+               "tech"      => "tech",         # technical notes
 
                # Backward compatibility
-               "main"     => "main",
-               "life"     => "rumen",
-               "personal" => "rumen",
-               "limbo"    => "limbo",
+               "main"      => "main",
+               "life"      => "rumen",
+               "personal"  => "rumen",
+               "limbo"     => "limbo",
 
                # To be removed
-               "rp"       => "rp",
-               "play"     => "rp",
-               "ludus"    => "rp"
+               "rp"        => "rp",
+               "play"      => "rp",
+               "ludus"     => "rp"
              }
 
   # Returns the directory for the given kasten
@@ -72,7 +72,7 @@ class Zettelkasten
 
   # Returns the type of the zettel found at the given path
   def self.zettel_type(path)
-    kasten_of(path) == "numerus" ? :numerus : :tempus
+    kasten_of(path) == "reticulum" ? :numerus : :tempus
   end
 
   # Returns true if the given path is in the Zettelkasten
@@ -333,13 +333,14 @@ class Numerus < Zettel
   def init_link(link)
     if link =~ FQN_PATTERN
       @type = :numerus
-      @kasten = "numerus"
+      @kasten = "reticulum"
+      @link = link
       @numbers = $1
       @letters = $3
       reinit()
       read_file if @path.exist?
     else
-      raise "This does not look like a Numerus Currens Zettel: #{link}"
+      raise "This does not look like a numerus currens Zettel: #{link}"
     end
   end
 
@@ -404,7 +405,7 @@ class Numerus < Zettel
     end
   end
 
-  # Returns true if the link (a string) is a valid link to Numerus Currens Zettel
+  # Returns true if the link (a string) is a valid link to numerus currens Zettel
   def self.valid_link?(string)
     return string =~ FQN_PATTERN ? true : false
   end
@@ -412,7 +413,7 @@ class Numerus < Zettel
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
     if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
-       Zettelkasten.kasten_of(string) == "numerus"
+       Zettelkasten.kasten_of(string) == "reticulum"
       return true
     else
       return false
@@ -461,12 +462,13 @@ class Tempus < Zettel
   def init_link(link)
     if link =~ FQN_PATTERN
       if $2.nil?
-        @kasten = "tempus"
+        @kasten = "rumen"
       else
         @kasten = $2
       end
 
       @slug = $3
+      @link = link
       @type = :tempus
       @time = Time.parse(@slug)
       @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@slug + Zettelkasten.ext)
