@@ -984,6 +984,13 @@ SKIP-CURRENT is T, remove the current buffer."
                                    (current-buffer))
                                  (buffer-list)))))
 
+(defun zettel-kill-visiting-buffers ()
+  "Kills all Zettel that are being currently visited."
+  (interactive)
+  (mapc #'(lambda (file)
+            (kill-buffer (get-file-buffer file)))
+        (zettel-visiting-buffer-list t)))
+
 (defun zettel-ivy-read-file (files func)
   "Uses `ivy-read' to select from list of Zettel FILES. Upon selection, call
 the given FUNC, a function accepting one argument that is a pathname. Returns
