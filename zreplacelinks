@@ -19,10 +19,10 @@ Clamp do
     ARGF.each_line do |line|
       line = line.strip
 
-      if !line.empty? && z = Zettel.new_from_link(line)
-        n = z.replace_links(before, after)
-        z.write_file
-        puts "#{n.to_s} link(s) in #{z.link}"
+      if !line.empty? && (z = Zettel.new_from_link(line)) && z.exists?
+          n = z.replace_links(before, after)
+          z.write_file
+          puts "#{n.to_s} link(s) in #{z.link}"
       else
         STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
       end
