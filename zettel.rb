@@ -161,7 +161,7 @@ class Zettel
       # Make sure the title has the correct slug
       @metadata[:title].gsub!(/§[^.]+\./, "§#{@slug}.")
 
-      File.write(@path, to_yaml(metadata) + "\n" + @text)
+      File.write(@path, yaml_metadata() + "\n" + @text)
     else
       raise "The file for Zettel '#{@slug}' is not writable: #{@path}"
     end
@@ -217,32 +217,27 @@ class Zettel
 
   METADATA_DATE_FORMAT = "%F"   # ISO-8601 date format (%Y-%m-%d)
 
+  METADATA_KEYS = [:summary, :title, :subtitle, :category, :self, :aka, :parent,
+                   :child, :created, :modified, :keywords, :readings]
+
   # Returns a YAML block as a string, using inline sequence style.
   #
   # Can't use YAML::to_yaml() because it does not support inline style.
-  def to_yaml(hash)
+  def yaml_metadata()
     result = ""
 
-    # Manually order the metadata lines
-    result += "#{to_yaml_line(:title)}\n" if @metadata[:title]
-    result += "#{to_yaml_line(:subtitle)}\n" if @metadata[:subtitle]
-    result += "#{to_yaml_line(:kasten)}\n" if @metadata[:kasten]
-    result += "#{to_yaml_line(:created)}\n" if @metadata[:created]
-    result += "#{to_yaml_line(:modified)}\n" if @metadata[:modified]
-    result += "#{to_yaml_line(:keywords)}\n" if @metadata[:keywords]
-    result += "#{to_yaml_line(:readings)}\n" if @metadata[:readings]
-    result += "#{to_yaml_line(:parent)}\n" if @metadata[:parent]
-    result += "#{to_yaml_line(:firstborn)}\n" if @metadata[:firstborn]
-    result += "#{to_yaml_line(:oldname)}\n" if @metadata[:oldname]
-    # FIXME: This means only these metadata lines are preserved, so I either
-    # need to avoid creating new ones "one the fly" or add all other metadata at
-    # the end. It might be worthwhile to write this more programatically (i.e.
-    # have an array specifying the order rather than repeating the lines).
+    @metadata[:self] = @link
+    @metadata[:summary] = "§%s. {%s} %s" %
+                          [@slug, @metadata[:category], @metadata[:title]]
+    # Output the metadata in the order specified in METADATA_KEYS
+    METADATA_KEYS.each { |key|
+      result += "#{to_yaml_line(key)}\n" if @metadata[key]
+    }
 
     return result
   end
 
-  # Returns a formatted YAML line for the given metadat key, treating the value
+  # Returns a formatted YAML line for the given metadata key, treating the value
   # types appropriately.
   def to_yaml_line(key)
     val = @metadata[key]
