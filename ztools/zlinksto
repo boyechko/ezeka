@@ -11,18 +11,18 @@ Clamp do
   option ["-p", "--pprint"], :flag, "pretty print", :attribute_name => :pretty_print
 
   def execute
-    format_string = "%-13s  %s"
+    format_string = "%-13s  %-10s  %s"
 
     if pretty_print?
-      puts format_string % ["Slug", "Title"]
-      puts format_string % ["----", "-----"]
+      puts format_string % ["Slug", "Kasten", "Title"]
+      puts format_string % ["----", "------", "-----"]
     end
 
     zettel = Zettel.new_from_link(slug)
     zettel.links_to.each do |z|
       if pretty_print?
         just_title = z.metadata[:title].gsub(/§[^.]+\. /, "")
-        puts format_string % [z.slug, just_title]
+        puts format_string % [z.slug, z.kasten, just_title]
       else
         puts z.link
       end
