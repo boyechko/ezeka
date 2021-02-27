@@ -637,7 +637,7 @@ Based on `rename-file-and-buffer'."
 (defun zettel-link-at-point-p ()
   "Returns T if the thing at point is a wiki link (i.e. [[XXX]])."
   (thing-at-point-looking-at
-   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\]")))
+   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)\\]")))
 
 (defun zettel-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
