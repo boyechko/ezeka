@@ -1001,7 +1001,9 @@ the result of FUNC."
       (ivy-read "Zettel: "
                 choices
                 :action (lambda (choice)
-                          (setq result (funcall func (cdr choice)))))
+                          (setq result
+                            (unless (string-empty-p choice)
+                              (funcall func (cdr choice))))))
       result)))
 
 (defun zettel-switch-to-buffer ()
