@@ -374,31 +374,32 @@ Group 2 is the value.")
 
 (defvar zettel-regexp-combined-title
   (concat "^§"
-          zettel-regexp-slug
+          zettel-regexp-link
           "\\. \\({\\([^}]+\\)} \\)*\\([^#]+\\)\\( \\(#.*\\)\\)*$")
   "Regular expression for a combined title string, used in `zettel-metadata'.
-Group 1 is the slug.
-Group 3 is the category.
-Group 4 is the title itself.
-Group 6 is the keyword block.")
+Group 2 is the kasten.
+Group 3 is the slug.
+Group 5 is the category.
+Group 6 is the title itself.
+Group 8 is the keyword block.")
 
 (defun zettel-combined-title-metadata (title)
   "Returns an alist of metadata from a combined title."
   (when (string-match zettel-regexp-combined-title title)
-    (let ((slug (match-string 1 title)))
+    (let ((slug (match-string 3 title)))
       (list (cons :slug slug)
             (cons :type (zettel-type slug))
-            (cons :category (match-string 3 title))
-            (cons :title (match-string 4 title))
+            (cons :category (match-string 5 title))
+            (cons :title (match-string 6 title))
             (cons :keywords
-                  (when (match-string 6 title)
-                    (split-string (match-string 6 title))))))))
+                  (when (match-string 8 title)
+                    (split-string (match-string 8 title))))))))
 
 (defun zettel-combined-title (metadata)
   "Returns a list of two elements: 1) a string that encodes into the title
 line the given METADATA, and 2) leftover metadata."
   (list (format "title: §%s. %s%s"
-                (alist-get :slug metadata)
+                (alist-get :link metadata)
                 (if (alist-get :category metadata)
                     (concat "{" (alist-get :category metadata) "} ")
                   "")
@@ -1001,7 +1002,7 @@ the result of FUNC."
                 choices
                 :action (lambda (choice)
                           (setq result
-                            (unless (string-empty-p choice)
+                            (unless (not (consp choice))
                               (funcall func (cdr choice))))))
       result)))
 
@@ -1053,7 +1054,7 @@ prefix argument, allows the user to type in a custom category."
     ;; 3: family name
     ;; 4: title
     ;; 5: year
-    (when (re-search-forward "^title: §?\\([0-9a-z-]+\\)\\. \
+    (when (re-search-forward "^title: §?\\([0-9a-z:-]+\\)\\. \
 \\(\\w+ \\)+\\(\\w+\\), \\([^(]+\\) (\\([0-9]+\\))")
       (replace-match (subseq (match-string 2) 0 1) nil nil nil 2)
       (replace-match "title: §\\1. {\\3\\5} \\2. \\3's \\4 (\\5)"))))
@@ -1132,7 +1133,7 @@ changes the existing one."
   (let ((base (file-name-base buffer-file-name))
         (link (zettel-file-link buffer-file-name))
         insert-point)
-    (insert "title: §" base ". ")
+    (insert "title: §" link ". ")
     (setq insert-point (point))
     (newline)
     (insert "created: "
@@ -1372,7 +1373,7 @@ Adds an 'oldname' tag with the previous name."
         (forward-paragraph)
         (narrow-to-region (point-min) (point))
         (goto-char (point-min))
-        (when (re-search-forward "title: §*\\([a-z0-9-]+\\)\\.")
+        (when (re-search-forward "title: §\\([a-z0-9:-]+\\)\\.")
           (setq oldname (match-string 1))
           (replace-match (file-name-base buffer-file-name) t nil nil 1)
           (forward-paragraph)
