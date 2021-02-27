@@ -182,10 +182,9 @@ nil if there is nothing there."
   "Returns the directory of the given KASTEN."
   (second (assoc (zettel-kasten-truename kasten) zettel-kasten)))
 
-;; TODO: Do I need this in addition to `zettel-file-kasten'?
 (defun zettel-directory-kasten (directory)
   "Returns the kasten name of the given Zettel directory."
-  (car (cl-rassoc directory zettel-kasten :key #'first)))
+  (car (cl-rassoc directory zettel-kasten :key #'first :test #'string=)))
 
 (defun zettel-kasten-truename (kasten)
   "Returns the true name of the given KASTEN."
@@ -197,11 +196,12 @@ nil if there is nothing there."
   (file-name-base file))
 
 (defun zettel-file-kasten (file)
-  "Returns the kasten of the given Zettel file."
-  (let ((relv-dir
-         (file-relative-name (file-name-directory file) zettel-directory)))
-    ;; FIXME: Is there a more portable way to get the topmost directory?
-    (zettel-kasten-truename (car (split-string relv-dir "/" t "/")))))
+  "Returns the kasten of the given Zettel file.
+
+The function relies on the fact that the Kasten directory is 2nd from the
+last for any numerus or tempus Zettel."
+  (zettel-kasten-truename
+   (second (reverse (split-string (file-name-directory file) "/" t "/")))))
 
 (defun zettel-file-link (file)
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
