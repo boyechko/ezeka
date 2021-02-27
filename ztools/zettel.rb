@@ -34,17 +34,10 @@ class Zettelkasten
                "omasum"    => "omasum",       # writing snippets
                "abomasum"  => "abomasum",     # writing drafts
                "tech"      => "tech",         # technical notes
+               "play"      => "play",         # roleplaying notes
 
                # Backward compatibility
-               "main"      => "main",
-               "life"      => "rumen",
-               "personal"  => "rumen",
-               "limbo"     => "limbo",
-
-               # To be removed
-               "rp"        => "rp",
-               "play"      => "rp",
-               "ludus"     => "rp"
+               "limbo"     => "rumen"
              }
 
   # Returns the directory for the given kasten
