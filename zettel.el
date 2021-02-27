@@ -349,8 +349,8 @@ expression, with or without time."
 (defun zettel-file-content (file)
   "Returns the content of the file, getting it either from an opened buffer,
 Deft cache, or the file itself."
-  (cond ((find-buffer-visiting file)
-         (with-current-buffer (find-buffer-visiting file)
+  (cond ((get-file-buffer file)
+         (with-current-buffer (get-file-buffer file)
            (save-restriction
              (widen)
              (buffer-substring-no-properties (point-min) (point-max)))))
@@ -415,7 +415,7 @@ line the given METADATA, and 2) leftover metadata."
   "Replaces the metadata of the given FILE with the one in the METADATA
 alist."
   (save-excursion
-    (with-current-buffer (find-buffer-visiting file)
+    (with-current-buffer (get-file-buffer file)
       (save-restriction
         (goto-char (point-min))
         (when (re-search-forward "^$" nil t 1)
