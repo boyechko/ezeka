@@ -1,13 +1,12 @@
 ;;;; -*- mode: emacs-lisp -*-
 ;;;;-----------------------------------------------------------------------------
 ;;;;        Author: Richard Boyechko <rb-emacs@diachronic.net>
-;;;;   Description: Zettelkasten implementation based on Deft and Markdown
+;;;;   Description: Zettelkasten implementation based on Deft
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
 ;;;;-----------------------------------------------------------------------------
 
 (require 'deft)
-(require 'markdown-mode)                ; for markdown-wiki-link stuff
 
 ;;;=============================================================================
 ;;; Mode
@@ -644,8 +643,6 @@ Based on `rename-file-and-buffer'."
 `zettel-link-at-point-p'."
   (match-string-no-properties 1))
 
-;; TODO: Implement markdown-wiki-link stuff locally to remove requirement of
-;;       markdown mode?
 (defun zettel-store-link (arg)
   "Add the link 1) to the Deft file at point if in *Deft* buffer, or 2) to
 the file in current buffer into `zettel-stored-links'."
