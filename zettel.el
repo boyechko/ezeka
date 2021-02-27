@@ -1140,11 +1140,12 @@ changes the existing one."
             ;; Insert creation date, making it match a tempus currens filename
             (format-time-string
              "%Y-%m-%d"
-             (if (and (eq :tempus (zettel-type buffer-file-name))
-                      (y-or-n-p (format "Match creation date (%s) to filename? "
-                                        (zettel-encode-iso8601-datetime base))))
-                 (zettel-encode-iso8601-datetime base)
-               nil)))                   ; i.e. current time
+             (let ((today (format-time-string "%Y%m%d")))
+               (if (and (eq :tempus (zettel-type buffer-file-name))
+                        (not (string-match-p (regexp-quote today) base))
+                        (y-or-n-p "Match creation date to filename? "))
+                   (zettel-encode-iso8601-datetime base)
+                 nil))))                  ; i.e. current time
     (newline)
     (when (assoc link zettel-parent-of-new-child)
       (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)))
