@@ -210,7 +210,7 @@ class Zettel
 
   METADATA_DATE_FORMAT = "%F"   # ISO-8601 date format (%Y-%m-%d)
 
-  METADATA_KEYS = [:summary, :title, :subtitle, :category, :self, :aka, :parent,
+  METADATA_KEYS = [:title, :author, :subtitle, :category, :oldname, :parent,
                    :child, :created, :modified, :keywords, :readings]
 
   # Returns a YAML block as a string, using inline sequence style.
@@ -219,7 +219,6 @@ class Zettel
   def yaml_metadata()
     result = ""
 
-    @metadata[:self] = @link
     @metadata[:summary] = "§%s. {%s} %s" %
                           [@slug, @metadata[:category], @metadata[:title]]
     # Output the metadata in the order specified in METADATA_KEYS
