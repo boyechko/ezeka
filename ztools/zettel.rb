@@ -251,6 +251,7 @@ class Zettel
   end
 
   METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
+  COMMENT_LINE = /^#/
   ISO8601_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
   # Returns a hash representing the YAML block given.
@@ -282,6 +283,8 @@ class Zettel
         else
           hash[key] = value
         end
+      elsif line =~ COMMENT_LINE
+        # Skip comment lines
       else
         # Ignore otherwise
         STDERR.puts "Malformed line ##{index+1}?: #{line}"
