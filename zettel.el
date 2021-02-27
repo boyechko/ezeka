@@ -876,7 +876,10 @@ user to select the Zettelkasten."
   (let* ((parent (cond ((zettel-p buffer-file-name)
                         buffer-file-name)
                        ((equal major-mode 'deft-mode)
-                        (widget-get (widget-at (point)) :tag))))
+                        (widget-get (widget-at (point)) :tag))
+                       (t
+                        ;; Something weird happened
+                        nil)))
          (kasten (if (> arg 1)
                      (ivy-read "Zettelkasten: "
                                (if (listp zettel-kasten)
@@ -890,14 +893,13 @@ user to select the Zettelkasten."
                      (zettel-next-unused-slug)
                    (zettel-timestamp-slug))))
          (child-link (zettel-make-link kasten slug))
-         (parent-link (zettel-file-link buffer-file-name)))
-    (cond ((equal major-mode 'deft-mode)
-           ;; TODO: Set parent from the currently selected note?
-           (deft-new-file-named slug))
-          (t
-           (insert (zettel-wiki-link child-link nil nil t))
-           (add-to-list 'zettel-parent-of-new-child (cons child-link parent-link))
-           (setq zettel-link-backlink parent-link)))))
+         (parent-link (when parent (zettel-file-link parent))))
+    (when parent
+      (add-to-list 'zettel-parent-of-new-child (cons child-link parent-link))
+      (setq zettel-link-backlink parent-link))
+    (if (equal major-mode 'deft-mode)
+        (deft-new-file-named slug)
+      (insert (zettel-wiki-link child-link nil nil t)))))
 
 (defun zettel-set-parent ()
   "Sets the parent metadata of the current Zettel to the open Zettel chosen
