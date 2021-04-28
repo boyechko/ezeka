@@ -629,9 +629,10 @@ Based on `rename-file-and-buffer'."
 ;;;=============================================================================
 
 (defun zettel-link-at-point-p ()
-  "Returns T if the thing at point is a wiki link (i.e. [[XXX]])."
+  "Returns T if the thing at point is a wiki link (i.e. [[XXX]] or org-mode
+link)."
   (thing-at-point-looking-at
-   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)\\]")))
+   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))
 
 (defun zettel-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
@@ -661,6 +662,7 @@ the file in current buffer into `zettel-stored-links'."
              (remove-if #'null zettel-stored-links))))
 (advice-add 'zettel-store-link :before 'zettel-kill-ring-save-link)
 
+;; TODO: Get rid of this function and change existing calls
 (defun zettel-wiki-link (target &optional include-title where add-spaces)
   "Returns a wiki link to TARGET, which can be either a link or a filepath.
 WHERE can be RIGHT or LEFT."
@@ -678,6 +680,18 @@ WHERE can be RIGHT or LEFT."
                     (format "[[%s]] %s" link-text title)))
               (format "[[%s]]" link-text)) 
             (if (or (not add-spaces) (spacep (char-after))) "" " "))))
+
+(defun zettel-org-format-link (target &optional description)
+  "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
+  (let* ((file (or (if (file-name-absolute-p target)
+                       target
+                     (zettel-absolute-filename target))
+                   (error "Link target doesn't exist; make sure it's saved")))
+         (link (zettel-file-link file)))
+    (format "[[%s]%s]"
+            link
+            (if description
+                (format "[%s]" description) ""))))
 
 (defun zettel-insert-link (arg)
   "Insert the top link from `zettel-stored-links'. If called with
@@ -713,6 +727,44 @@ current Zettel to the `zettel-link-backlink'."
                       (zettel-file-link buffer-file-name)))
             (t
              (deft-open-file file t t))))))
+
+(defun zettel-insert-link-with-extras (link)
+  "Inserts the Zettel link, allowing the user to interactively select from a
+list of extras to also add."
+  (let ((file (zettel-absolute-filename link))
+        (extra (completing-read "Also include: "
+                                '("_a_: Title after"
+                                  "_b_: Title before"
+                                  "_d_: Title in description"
+                                  "_e_: Category before"
+                                  "_f_: Category in description"
+                                  "_n_: Just the slug"
+                                  "Anything else as description")
+                                nil 'confirm)))
+    (cond ((string= extra "_a_: Title after")
+           (insert (zettel-org-format-link link)
+                   " "
+                   (alist-get :title (zettel-metadata file))))
+          ((string= extra "_b_: Title before")
+           (insert (alist-get :title (zettel-metadata file))
+                   " "
+                   (zettel-org-format-link link)))
+          ((string= extra "_e_: Category before")
+           (insert (alist-get :category (zettel-metadata file))
+                   " "
+                   (zettel-org-format-link link)))
+          ((string= extra "_d_: Title in description")
+           (insert (zettel-org-format-link
+                    link
+                    (alist-get :title (zettel-metadata file)))))
+          ((string= extra "_f_: Category in description")
+           (insert (zettel-org-format-link
+                    link
+                    (alist-get :category (zettel-metadata file)))))
+          ((string= extra "_n_: Just the slug")
+           (insert (zettel-link-slug link)))
+          (t
+           (insert (zettel-org-format-link link extra))))))
 
 (defun zettel-insert-link-to-stored-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
@@ -939,14 +991,12 @@ the links are on the right of titles; otherwise, to the left."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
-(defun zettel-find-file (link)
-  "Finds the Zettel with the given link specified interactively by the user,
-returning T if it's a Zettel link. If the file is empty, inserts the metadata
-template."
-  (interactive "sZettel link to find: ")
+(defun zettel-find-link (link)
+  "Finds the provided Zettel link, returning T if it's a Zettel link. If the
+file is empty, inserts the metadata template."
   (when (zettel-link-p link)
-    (find-file (zettel-absolute-filename link))
-    (when (= (point-min) (point-max)) ; file is empty
+    (find-file-other-window (zettel-absolute-filename link))
+    (when (= (point-min) (point-max))   ; file is empty
       (message "Empty Zettel, inserting metadata template")
       (zettel-insert-metadata-template))
     t))
@@ -1229,7 +1279,7 @@ org-mode's interactive `org-time-stamp' command."
   '(progn
      ;; Try to resolve "fuzzy" links (i.e. without explicit protocol). This is
      ;; all that is needed to handle links in the form [[ZETTEL-LINK]].
-     (push #'zettel-find-file org-open-link-functions)
+     (push #'zettel-find-link org-open-link-functions)
 
      ;; Do the same for Zettel links that lack even the link markup. This is
      ;; useful for following parents/children.
@@ -1252,7 +1302,7 @@ org-mode's interactive `org-time-stamp' command."
     (forward-word)
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
-      (zettel-find-file (match-string-no-properties 1)))))
+      (zettel-find-link (match-string-no-properties 1)))))
 
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
@@ -1451,7 +1501,6 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-find-file)
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
@@ -1480,7 +1529,6 @@ backlink."
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-maybe-named)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-find-file) ; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 
