@@ -1361,18 +1361,32 @@ org-mode's interactive `org-time-stamp' command."
                            "%Y%m%dT%H%M")
      "]]")))
 
-(defun zettel-org-include-visiting-file ()
-  "Add an org-mode #+INCLUDE to a visiting Zettel."
+(defun zettel-org-include-cached-file ()
+  "Add an org-mode #+INCLUDE to a cached Zettel."
   (interactive)
-  (let* ((files (zettel-visiting-buffer-list t)))
-    (cond (files
-           (zettel-ivy-read-file
-            files
-            #'(lambda (file)
-                (insert (format "#+INCLUDE: \"%s::\""
-                                (file-relative-name file))))))
-          (t
-           (user-error "You are not visiting any Zettel")))))
+  (let* ((choices
+          (delete-dups (append
+                        (mapcar (lambda (path)
+                                  (cons (deft-file-title path) path))
+                                (zettel-visiting-buffer-list t))
+                        (zettel-ivy-titles-reverse-alist)))))
+    (if choices
+        (zettel-ivy-read-reverse-alist-action
+         "Include: "
+         choices
+         (lambda (file)
+           (let ((section-name
+                  (replace-regexp-in-string
+                   "ß" "Snippet "
+                   (first (split-string
+                           (alist-get :title (zettel-metadata file))
+                           ":")))))
+             (insert (format "#+INCLUDE: \"%s::Summary\" :only-contents t\n"
+                             (file-relative-name file)))
+             (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t"
+                             (file-relative-name file)
+                             section-name)))))
+      (user-error "No Deft cache or visited Zettel"))))
 
 ;; Org links
 (eval-after-load "org"
@@ -1609,6 +1623,8 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-to-cached-or-visiting)
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
 
+;; Was: `org-ctrl-c-tab'
+(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
 
 ;; Was: org-set-property-and-value
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
