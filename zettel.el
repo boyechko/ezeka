@@ -231,13 +231,7 @@ specified, asks the user to resolve the ambiguity."
           (let ((default-kasten (if (eq type :numerus)
                                     zettel-default-numerus-kasten
                                   zettel-default-tempus-kasten)))
-            (cond ((equal current-prefix-arg '(4))
-                   (ivy-read (format "Ambiguous link [[%s]], select Kasten: " link)
-                             (if (listp zettel-kasten)
-                                 (mapcar #'first zettel-kasten)
-                               (error "No Zettelkästen defined"))
-                             :preselect default-kasten))
-                  (default-kasten
+            (cond (default-kasten
                     default-kasten)
                   ((not default-kasten)
                    (call-interactively #'zettel-set-default-kasten)
