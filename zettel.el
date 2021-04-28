@@ -504,7 +504,10 @@ buffer."
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
-     (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)))
+     (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
+     (add-hook 'after-save-hook
+       (lambda ()
+         (deft-cache-file buffer-file-name)))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -766,6 +769,31 @@ list of extras to also add."
           (t
            (insert (zettel-org-format-link link extra))))))
 
+(defun zettel-insert-link-to-cached-or-visiting (arg)
+  "Inserts a link to another Zettel being currently visited or to those in
+the Deft cache. With prefix argument, offers a few options for including
+Zettel descriptions. If the user selects a Zettel that does not exist in the
+list of cached or visiting Zettel, just insert the link to what was
+selected."
+  (interactive "P")
+  (let* ((choices
+          (delete-dups (append
+                        (mapcar (lambda (path)
+                                  (cons (deft-file-title path) path))
+                                (zettel-visiting-buffer-list t))
+                        (zettel-ivy-titles-reverse-alist)))))
+    (if choices
+        (let ((link (zettel-ivy-read-reverse-alist-action
+                     "Insert link to: " choices 'zettel-file-link nil)))
+          (if (cdr link)
+              (if arg
+                  (zettel-insert-link-with-extras (cdr link))
+                (insert (zettel-org-format-link (cdr link))))
+            (insert (zettel-org-format-link
+                     (zettel-make-link (zettel-directory-kasten deft-directory)
+                                       (car link))))))
+      (user-error "No Deft cache or visited Zettel"))))
+
 (defun zettel-insert-link-to-stored-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 `zettel-stored-links'."
@@ -775,7 +803,7 @@ list of extras to also add."
                                      (zettel-visiting-buffer-list t)))))
     (if files
         (progn
-          (push (zettel-ivy-read-file files 'zettel-file-link)
+          (push (zettel-ivy-read-reverse-alist-action files 'zettel-file-link)
                 zettel-stored-links)
           (zettel-insert-link arg)
           ;; FIXME: This is very brute force to remove the inserted link from
@@ -871,6 +899,14 @@ file in Finder with it selected."
         (when (= arg 16)
           (shell-command (format "open -R %s &" file)))))))
 
+;; Modified from zetteldeft's `zetteldeft-avy-link-search'.
+(defun zettel-avy-link-search ()
+  "Use `avy' to follow a Zettel wiki link."
+  (interactive)
+  (save-excursion
+    (when (consp (avy-jump zettel-regexp-link))
+      (zettel-open-link-at-point))))
+
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
@@ -945,16 +981,19 @@ user to select the Zettelkasten."
         (deft-new-file-named slug)
       (insert (zettel-wiki-link child-link nil nil t)))))
 
-(defun zettel-set-parent ()
-  "Sets the parent metadata of the current Zettel to the open Zettel chosen
-by the user."
+(defun zettel-ivy-set-parent ()
+  "Sets the parent metadata of the current Zettel to the Zettel chosen by the
+user from cached and visiting Zettel."
   (interactive)
-  (ivy-read "Set parent: "
-            (zettel-ivy-collection-alist (zettel-visiting-buffer-list t))
-            :require-match nil
-            :action (lambda (choice)
-                      (zettel-update-metadata
-                       :parent (zettel-file-link (cdr choice))))))
+  (zettel-ivy-read-reverse-alist-action
+   "Set parent: "
+   (delete-dups
+    (append (mapcar (lambda (path)
+                      (cons (deft-file-title path) path))
+                    (zettel-visiting-buffer-list t))
+            (zettel-ivy-titles-reverse-alist)))
+   (lambda (path)
+     (zettel-update-metadata :parent (zettel-file-link path)))))
 
 ;; TODO: Remove or update
 (defun zettel-numerus-children (slug)
@@ -1001,9 +1040,52 @@ file is empty, inserts the metadata template."
       (zettel-insert-metadata-template))
     t))
 
-(defun zettel-ivy-collection-alist (files)
+(defun zettel-select-link (arg)
+  "Interactively asks the user to select a link from the list of currently
+cached Zettel titles. With universal prefix, asks the user to type the link
+instead."
+  (interactive "P")
+  (zettel-find-link
+   (if (not arg)
+       (zettel-file-link (cdr (zettel-ivy-read-reverse-alist-action
+                               "Select title: "
+                               (zettel-ivy-titles-reverse-alist)
+                               #'identity)))
+     (read-string "Zettel link to find: "))))
+
+(defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
+  "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
+pairs. Upon selection, call the given FUNC, a function accepting one
+argument, on the key. Returns a cons cell consisting of the match from
+`ivy-read' and the result of FUNC."
+  (let (result)
+    (ivy-read prompt
+              choices
+              :action (lambda (choice)
+                        (setq result
+                          (if (consp choice)
+                              (cons (car choice) (funcall func (cdr choice)))
+                            (cons choice nil))))
+              :re-builder 'ivy--regex-ignore-order
+              :require-match require-match)
+    result))
+
+(defun zettel-ivy-titles-reverse-alist ()
+  "Returns a reverse alist of choices consisting of cached Zettel titles and
+their paths. For use with `zettel-ivy-read-reverse-alist-action'."
+  (let (titles-alist)
+    (cond (deft-hash-titles
+            (maphash (lambda (key val)
+                       (push (cons (or val key) key) titles-alist))
+                     deft-hash-titles)
+            titles-alist)
+          (t
+           (error "No Deft titles cached")))))
+
+(defun zettel-ivy-metadata-reverse-alist (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `ivy-read' as collection."
+suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
+Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
   (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
     (mapcar #'(lambda (file)
                 (let ((metadata (zettel-metadata file))
@@ -1036,24 +1118,18 @@ SKIP-CURRENT is T, remove the current buffer."
             (kill-buffer (get-file-buffer file)))
         (zettel-visiting-buffer-list t)))
 
-(defun zettel-ivy-read-file (files func)
-  "Uses `ivy-read' to select from list of Zettel FILES. Upon selection, call
-the given FUNC, a function accepting one argument that is a pathname. Returns
-the result of FUNC."
-  (let* ((choices (zettel-ivy-collection-alist files)))
-    (let (result)
-      (ivy-read "Zettel: "
-                choices
-                :action (lambda (choice)
-                          (setq result
-                            (unless (not (consp choice))
-                              (funcall func (cdr choice))))))
-      result)))
-
-(defun zettel-switch-to-buffer ()
-  "Quickly switch to other open Zettel buffers."
-  (interactive)
-  (zettel-ivy-read-file (zettel-visiting-buffer-list t) 'find-file))
+(defun zettel-switch-to-buffer (arg)
+  "Quickly switch to other open Zettel buffers. With prefix argument, do so
+in another window."
+  (interactive "P")
+  (zettel-ivy-read-reverse-alist-action
+   "Switch to Zettel: "
+   (mapcar (lambda (path)
+             (when (null (deft-file-title path))
+               (deft-cache-file path))
+             (cons (deft-file-title path) path))
+           (zettel-visiting-buffer-list t))
+   (if (not arg) 'find-file 'find-file-other-window)))
 
 (defun zettel-ivy-read-category ()
   "Returns a list, suitable to be passed to `interactive', asking the user to
@@ -1166,7 +1242,7 @@ changes the existing one."
   (when deft-incremental-search
     ;; Duplicate car of the `deft-filter-regexp', since `deft-filter' replaces it.
     (push (car deft-filter-regexp) deft-filter-regexp)
-    (deft-filter (format "{%s}" category) t)))
+    (deft-filter (format "{%s}" category))))
 
 ;;
 ;; Insert my zettel title string into new zettel rather than contents of deft's
@@ -1220,6 +1296,21 @@ on the first line with the Zettel title string."
   (sort files (lambda (f1 f2)
                 (string-lessp (downcase (file-name-base f2))
                               (downcase (file-name-base f1))))))
+
+(defun zettel-title-lessp (file1 file2)
+  "Return non-nil if the Zettel title of FILE1 is lexicographically less than
+that of FILE2. Case is ignored."
+  ;; FIXME: Hack to get the title from the result of
+  ;; `zettel-deft-parse-title-function'
+  (let ((title1 (third (split-string (or (deft-file-title file1) "") "  +")))
+        (title2 (third (split-string (or (deft-file-title file2) "") "  +"))))
+    (string-lessp (downcase (or title1 ""))
+                  (downcase (or title2 "")))))
+
+(defun deft-sort-files-by-zettel-title (files)
+  "Sort FILES by the Zettel title."
+  (sort files 'zettel-title-lessp))
+
 (eval-after-load "deft"
   '(defalias 'deft-sort-files-by-title 'deft-sort-files-by-name))
 
@@ -1501,19 +1592,17 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+(define-key zettel-mode-map (kbd "C-c C-f") 'zettel-select-link)
+(define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
-(define-key zettel-mode-map (kbd "C-c C-S-l")
-            'zettel-insert-link-to-stored-or-visiting)
+(define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-to-cached-or-visiting)
+(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
 
-(define-key zettel-mode-map (kbd "C-c C-M-l")
-            'zettel-insert-link-from-clipboard)
-(define-key zettel-mode-map (kbd "C-c C-M-S-l") 'zettel-list-links)
-(define-key zettel-mode-map (kbd "C-c C-S-b") 'zettel-insert-backlink)
 
 ;; Was: org-set-property-and-value
-(define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-set-parent)
+(define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
 (define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
 
 ;;;-----------------------------------------------------------------------------
@@ -1529,6 +1618,7 @@ backlink."
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-maybe-named)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 
