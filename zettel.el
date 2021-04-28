@@ -947,39 +947,48 @@ universal argument, behave like `zettel-insert-link'."
 (defvar zettel-parent-of-new-child nil
   "An alist of new children and their respective parents.")
 
+(defun zettel-generate-new-child (parent kasten)
+  "Generates a new child of the given PARENT in the KASTEN."
+  (let ((child-link (zettel-make-link
+                     kasten (if (equal kasten zettel-default-numerus-kasten)
+                                (zettel-next-unused-slug)
+                              (zettel-timestamp-slug)))))
+    (add-to-list 'zettel-parent-of-new-child (cons child-link parent))
+    child-link))
+
 (defun zettel-insert-new-child (arg)
   "Creates a new Zettel in the current `deft-directory', inserting a link to
 it at point, saves the current Zettel as its parent, and sets the
 `zettel-link-backlink' to current Zettel. With prefix argument, allows the
-user to select the Zettelkasten."
+user to select the Zettelkasten. With double prefix argument, asks for the
+full link."
   (interactive "p")
-  (let* ((parent (cond ((zettel-p buffer-file-name)
-                        buffer-file-name)
-                       ((equal major-mode 'deft-mode)
-                        (widget-get (widget-at (point)) :tag))
-                       (t
-                        ;; Something weird happened
-                        nil)))
-         (kasten (if (> arg 1)
-                     (ivy-read "Zettelkasten: "
-                               (if (listp zettel-kasten)
-                                   (mapcar #'first zettel-kasten)
-                                 (error "No Zettelkasten defined")))
-                   (zettel-directory-kasten deft-directory)))
-         (slug (progn
-                 (unless zettel-default-numerus-kasten
-                   (call-interactively #'zettel-set-default-kasten))
-                 (if (equal kasten zettel-default-numerus-kasten)
-                     (zettel-next-unused-slug)
-                   (zettel-timestamp-slug))))
-         (child-link (zettel-make-link kasten slug))
-         (parent-link (when parent (zettel-file-link parent))))
-    (when parent
-      (add-to-list 'zettel-parent-of-new-child (cons child-link parent-link))
-      (setq zettel-link-backlink parent-link))
+  (let ((parent-link
+         (zettel-file-link (cond ((zettel-p buffer-file-name)
+                                  buffer-file-name)
+                                 ((equal major-mode 'deft-mode)
+                                  (widget-get (widget-at (point)) :tag))
+                                 (t
+                                  (user-error "Child of what?")))))
+        child-link)
+    (if (= arg 16)
+        (while (not child-link)
+          (setq child-link (read-string "Enter link for new child: "))
+          (when (file-exists-p (zettel-absolute-filename child-link))
+            (message "This Zettel already exists; try again")))
+      (let ((kasten (cond ((= arg 4)
+                           (ivy-read "Zettelkasten: "
+                                     (if (listp zettel-kasten)
+                                         (mapcar #'first zettel-kasten)
+                                       (error "No Zettelkasten defined"))))
+                          (t
+                           (unless zettel-default-numerus-kasten
+                             (call-interactively #'zettel-set-default-kasten))
+                           (zettel-directory-kasten deft-directory)))))
+        (setq child-link (zettel-generate-new-child parent-link kasten))))
     (if (equal major-mode 'deft-mode)
-        (deft-new-file-named slug)
-      (insert (zettel-wiki-link child-link nil nil t)))))
+        (deft-new-file-named (zettel-link-slug child-link))
+      (insert (zettel-org-format-link child-link)))))
 
 (defun zettel-ivy-set-parent ()
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
@@ -1263,7 +1272,7 @@ changes the existing one."
              (let ((today (format-time-string "%Y%m%d")))
                (if (and (eq :tempus (zettel-type buffer-file-name))
                         (not (string-match-p (regexp-quote today) base))
-                        (y-or-n-p "Match creation date to filename? "))
+                        (not (y-or-n-p "Past tempus currens; set created date to today? ")))
                    (zettel-encode-iso8601-datetime base)
                  nil))))                  ; i.e. current time
     (newline)
