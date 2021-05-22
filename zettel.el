@@ -1136,7 +1136,12 @@ in another window."
    (mapcar (lambda (path)
              (when (null (deft-file-title path))
                (deft-cache-file path))
-             (cons (deft-file-title path) path))
+             (cons (format "%s%s"
+                           (if (buffer-modified-p (get-file-buffer path))
+                               "✒︎"
+                             "")
+                           (deft-file-title path))
+                   path))
            (zettel-visiting-buffer-list t))
    (if (not arg) 'find-file 'find-file-other-window)))
 
