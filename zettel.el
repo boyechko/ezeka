@@ -736,8 +736,8 @@ current Zettel to the `zettel-link-backlink'."
 list of extras to also add."
   (let ((file (zettel-absolute-filename link))
         (extra (completing-read "Also include: "
-                                '("_a_: Title after"
-                                  "_b_: Title before"
+                                '("_b_: Title before"
+                                  "_a_: Title after"
                                   "_d_: Title in description"
                                   "_e_: Category before"
                                   "_f_: Category in description"
@@ -1620,7 +1620,7 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key zettel-mode-map (kbd "C-c C-f") 'zettel-select-link)
+(define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-select-link)
 (define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
@@ -1629,7 +1629,7 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
 
 ;; Was: `org-ctrl-c-tab'
-(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
+;;(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
 
 ;; Was: org-set-property-and-value
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
