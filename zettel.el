@@ -1043,7 +1043,7 @@ the links are on the right of titles; otherwise, to the left."
   "Finds the provided Zettel link, returning T if it's a Zettel link. If the
 file is empty, inserts the metadata template."
   (when (zettel-link-p link)
-    (find-file-other-window (zettel-absolute-filename link))
+    (find-file-other-frame (zettel-absolute-filename link))
     (when (= (point-min) (point-max))   ; file is empty
       (message "Empty Zettel, inserting metadata template")
       (zettel-insert-metadata-template))
