@@ -1380,17 +1380,18 @@ org-mode's interactive `org-time-stamp' command."
          "Include: "
          choices
          (lambda (file)
-           (let ((section-name
-                  (replace-regexp-in-string
-                   "ß" "Snippet "
-                   (first (split-string
-                           (alist-get :title (zettel-metadata file))
-                           ":")))))
-             (insert (format "#+INCLUDE: \"%s::Summary\" :only-contents t\n"
-                             (file-relative-name file)))
+           (let ((summary-section "Summary")
+                 (snippet-section (replace-regexp-in-string
+                                   "ß" "Snippet "
+                                   (first (split-string
+                                           (alist-get :title (zettel-metadata file))
+                                           ":")))))
+             (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n"
+                             (file-relative-name file)
+                             summary-section))
              (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t"
                              (file-relative-name file)
-                             section-name)))))
+                             snippet-section)))))
       (user-error "No Deft cache or visited Zettel"))))
 
 ;; Org links
