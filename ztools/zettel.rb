@@ -36,11 +36,13 @@ class Zettelkasten
                "omasum"    => "omasum",       # writing snippets
                "abomasum"  => "abomasum",     # writing drafts
                "tech"      => "tech",         # technical notes
-               "play"      => "play",         # roleplaying notes
-
-               # Backward compatibility
-               "limbo"     => "rumen"
+               "play"      => "play"          # roleplaying notes
              }
+  # For backward compatibility
+  @kaesten_old = { "limbo"     => "rumen",
+                   "writing"   => "omasum"
+                 }
+
   # The default kaesten can be referred to without specifying their kasten
   @default_numerus = "reticulum"
   @default_tempus = "rumen"
@@ -49,6 +51,8 @@ class Zettelkasten
   def self.dir(kasten)
     if @kaesten[kasten]
       return @root + @kaesten[kasten]
+    elsif @kaesten_old[kasten]
+      return @root + @kaesten_old[kasten]
     else
       raise "Unknown kasten '#{kasten}'"
     end
@@ -56,7 +60,7 @@ class Zettelkasten
 
   # Returns true if the given string names a valid kasten
   def self.kasten?(string)
-    return true if @kaesten[string]
+    return true if @kaesten[string] or @kaesten_old[string]
   end
 
   # Returns the Kasten that the Zettel path is under
