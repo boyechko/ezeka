@@ -18,6 +18,8 @@ require 'open3'
 class Zettelkasten
   class << self; attr_accessor :root end
   class << self; attr_accessor :ext end
+  class << self; attr_accessor :default_numerus end
+  class << self; attr_accessor :default_tempus end
 
   # Default extension for Zettelkasten files
   @ext = ".txt"
@@ -39,6 +41,9 @@ class Zettelkasten
                # Backward compatibility
                "limbo"     => "rumen"
              }
+  # The default kaesten can be referred to without specifying their kasten
+  @default_numerus = "reticulum"
+  @default_tempus = "rumen"
 
   # Returns the directory for the given kasten
   def self.dir(kasten)
@@ -65,7 +70,7 @@ class Zettelkasten
 
   # Returns the type of the zettel found at the given path
   def self.zettel_type(path)
-    kasten_of(path) == "reticulum" ? :numerus : :tempus
+    kasten_of(path) == @default_numerus ? :numerus : :tempus
   end
 
   # Returns true if the given path is in the Zettelkasten
@@ -82,7 +87,7 @@ class Zettel
   attr_reader :type,            # Zettel type; either :tempus or :numerus
               :kasten,          # Kasten, as string
               :slug,            # slug only (i.e. without Kasten)
-              :link,            # full link (i.e. with Kasten, unless main)
+              :link,            # full link (i.e. with Kasten, unless default)
               :path             # full path, as Pathname
   attr_accessor :metadata,      # hash of symbol -> value
                 :text           # the text of the Zettel
@@ -152,7 +157,7 @@ class Zettel
   def write_file()
     if File.writable?(@path)
       # Make sure the title has the correct slug
-      @metadata[:title].gsub!(/§[^.]+\./, "§#{@slug}.")
+      @metadata[:title].gsub!(/§[^.]+\./, "§#{@link}.")
 
       File.write(@path, yaml_metadata() + "\n" + @text)
     else
@@ -323,7 +328,7 @@ class Numerus < Zettel
   def init_link(link)
     if link =~ FQN_PATTERN
       @type = :numerus
-      @kasten = "reticulum"
+      @kasten = Zettelkasten.default_numerus
       @link = link
       @numbers = $1
       @letters = $3
@@ -403,7 +408,7 @@ class Numerus < Zettel
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
     if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
-       Zettelkasten.kasten_of(string) == "reticulum"
+       Zettelkasten.kasten_of(string) == Zettelkasten.default_numerus
       return true
     else
       return false
@@ -474,7 +479,7 @@ class Tempus < Zettel
 
   # Returns the wiki link target
   def link()
-    if @kasten == "tempus" then return @slug
+    if @kasten == Zettelkasten.default_tempus then return @slug
     else return "#{@kasten}:#{@slug}"
     end
   end
