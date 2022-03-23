@@ -128,6 +128,10 @@ the actual name followed by the alias."
   "A list of categories used for Zettel."
   :type 'list)
 
+(defcustom zettel-proliferate-frames nil
+  "When non-NIL, create new frames when opening links."
+  :type 'boolean)
+
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
@@ -931,7 +935,7 @@ to find the Nth ancestor."
   (when (zettel-p buffer-file-name)
     (let ((ancestor (zettel-ancestor buffer-file-name n)))
       (if ancestor
-          (find-file (zettel-absolute-filename ancestor))
+          (zettel-find-link ancestor)
         (message "No ancestor found")))))
 
 (defun zettel-insert-ancestor-link (arg)
@@ -1043,7 +1047,10 @@ the links are on the right of titles; otherwise, to the left."
   "Finds the provided Zettel link, returning T if it's a Zettel link. If the
 file is empty, inserts the metadata template."
   (when (zettel-link-p link)
-    (find-file-other-frame (zettel-absolute-filename link))
+    (funcall (if zettel-proliferate-frames
+                 #'find-file-other-frame
+               #'find-file)
+             (zettel-absolute-filename link))
     (when (= (point-min) (point-max))   ; file is empty
       (message "Empty Zettel, inserting metadata template")
       (zettel-insert-metadata-template))
@@ -1209,6 +1216,53 @@ prefix argument, allows the user to type in a custom category."
 (add-hook 'deft-mode-hook
   (lambda ()
     (setq show-trailing-whitespace nil)))
+
+(defvar zettel-deft-active-kasten nil
+  "The name of the active Zettelkasten, if any. This variable is set by
+`zettel-deft-choose-kasten'.")
+
+(defun zettel-deft-choose-kasten (arg new-kasten)
+  "If there is an existing `deft-buffer', switches to it, otherwise
+interactively selects the deft directory from among `zettel-kasten'. With
+a prefix argument, selects new deft directory regardless of `deft-buffer';
+with double prefix argument calls `zettel-deft-choose-directory' instead."
+  (interactive
+   (list
+    current-prefix-arg
+    (when (or (null (get-buffer deft-buffer))
+              (equal current-prefix-arg '(4)))
+      (ivy-read "Zettel kasten: "
+                (if (listp zettel-kasten)
+                    (mapcar #'first (cl-sort (copy-sequence zettel-kasten)
+                                             #'< :key #'third))
+                  '("default"))))))
+  (cond ((equal arg '(16))
+         (call-interactively #'zettel-deft-choose-directory))
+        ((not new-kasten)
+         (if zettel-proliferate-frames
+             (switch-to-buffer-other-frame deft-buffer)
+           (switch-to-buffer deft-buffer)))
+        (t
+         (zettel-deft-choose-directory (zettel-kasten-directory new-kasten))
+         (setq zettel-deft-active-kasten new-kasten))))
+
+(defun zettel-deft-choose-directory (directory)
+  "Interactively selects the directory, starting in `zettel-directory'."
+  (interactive
+   (list
+    (read-directory-name "Deft directory: "
+                         zettel-directory
+                         "" t)))
+  (when (and (get-buffer deft-buffer))
+    (kill-buffer deft-buffer))
+  (setq deft-directory directory
+        deft-buffer (format "*Deft: %s*"
+                            (capitalize
+                             (file-name-base (directory-file-name directory)))))
+  (deft)
+  (deft-filter nil)
+  (deft-refresh)
+  (zettel-populate-categories))
 
 (defun zettel-deft-parse-title-function (line)
   "Function for post-processing titles for display in Deft buffer, intended
