@@ -421,13 +421,11 @@ alist."
         (kill-region (point-min) (point-max))
         (multiple-value-bind (title rest)
             (zettel-combined-title metadata)
-          (insert title)
-          (newline)
+          (insert title "\n")
           (mapc #'(lambda (cons)
-                    (insert (format "%s: %s"
+                    (insert (format "%s: %s\n"
                                     (zettel-metadata-key-name (car cons))
-                                    (cdr cons)))
-                    (newline))
+                                    (cdr cons))))
                 (cl-sort rest #'string-lessp :key #'car)))))))
 
 (defun zettel-update-metadata (key value)
@@ -1036,9 +1034,7 @@ the links are on the right of titles; otherwise, to the left."
   (when (zettel-p buffer-file-name)
     (dolist (child (zettel-numerus-children slug))
       (beginning-of-line)
-      (insert "* ")
-      (insert (zettel-wiki-link (zettel-absolute-filename child) t arg))
-      (newline))))
+      (insert "* " (zettel-wiki-link (zettel-absolute-filename child) t arg) "\n"))))
 
 ;;;=============================================================================
 ;;; Buffers, Files, Categories
@@ -1324,8 +1320,7 @@ changes the existing one."
         insert-point)
     (insert "title: §" link ". ")
     (setq insert-point (point))
-    (newline)
-    (insert "created: "
+    (insert "\ncreated: "
             ;; Insert creation date, making it match a tempus currens filename
             (format-time-string
              "%Y-%m-%d"
@@ -1334,11 +1329,10 @@ changes the existing one."
                         (not (string-match-p (regexp-quote today) base))
                         (not (y-or-n-p "Past tempus currens; set created date to today? ")))
                    (zettel-encode-iso8601-datetime base)
-                 nil))))                  ; i.e. current time
-    (newline)
+                 nil)))
+            "\n")                  ; i.e. current time
     (when (assoc link zettel-parent-of-new-child)
-      (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)))
-      (newline))
+      (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)) "\n"))
     (goto-char insert-point)
     (call-interactively 'zettel-set-category)
     (end-of-line)))
@@ -1354,7 +1348,6 @@ on the first line with the Zettel title string."
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
         (zettel-insert-metadata-template)))))
-
 (advice-add 'deft-new-file-named :around #'deft-new-file--add-zettel-title)
 
 ;;
@@ -1696,8 +1689,7 @@ backlink."
       (push (zettel-next-unused-slug) slugs)
       (message "%d generated" n))
     (mapc #'(lambda (s)
-              (insert s)
-              (newline))
+              (insert s "\n"))
           (delete-dups slugs))
     (delete-duplicate-lines (point-min) (point-max))))
 
