@@ -405,39 +405,50 @@ line the given METADATA, and 2) leftover metadata."
         (set-difference metadata '((:link) (:category) (:title) (:type))
                         :key #'car)))
 
-(defun zettel-metadata-key-name (key)
-  "Returns a string that is the name of the KEY, a keyword symbol."
-  (subseq (symbol-name key) 1))
+(defun zettel-metadata-yaml-key (keyword)
+  "Returns a YAML-formatted string that is the name of the KEY, a keyword
+symbol."
+  (subseq (symbol-name keyword) 1))
 
-(defun zettel-replace-metadata (file metadata)
-  "Replaces the metadata of the given FILE with the one in the METADATA
-alist."
-  (save-excursion
-    (with-current-buffer (get-file-buffer file)
-      (save-restriction
-        (goto-char (point-min))
-        (when (re-search-forward "^$" nil t 1)
-          (narrow-to-region (point-min) (point)))
-        (kill-region (point-min) (point-max))
-        (multiple-value-bind (title rest)
-            (zettel-combined-title metadata)
-          (insert title "\n")
-          (mapc #'(lambda (cons)
-                    (insert (format "%s: %s\n"
-                                    (zettel-metadata-key-name (car cons))
-                                    (cdr cons))))
-                (cl-sort rest #'string-lessp :key #'car)))))))
+(defun zettel-metadata-yaml-value (value)
+  "Returns a YAML-formatted string for the given metadata VALUE."
+  (typecase value
+    (string value)
+    (list (concat "[ " (mapconcat #'identity value ", ") " ]"))
+    (t
+     (error "Not implemented for type %s" (type-of value)))))
+
+(defun zettel-normalize-metadata (file)
+  "Replaces the metadata section of the given FILE."
+  (let ((metadata (zettel-metadata file)))
+    (save-excursion
+      (with-current-buffer (get-file-buffer file)
+        (save-restriction
+          (goto-char (point-min))
+          (when (re-search-forward "^$" nil t 1)
+            (narrow-to-region (point-min) (point)))
+          (delete-region (point-min) (point-max))
+          (multiple-value-bind (title remaining-metadata)
+              (zettel-encode-combined-title metadata)
+            (insert title "\n")
+            (mapc #'(lambda (cons)
+                      (insert (format "%s: %s\n"
+                                      (zettel-metadata-yaml-key (car cons))
+                                      (zettel-metadata-yaml-value (cdr cons)))))
+                  (let (ordered-metadata)
+                    (dolist (key '(:subtitle :created :modified
+                                             :parent :firstborn
+                                             :readings :keywords :oldname)
+                                 (nreverse ordered-metadata))
+                      (when (alist-get key remaining-metadata)
+                        (push (cons key (alist-get key remaining-metadata))
+                              ordered-metadata)))))))))))
 
 (defun zettel-update-metadata (key value)
   "Updates the Zettel metadata section in the current buffer, setting the KEY
 to VALUE."
-  (let ((key-name (zettel-metadata-key-name key))
-        (value-string
-         (typecase value
-           (string value)
-           (list (concat "[" (mapconcat #'identity value ", ") "]"))
-           (t
-            (error "Not implemented for type %s" (type-of value)))))
+  (let ((key-name (zettel-metadata-yaml-key key))
+        (value-string (zettel-metadata-yaml-value value))
         found)
     (save-excursion
       (save-restriction
@@ -456,7 +467,8 @@ to VALUE."
           (insert (format "%s: %s" key-name value-string)))))))
 
 (defun zettel-metadata (file)
-  "Returns an alist of metadata, with the keys as keywords."
+  "Returns an alist of metadata for the given FILE based on the most current
+content of the FILE. They keys are converted to keywords."
   (let* ((metadata-section
           (split-string
            (first (split-string
@@ -503,7 +515,8 @@ buffer."
                                    (file-name-base buffer-file-name))))
         (message "Adding metadata modified date in %s (created on %s)."
                  buffer-file-name created)
-        (zettel-update-metadata :modified today)))))
+        (zettel-update-metadata :modified today)))
+    (zettel-normalize-metadata buffer-file-name)))
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
