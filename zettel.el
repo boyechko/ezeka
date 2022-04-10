@@ -1555,6 +1555,45 @@ bookmark's filename property to the Zettel link."
     (setq-local bookmark-make-record-function 'bookmark-make-record-zettel)))
 
 ;;;=============================================================================
+;;; Frames
+;;;=============================================================================
+
+(defun zettel-toggle-proliferate-frames ()
+  "Toggle the value of `zettel-proliferate-frames' variable."
+  (interactive)
+  (message "Proliferating frames set to %s"
+   (setq zettel-proliferate-frames (not zettel-proliferate-frames))))
+
+(defun zettel-formatted-frame-title ()
+  "Returns a string suitable for `frame-title-format' as a way to
+consistently format the frame title with useful information for
+Zettelkasten work."
+  (interactive)
+  (concat (if zettel-deft-active-kasten
+              (format "〔%s〕" (upcase (subseq zettel-deft-active-kasten 0 3)))
+            "")
+          (if (and (boundp 'zettel-mode) zettel-mode)
+              (let ((metadata (zettel-metadata buffer-file-name)))
+                (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
+                        (alist-get :title metadata)
+                        (alist-get :slug metadata)
+                        (alist-get :kasten metadata)))
+            "%b")))
+
+(defun zettel-update-frame-title ()
+  "Sets the frame title for the current Zettel buffer to be more useful."
+  (when (and (boundp 'zettel-mode) zettel-mode)
+    (let ((metadata (zettel-metadata buffer-file-name)))
+      (setq-local frame-title-format
+                  (list "@" (upcase zettel-deft-active-kasten)
+                        " "
+                        "{" (alist-get :category metadata) "}"
+                        " "
+                        "«" (alist-get :title metadata) "»"
+                        " "
+                        "§" (alist-get :slug metadata))))))
+
+;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
 
