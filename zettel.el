@@ -381,7 +381,7 @@ Group 5 is the category.
 Group 6 is the title itself.
 Group 8 is the keyword block.")
 
-(defun zettel-combined-title-metadata (title)
+(defun zettel-decode-combined-title (title)
   "Returns an alist of metadata from a combined title."
   (when (string-match zettel-regexp-combined-title title)
     (let ((slug (match-string 3 title)))
@@ -389,11 +389,11 @@ Group 8 is the keyword block.")
             (cons :type (zettel-type slug))
             (cons :category (match-string 5 title))
             (cons :title (match-string 6 title))
-            (cons :keywords
-                  (when (match-string 8 title)
+            (when (match-string 8 title)
+              (cons :keywords
                     (split-string (match-string 8 title))))))))
 
-(defun zettel-combined-title (metadata)
+(defun zettel-encode-combined-title (metadata)
   "Returns a list of two elements: 1) a string that encodes into the title
 line the given METADATA, and 2) leftover metadata."
   (list (format "title: §%s. %s%s"
@@ -402,7 +402,7 @@ line the given METADATA, and 2) leftover metadata."
                     (concat "{" (alist-get :category metadata) "} ")
                   "")
                 (alist-get :title metadata))
-        (set-difference metadata '((:slug) (:category) (:title) (:type))
+        (set-difference metadata '((:link) (:category) (:title) (:type))
                         :key #'car)))
 
 (defun zettel-metadata-key-name (key)
@@ -478,9 +478,10 @@ to VALUE."
          (title (alist-get :title metadata)))
     (when title
       (setq metadata
-        (append (zettel-combined-title-metadata title)
+        (append (zettel-decode-combined-title title)
                 (cl-remove :title metadata :key #'car))))
-    (push (list :kasten (zettel-file-kasten file)) metadata)))
+    (push (cons :kasten (zettel-file-kasten file)) metadata)
+    (push (cons :link (zettel-file-link file)) metadata)))
 
 (defun zettel-update-metadata-date ()
   "Updates the date in the metadata section of the Zettel in the current
@@ -1267,7 +1268,7 @@ with double prefix argument calls `zettel-deft-choose-directory' instead."
 (defun zettel-deft-parse-title-function (line)
   "Function for post-processing titles for display in Deft buffer, intended
 as the value for `deft-parse-title-function'."
-  (let ((metadata (zettel-combined-title-metadata
+  (let ((metadata (zettel-decode-combined-title
                    (replace-regexp-in-string "^\\(title: +\\)" "" line))))
     (when metadata
      ;; FIXME: Any more elegant way to do this?
