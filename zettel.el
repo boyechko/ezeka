@@ -1455,6 +1455,55 @@ org-mode's interactive `org-time-stamp' command."
                              snippet-section)))))
       (user-error "No Deft cache or visited Zettel"))))
 
+(defun zettel-org-export-as-new-zettel ()
+  "Creates a new Zettel file in the current Zettelkasten based on the current
+org subtree."
+  (interactive)
+  (let ((parent-file buffer-file-name)
+        (parent-link (zettel-file-link buffer-file-name))
+        tempus-currens
+        new-title
+        new-file)
+    (save-excursion
+      (save-restriction
+        (org-narrow-to-subtree)
+        (goto-char (point-min))
+        (let ((title (nth 4 (org-heading-components)))
+              timestamp)
+          (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" title)
+                 (list (match-string 1 title) (match-string 2 title))
+                 (setq timestamp (save-match-data (org-timestamp-from-string
+                                                   (match-string 2 title)))
+                       new-title (match-string 1 title)))
+                ((org-get-scheduled-time nil)
+                 (setq timestamp
+                   (org-timestamp-from-time (org-get-scheduled-time nil) t)))
+                (t
+                 (error "Could not get the timestamp for new Zettel")))
+          (setq tempus-currens (org-timestamp-format timestamp "%Y%m%dT%H%M")
+                new-file (zettel-absolute-filename tempus-currens))
+          (let* ((content (org-get-entry)))
+            ;; Code adapted from `deft-new-file', since calling that function in
+            ;; turn calls my `deft-new-file--add-zettel-title' that interferes
+            ;; with populating the file properly.
+            (if (file-exists-p new-file)
+                (message "Aborting, file already exists: %s" new-file)
+              (deft-open-file new-file)
+              (with-current-buffer (get-file-buffer (file-truename new-file))
+                (insert (format "title: §%s. {Memo} %s\n" tempus-currens new-title))
+                (insert "created: " (format-time-string "%Y-%m-%d") "\n")
+                (insert "parent: " parent-link "\n")
+                (insert content)
+                (save-buffer))
+              (deft-cache-update-file new-file)
+              (deft-refresh-filter))))))
+    ;; Back in original buffer
+    (with-current-buffer (get-file-buffer (file-truename parent-file))
+      (org-cut-subtree)
+      (insert (zettel-org-format-link (zettel-file-link new-file))
+              " "
+              (alist-get :title (zettel-metadata new-file))))))
+
 ;; Org links
 (eval-after-load "org"
   '(progn
