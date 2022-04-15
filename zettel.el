@@ -62,12 +62,19 @@ date and time.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
 
+(defvar zettel-regexp-operis-clavis
+  "\\([A-Za-z-]+\\)\\([0-9]\\{4,10\\}\\)\\([a-z]\\)"
+  "The regular expression that matches a bibliographic citation key like
+Nemec1977.")
+
 (defvar zettel-regexp-slug
   ;; Strip the groups in the component regexps
   (concat "\\("
           (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-numerus-currens)
           "\\|"
           (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-tempus-currens)
+          "\\|"
+          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-operis-clavis)
           "\\)")
   "A generalized regexp that matches any slug, whether numerus or tempus
 currens.")
@@ -116,12 +123,16 @@ of backlinks.")
 the actual name followed by the alias."
   :type 'alist)
 
-(defcustom zettel-default-numerus-kasten "reticulum"
+(defcustom zettel-default-numerus-kasten "esophagus" ; FIXME: change to omasum
   "Name of the main numerus currens kasten."
   :type 'string)
 
 (defcustom zettel-default-tempus-kasten "rumen"
   "Name of the main tempus currens kasten."
+  :type 'string)
+
+(defcustom zettel-default-opus-kasten "reticulum"
+  "Name of the main operis clavis kasten."
   :type 'string)
 
 (defcustom zettel-categories nil
@@ -216,7 +227,8 @@ last for any numerus or tempus Zettel."
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
   (let ((kasten (zettel-file-kasten file)))
     (if (or (equal kasten zettel-default-numerus-kasten)
-            (equal kasten zettel-default-tempus-kasten))
+            (equal kasten zettel-default-tempus-kasten)
+            (equal kasten zettel-default-opus-kasten))
         (zettel-file-slug file)
       (concat kasten ":" (zettel-file-slug file)))))
 
@@ -237,9 +249,11 @@ specified, asks the user to resolve the ambiguity."
            (slug (match-string 3 link))
            (type (zettel-type slug)))
       (or kasten
-          (let ((default-kasten (if (eq type :numerus)
-                                    zettel-default-numerus-kasten
-                                  zettel-default-tempus-kasten)))
+          (let ((default-kasten (case type
+                                  (:numerus zettel-default-numerus-kasten)
+                                  (:tempus zettel-default-tempus-kasten)
+                                  (:opus zettel-default-opus-kasten)
+                                  (t (error "Unknown Zettel type: %s" type)))))
             (cond (default-kasten
                     default-kasten)
                   ((not default-kasten)
@@ -297,6 +311,11 @@ specified, asks the user to resolve the ambiguity."
       (when result
         (file-name-as-directory result)))))
 
+(defun zettel-opus-subdirectory (slug)
+  "Finds the right directory for the given operis slavis slug."
+  (when (stringp slug)
+    ""))                                ; FIXME: placeholder
+
 (defun zettel-absolute-filename (link)
   "Return an absolute filename to the Zettel link.
 
@@ -310,6 +329,7 @@ This function replaces `deft-absolute-filename' for Zettel."
           (case (zettel-type slug)
             (:numerus (zettel-numerus-subdirectory slug))
             (:tempus (zettel-tempus-subdirectory slug))
+            (:opus (zettel-opus-subdirectory slug))
             (t (error "This is not a proper Zettel link: %s" link)))
           (zettel-kasten-directory kasten))))
     (error "This is not a proper Zettel link: %s" link)))
@@ -331,8 +351,10 @@ This function replaces `deft-absolute-filename' for Zettel."
            :tempus)
           ((string-match-p zettel-regexp-numerus-currens slug)
            :numerus)
+          ((string-match-p zettel-regexp-operis-clavis slug)
+           :opus)
           (t
-           (error "The slug is neither numerus nor tempus: %s" slug)))))
+           (error "This doesn't look like a Zettel slug: %s" slug)))))
 
 (defun zettel-encode-iso8601-datetime (string)
   "Returns the internal encoded time given the ISO8601 date/time
@@ -1659,6 +1681,17 @@ Zettelkasten work."
 ;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
+
+(defun zettel-opus-zmove-command ()
+  "Generates a zmove shell command to move the current Zettel to its operis
+clavis Zettel based on the category."
+  (interactive)
+  (let* ((metadata (zettel-metadata buffer-file-name))
+         (source-link (alist-get :link metadata))
+         (category (alist-get :category metadata))
+         (command (format "zmove -i %s %s" source-link category)))
+    (rb-set-clipboard-data command)
+    (message "Copied command to clipbaord: %s" command)))
 
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's DEFT-RENAME-FILE."
