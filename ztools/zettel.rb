@@ -20,6 +20,7 @@ class Zettelkasten
   class << self; attr_accessor :ext end
   class << self; attr_accessor :default_numerus end
   class << self; attr_accessor :default_tempus end
+  class << self; attr_accessor :default_opus end
 
   # Default extension for Zettelkasten files
   @ext = ".txt"
@@ -31,19 +32,24 @@ class Zettelkasten
     raise "$ZETTEL_DIR is not set"
   end
 
-  @kaesten = { "reticulum" => "reticulum",    # main numerus kasten
-               "rumen"     => "rumen",        # main tempus kasten
-               "omasum"    => "omasum",       # writing snippets
-               "abomasum"  => "abomasum",     # writing drafts
-               "tech"      => "tech",         # technical notes
-               "play"      => "play"          # roleplaying notes
+  # Kasten Name => Brief Description
+  @kaesten = { "os"        => "mouth",          # things get "ingested" (tempus)
+               "rumen"     => "first stomach",  # [default] others' ideas (tempus)
+               "reticulum" => "second stomach", # bibliographic entries (clavis operis)
+               "esophagus" => "esophagus",      # regurgitated ingesta (needs processing)
+               "omasum"    => "third stomach",  # [default] permanent notes (numerus)
+               "abomasum"  => "fourth stomach", # snippets and drafts (tempus)
+               "rectum"    => "expelled stuff", # submitted manuscripts (tempus)
+               "machina"   => "technology",     # technical notes (tempus)
+               "fabula"    => "story"           # roleplaying notes (tempus)
              }
   # For backward compatibility
   @kaesten_old = { }
 
   # The default kaesten can be referred to without specifying their kasten
-  @default_numerus = "reticulum"
   @default_tempus = "rumen"
+  @default_numerus = "esophagus" # FIXME: temporary; should be omasum
+  @default_opus = "reticulum"
 
   # Returns the directory for the given kasten
   def self.dir(kasten)
@@ -72,7 +78,14 @@ class Zettelkasten
 
   # Returns the type of the zettel found at the given path
   def self.zettel_type(path)
-    kasten_of(path) == @default_numerus ? :numerus : :tempus
+    case kasten_of(path)
+    when @default_numerus
+      :numerus
+    when @default_tempus
+      :tempus
+    when @default_opus
+      :opus
+    end
   end
 
   # Returns true if the given path is in the Zettelkasten
@@ -105,6 +118,8 @@ class Zettel
       return Numerus.new_from_link(link)
     elsif Tempus.valid_link?(link)
       return Tempus.new_from_link(link)
+    elsif Opus.valid_link?(link)
+      return Opus.new_from_link(link)
     else
       return nil
     end
@@ -117,6 +132,8 @@ class Zettel
       return Numerus.new_from_path(path)
     elsif Tempus.valid_path?(path)
       return Tempus.new_from_path(path)
+    elsif Opus.valid_path?(path)
+      return Opus.new_from_path(path)
     else
       return nil
     end
@@ -292,6 +309,10 @@ class Zettel
     return hash
   end
 end
+
+#-------------------------------------------------------------------------------
+# Numerus
+#-------------------------------------------------------------------------------
 
 class Numerus < Zettel
   SLUG_PATTERN = /^([0-9]{3})(-([a-z]+))*$/
@@ -499,5 +520,118 @@ class Tempus < Zettel
   def self.valid_path?(string)
     return File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
            Zettelkasten.includes?(string) ? true : false
+  end
+end
+
+#-------------------------------------------------------------------------------
+# Opus (Clavis Operis)
+#-------------------------------------------------------------------------------
+
+class Opus < Zettel
+  SLUG_PATTERN = /^([A-Za-z-]+)([0-9-]{4,10}[a-z]*)$/
+  FQN_PATTERN = SLUG_PATTERN
+
+  attr_reader :author,         # the author portion
+              :date,           # the date and letter differentiation portion
+              :section         # the section of the opus Kasten
+
+  #
+  # Custom Constructors
+  #
+  def self.new_from_path(*args)
+    opus = allocate
+    opus.init_path(*args)
+    opus
+  end
+
+  def self.new_from_link(*args)
+    opus = allocate
+    opus.init_link(*args)
+    opus
+  end
+
+  #
+  # Custom Initializers
+  #
+  def init_path(path)
+    if Zettelkasten.includes?(path)
+      init_link(Pathname(path).basename(Zettelkasten.ext).to_s)
+    else
+      raise "The path is not part of the Zettelkasten: #{path}"
+    end
+  end
+
+  def init_link(link)
+    if link =~ FQN_PATTERN
+      @type = :opus
+      @kasten = Zettelkasten.default_opus
+      @link = link
+      @author = $1
+      @date = $2
+      reinit()
+      read_file if @path.exist?
+    else
+      raise "This does not look like a clavis operis Zettel: #{link}"
+    end
+  end
+
+  # Sets @slug and @path based on @author and @date
+  def reinit()
+    @slug = @author + @date
+    @section = self.class.section_of(@slug)
+    @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
+  end
+
+  #
+  # Instance Methods
+  #
+
+  # Returns the wiki link target
+  def link()
+    return @slug
+  end
+
+  def author=(author)
+    if author =~ /[A-Za-z]+/
+      @author = author
+      reinit
+    else
+      raise "Author must consist of Latin letters and dashes only, not '#{author}'"
+    end
+  end
+
+  def date=(date)
+    if date =~ /[0-9-]{4,10}/
+      @date = date
+      reinit
+    else
+      raise "Date must be ISO 8601 year or YYYY-mm-dd, not '#{date}'"
+    end
+  end
+
+  #
+  # Class Methods
+  #
+
+  # Returns the appropriate sub-directory in the opus Kasten based on the
+  # Zettel slug.
+  # FIXME: Placeholder
+  def self.section_of(slug)
+    return ""
+  end
+
+  # Returns true if the link (a string) is a valid link to a opus Zettel
+  def self.valid_link?(string)
+    return string =~ FQN_PATTERN ? true : false
+  end
+
+  # Returns true if the string is a valid path a to a opus Zettel
+  def self.valid_path?(string)
+    if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
+       Zettelkasten.kasten_of(string) == Zettelkasten.default_opus
+      return true
+    else
+      return false
+    end
   end
 end
