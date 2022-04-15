@@ -132,6 +132,11 @@ the actual name followed by the alias."
   "When non-NIL, create new frames when opening links."
   :type 'boolean)
 
+(defcustom zettel-sort-by-name-descending t
+  "When non-NIL, `deft-sort-files-by-name' will sort in a descending order,
+otherwise ascending."
+  :type 'boolean)
+
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
@@ -269,12 +274,12 @@ specified, asks the user to resolve the ambiguity."
       slug
     (concat kasten ":" slug)))
 
-(defun zettel-tempus-directory (slug)
+(defun zettel-tempus-subdirectory (slug)
   "Returns the right subdirectory for the given tempus currens slug."
   (when (string-match zettel-regexp-tempus-currens slug)
     (file-name-as-directory (match-string 1 slug))))
 
-(defun zettel-numerus-directory (slug)
+(defun zettel-numerus-subdirectory (slug)
   "Finds the right directory for the given numerus currens slug."
   (when (stringp slug)
     (let ((result
@@ -303,8 +308,8 @@ This function replaces `deft-absolute-filename' for Zettel."
          (concat slug "." deft-extension)
          (expand-file-name
           (case (zettel-type slug)
-            (:numerus (zettel-numerus-directory slug))
-            (:tempus (zettel-tempus-directory slug))
+            (:numerus (zettel-numerus-subdirectory slug))
+            (:tempus (zettel-tempus-subdirectory slug))
             (t (error "This is not a proper Zettel link: %s" link)))
           (zettel-kasten-directory kasten))))
     (error "This is not a proper Zettel link: %s" link)))
@@ -400,7 +405,7 @@ line the given METADATA, and 2) leftover metadata."
                 (alist-get :link metadata)
                 (if (alist-get :category metadata)
                     (concat "{" (alist-get :category metadata) "} ")
-                  "")
+                  "{None}")
                 (alist-get :title metadata))
         (set-difference metadata '((:link) (:category) (:title) (:type))
                         :key #'car)))
@@ -437,8 +442,8 @@ symbol."
                                       (zettel-metadata-yaml-value (cdr cons)))))
                   (let (ordered-metadata)
                     (dolist (key '(:subtitle :created :modified
-                                             :parent :firstborn
-                                             :readings :keywords :oldname)
+                                             :parent :firstborn :oldname
+                                             :readings :keywords)
                                  (nreverse ordered-metadata))
                       (when (alist-get key remaining-metadata)
                         (push (cons key (alist-get key remaining-metadata))
@@ -1369,8 +1374,11 @@ on the first line with the Zettel title string."
 (defun deft-sort-files-by-name (files)
   "Sort FILES by name, in reverse, ignoring case."
   (sort files (lambda (f1 f2)
-                (string-lessp (downcase (file-name-base f2))
-                              (downcase (file-name-base f1))))))
+                (funcall (if zettel-sort-by-name-descending
+                             #'string-lessp
+                           #'string-greaterp)
+                         (downcase (file-name-base f2))
+                         (downcase (file-name-base f1))))))
 
 (defun zettel-title-lessp (file1 file2)
   "Return non-nil if the Zettel title of FILE1 is lexicographically less than
