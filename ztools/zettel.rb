@@ -39,9 +39,7 @@ class Zettelkasten
                "play"      => "play"          # roleplaying notes
              }
   # For backward compatibility
-  @kaesten_old = { "limbo"     => "rumen",
-                   "writing"   => "omasum"
-                 }
+  @kaesten_old = { }
 
   # The default kaesten can be referred to without specifying their kasten
   @default_numerus = "reticulum"
@@ -50,7 +48,7 @@ class Zettelkasten
   # Returns the directory for the given kasten
   def self.dir(kasten)
     if @kaesten[kasten]
-      return @root + @kaesten[kasten]
+      return @root + kasten
     elsif @kaesten_old[kasten]
       return @root + @kaesten_old[kasten]
     else
@@ -69,7 +67,7 @@ class Zettelkasten
     p = @root + p unless p.absolute?
     relative = p.relative_path_from(@root)
     topmost_dir = relative.each_filename.to_a[0]
-    return @kaesten.invert[topmost_dir]
+    return topmost_dir if @kaesten[topmost_dir]
   end
 
   # Returns the type of the zettel found at the given path
