@@ -77,7 +77,7 @@ Groups 4-5 are hour, minute.")
           "\\|"
           (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-tempus-currens)
           "\\|"
-          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-operis-clavis)
+          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-opus-currens)
           "\\)")
   "A generalized regexp that matches any slug, whether numerus or tempus
 currens.")
@@ -108,6 +108,10 @@ Groups 1-2 are hour and minute.")
   "Stores the file name of the document into which a link was inserted with
 `zettel-insert-link-intrusive' or `zettel-insert-link', allowing for creation
 of backlinks.")
+
+(defvar zettel-deft-active-kasten nil
+  "The name of the active Zettelkasten, if any. This variable is set by
+`zettel-deft-choose-kasten'.")
 
 ;;;=============================================================================
 ;;; User Variables
@@ -219,13 +223,14 @@ nil if there is nothing there."
   "Returns the slug part of the given Zettel file."
   (file-name-base file))
 
+;; FIXME: The function relies on the fact that the Kasten directory is 2nd from
+;; the last for any numerus or tempus Zettel and 1st for opus Zettel.
 (defun zettel-file-kasten (file)
-  "Returns the kasten of the given Zettel file.
-
-The function relies on the fact that the Kasten directory is 2nd from the
-last for any numerus or tempus Zettel."
-  (zettel-kasten-truename
-   (second (reverse (split-string (file-name-directory file) "/" t "/")))))
+  "Returns the kasten of the given Zettel file."
+  (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
+    (if (string= (first dirs) zettel-default-opus-kasten)
+        (zettel-kasten-truename (first dirs))
+      (zettel-kasten-truename (second dirs)))))
 
 (defun zettel-file-link (file)
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
@@ -267,7 +272,8 @@ specified, asks the user to resolve the ambiguity."
                    (error "Umm, this shouldn't happen"))))))))
 
 (defun zettel-set-default-kasten (type kasten)
-  "Interactively set the default kasten for the given type (:NUMERUS or :TEMPUS)."
+  "Interactively set the default kasten for the given type (:NUMERUS, :OPUS,
+or :TEMPUS)."
   (interactive
    (list (intern (concat ":" (ivy-read "Set default for which type of Zettel? "
                                        '(NUMERUS TEMPUS))))
@@ -277,11 +283,12 @@ specified, asks the user to resolve the ambiguity."
                      (error "No Zettelkästen defined")))))
   (case type
     (:NUMERUS (setq zettel-default-numerus-kasten kasten))
-    (:TEMPUS (setq zettel-default-tempus-kasten kasten))
+    (:TEMPUS  (setq zettel-default-tempus-kasten kasten))
+    (:OPUS    (setq zettel-default-opus-kasten kasten))
     (t (error "Zettel type not selected"))))
 
-(defun zettel-kasten-type (kasten)
-  "Returns the Zettel naming type for the given kasten based on
+(defun zettel-kasten-slug-type (kasten)
+  "Returns the Zettel slug naming type for the given kasten based on
 `zettel-kaesten'."
   (third (assoc kasten zettel-kaesten #'string=)))
 
@@ -360,7 +367,7 @@ This function replaces `deft-absolute-filename' for Zettel."
            :tempus)
           ((string-match-p zettel-regexp-numerus-currens slug)
            :numerus)
-          ((string-match-p zettel-regexp-operis-clavis slug)
+          ((string-match-p zettel-regexp-opus-currens slug)
            :opus)
           (t
            (error "This doesn't look like a Zettel slug: %s" slug)))))
@@ -629,19 +636,33 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defun zettel-next-unused-slug ()
-  "Returns the next unused slug, relying on `deft-all-files'."
-  (let ((used (mapcar #'zettel-file-slug deft-all-files))
-        slug)
-    (while (or (not slug) (find slug used))
-      (setq slug (format "%03d-%s"
-                         (random 1000)
-                         (abase26-encode (random (expt 26 3)) 3))))
-    slug))
-
-(defun zettel-timestamp-slug ()
-  "Returns a timestamp in the form YYYYMMDDTHHmm to use as the slug."
-  (format-time-string "%Y%m%dT%H%M"))
+(defun zettel-next-unused-slug (&optional type)
+  "Returns the next unused slug, relying on `zettel-deft-active-kasten' and
+`zettel-kaesten' to figure out the type if not given, and on `deft-all-files'
+to avoid duplicates."
+  (let* ((active-kasten-type (third (assoc zettel-deft-active-kasten
+                                           zettel-kaesten
+                                           #'string=)))
+         (type (or type active-kasten-type)))
+    (if (eq type :tempus)
+        ;; FIXME: Assuming I won't make more than one/second
+        (format-time-string "%Y%m%dT%H%M")
+      (let (used
+            slug)
+        (if (and (eq type active-kasten-type))
+            (setq used (mapcar #'zettel-file-slug deft-all-files))
+          (message "Generating unused slug without checking for duplicates..."))
+        (while (or (not slug) (find slug used))
+          (setq slug
+            (case type
+              (:numerus (format "%03d-%s"
+                                (random 1000)
+                                (abase26-encode (random (expt 26 3)) 3)))
+              (:opus    (format "%s-%04d"
+                                (abase26-encode (random 26))
+                                (random 10000)))
+              (t        (error "Unknown Zettel type")))))
+        slug))))
 
 (defun deft-new-unused-zettel ()
   "Create a new Zettel with unused numerus currens."
@@ -1006,9 +1027,8 @@ universal argument, behave like `zettel-insert-link'."
 (defun zettel-generate-new-child (parent kasten)
   "Generates a new child of the given PARENT in the KASTEN."
   (let ((child-link (zettel-make-link
-                     kasten (if (equal kasten zettel-default-numerus-kasten)
-                                (zettel-next-unused-slug)
-                              (zettel-timestamp-slug)))))
+                     kasten
+                     (zettel-next-unused-slug (zettel-kasten-slug-type kasten)))))
     (add-to-list 'zettel-parent-of-new-child (cons child-link parent))
     child-link))
 
@@ -1267,10 +1287,6 @@ prefix argument, allows the user to type in a custom category."
   (lambda ()
     (setq show-trailing-whitespace nil)))
 
-(defvar zettel-deft-active-kasten nil
-  "The name of the active Zettelkasten, if any. This variable is set by
-`zettel-deft-choose-kasten'.")
-
 (defun zettel-deft-choose-kasten (arg new-kasten)
   "If there is an existing `deft-buffer', switches to it, otherwise
 interactively selects the deft directory from among `zettel-kaesten'. With
@@ -1320,21 +1336,22 @@ as the value for `deft-parse-title-function'."
   (let ((metadata (zettel-decode-combined-title
                    (replace-regexp-in-string "^\\(title: +\\)" "" line))))
     (when metadata
-     ;; FIXME: Any more elegant way to do this?
-     (if (eq (zettel-type (alist-get :slug metadata)) :numerus)
-         (setq slug-len 7               ; 000-aaa
-               cat-len 20)
-       (setq slug-len 13                ; 19700101T0000
-             cat-len 15))
-     ;; SLUG CATEGORY TITLE KEYWORDS
-     (format (format "%%-%ds%%-%ds%%s %%s" (+ slug-len 2) cat-len)
-             (alist-get :slug metadata)
-             (let ((cat (alist-get :category metadata)))
-               (if (> (length cat) cat-len)
-                   (concat (subseq cat 0 (- cat-len 2)) "..")
-                 cat))
-             (alist-get :title metadata)
-             (or (alist-get :keywords metadata) "")))))
+      ;; FIXME: Any more elegant way to do this?
+      ;; FIXME: I should make an alist of slug-len and cat-len for each zettel type
+      (if (eq (zettel-type (alist-get :slug metadata)) :tempus)
+          (setq slug-len 13             ; 19700101T0000
+                cat-len 15)
+        (setq slug-len 7                ; 000-aaa
+              cat-len 15))
+      ;; SLUG CATEGORY TITLE KEYWORDS
+      (format (format "%%-%ds%%-%ds%%s %%s" (+ slug-len 2) cat-len)
+              (alist-get :slug metadata)
+              (let ((cat (alist-get :category metadata)))
+                (if (> (length cat) cat-len)
+                    (concat (subseq cat 0 (- cat-len 2)) "..")
+                  cat))
+              (alist-get :title metadata)
+              (or (alist-get :keywords metadata) "")))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
 (defun deft-new-file-maybe-named (arg)
@@ -1668,7 +1685,10 @@ consistently format the frame title with useful information for
 Zettelkasten work."
   (interactive)
   (concat (if zettel-deft-active-kasten
-              (format "〔%s〕" (upcase (subseq zettel-deft-active-kasten 0 3)))
+              (format "〔%s〕"
+                      (upcase
+                       (subseq zettel-deft-active-kasten
+                               0 (min (length zettel-deft-active-kasten) 3))))
             "")
           (if (and (boundp 'zettel-mode) zettel-mode)
               (let ((metadata (zettel-metadata buffer-file-name)))
@@ -1699,10 +1719,9 @@ Zettelkasten work."
   "Generates a zmove shell command to move the current Zettel to its operis
 clavis Zettel based on the category."
   (interactive)
-  (let* ((metadata (zettel-metadata buffer-file-name))
-         (source-link (alist-get :link metadata))
-         (category (alist-get :category metadata))
-         (command (format "zmove -i %s %s" source-link category)))
+  (let* ((source-link (zettel-file-link buffer-file-name))
+         (target-link (zettel-next-unused-slug :opus))
+         (command (format "zmove -i %s %s" source-link target-link)))
     (rb-set-clipboard-data command)
     (message "Copied command to clipbaord: %s" command)))
 
@@ -1845,7 +1864,7 @@ backlink."
 ;; "Shadow" the built-in slug generator to generate timestamps by default,
 ;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
 (eval-after-load "deft"
-  '(defalias 'deft-unused-slug 'zettel-timestamp-slug))
+  '(defalias 'deft-unused-slug 'zettel-next-unused-slug))
 (define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
 
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
