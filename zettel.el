@@ -5,6 +5,10 @@
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
 ;;;;-----------------------------------------------------------------------------
+;;;; TODO:
+;;;;
+;;;; - implement a good way to set keywords, ideally with completion of existing
+;;;;   ones
 
 (require 'deft)
 
@@ -58,14 +62,13 @@ the Zettel directory."
 (defvar zettel-regexp-tempus-currens
   "\\([0-9]\\{4\\}\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)T\\([0-9][0-9]\\)\\([0-9][0-9]\\)"
   "The regular expression that matches the basic (but not extended) ISO 8601
-date and time.
+timestamp.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
 
-(defvar zettel-regexp-operis-clavis
-  "\\([A-Za-z-]+\\)\\([0-9]\\{4,10\\}\\)\\([a-z]\\)"
-  "The regular expression that matches a bibliographic citation key like
-Nemec1977.")
+(defvar zettel-regexp-opus-currens
+  "\\([a-z]\\)-\\([0-9]\\{4\\}\\)"
+  "The regular expression that matches an opus currens key like a-1234.")
 
 (defvar zettel-regexp-slug
   ;; Strip the groups in the component regexps
@@ -447,7 +450,8 @@ symbol."
 
 (defun zettel-normalize-metadata (file)
   "Replaces the metadata section of the given FILE."
-  (let ((metadata (zettel-metadata file)))
+  (let ((metadata (zettel-metadata file))
+        (old-point (point)))
     (save-excursion
       (with-current-buffer (get-file-buffer file)
         (save-restriction
@@ -469,7 +473,10 @@ symbol."
                                  (nreverse ordered-metadata))
                       (when (alist-get key remaining-metadata)
                         (push (cons key (alist-get key remaining-metadata))
-                              ordered-metadata)))))))))))
+                              ordered-metadata)))))))))
+    ;; `Save-excursion' doesn't seem to restore the point, possibly because the
+    ;; file is changed, so need to do it manually.
+    (goto-char old-point)))
 
 (defun zettel-update-metadata (key value)
   "Updates the Zettel metadata section in the current buffer, setting the KEY
