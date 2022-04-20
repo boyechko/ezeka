@@ -117,12 +117,13 @@ of backlinks.")
   "The central Zettelkasten directory."
   :type 'string)
 
-(defcustom zettel-kasten nil
-  "An alist containing the names and directories of the Kasten."
+(defcustom zettel-kaesten nil
+  "An alist containing the names, directories, slug types, and order of the
+Kaesten."
   :type 'alist)
 
-(defcustom zettel-kasten-aliases nil
-  "An alist of any other aliases for the `zettel-kasten'. This is an alist of
+(defcustom zettel-kaesten-aliases nil
+  "An alist of any other aliases for the `zettel-kaesten'. This is an alist of
 the actual name followed by the alias."
   :type 'alist)
 
@@ -203,16 +204,16 @@ nil if there is nothing there."
 
 (defun zettel-kasten-directory (kasten)
   "Returns the directory of the given KASTEN."
-  (second (assoc (zettel-kasten-truename kasten) zettel-kasten)))
+  (second (assoc (zettel-kasten-truename kasten) zettel-kaesten)))
 
 (defun zettel-directory-kasten (directory)
   "Returns the kasten name of the given Zettel directory."
-  (car (cl-rassoc directory zettel-kasten :key #'first :test #'string=)))
+  (car (cl-rassoc directory zettel-kaesten :key #'first :test #'string=)))
 
 (defun zettel-kasten-truename (kasten)
   "Returns the true name of the given KASTEN."
-  (or (cdr (assoc kasten zettel-kasten-aliases))
-      (car (assoc kasten zettel-kasten))))
+  (or (cdr (assoc kasten zettel-kaesten-aliases))
+      (car (assoc kasten zettel-kaesten))))
 
 (defun zettel-file-slug (file)
   "Returns the slug part of the given Zettel file."
@@ -240,8 +241,8 @@ last for any numerus or tempus Zettel."
   (and (string-match (concat "^" zettel-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if (match-string-no-properties 2 string)
-           (or (assoc (match-string-no-properties 2 string) zettel-kasten)
-               (assoc (match-string-no-properties 2 string) zettel-kasten-aliases))
+           (or (assoc (match-string-no-properties 2 string) zettel-kaesten)
+               (assoc (match-string-no-properties 2 string) zettel-kaesten-aliases))
          t)))
 
 (defun zettel-link-kasten (link)
@@ -271,13 +272,18 @@ specified, asks the user to resolve the ambiguity."
    (list (intern (concat ":" (ivy-read "Set default for which type of Zettel? "
                                        '(NUMERUS TEMPUS))))
          (ivy-read "Set the default to what Kasten? "
-                   (if (listp zettel-kasten)
-                       (mapcar #'first zettel-kasten)
+                   (if (listp zettel-kaesten)
+                       (mapcar #'first zettel-kaesten)
                      (error "No Zettelkästen defined")))))
   (case type
     (:NUMERUS (setq zettel-default-numerus-kasten kasten))
     (:TEMPUS (setq zettel-default-tempus-kasten kasten))
     (t (error "Zettel type not selected"))))
+
+(defun zettel-kasten-type (kasten)
+  "Returns the Zettel naming type for the given kasten based on
+`zettel-kaesten'."
+  (third (assoc kasten zettel-kaesten #'string=)))
 
 (defun zettel-link-slug (link)
   "Returns the slug part of the given LINK."
@@ -1028,8 +1034,8 @@ full link."
             (message "This Zettel already exists; try again")))
       (let ((kasten (cond ((= arg 4)
                            (ivy-read "Zettelkasten: "
-                                     (if (listp zettel-kasten)
-                                         (mapcar #'first zettel-kasten)
+                                     (if (listp zettel-kaesten)
+                                         (mapcar #'first zettel-kaesten)
                                        (error "No Zettelkasten defined"))))
                           (t
                            (unless zettel-default-numerus-kasten
@@ -1267,7 +1273,7 @@ prefix argument, allows the user to type in a custom category."
 
 (defun zettel-deft-choose-kasten (arg new-kasten)
   "If there is an existing `deft-buffer', switches to it, otherwise
-interactively selects the deft directory from among `zettel-kasten'. With
+interactively selects the deft directory from among `zettel-kaesten'. With
 a prefix argument, selects new deft directory regardless of `deft-buffer';
 with double prefix argument calls `zettel-deft-choose-directory' instead."
   (interactive
@@ -1276,9 +1282,9 @@ with double prefix argument calls `zettel-deft-choose-directory' instead."
     (when (or (null (get-buffer deft-buffer))
               (equal current-prefix-arg '(4)))
       (ivy-read "Zettel kasten: "
-                (if (listp zettel-kasten)
-                    (mapcar #'first (cl-sort (copy-sequence zettel-kasten)
-                                             #'< :key #'third))
+                (if (listp zettel-kaesten)
+                    (mapcar #'first (cl-sort (copy-sequence zettel-kaesten)
+                                             #'< :key #'fourth))
                   '("default"))))))
   (cond ((equal arg '(16))
          (call-interactively #'zettel-deft-choose-directory))
