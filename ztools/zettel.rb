@@ -310,12 +310,15 @@ end
 #-------------------------------------------------------------------------------
 
 class Numerus < Zettel
-  SLUG_PATTERN = /^([0-9]{3})(-([a-z]+))*$/
   ZETTEL_TYPE = :numerus
 
+  N_DIGITS = 3                  # number of digits
+  SEPARATOR = "-"               # separator between digits and letters
+  N_LETTERS = 3                 # number of letters
+  SLUG_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
   FQN_PATTERN = SLUG_PATTERN
 
-  attr_reader :numbers,         # the number portion of the slug
+  attr_reader :digits,          # the number portion of the slug
               :letters,         # the letter portion of the slug
               :section          # the section of the numerus Kasten
 
@@ -351,8 +354,8 @@ class Numerus < Zettel
       @type = self.class::ZETTEL_TYPE
       @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_TYPE]
       @link = link
-      @numbers = $1
-      @letters = $3
+      @digits = Regexp.last_match.named_captures["digits"]
+      @letters = Regexp.last_match.named_captures["letters"]
       reinit()
       read_file if @path.exist?
     else
@@ -360,14 +363,9 @@ class Numerus < Zettel
     end
   end
 
-  # Sets @slug, @section, and @path based on @numbers and @letters
+  # Sets @slug, @section, and @path based on @digits and @letters
   def reinit()
-    if @letters.nil? or @letters.empty?
-      @letters = ""
-      @slug = @numbers
-    else
-      @slug = @numbers + "-" + @letters
-    end
+    @slug = self.slug()
     @section = self.class.section_of(@slug)
     @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
   end
@@ -381,21 +379,25 @@ class Numerus < Zettel
     return @slug
   end
 
-  def letters=(letters)
-    if letters =~ /[a-z]+/ or letters.nil? or letters.empty?
-      @letters = letters
+  def slug()
+    return @digits + self.class::SEPARATOR + @letters
+  end
+
+  def digits=(digits)
+    if digits =~ /[0-9]{#{self.class::N_DIGITS}}/
+      @digits = digits
       reinit
     else
-      raise "Letters can be English letters or nil/empty, not '#{letters}'"
+      raise "Digits can only be #{self.class::N_DIGITS} digit(s), not '#{digits}'"
     end
   end
 
-  def numbers=(numbers)
-    if numbers =~ /[0-9]{3}/
-      @numbers = numbers
+  def letters=(letters)
+    if letters =~ /[a-z]{#{self.class::N_LETTERS}}/
+      @letters = letters
       reinit
     else
-      raise "Numbers can only be three digits, not '#{numbers}'"
+      raise "Letters can only be #{self.class::N_LETTERS} English letter(s), not '#{letters}'"
     end
   end
 
@@ -406,7 +408,7 @@ class Numerus < Zettel
   # Returns the appropriate sub-directory in the numerus Kasten based on the
   # Zettel slug.
   def self.section_of(slug)
-    if slug =~ SLUG_PATTERN
+    if slug =~ self::SLUG_PATTERN
       num = $1.to_i
       if num >= 0 and num <= 99
         return "000-099"
@@ -423,7 +425,7 @@ class Numerus < Zettel
 
   # Returns true if the link (a string) is a valid link to numerus currens Zettel
   def self.valid_link?(string)
-    return string =~ FQN_PATTERN ? true : false
+    return string =~ self::FQN_PATTERN ? true : false
   end
 
   # Returns true if the string is a valid path a to numerus currens zettel
@@ -522,114 +524,31 @@ class Tempus < Zettel
 end
 
 #-------------------------------------------------------------------------------
-# Opus (Clavis Operis)
+# Opus
 #-------------------------------------------------------------------------------
 
-class Opus < Zettel
-  SLUG_PATTERN = /^([A-Za-z-]+)([0-9-]{4,10}[a-z]*)$/
+class Opus < Numerus
+  ZETTEL_TYPE = :opus
+
+  N_LETTERS = 1
+  SEPARATOR = "-"
+  N_DIGITS = 4
+  SLUG_PATTERN = /^(?<letters>[a-z]{#{N_LETTERS}})-(?<digits>[0-9]{#{N_DIGITS}})$/
   FQN_PATTERN = SLUG_PATTERN
 
-  attr_reader :author,         # the author portion
-              :date,           # the date and letter differentiation portion
-              :section         # the section of the opus Kasten
-
-  #
-  # Custom Constructors
-  #
-  def self.new_from_path(*args)
-    opus = allocate
-    opus.init_path(*args)
-    opus
+  # How to form slugs
+  def slug()
+    return @letters + self.class::SEPARATOR + @digits
   end
-
-  def self.new_from_link(*args)
-    opus = allocate
-    opus.init_link(*args)
-    opus
-  end
-
-  #
-  # Custom Initializers
-  #
-  def init_path(path)
-    if Zettelkasten.includes?(path)
-      init_link(Pathname(path).basename(Zettelkasten.ext).to_s)
-    else
-      raise "The path is not part of the Zettelkasten: #{path}"
-    end
-  end
-
-  def init_link(link)
-    if link =~ FQN_PATTERN
-      @type = :opus
-      @kasten = Zettelkasten.default_opus
-      @link = link
-      @author = $1
-      @date = $2
-      reinit()
-      read_file if @path.exist?
-    else
-      raise "This does not look like a clavis operis Zettel: #{link}"
-    end
-  end
-
-  # Sets @slug and @path based on @author and @date
-  def reinit()
-    @slug = @author + @date
-    @section = self.class.section_of(@slug)
-    @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
-  end
-
-  #
-  # Instance Methods
-  #
-
-  # Returns the wiki link target
-  def link()
-    return @slug
-  end
-
-  def author=(author)
-    if author =~ /[A-Za-z]+/
-      @author = author
-      reinit
-    else
-      raise "Author must consist of Latin letters and dashes only, not '#{author}'"
-    end
-  end
-
-  def date=(date)
-    if date =~ /[0-9-]{4,10}/
-      @date = date
-      reinit
-    else
-      raise "Date must be ISO 8601 year or YYYY-mm-dd, not '#{date}'"
-    end
-  end
-
-  #
-  # Class Methods
-  #
 
   # Returns the appropriate sub-directory in the opus Kasten based on the
   # Zettel slug.
-  # FIXME: Placeholder
   def self.section_of(slug)
-    return ""
-  end
-
-  # Returns true if the link (a string) is a valid link to a opus Zettel
-  def self.valid_link?(string)
-    return string =~ FQN_PATTERN ? true : false
-  end
-
-  # Returns true if the string is a valid path a to a opus Zettel
-  def self.valid_path?(string)
-    if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
-       Zettelkasten.kasten_of(string) == Zettelkasten.default_opus
-      return true
+    if slug =~ SLUG_PATTERN
+      return ""                 # FIXME: No sections
+      # return "#{slug[0]}"
     else
-      return false
+      raise "Slug '#{slug}' is not an opus currens #{SLUG_PATTERN}"
     end
   end
 end
