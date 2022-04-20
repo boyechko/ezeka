@@ -18,9 +18,7 @@ require 'open3'
 class Zettelkasten
   class << self; attr_accessor :root end
   class << self; attr_accessor :ext end
-  class << self; attr_accessor :default_numerus end
-  class << self; attr_accessor :default_tempus end
-  class << self; attr_accessor :default_opus end
+  class << self; attr_reader :default_kasten end
 
   # Default extension for Zettelkasten files
   @ext = ".txt"
@@ -32,24 +30,28 @@ class Zettelkasten
     raise "$ZETTEL_DIR is not set"
   end
 
-  # Kasten Name => Brief Description
-  @kaesten = { "os"        => "mouth",          # things get "ingested" (tempus)
-               "rumen"     => "first stomach",  # [default] others' ideas (tempus)
-               "reticulum" => "second stomach", # bibliographic entries (clavis operis)
-               "esophagus" => "esophagus",      # regurgitated ingesta (needs processing)
-               "omasum"    => "third stomach",  # [default] permanent notes (numerus)
-               "abomasum"  => "fourth stomach", # snippets and drafts (tempus)
-               "rectum"    => "expelled stuff", # submitted manuscripts (tempus)
-               "machina"   => "technology",     # technical notes (tempus)
-               "fabula"    => "story"           # roleplaying notes (tempus)
+  # Kasten Name => Type
+  @kaesten = { "os"        => :tempus,          # things get "ingested"
+               "rumen"     => :tempus,          # [default] others' ideas
+               "reticulum" => :opus,            # bibliographic entries
+               "esophagus" => :numerus,         # regurgitated ingesta (needs processing) FIXME
+               "omasum"    => :numerus,         # [default] permanent notes
+               "abomasum"  => :tempus,          # snippets and drafts
+               "rectum"    => :tempus,          # submitted manuscripts
+               "machina"   => :tempus,          # technical notes
+               "fabula"    => :tempus           # roleplaying notes
              }
-  # For backward compatibility
-  @kaesten_old = { }
 
   # The default kaesten can be referred to without specifying their kasten
-  @default_tempus = "rumen"
-  @default_numerus = "esophagus" # FIXME: temporary; should be omasum
-  @default_opus = "reticulum"
+  # Type => Kasten
+  @default_kasten = { :numerus => "esophagus", # FIXME: temporary; should be omasum
+                      :tempus => "rumen",
+                      :opus => "reticulum"
+                    }
+
+  # Translations for backward compatibility
+  # Old Kasten => Current Kasten
+  @kaesten_old = { }
 
   # Returns the directory for the given kasten
   def self.dir(kasten)
@@ -78,14 +80,7 @@ class Zettelkasten
 
   # Returns the type of the zettel found at the given path
   def self.zettel_type(path)
-    case kasten_of(path)
-    when @default_numerus
-      :numerus
-    when @default_tempus
-      :tempus
-    when @default_opus
-      :opus
-    end
+    return @kaesten[kasten_of(path)]
   end
 
   # Returns true if the given path is in the Zettelkasten
@@ -99,7 +94,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Zettel
-  attr_reader :type,            # Zettel type; either :tempus or :numerus
+  attr_reader :type,            # Zettel type: :tempus, :numerus, or :opus
               :kasten,          # Kasten, as string
               :slug,            # slug only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless default)
@@ -316,6 +311,8 @@ end
 
 class Numerus < Zettel
   SLUG_PATTERN = /^([0-9]{3})(-([a-z]+))*$/
+  ZETTEL_TYPE = :numerus
+
   FQN_PATTERN = SLUG_PATTERN
 
   attr_reader :numbers,         # the number portion of the slug
@@ -348,17 +345,18 @@ class Numerus < Zettel
     end
   end
 
+  # For self.class::Constant, see https://stackoverflow.com/a/13234497
   def init_link(link)
-    if link =~ FQN_PATTERN
-      @type = :numerus
-      @kasten = Zettelkasten.default_numerus
+    if link =~ self.class::FQN_PATTERN
+      @type = self.class::ZETTEL_TYPE
+      @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_TYPE]
       @link = link
       @numbers = $1
       @letters = $3
       reinit()
       read_file if @path.exist?
     else
-      raise "This does not look like a numerus currens Zettel: #{link}"
+      raise "This does not look like a(n) #{ZETTEL_TYPE.to_s} currens Zettel: #{link}"
     end
   end
 
@@ -430,8 +428,8 @@ class Numerus < Zettel
 
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    if File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
-       Zettelkasten.kasten_of(string) == Zettelkasten.default_numerus
+    if File.basename(string, Zettelkasten.ext) =~ self::SLUG_PATTERN &&
+       Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_TYPE]
       return true
     else
       return false
@@ -502,7 +500,7 @@ class Tempus < Zettel
 
   # Returns the wiki link target
   def link()
-    if @kasten == Zettelkasten.default_tempus then return @slug
+    if @kasten == Zettelkasten.default_kasten[@type] then return @slug
     else return "#{@kasten}:#{@slug}"
     end
   end
