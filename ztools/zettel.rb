@@ -1,6 +1,6 @@
 # coding: utf-8
 # -----------------------------------------------------------------------------
-#      Author: Richard Boyechko <rb-mercurial@diachronic.net>
+#      Author: Richard Boyechko <hoybach@diachronic.net>
 # Description: A collection of methods for working with Zettel
 #     Created: 2016-09-02
 #    Comments:
@@ -32,10 +32,10 @@ class Zettelkasten
 
   # Kasten Name => Type
   @kaesten = { "os"        => :tempus,          # things get "ingested"
-               "rumen"     => :tempus,          # [default] others' ideas
-               "reticulum" => :opus,            # bibliographic entries
-               "esophagus" => :numerus,         # regurgitated ingesta (needs processing) FIXME
-               "omasum"    => :numerus,         # [default] permanent notes
+               "esophagus" => :bolus,           # regurgitated ingesta (needs processing) FIXME
+               "rumen"     => :numerus,         # [default] others' ideas
+               # "reticulum" is not used, so "rumen" stands for "reticulorumen"
+               "omasum"    => :tempus,          # [default] permanent notes
                "abomasum"  => :tempus,          # snippets and drafts
                "rectum"    => :tempus,          # submitted manuscripts
                "machina"   => :tempus,          # technical notes
@@ -312,10 +312,10 @@ end
 class Numerus < Zettel
   ZETTEL_TYPE = :numerus
 
-  N_DIGITS = 3                  # number of digits
+  N_DIGITS = 4                  # number of digits
   SEPARATOR = "-"               # separator between digits and letters
-  N_LETTERS = 3                 # number of letters
-  SLUG_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
+  N_LETTERS = 1                 # number of letters
+  SLUG_PATTERN = /^(?<letters>[a-z]{#{N_LETTERS}})#{SEPARATOR}(?<digits>[0-9]{#{N_DIGITS}})$/
   FQN_PATTERN = SLUG_PATTERN
 
   attr_reader :digits,          # the number portion of the slug
@@ -380,7 +380,7 @@ class Numerus < Zettel
   end
 
   def slug()
-    return @digits + self.class::SEPARATOR + @letters
+    return @letters + self.class::SEPARATOR + @digits
   end
 
   def digits=(digits)
@@ -408,18 +408,10 @@ class Numerus < Zettel
   # Returns the appropriate sub-directory in the numerus Kasten based on the
   # Zettel slug.
   def self.section_of(slug)
-    if slug =~ self::SLUG_PATTERN
-      num = $1.to_i
-      if num >= 0 and num <= 99
-        return "000-099"
-      elsif num >= 100 and num <= 999
-        return "#{slug[0]}00-#{slug[0]}99"
-      else
-        # Should never get here: SLUG_PATTERN limits the numerus to three digits
-        raise "Numerus currens '#{slug}' is out of bounds (0-999)"
-      end
+    if slug =~ SLUG_PATTERN
+      return "#{slug[0]}"
     else
-      raise "Slug '#{slug}' is not a numerus currens"
+      raise "Slug '#{slug}' is not a numerus currens #{SLUG_PATTERN}"
     end
   end
 
