@@ -1293,8 +1293,9 @@ prefix argument, allows the user to type in a custom category."
 ;; Adjust how Deft lists Zettel
 (setq deft-strip-title-regexp "^\\(title: +\\)"
       ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
-      deft-strip-summary-regexp "\\(^\\w+: .*\\)"
+      deft-strip-summary-regexp ".*"
       ;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
+      ;; Modified: "\\(^\\w+: .*\\)"
       deft-time-format nil
       deft-use-filename-as-title nil
       deft-current-sort-method 'mtime)
@@ -1841,6 +1842,21 @@ backlink."
               (insert s "\n"))
           (delete-dups slugs))
     (delete-duplicate-lines (point-min) (point-max))))
+
+;; Based on https://stackoverflow.com/a/30328255
+(defun magit-show-zettel-title-in-minibuffer ()
+  "Displays Zettel title of the file under cursor in minibuffer."
+  (while-no-input
+    (redisplay)
+    (let ((file (magit-file-at-point)))
+      (when (zettel-p file)
+        (let ((metadata (zettel-decode-combined-title
+                         (subseq (magit-file-line file) (length "title: ")))))
+          (message "%s | %s"
+                   (alist-get :slug metadata) (alist-get :title metadata)))))))
+(add-hook 'magit-mode-hook
+  '(lambda ()
+     (add-hook 'post-command-hook 'magit-show-zettel-title-in-minibuffer)))
 
 ;;;-----------------------------------------------------------------------------
 ;;; Zettel-Mode Key Bindings
