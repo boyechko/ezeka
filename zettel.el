@@ -108,6 +108,10 @@ of backlinks.")
   "The name of the active Zettelkasten, if any. This variable is set by
 `zettel-deft-choose-kasten'.")
 
+(defvar zettel-pregenerated-numeri "auto/unused-numeri.dat"
+  "List of unused numri curentes to use for creating new numerus currens
+Zettel in rumen when Emacs cannot check the list of existing files.")
+
 ;;;=============================================================================
 ;;; User Variables
 ;;;=============================================================================
@@ -629,33 +633,51 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
+(defun zettel-generate-new-slug (type)
+  "Generates a random new slug of the given type."
+  (case type
+    (:tempus (format-time-string "%Y%m%dT%H%M"))
+    (:bolus  (format "%03d-%s"
+                     (random 1000)
+                     (abase26-encode (random (expt 26 3)) 3)))
+    (:numerus (format "%s-%04d"
+                      (abase26-encode (random 26))
+                      (random 10000)))
+    (:index   (format "%02d-%s"
+                      (random 100)
+                      (abase26-encode (random 26))))
+    (t        (error "Unknown Zettel type"))))
+
 (defun zettel-next-unused-slug (&optional type)
   "Returns the next unused slug, relying on `zettel-deft-active-kasten' and
 `zettel-kaesten' to figure out the type if not given, and on `deft-all-files'
 to avoid duplicates."
-  (let* ((active-kasten-type (third (assoc zettel-deft-active-kasten
-                                           zettel-kaesten
-                                           #'string=)))
-         (type (or type active-kasten-type)))
-    (if (eq type :tempus)
-        ;; FIXME: Assuming I won't make more than one/second
-        (format-time-string "%Y%m%dT%H%M")
-      (let (used
-            slug)
-        (if (and (eq type active-kasten-type))
-            (setq used (mapcar #'zettel-file-slug deft-all-files))
-          (message "Generating unused slug without checking for duplicates..."))
-        (while (or (not slug) (find slug used))
-          (setq slug
-            (case type
-              (:numerus (format "%03d-%s"
-                                (random 1000)
-                                (abase26-encode (random (expt 26 3)) 3)))
-              (:opus    (format "%s-%04d"
-                                (abase26-encode (random 26))
-                                (random 10000)))
-              (t        (error "Unknown Zettel type")))))
-        slug))))
+  (let* ((active-kasten-type (second (assoc zettel-deft-active-kasten
+                                            zettel-kaesten
+                                            #'string=)))
+         (type (or type active-kasten-type))
+         slug)
+    (cond ((eq type :tempus)
+           (setq slug (zettel-generate-new-slug type)))
+          ((eq type active-kasten-type)
+           (message "Generating next unused slug of type %s" type)
+           (let ((used (mapcar #'zettel-file-slug deft-all-files)))
+             (while (or (not slug) (find slug used))
+               (setq slug (zettel-generate-new-slug type)))))
+          ((and (eq type :numerus)
+                (file-exists-p (in-zettel-dir zettel-pregenerated-numeri)))
+           (message "Getting next numerus from `zettel-pregenerated-numeri'...")
+           (let ((buffer (find-file-noselect
+                          (in-zettel-dir zettel-pregenerated-numeri))))
+             (with-current-buffer buffer
+               (setq slug
+                 (string-trim (delete-and-extract-region
+                               1 (search-forward-regexp "[[:space:]]" nil t))))
+               (basic-save-buffer))))
+          (t
+           (message "Generating unused slug without checking for duplicates...")
+           (setq slug (zettel-generate-new-slug type))))
+    slug))
 
 (defun deft-new-unused-zettel ()
   "Create a new Zettel with unused numerus currens."
@@ -1290,11 +1312,7 @@ with double prefix argument calls `zettel-deft-choose-directory' instead."
     current-prefix-arg
     (when (or (null (get-buffer deft-buffer))
               (equal current-prefix-arg '(4)))
-      (ivy-read "Zettel kasten: "
-                (if (listp zettel-kaesten)
-                    (mapcar #'first (cl-sort (copy-sequence zettel-kaesten)
-                                             #'< :key #'fourth))
-                  '("default"))))))
+      (ivy-read "Zettel kasten: " zettel-kaesten))))
   (cond ((equal arg '(16))
          (call-interactively #'zettel-deft-choose-directory))
         ((not new-kasten)
@@ -1806,15 +1824,16 @@ backlink."
               (t
                (zettel-insert-link-intrusive nil)))))))
 
-(defun zettel-generate-new-slugs (how-many)
-  (interactive "nHow many: ")
+(defun zettel-generate-n-new-slugs (how-many type)
+  "Generates a bunch of new slugs, making sure there are no dulicates."
+  (interactive
+   (list (read-number "How many? " 10)
+         (intern (ivy-read "Which type? "
+                           (mapcar #'first zettel-default-kasten)))))
   (goto-char (point-max))
   (let (slugs)
-    (message "Refreshing Deft cache...")
-    (deft-refresh)
     (dotimes (n how-many)
-      (push (zettel-next-unused-slug) slugs)
-      (message "%d generated" n))
+      (push (zettel-generate-new-slug type) slugs))
     (mapc #'(lambda (s)
               (insert s "\n"))
           (delete-dups slugs))

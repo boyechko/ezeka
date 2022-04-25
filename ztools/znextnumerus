@@ -1,23 +1,12 @@
 #!/bin/bash
-# Generates a list of unused Zettel numbers in $ZETTEL_DIR
+# Returns the next numerus from unused-numeri.dat
 
 if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"
     exit 1
 fi
+unused_numeri=$ZETTEL_DIR/auto/unused-numeri.dat
 
-unusedfile=$ZETTEL_DIR/auto/unused-numbers.txt
-usedfile=/tmp/zgaps-used.$$
-allfile=/tmp/zgaps-all.$$
+head -n1 "$unused_numeri"
+sed -i '' -e '1d' "$unused_numeri"
 
-cd $ZETTEL_DIR/main
-find -L -name "[0-9][0-9][0-9]*.txt" |
-    sed -re 's!^.*/([0-9]{3}).*\.txt!\1!g' |
-    sort -n |
-    uniq > $usedfile
-printf "%03d\n" $(seq 1 999) > $allfile
-
-comm -2 -3 $allfile $usedfile > $unusedfile
-
-# Cleanup
-rm -f $usedfile $allfile
