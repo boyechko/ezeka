@@ -44,9 +44,9 @@ class Zettelkasten
 
   # The default kaesten can be referred to without specifying their kasten
   # Type => Kasten
-  @default_kasten = { :numerus => "esophagus", # FIXME: temporary; should be omasum
-                      :tempus => "rumen",
-                      :opus => "reticulum"
+  @default_kasten = { :numerus => "rumen",
+                      :tempus => "omasum",
+                      :bolus => "esophagus" # FIXME: temporary
                     }
 
   # Translations for backward compatibility
@@ -94,7 +94,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Zettel
-  attr_reader :type,            # Zettel type: :tempus, :numerus, or :opus
+  attr_reader :type,            # Zettel type: :tempus, :numerus, or :bolus (FIXME)
               :kasten,          # Kasten, as string
               :slug,            # slug only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless default)
@@ -113,8 +113,8 @@ class Zettel
       return Numerus.new_from_link(link)
     elsif Tempus.valid_link?(link)
       return Tempus.new_from_link(link)
-    elsif Opus.valid_link?(link)
-      return Opus.new_from_link(link)
+    elsif Bolus.valid_link?(link) # FIXME: temporary
+      return Bolus.new_from_link(link)
     else
       return nil
     end
@@ -127,8 +127,8 @@ class Zettel
       return Numerus.new_from_path(path)
     elsif Tempus.valid_path?(path)
       return Tempus.new_from_path(path)
-    elsif Opus.valid_path?(path)
-      return Opus.new_from_path(path)
+    elsif Bolus.valid_path?(path) # FIXME: temporary
+      return Bolus.new_from_path(path)
     else
       return nil
     end
@@ -472,7 +472,7 @@ class Tempus < Zettel
   def init_link(link)
     if link =~ FQN_PATTERN
       if $2.nil?
-        @kasten = "rumen"
+        @kasten = Zettelkasten.default_kasten[:tempus]
       else
         @kasten = $2
       end
@@ -516,31 +516,38 @@ class Tempus < Zettel
 end
 
 #-------------------------------------------------------------------------------
-# Opus
+# Bolus (Temporary)
 #-------------------------------------------------------------------------------
 
-class Opus < Numerus
-  ZETTEL_TYPE = :opus
+class Bolus < Numerus
+  ZETTEL_TYPE = :bolus
 
-  N_LETTERS = 1
+  N_LETTERS = 3
   SEPARATOR = "-"
-  N_DIGITS = 4
-  SLUG_PATTERN = /^(?<letters>[a-z]{#{N_LETTERS}})-(?<digits>[0-9]{#{N_DIGITS}})$/
+  N_DIGITS = 3
+  SLUG_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
   FQN_PATTERN = SLUG_PATTERN
 
   # How to form slugs
   def slug()
-    return @letters + self.class::SEPARATOR + @digits
+    return @digits + self.class::SEPARATOR + @letters
   end
 
-  # Returns the appropriate sub-directory in the opus Kasten based on the
+  # Returns the appropriate sub-directory in the bolus Kasten based on the
   # Zettel slug.
   def self.section_of(slug)
-    if slug =~ SLUG_PATTERN
-      return ""                 # FIXME: No sections
-      # return "#{slug[0]}"
+    if slug =~ self::SLUG_PATTERN
+      num = $1.to_i
+      if num >= 0 and num <= 99
+        return "000-099"
+      elsif num >= 100 and num <= 999
+        return "#{slug[0]}00-#{slug[0]}99"
+      else
+        # Should never get here: SLUG_PATTERN limits the numerus to three digits
+        raise "Numerus currens '#{slug}' is out of bounds (0-999)"
+      end
     else
-      raise "Slug '#{slug}' is not an opus currens #{SLUG_PATTERN}"
+      raise "Slug '#{slug}' is not a bolus currens"
     end
   end
 end
