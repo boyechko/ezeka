@@ -58,7 +58,10 @@ Clamp do
 
     # Update slug, add oldname and save
     target.read_file
-    target.metadata[:oldname] = source.link unless target.slug == source.slug
+    unless target.slug == source.slug
+      target.metadata[:oldnames] ||= []
+      target.metadata[:oldnames] << source.link
+    end
     target.write_file
 
     # Find and replace all wiki links to $source with $target

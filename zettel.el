@@ -477,9 +477,10 @@ symbol."
                                       (zettel-metadata-yaml-key (car cons))
                                       (zettel-metadata-yaml-value (cdr cons)))))
                   (let (ordered-metadata)
-                    (dolist (key '(:subtitle :created :modified
-                                             :parent :firstborn :oldname
-                                             :readings :keywords)
+                    (dolist (key '(:subtitle :author
+                                   :created :modified
+                                   :parent :firstborn :oldnames
+                                   :readings :keywords)
                                  (nreverse ordered-metadata))
                       (when (alist-get key remaining-metadata)
                         (push (cons key (alist-get key remaining-metadata))
@@ -1762,6 +1763,7 @@ currens Zettel in rumen."
   "Updates the title metadata tag to match the file's filename.
 Adds an 'oldname' tag with the previous name."
   (interactive)
+  (error "FIXME: Old way of handling oldname")
   (let (oldname)
     (save-excursion
       (save-restriction
@@ -1790,6 +1792,7 @@ Adds an 'oldname' tag with the previous name."
 the link at point. If there is only one match, opens the note in
 another window."
   (interactive)
+  (error "FIXME: Old way of handling oldname")
   (push (buffer-file-name) zettel-stored-links)
   (when (zettel-link-at-point-p)
     (let ((link (zettel-link-at-point))

@@ -229,8 +229,10 @@ class Zettel
 
   METADATA_DATE_FORMAT = "%F"   # ISO-8601 date format (%Y-%m-%d)
 
-  METADATA_KEYS = [:title, :author, :subtitle, :created, :modified, :parent, :firstborn,
-                   :keywords, :readings, :oldname]
+  METADATA_KEYS = [:title, :subtitle, :author,
+                   :created, :modified,
+                   :parent, :firstborn, :oldnames,
+                   :keywords, :readings]
 
   # Returns a YAML block as a string, using inline sequence style.
   #
