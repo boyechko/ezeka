@@ -116,9 +116,17 @@ of backlinks.")
   "The central Zettelkasten directory."
   :type 'string)
 
-(defcustom zettel-kaesten nil
-  "An alist containing the names, directories, slug types, and order of the
-Kaesten."
+(defcustom zettel-kaesten
+  ;; name | directory | slug type | sort-order (| deft-sort-method)
+  `(("os"         :tempus  1)
+    ("rumen"      :numerus 2)
+    ("esophagus"  :numerus 3)
+    ("omasum"     :tempus  4)
+    ("abomasum"   :tempus  5)
+    ("rectum"     :tempus  6)
+    ("fabula"     :tempus  7)
+    ("machina"    :tempus  8))
+  "An alist containing the names and slug types of kaesten."
   :type 'alist)
 
 (defcustom zettel-kaesten-aliases nil
@@ -200,11 +208,15 @@ nil if there is nothing there."
 
 (defun zettel-kasten-directory (kasten)
   "Returns the directory of the given KASTEN."
-  (second (assoc (zettel-kasten-truename kasten) zettel-kaesten)))
+  (if (assoc kasten zettel-kaesten)
+      (file-name-as-directory (in-zettel-dir (zettel-kasten-truename kasten)))
+    (error "Unknown Kasten: %s" kasten)))
 
 (defun zettel-directory-kasten (directory)
   "Returns the kasten name of the given Zettel directory."
-  (car (cl-rassoc directory zettel-kaesten :key #'first :test #'string=)))
+  ;; FIXME: This is a hack that would not work if Kasten names don't match the
+  ;; directory name.
+  (file-name-base (directory-file-name directory)))
 
 (defun zettel-kasten-truename (kasten)
   "Returns the true name of the given KASTEN."
@@ -1322,7 +1334,7 @@ as the value for `deft-parse-title-function'."
       (if (eq (zettel-type (alist-get :slug metadata)) :tempus)
           (setq slug-len 13             ; 19700101T0000
                 cat-len 15)
-        (setq slug-len 7                ; 000-aaa
+        (setq slug-len 6                ; a-0000
               cat-len 15))
       ;; SLUG CATEGORY TITLE KEYWORDS
       (format (format "%%-%ds%%-%ds%%s %%s" (+ slug-len 2) cat-len)
