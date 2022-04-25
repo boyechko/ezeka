@@ -48,16 +48,14 @@
 the Zettel directory."
   (expand-file-name (or relative-path "") zettel-directory))
 
-(defvar zettel-filename-format '("%03d" "%c" "%c" "%c" "%c" "%c" "%c")
-  "A list of elements of the Zettel filename as FORMAT control
-  sequences.")
-
-(defvar zettel-base-format (first zettel-filename-format)
-  "The format of the base numerical component of Zettel's name.")
+;; FIXME: temporary
+(defvar zettel-regexp-bolus-currens
+  "\\([0-9]\\{3\\}\\)-\\([a-z]\\{3\\}\\)"
+  "The regular expression that matches bolus currens like abc-123.")
 
 (defvar zettel-regexp-numerus-currens
-  "\\([0-9]\\{3\\}\\)-\\([a-z]\\{3\\}\\)"
-  "The regular expression that matches numerus currens like 261-cab.")
+  "\\([a-z]\\)-\\([0-9]\\{4\\}\\)"
+  "The regular expression that matches numerus currens like d-0503.")
 
 (defvar zettel-regexp-tempus-currens
   "\\([0-9]\\{4\\}\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)T\\([0-9][0-9]\\)\\([0-9][0-9]\\)"
@@ -66,27 +64,24 @@ timestamp.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
 
-(defvar zettel-regexp-opus-currens
-  "\\([a-z]\\)-\\([0-9]\\{4\\}\\)"
-  "The regular expression that matches an opus currens key like a-1234.")
-
 (defvar zettel-regexp-slug
   ;; Strip the groups in the component regexps
   (concat "\\("
           (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-numerus-currens)
           "\\|"
           (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-tempus-currens)
+          ;; FIXME: temporary
           "\\|"
-          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-opus-currens)
+          (replace-regexp-in-string "\\\\[()]" "" zettel-regexp-bolus-currens)
           "\\)")
-  "A generalized regexp that matches any slug, whether numerus or tempus
-currens.")
+  "A generalized regexp that matches any slug, whatever its slug type.")
 
+;; FIXME: Any reason to specify the slug more precisely?
 (defvar zettel-regexp-link
-  (concat "\\(\\([[:alpha:]]+\\):\\)*" zettel-regexp-slug)
+  (concat "\\(\\([[:alpha:]]+\\):\\)*" "\\([[:alnum:]-]+\\)")
   "The regular expression that matches Zettel links.
 Group 2 is the kasten, if specified.
-Group 3 is numerus or tempus currens.")
+Group 3 is the slug.")
 
 (defvar zettel-regexp-iso8601-date
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
@@ -131,17 +126,14 @@ Kaesten."
 the actual name followed by the alias."
   :type 'alist)
 
-(defcustom zettel-default-numerus-kasten "esophagus" ; FIXME: change to omasum
-  "Name of the main numerus currens kasten."
-  :type 'string)
-
-(defcustom zettel-default-tempus-kasten "rumen"
-  "Name of the main tempus currens kasten."
-  :type 'string)
-
-(defcustom zettel-default-opus-kasten "reticulum"
-  "Name of the main operis clavis kasten."
-  :type 'string)
+(defcustom zettel-default-kasten
+  ;; slug type | kasten name
+  `((:numerus . "esophagus")
+    (:bolus . "esophagus")              ; FIXME: temporary
+    (:tempus . "omasum"))
+  "An alist of default Kasten (i.e. not requiring fully qualified link) for
+each slug type."
+  :type 'alist)
 
 (defcustom zettel-categories nil
   "A list of categories used for Zettel."
@@ -223,21 +215,22 @@ nil if there is nothing there."
   "Returns the slug part of the given Zettel file."
   (file-name-base file))
 
-;; FIXME: The function relies on the fact that the Kasten directory is 2nd from
-;; the last for any numerus or tempus Zettel and 1st for opus Zettel.
+;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun zettel-file-kasten (file)
   "Returns the kasten of the given Zettel file."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
-    (if (string= (first dirs) zettel-default-opus-kasten)
-        (zettel-kasten-truename (first dirs))
-      (zettel-kasten-truename (second dirs)))))
+    (cond ((assoc (first dirs) zettel-kaesten)
+           (zettel-kasten-truename (first dirs)))
+          ((assoc (second dirs) zettel-kaesten)
+           (zettel-kasten-truename (second dirs)))
+          (t
+           (error "Can't figure out kasten for %s" file)))))
 
 (defun zettel-file-link (file)
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
   (let ((kasten (zettel-file-kasten file)))
-    (if (or (equal kasten zettel-default-numerus-kasten)
-            (equal kasten zettel-default-tempus-kasten)
-            (equal kasten zettel-default-opus-kasten))
+    (if (string= kasten
+                 (alist-get (zettel-type file) zettel-default-kasten))
         (zettel-file-slug file)
       (concat kasten ":" (zettel-file-slug file)))))
 
@@ -258,39 +251,27 @@ specified, asks the user to resolve the ambiguity."
            (slug (match-string 3 link))
            (type (zettel-type slug)))
       (or kasten
-          (let ((default-kasten (case type
-                                  (:numerus zettel-default-numerus-kasten)
-                                  (:tempus zettel-default-tempus-kasten)
-                                  (:opus zettel-default-opus-kasten)
-                                  (t (error "Unknown Zettel type: %s" type)))))
-            (cond (default-kasten
-                    default-kasten)
-                  ((not default-kasten)
-                   (call-interactively #'zettel-set-default-kasten)
-                   (zettel-link-kasten link))
-                  (t
-                   (error "Umm, this shouldn't happen"))))))))
+          (if-let ((default (alist-get type zettel-default-kasten)))
+              default
+            (call-interactively #'zettel-set-default-kasten)
+            (zettel-link-kasten link))))))
 
 (defun zettel-set-default-kasten (type kasten)
-  "Interactively set the default kasten for the given type (:NUMERUS, :OPUS,
-or :TEMPUS)."
+  "Interactively set the default kasten for the given slug type. See
+`zettel-default-kasten' for valid types."
   (interactive
-   (list (intern (concat ":" (ivy-read "Set default for which type of Zettel? "
-                                       '(NUMERUS TEMPUS))))
+   (list (intern (ivy-read "Set default for which type of Zettel? "
+                           (mapcar #'first zettel-default-kasten)))
          (ivy-read "Set the default to what Kasten? "
                    (if (listp zettel-kaesten)
                        (mapcar #'first zettel-kaesten)
                      (error "No Zettelkästen defined")))))
-  (case type
-    (:NUMERUS (setq zettel-default-numerus-kasten kasten))
-    (:TEMPUS  (setq zettel-default-tempus-kasten kasten))
-    (:OPUS    (setq zettel-default-opus-kasten kasten))
-    (t (error "Zettel type not selected"))))
+  (setf (alist-get type zettel-default-kasten) kasten))
 
 (defun zettel-kasten-slug-type (kasten)
   "Returns the Zettel slug naming type for the given kasten based on
 `zettel-kaesten'."
-  (third (assoc kasten zettel-kaesten #'string=)))
+  (second (assoc kasten zettel-kaesten #'string=)))
 
 (defun zettel-link-slug (link)
   "Returns the slug part of the given LINK."
@@ -299,18 +280,22 @@ or :TEMPUS)."
 
 (defun zettel-make-link (kasten slug)
   "Make a new proper link to SLUG in KASTEN."
-  (if (or (equal kasten zettel-default-numerus-kasten)
-          (equal kasten zettel-default-tempus-kasten))
+  (if (rassoc kasten zettel-default-kasten)
       slug
     (concat kasten ":" slug)))
+
+(defun zettel-numerus-subdirectory (slug)
+  "Returns the right subdirectory for the given numerus currens slug."
+  (when (string-match zettel-regexp-numerus-currens slug)
+    (file-name-as-directory (subseq slug 0 1))))
 
 (defun zettel-tempus-subdirectory (slug)
   "Returns the right subdirectory for the given tempus currens slug."
   (when (string-match zettel-regexp-tempus-currens slug)
     (file-name-as-directory (match-string 1 slug))))
 
-(defun zettel-numerus-subdirectory (slug)
-  "Finds the right directory for the given numerus currens slug."
+(defun zettel-bolus-subdirectory (slug)
+  "Finds the right directory for the given bolus currens slug."
   (when (stringp slug)
     (let ((result
            (case (elt slug 0)
@@ -327,11 +312,6 @@ or :TEMPUS)."
       (when result
         (file-name-as-directory result)))))
 
-(defun zettel-opus-subdirectory (slug)
-  "Finds the right directory for the given operis slavis slug."
-  (when (stringp slug)
-    ""))                                ; FIXME: placeholder
-
 (defun zettel-absolute-filename (link)
   "Return an absolute filename to the Zettel link.
 
@@ -345,7 +325,7 @@ This function replaces `deft-absolute-filename' for Zettel."
           (case (zettel-type slug)
             (:numerus (zettel-numerus-subdirectory slug))
             (:tempus (zettel-tempus-subdirectory slug))
-            (:opus (zettel-opus-subdirectory slug))
+            (:bolus (zettel-bolus-subdirectory slug)) ; FIXME: temporary
             (t (error "This is not a proper Zettel link: %s" link)))
           (zettel-kasten-directory kasten))))
     (error "This is not a proper Zettel link: %s" link)))
@@ -367,8 +347,9 @@ This function replaces `deft-absolute-filename' for Zettel."
            :tempus)
           ((string-match-p zettel-regexp-numerus-currens slug)
            :numerus)
-          ((string-match-p zettel-regexp-opus-currens slug)
-           :opus)
+          ;; FIXME: Temporary
+          ((string-match-p zettel-regexp-bolus-currens slug)
+           :bolus)
           (t
            (error "This doesn't look like a Zettel slug: %s" slug)))))
 
@@ -437,8 +418,8 @@ Group 8 is the keyword block.")
                     (split-string (match-string 8 title))))))))
 
 (defun zettel-encode-combined-title (metadata)
-  "Returns a list of two elements: 1) a string that encodes into the title
-line the given METADATA, and 2) leftover metadata."
+  "Returns a list of two elements: 1) string that encodes into the title line
+the given METADATA, and 2) leftover metadata."
   (list (format "title: §%s. %s%s"
                 (alist-get :link metadata)
                 (if (alist-get :category metadata)
@@ -1058,7 +1039,7 @@ full link."
                                          (mapcar #'first zettel-kaesten)
                                        (error "No Zettelkasten defined"))))
                           (t
-                           (unless zettel-default-numerus-kasten
+                           (unless (assoc :numerus zettel-default-kasten)
                              (call-interactively #'zettel-set-default-kasten))
                            (zettel-directory-kasten deft-directory)))))
         (setq child-link (zettel-generate-new-child parent-link kasten))))
@@ -1715,15 +1696,14 @@ Zettelkasten work."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defun zettel-opus-zmove-command ()
-  "Generates a zmove shell command to move the current Zettel to its operis
-clavis Zettel based on the category."
+(defun zettel-zmove-to-rumen ()
+  "Generates a zmove shell command to move the current Zettel to its numerus
+currens Zettel in rumen."
   (interactive)
   (let* ((source-link (zettel-file-link buffer-file-name))
-         (target-link (zettel-next-unused-slug :opus))
-         (command (format "zmove -i %s %s" source-link target-link)))
-    (rb-set-clipboard-data command)
-    (message "Copied command to clipbaord: %s" command)))
+         (target-link (zettel-next-unused-slug :numerus)))
+    (shell-command (format "zmove %s %s" source-link target-link))
+    (deft-cache-update-file buffer-file-name)))
 
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's DEFT-RENAME-FILE."
@@ -1856,6 +1836,7 @@ backlink."
 ;; Was: org-set-property-and-value
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
 (define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
+(define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-rumen)
 
 ;;;-----------------------------------------------------------------------------
 ;;; Deft-Mode Keybindings
