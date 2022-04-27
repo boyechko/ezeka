@@ -1728,14 +1728,26 @@ Zettelkasten work."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defun zettel-zmove-to-rumen ()
+(defun zettel-zmove-to-rumen (source-file)
   "Generates a zmove shell command to move the current Zettel to its numerus
 currens Zettel in rumen."
-  (interactive)
-  (let* ((source-link (zettel-file-link buffer-file-name))
+  (interactive (list (cond (zettel-mode
+                            buffer-file-name)
+                           ((eq major-mode 'magit-status-mode)
+                            (magit-file-at-point))
+                           ((eq major-mode 'deft-mode)
+                            (widget-get (widget-at) :tag))
+                           (t
+                            (read-file-name "Move which Zettel? ")))))
+  (let* ((source-link (zettel-file-link source-file))
          (target-link (zettel-next-unused-slug :numerus)))
     (shell-command (format "zmove %s %s" source-link target-link))
-    (deft-cache-update-file buffer-file-name)))
+    (cond ((string= source-file buffer-file-name)
+           (kill-this-buffer))
+          ((eq major-mode 'magit-status-mode)
+           (magit-refresh))
+          ((eq major-mode 'deft-mode)
+            (deft-cache-update-file source-file)))))
 
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's DEFT-RENAME-FILE."
