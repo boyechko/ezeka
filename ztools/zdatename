@@ -6,7 +6,7 @@ require 'time'
 require_relative 'zettel'
 
 Clamp do
-  parameter "SLUG", "Slug of a numerus currens Zettel for which to return the ISO 8601 date-name"
+  parameter "SLUG", "Slug of a Zettel for which to return the ISO 8601 date-name"
 
   option ["-m", "--mtime"], :flag, "use last data modification time", :attribute_name => :use_mtime
   option ["-c", "--ctime"], :flag, "use last status change time", :attribute_name => :use_ctime
@@ -35,20 +35,20 @@ Clamp do
   end
 
   def execute
-    numerus = Numerus.new_from_link(slug)
-    if numerus.exists?
-      numerus.read_file
+    zettel = Zettel.new_from_link(slug)
+    if zettel.exists?
+      zettel.read_file
     else
-      STDERR.puts "Zettel file for #{slug} does not exist: #{numerus.path}"
+      STDERR.puts "Zettel file for #{slug} does not exist: #{zettel.path}"
       exit(1)
     end
 
     if use_time
       time = use_time
     elsif use_ctime?
-      time = File.ctime(numerus.path)
-    elsif use_mtime? || same_day?(numerus.metadata['modified'], File.mtime(numerus.path))
-      time = File.mtime(numerus.path)
+      time = File.ctime(zettel.path)
+    elsif use_mtime? || same_day?(zettel.metadata['modified'], File.mtime(zettel.path))
+      time = File.mtime(zettel.path)
     elsif use_zeros?
       time = Time.new(1, 1, 1, 0, 0)
     else
@@ -57,6 +57,6 @@ Clamp do
       time = Time.new(1, 1, 1, rand(8..23), rand(0..59))
     end
 
-    puts datename(numerus.metadata[:created], time)
+    puts datename(zettel.metadata[:created], time)
   end
 end
