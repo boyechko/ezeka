@@ -140,7 +140,7 @@ the actual name followed by the alias."
 
 (defcustom zettel-default-kasten
   ;; slug type | kasten name
-  `((:numerus . "esophagus")
+  `((:numerus . "rumen")
     (:bolus . "esophagus")              ; FIXME: temporary
     (:tempus . "omasum"))
   "An alist of default Kasten (i.e. not requiring fully qualified link) for
@@ -1849,7 +1849,7 @@ backlink."
   (while-no-input
     (redisplay)
     (let ((file (magit-file-at-point)))
-      (when (zettel-p file)
+      (when (and (file-exists-p file) (zettel-p file))
         (let ((metadata (zettel-decode-combined-title
                          (subseq (magit-file-line file) (length "title: ")))))
           (message "%s | %s"
