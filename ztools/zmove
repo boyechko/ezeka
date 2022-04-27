@@ -51,14 +51,18 @@ Clamp do
     Dir.chdir(Zettelkasten.root)
     system("git mv -v #{source.relative_path} #{target.relative_path}")
     if $?.exitstatus != 0
-      STDERR.puts "Git could not move the file. Press [Enter] to try regular move"
-      STDIN.gets
+      not_under_vc = true
+      STDERR.puts "Git could not move the file. Trying regular move..."
+      if interactive?
+        puts "Press [Enter] to continue"
+        STDIN.gets
+      end
       system("mv -v #{source.relative_path} #{target.relative_path}")
     end
 
     # Update slug, add oldname and save
     target.read_file
-    unless target.slug == source.slug
+    unless target.slug == source.slug or not_under_vc
       target.metadata[:oldnames] ||= []
       target.metadata[:oldnames] << source.link
     end
