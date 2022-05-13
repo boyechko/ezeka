@@ -51,6 +51,8 @@ Clamp do
       time = File.mtime(zettel.path)
     elsif use_zeros?
       time = Time.new(1, 1, 1, 0, 0)
+    elsif zettel.type == :tempus
+      time = zettel.time
     else
       # Generate random time between 8:00 and 23:59, since that's when I would
       # have normally be awake to create the Zettel.
