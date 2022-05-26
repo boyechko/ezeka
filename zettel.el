@@ -1393,8 +1393,8 @@ with double prefix argument calls `zettel-deft-choose-directory' instead."
              (switch-to-buffer-other-frame deft-buffer)
            (switch-to-buffer deft-buffer)))
         (t
-         (zettel-deft-choose-directory (zettel-kasten-directory new-kasten))
-         (setq zettel-deft-active-kasten new-kasten))))
+         (setq zettel-deft-active-kasten new-kasten)
+         (zettel-deft-choose-directory (zettel-kasten-directory new-kasten)))))
 
 (defun zettel-deft-choose-directory (directory)
   "Interactively selects the directory, starting in `zettel-directory'."
@@ -1770,9 +1770,7 @@ Zettelkasten work."
   (interactive)
   (concat (if zettel-deft-active-kasten
               (format "〔%s〕"
-                      (upcase
-                       (subseq zettel-deft-active-kasten
-                               0 (min (length zettel-deft-active-kasten) 3))))
+                      (upcase zettel-deft-active-kasten))
             "")
           (if (and (boundp 'zettel-mode) zettel-mode)
               (let ((metadata (zettel-metadata buffer-file-name)))
