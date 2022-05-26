@@ -479,9 +479,9 @@ class Tempus < Zettel
         @kasten = $2
       end
 
-      @slug = $3
-      @link = link
       @type = :tempus
+      @slug = $3
+      @link = self.link
       @time = Time.parse(@slug)
       @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@slug + Zettelkasten.ext)
       read_file if @path.exist?
