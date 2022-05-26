@@ -1770,9 +1770,9 @@ Zettelkasten work."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defun zettel-zmove-to-rumen (source-file)
-  "Generates a zmove shell command to move the current Zettel to its numerus
-currens Zettel in rumen."
+(defun zettel-zmove-to-another-kasten (source-file &optional target-link)
+  "Generates a zmove shell command to move the current Zettel to another
+kasten. With prefix argument, asks for a target link instead."
   (interactive (list (cond (zettel-mode
                             buffer-file-name)
                            ((eq major-mode 'magit-status-mode)
@@ -1781,15 +1781,28 @@ currens Zettel in rumen."
                             (widget-get (widget-at) :tag))
                            (t
                             (read-file-name "Move which Zettel? ")))))
-  (let* ((source-link (zettel-file-link source-file))
-         (target-link (zettel-next-unused-slug :numerus)))
+  (let ((source-link (zettel-file-link source-file)))
+    (if (and (not target-link) (called-interactively-p 'any))
+        (if (equal current-prefix-arg '(4))
+            (read-string "Enter target link: ")
+          (let ((kasten (ivy-read "Which kasten to move to? "
+                                  zettel-kaesten)))
+            (setq target-link
+              (zettel-make-link
+               kasten
+               (case (second (assoc kasten zettel-kaesten #'string=))
+                 (:numerus (zettel-next-unused-slug :numerus))
+                 (:tempus (zettel-tempus-currens-slug-for source-link))
+                 (t
+                  (error "Don't know how to handle this")))))))
+      (error "Don't know where to move %s" source-link))
     (shell-command (format "zmove %s %s" source-link target-link))
     (cond ((string= source-file buffer-file-name)
            (kill-this-buffer))
           ((eq major-mode 'magit-status-mode)
            (magit-refresh))
           ((eq major-mode 'deft-mode)
-            (deft-cache-update-file source-file)))))
+           (deft-cache-update-file source-file)))))
 
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's DEFT-RENAME-FILE."
@@ -1940,7 +1953,9 @@ backlink."
 ;; Was: org-set-property-and-value
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
 (define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
-(define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-rumen)
+
+;; Ztools interaction
+(define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
 
 ;;;-----------------------------------------------------------------------------
 ;;; Deft-Mode Keybindings
