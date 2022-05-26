@@ -7,8 +7,10 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;; TODO:
 ;;;;
-;;;; - implement a good way to set keywords, ideally with completion of existing
-;;;;   ones
+;;;; - save list of RUMEN Kasten titles for use in other Emacs instances
+;;;; - good way to set keywords, ideally with completion of existing ones
+;;;; - remove bibkey from title when inserting link with title
+;;;; - add an easy way to insert zlinksto output
 
 (require 'deft)
 
