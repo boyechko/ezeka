@@ -727,6 +727,42 @@ Based on `rename-file-and-buffer'."
         t))))
 
 ;;;=============================================================================
+;;; Tempus Currens
+;;;=============================================================================
+
+(defun zettel-decode-time-into-tempus-currens (time)
+  "Returns a tempus currens slug based on the given Emacs time object."
+  (format-time-string "%Y%m%dT%H%M" time))
+
+(defun zettel-tempus-currens-slug-for (link)
+  "Returns a suitable tempus currens slug for the given Zettel link."
+  (if (eq (zettel-kasten-slug-type (zettel-link-kasten link)) :tempus)
+      ;; If already tempus currens, just return that slug
+      (zettel-link-slug link)
+    ;; Otherwise come up with an appropriate slug based on the metadata
+    (let ((metadata (zettel-metadata (zettel-absolute-filename link)))
+          oldname)
+      (cond ((setq oldname
+               (find-if #'(lambda (l)
+                            (eq (zettel-kasten-slug-type (zettel-link-kasten l))
+                                :tempus))
+                        (alist-get :oldnames metadata)))
+             ;; One of the old names was a tempus currens; just use that
+             (zettel-link-slug oldname))
+            ((alist-get :created metadata)
+             ;; Use the created metadata and make up the time of creation
+             ;; FIXME: Any more elegant way to do this?
+             (zettel-decode-time-into-tempus-currens
+              (zettel-encode-iso8601-datetime
+               (concat (alist-get :created metadata)
+                       "T"
+                       (format-time-string "%H:%M")))))
+            (t
+             ;; Can't figure out automatically; ask the user
+             (read-string "No created metadata; make up your own name: "
+                          (zettel-next-unused-slug :tempus)))))))
+
+;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
 
