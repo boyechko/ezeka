@@ -1941,15 +1941,16 @@ backlink."
   "Displays Zettel title of the file under cursor in minibuffer."
   (while-no-input
     (redisplay)
-    (let ((file (magit-file-at-point)))
-      (when (and (file-exists-p file) (zettel-p file))
+    (let (file line)
+      (when (and (eq major-mode 'magit-status-mode)
+                 (setq file (magit-file-at-point))
+                 (zettel-p file)
+                 (setq line (magit-file-line file)))
         (let ((metadata (zettel-decode-combined-title
-                         (subseq (magit-file-line file) (length "title: ")))))
+                         (first (split-string line "title: " t)))))
           (message "%s | %s"
                    (alist-get :slug metadata) (alist-get :title metadata)))))))
-(add-hook 'magit-mode-hook
-  '(lambda ()
-     (add-hook 'post-command-hook 'magit-show-zettel-title-in-minibuffer)))
+(add-hook 'post-command-hook 'magit-show-zettel-title-in-minibuffer)
 
 ;;;-----------------------------------------------------------------------------
 ;;; Zettel-Mode Key Bindings
