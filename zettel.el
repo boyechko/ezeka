@@ -526,8 +526,14 @@ content of the FILE. They keys are converted to keywords."
           (mapcar #'(lambda (line)
                       (when (> (length line) 0)
                         (if (string-match zettel-regexp-metadata-line line)
-                            (cons (intern (concat ":" (match-string 1 line)))
-                                  (match-string 2 line))
+                            (let ((key (intern (concat ":" (match-string 1 line))))
+                                  (value (match-string 2 line)))
+                              (cons key
+                                    ;; Handle lists properly
+                                    (if (string-match "^\\[\\(.*\\)\\]$" value)
+                                        (split-string (match-string 1 value)
+                                                      "," t "[[:space:]]+")
+                                      value)))
                           (error "Malformed metadata line: '%s'" line))))
                   metadata-section))
          (title (alist-get :title metadata)))
