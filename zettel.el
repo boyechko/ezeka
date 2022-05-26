@@ -76,9 +76,8 @@ Groups 4-5 are hour, minute.")
           "\\)")
   "A generalized regexp that matches any slug, whatever its slug type.")
 
-;; FIXME: Any reason to specify the slug more precisely?
 (defvar zettel-regexp-link
-  (concat "\\(\\([[:alpha:]]+\\):\\)*" "\\([[:alnum:]-]+\\)")
+  (concat "\\(\\([[:alpha:]]+\\):\\)*" zettel-regexp-slug)
   "The regular expression that matches Zettel links.
 Group 2 is the kasten, if specified.
 Group 3 is the slug.")
@@ -367,7 +366,8 @@ This function replaces `deft-absolute-filename' for Zettel."
           ((string-match-p zettel-regexp-bolus-currens slug)
            :bolus)
           (t
-           (error "This doesn't look like a Zettel slug: %s" slug)))))
+           ;; Anything else is not a Zettel
+           nil))))
 
 (defun zettel-encode-iso8601-datetime (string)
   "Returns the internal encoded time given the ISO8601 date/time
@@ -423,7 +423,7 @@ Group 8 is the keyword block.")
 
 (defun zettel-decode-combined-title (title)
   "Returns an alist of metadata from a combined title."
-  (when (string-match zettel-regexp-combined-title title)
+  (when (and title (string-match zettel-regexp-combined-title title))
     (let ((slug (match-string 3 title)))
       (list (cons :slug slug)
             (cons :type (zettel-type slug))
