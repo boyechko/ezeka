@@ -1042,6 +1042,16 @@ file in Finder with it selected."
     (when (consp (avy-jump zettel-regexp-link))
       (zettel-open-link-at-point))))
 
+(defun zettel-links-to (arg)
+  "List links to the current Zettel from anywhere else in the Zettelkasten."
+  (interactive "p")
+  (funcall (if arg
+               #'async-shell-command
+             #'shell-command)
+           (concat "zlinksto" " " (zettel-file-link buffer-file-name)))
+  (when arg
+    (switch-to-buffer-other-window "*Async Shell Command*")))
+
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
@@ -1956,6 +1966,8 @@ backlink."
 
 ;; Ztools interaction
 (define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
+;; Was: org-toggle-ordered-property
+(define-key zettel-mode-map (kbd "C-c C-x l") 'zettel-links-to)
 
 ;;;-----------------------------------------------------------------------------
 ;;; Deft-Mode Keybindings
