@@ -1454,14 +1454,13 @@ prefix argument."
   (setq last-command-event 167)
   (deft-filter-increment))
 
-(defun deft-filter-zettel-category (category)
+(defun deft-filter-zettel-category (category arg)
   "Inserts a category into deft-filter if there is no category there or
-changes the existing one."
-  (interactive (list (zettel-ivy-read-category)))
-  (when deft-incremental-search
-    ;; Duplicate car of the `deft-filter-regexp', since `deft-filter' replaces it.
-    (push (car deft-filter-regexp) deft-filter-regexp)
-    (deft-filter (format "{%s}" category))))
+changes the existing one. With prefix argument, replaces the current
+`deft-filter-regexp'."
+  (interactive (list (zettel-ivy-read-category) current-prefix-arg))
+  (deft-filter (format "{%s}" category)
+    (or arg (null deft-filter-regexp))))
 
 ;;
 ;; Insert my zettel title string into new zettel rather than contents of deft's
