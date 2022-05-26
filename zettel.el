@@ -1056,35 +1056,54 @@ file in Finder with it selected."
 ;;; Genealogical
 ;;;=============================================================================
 
-(defun zettel-ancestor (file-or-link &optional degree)
-  "Returns the FILE-OR-LINK's ancestor, or NIL if could not figure out. With
-the optional DEGREE, try to find the Nth ancestor (i.e. grandparent if DEGREE
-is 2, an so on), returning the most remote ancestor that could find."
-  (if (= (abs degree) 0)
-      file-or-link
-    (zettel-ancestor (alist-get :parent
-                                (zettel-metadata
-                                 (if (zettel-link-p file-or-link)
-                                     (zettel-absolute-filename file-or-link)
-                                   file-or-link)))
-                     (1- degree))))
+(defun zettel-trace-genealogy (file-or-link &optional degree)
+  "Returns the FILE-OR-LINK's next genealogical link, or NIL if could not
+figure out. With the optional DEGREE, try to find the Nth link (i.e.
+grandparent if DEGREE is 2, child if DEGREE is -1, an so on), returning the
+most remote link that could be found."
+  (let ((degree (or degree 1)))
+    (if (= (abs degree) 0)
+        file-or-link
+      (zettel-trace-genealogy (alist-get (if (plusp degree)
+                                             :parent
+                                           :firstborn)
+                                         (zettel-metadata
+                                          (if (zettel-link-p file-or-link)
+                                              (zettel-absolute-filename file-or-link)
+                                            file-or-link)))
+                              (if (plusp degree)
+                                  (1- degree)
+                                (1+ degree))))))
 
 (defun zettel-find-ancestor (n)
-  "Opens the current Zettel's ancestor. With a prefix argument, try
+  "Opens the current Zettel's immediate ancestor. With a prefix argument, try
 to find the Nth ancestor."
   (interactive "p")
   (when (zettel-p buffer-file-name)
-    (let ((ancestor (zettel-ancestor buffer-file-name n)))
+    (let ((ancestor (zettel-trace-genealogy buffer-file-name n)))
       (if ancestor
           (zettel-find-link ancestor)
         (message "No ancestor found")))))
+
+(defun zettel-find-descendant (n)
+  "Opens the current Zettel's immediate descendant. With a prefix argument,
+try to find the Nth ancestor."
+  (interactive "p")
+  (when (zettel-p buffer-file-name)
+    (let ((descendant (zettel-trace-genealogy buffer-file-name (- n))))
+      (if descendant
+          (zettel-find-link descendant)
+        (message "No descendant found")))))
 
 (defun zettel-insert-ancestor-link (arg)
   "Insert a link to the ancestor of the current zettel. With a
 numerical prefix argument, try to find Nth ancestor. With
 universal argument, behave like `zettel-insert-link'."
   (interactive "P")
-  (let ((link (zettel-ancestor buffer-file-name (if (integerp arg) arg 1))))
+  (let* ((degree (if (integerp arg) arg 1))
+         (link (zettel-trace-genealogy buffer-file-name degree))
+         ;; If user specified degree, include title by default.
+         (arg (if (integerp arg) '(4) arg)))
     (if link
         (insert (zettel-wiki-link link (consp arg) (equal arg '(16))))
       (message "Could not find such ancestor"))))
@@ -1944,6 +1963,7 @@ backlink."
 ;;;-----------------------------------------------------------------------------
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
+(define-key zettel-mode-map (kbd "C-c _") 'zettel-find-descendant)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
