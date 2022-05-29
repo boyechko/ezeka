@@ -11,6 +11,7 @@
 ;;;; - good way to set keywords, ideally with completion of existing ones
 ;;;; - remove bibkey from title when inserting link with title
 ;;;; - add an easy way to insert zlinksto output
+;;;; - open links to other Kasten in their own Emacs instance, if available
 
 (require 'deft)
 
@@ -438,7 +439,7 @@ Group 8 is the keyword block.")
 (defun zettel-encode-combined-title (metadata)
   "Returns a list of two elements: 1) string that encodes into the title line
 the given METADATA, and 2) leftover metadata."
-  (list (format "title: §%s. %s%s"
+  (list (format "§%s. %s%s"
                 (alist-get :link metadata)
                 (if (alist-get :category metadata)
                     (concat "{" (alist-get :category metadata) "} ")
@@ -473,7 +474,7 @@ symbol."
           (delete-region (point-min) (point-max))
           (multiple-value-bind (title remaining-metadata)
               (zettel-encode-combined-title metadata)
-            (insert title "\n")
+            (insert "title: " title "\n")
             (mapc #'(lambda (cons)
                       (insert (format "%s: %s\n"
                                       (zettel-metadata-yaml-key (car cons))
@@ -996,22 +997,27 @@ from OS clipboard."
         (rb-set-clipboard-data backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
 
-(defun zettel-kill-ring-save-link-title ()
-  "Save the title of the wiki link at point or the buffer to kill
-ring."
-  (interactive)
+(defun zettel-kill-ring-save-link-title (arg)
+  "Save the title of the wiki link at point or the buffer to the kill ring
+and system clipboard. With prefix argument, saves the combinted title from `'."
+  (interactive "P")
   (let ((file (cond ((zettel-link-at-point-p)
                      (zettel-absolute-filename (zettel-link-at-point)))
                     ((zettel-p buffer-file-name)
-                     buffer-file-name))))
-    (let ((title (alist-get :title (zettel-metadata file))))
-      (cond (title
-             (kill-new title)
-             (message "Link title to %s saved in kill ring."
-                      (file-name-base file)))
-            (t
-             (message "Could not get the title of %s."
-                      (file-name-base file)))))))
+                     buffer-file-name)
+                    ((equal major-mode 'deft-mode)
+                     (widget-get (widget-at (point)) :tag))
+                    (t
+                     (message "Save title of what?")))))
+    (when file
+      (let* ((metadata (zettel-metadata file))
+             (title (if arg
+                        (car (zettel-encode-combined-title metadata))
+                      (alist-get :title metadata))))
+        (kill-new title)
+        (unless select-enable-clipboard
+          (rb-set-clipboard-data title))
+        (message "Saved [%s] in the kill ring" title)))))
 
 (defun zettel-kill-ring-save-link (arg)
   "Save the deft note at point or the buffer base filename in the kill ring
