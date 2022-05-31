@@ -1676,14 +1676,22 @@ org subtree."
   '(lambda ()
      (modify-syntax-entry ?: "w")))
 
-(defun zettel-open-link-at-point ()
+;; This link is later added to `org-open-at-point-functions', so "must return t
+;; if they identify and follow a link at point. If they don’t find anything
+;; interesting at point, they must return nil."
+(defun zettel-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link."
-  (interactive)
+  (interactive "p")
   (save-excursion
     (forward-word)
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
-      (zettel-find-link (match-string-no-properties 1)))))
+      (let ((zettel-proliferate-frames
+             ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
+             (if (or arg current-prefix-arg)
+                 t
+               zettel-proliferate-frames)))
+        (zettel-find-link (match-string-no-properties 1))))))
 
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
