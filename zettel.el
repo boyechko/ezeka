@@ -1509,15 +1509,17 @@ as the value for `deft-parse-title-function'."
                 cat-len 15)
         (setq slug-len 6                ; a-0000
               cat-len 15))
-      ;; SLUG CATEGORY TITLE KEYWORDS
-      (format (format "%%-%ds%%-%ds%%s %%s" (+ slug-len 2) cat-len)
+      ;; SLUG CATEGORY/CITEKEY TITLE
+      (format (format "%%-%ds%%-%ds%%s" (+ slug-len 2) cat-len)
               (alist-get :slug metadata)
-              (let ((cat (alist-get :category metadata)))
+              (let ((cat (if (alist-get :citekey metadata)
+                             ;; Skip @
+                             (subseq (alist-get :citekey metadata) 1)
+                           (alist-get :category metadata))))
                 (if (> (length cat) cat-len)
                     (concat (subseq cat 0 (- cat-len 2)) "..")
                   cat))
-              (alist-get :title metadata)
-              (or (alist-get :keywords metadata) "")))))
+              (alist-get :title metadata)))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
 (defun deft-new-file-maybe-named (arg)
