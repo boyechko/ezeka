@@ -173,6 +173,12 @@ each slug type."
 otherwise ascending."
   :type 'boolean)
 
+(defcustom zettel-find-link-function #'zettel-find-link-simply
+  "Which function of one argument --- the link --- to use in order to find
+Zettel links. The function needs to return NIL if it cannot find the given
+link."
+  :type 'function)
+
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
@@ -1229,17 +1235,31 @@ the links are on the right of titles; otherwise, to the left."
 ;;;=============================================================================
 
 (defun zettel-find-link (link)
+  "Attempts to find the given Zettel link with the function specified in
+`zettel-find-link-function'. Returns T."
+  (funcall zettel-find-link-function link)
+  t)
+
+(defun zettel-find-link-simply (link)
   "Finds the provided Zettel link, returning T if it's a Zettel link. If the
 file is empty, inserts the metadata template."
   (when (zettel-link-p link)
+    (with-selected-window )
     (funcall (if zettel-proliferate-frames
                  #'find-file-other-frame
                #'find-file)
              (zettel-absolute-filename link))
-    (when (= (point-min) (point-max))   ; file is empty
-      (message "Empty Zettel, inserting metadata template")
-      (zettel-insert-metadata-template))
-    t))
+    (call-interactively #'zettel-insert-metadata-template)))
+
+(defun zettel-find-link-ace-window (link)
+  "Finds the provided Zettel link and opens it in the selected window. This
+function ignores the value of `zettel-proliferate-frames'."
+  (when (zettel-link-p link)
+    (with-selected-window (ace-select-window)
+      (find-file (zettel-absolute-filename link))
+      (when (= (point-min) (point-max)) ; file is empty
+        (message "Empty Zettel, inserting metadata template")
+        (call-interactively #'zettel-insert-metadata-template)))))
 
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
@@ -1696,22 +1716,24 @@ org subtree."
   '(lambda ()
      (modify-syntax-entry ?: "w")))
 
-;; This link is later added to `org-open-at-point-functions', so "must return t
-;; if they identify and follow a link at point. If they don’t find anything
-;; interesting at point, they must return nil."
 (defun zettel-open-link-at-point (&optional arg)
-  "Open a Zettel link at point even if it's not formatted as a link."
+  "Open a Zettel link at point even if it's not formatted as a link. With a
+prefix argument, calls `ZETTEL-FIND-LINK-SIMPLY' rather than whatever is in
+`ZETTEL-FIND-LINK-FUNCTION'."
   (interactive "p")
   (save-excursion
     (forward-word)
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
-      (let ((zettel-proliferate-frames
-             ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-             (if (or arg current-prefix-arg)
-                 t
-               zettel-proliferate-frames)))
-        (zettel-find-link (match-string-no-properties 1))))))
+      ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
+      (funcall (if (or arg current-prefix-arg)
+                   #'zettel-find-link-simply
+                 #'zettel-find-link)
+               (match-string-no-properties 1))
+      ;; This function is later added to `org-open-at-point-functions', so "must
+      ;; return t if they identify and follow a link at point. If they don’t find
+      ;; anything interesting at point, they must return nil."
+      t)))
 
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
