@@ -1550,29 +1550,46 @@ changes the existing one. With prefix argument, replaces the current
 ;; Insert my zettel title string into new zettel rather than contents of deft's
 ;; filter string.
 ;;
-(defun zettel-insert-metadata-template ()
+(defun zettel-insert-metadata-template (&optional category title)
   "Inserts the metadata template into the current buffer."
+  (interactive (list (zettel-ivy-read-category)))
   (let ((base (file-name-base buffer-file-name))
         (link (zettel-file-link buffer-file-name))
         insert-point)
-    (insert "title: §" link ". ")
-    (setq insert-point (point))
-    (insert "\ncreated: "
-            ;; Insert creation date, making it match a tempus currens filename
-            (format-time-string
-             "%Y-%m-%d"
-             (let ((today (format-time-string "%Y%m%d")))
-               (if (and (eq :tempus (zettel-type buffer-file-name))
-                        (not (string-match-p (regexp-quote today) base))
-                        (not (y-or-n-p "Past tempus currens; set created date to today? ")))
-                   (zettel-encode-iso8601-datetime base)
-                 nil)))
-            "\n")                  ; i.e. current time
-    (when (assoc link zettel-parent-of-new-child)
-      (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)) "\n"))
-    (goto-char insert-point)
-    (call-interactively 'zettel-set-category)
-    (end-of-line)))
+    (if (not (= (point-min) (point-max))) ; file is not empty
+        (error "The Zettel is not empty")
+      (insert "title: §" link ". ")
+      (setq insert-point (point))
+      (insert "\ncreated: "
+              ;; Insert creation date, making it match a tempus currens filename
+              (format-time-string
+               "%Y-%m-%d"
+               (let ((today (format-time-string "%Y%m%d")))
+                 (if (and (eq :tempus (zettel-type buffer-file-name))
+                          (not (string-match-p (regexp-quote today) base))
+                          (not
+                           (when (called-interactively-p 'any)
+                             (y-or-n-p "Past tempus currens; set created date to today? "))))
+                     (zettel-encode-iso8601-datetime base)
+                   nil)))
+              "\n")                     ; i.e. current time
+      (when (assoc link zettel-parent-of-new-child)
+        (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)) "\n"))
+      (goto-char insert-point)
+      (insert (format "{%s} %s" (or category "Unset") (or title "")))
+      (end-of-line))))
+
+(defun zettel-incorporate-file (file kasten &optional arg)
+  "Moves the file in the current buffer to the appropriate Zettelkasten. With
+prefix argument, asks for a different name."
+  (interactive (list (buffer-file-name)
+                     (ivy-read "Zettel kasten: " zettel-kaesten)
+                     current-prefix-arg))
+  (rename-file-and-buffer
+   (if (not arg)
+       (zettel-absolute-filename
+        (zettel-make-link kasten (file-name-base file)))
+     (call-interactively #'rename-file-and-buffer))))
 
 (defun deft-new-file--add-zettel-title (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
