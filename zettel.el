@@ -907,41 +907,49 @@ current Zettel to the `zettel-link-backlink'."
             (t
              (deft-open-file file t t))))))
 
-(defun zettel-insert-link-with-extras (link)
+(defun zettel-insert-link-with-extras (link extra)
   "Inserts the Zettel link, allowing the user to interactively select from a
 list of extras to also add."
-  (let ((file (zettel-absolute-filename link))
-        (extra (completing-read "Also include: "
-                                '("_b_: Title before"
-                                  "_a_: Title after"
-                                  "_d_: Title in description"
-                                  "_e_: Category before"
-                                  "_f_: Category in description"
-                                  "_n_: Just the slug"
-                                  "Anything else as description")
-                                nil 'confirm)))
-    (cond ((string= extra "_a_: Title after")
+  (let ((file (zettel-absolute-filename link)))
+    (unless extra
+      (ivy-read "Also include: "
+                '(("Title before" . :title-before)
+                  ("Title after" . :title-after)
+                  ("Citekey before" . :citekey-before)
+;;                  ("Title in description" . :desc-title)
+;;                  ("Category before" . :category-before)
+;;                  ("Category in description" . :desc-category)
+                  ("Just the slug" . :slug-only)
+                  "Anything else as description")
+                :action #'(lambda (cons)
+                            (setq extra (cdr cons)))))
+    ;; TODO: Simplify the code; very repetitive
+    (cond ((eq extra :title-after)
            (insert (zettel-org-format-link link)
                    " "
                    (alist-get :title (zettel-metadata file))))
-          ((string= extra "_b_: Title before")
+          ((eq extra :title-before)
            (insert (alist-get :title (zettel-metadata file))
                    " "
                    (zettel-org-format-link link)))
-          ((string= extra "_e_: Category before")
+          ((eq extra :citekey-before)
+           (insert (alist-get :citekey (zettel-metadata file))
+                   " "
+                   (zettel-org-format-link link)))
+          ((eq extra :category-before)
            (insert (alist-get :category (zettel-metadata file))
                    " "
                    (zettel-org-format-link link)))
-          ((string= extra "_d_: Title in description")
+          ((eq extra :desc-title)
            (insert (zettel-org-format-link
                     link
                     (alist-get :title (zettel-metadata file)))))
-          ((string= extra "_f_: Category in description")
+          ((eq extra :desc-category)
            (insert (zettel-org-format-link
                     link
                     (alist-get :category (zettel-metadata file)))))
-          ((string= extra "_n_: Just the slug")
-           (insert (zettel-link-slug link)))
+          ((eq extra :slug-only)
+           (insert (zettel-org-format-link (zettel-link-slug link))))
           (t
            (insert (zettel-org-format-link link extra))))))
 
