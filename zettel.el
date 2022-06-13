@@ -823,7 +823,7 @@ link)."
 the file in current buffer into `zettel-stored-links'."
   (interactive "p")
   (let* ((file (cond ((equal major-mode 'deft-mode)
-                      (widget-get (widget-at (point)) :tag))
+                      (button-get (button-at (point)) 'tag))
                      ((and (= arg 4) (zettel-link-at-point-p))
                       (zettel-absolute-filename (zettel-link-at-point)))
                      (buffer-file-name
@@ -981,7 +981,6 @@ selected. If the cursor in already inside a link, replace it instead."
             (insert (zettel-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
-;; TODO: Remove, deprecated
 (defun zettel-insert-link-to-stored-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 `zettel-stored-links'."
@@ -1056,7 +1055,7 @@ and system clipboard. With prefix argument, saves the combinted title from `'."
                     ((zettel-p buffer-file-name)
                      buffer-file-name)
                     ((equal major-mode 'deft-mode)
-                     (widget-get (widget-at (point)) :tag))
+                     (button-get (button-at (point)) 'tag))
                     (t
                      (message "Save title of what?")))))
     (when file
@@ -1076,7 +1075,7 @@ relative to `zettel-directory' instead. With two prefix arguments, open the
 file in Finder with it selected."
   (interactive "p")
   (let ((file (cond ((equal major-mode 'deft-mode)
-                     (widget-get (widget-at (point)) :tag))
+                     (button-get (button-at (point)) 'tag))
                     (buffer-file-name
                      buffer-file-name)
                     (t
@@ -1188,7 +1187,7 @@ full link."
          (zettel-file-link (cond ((zettel-p buffer-file-name)
                                   buffer-file-name)
                                  ((equal major-mode 'deft-mode)
-                                  (widget-get (widget-at (point)) :tag))
+                                  (button-get (button-at (point)) 'tag))
                                  (t
                                   (user-error "Child of what?")))))
         child-link)
@@ -1383,26 +1382,31 @@ in another window."
            (zettel-visiting-buffer-list t))
    (if (not arg) 'find-file 'find-file-other-window)))
 
-(defun zettel-ivy-read-category ()
-  "Returns a list, suitable to be passed to `interactive', asking the user to
-choose a category from `zettel-categories'."
-  (if current-prefix-arg
-      (read-string "Category: ")
-    (ivy-read "Category: " zettel-categories)))
+(defun zettel-ivy-read-category (&optional arg prompt)
+  "Uses `ivy-read' to select a category from `zettel-categories'. With prefix
+argument, asks the user to type in the category directly."
+  (let ((prompt (or prompt "Category: ")))
+    (if current-prefix-arg
+        (read-string prompt)
+      (ivy-read prompt zettel-categories))))
 
 (defun zettel-set-category (file category)
   "Sets the category to the Zettel title based on `zettel-categories'. With
 prefix argument, allows the user to type in a custom category."
-  (interactive (list (if (eq major-mode 'deft-mode)
-                         (widget-get (widget-at (point)) :tag)
-                       buffer-file-name)
+  (interactive (list (cond ((zettel-p buffer-file-name)
+                            buffer-file-name)
+                           ((equal major-mode 'deft-mode)
+                            (button-get (button-at (point)) 'tag))
+                           (t
+                            (user-error "Set category of what?")))
                      (zettel-ivy-read-category)))
   (let ((orig-buffer (current-buffer)))
     (save-excursion
       (with-current-buffer (find-file-noselect file)
         (goto-char (point-min))
-        (when (re-search-forward "^title: §?\\([^.]+\\)\\. \\({[^}]+} \\)*")
-          (replace-match (format "title: §\\1. {%s} " category)))
+        (if (re-search-forward "^title: §?\\([^.]+\\)\\. \\({[^}]+} \\)*" nil t)
+            (replace-match (format "title: §\\1. {%s} " category))
+          (message "Not sure how to set the category here"))
         ;; only save buffer if was not initially visiting it
         (unless (eq orig-buffer (current-buffer))
           (save-buffer))))))
@@ -1888,7 +1892,7 @@ kasten. With prefix argument, asks for a target link instead."
                            ((eq major-mode 'magit-status-mode)
                             (magit-file-at-point))
                            ((eq major-mode 'deft-mode)
-                            (widget-get (widget-at) :tag))
+                            (button-get (button-at (point)) 'tag))
                            (t
                             (read-file-name "Move which Zettel? ")))))
   (let ((source-link (zettel-file-link source-file)))
@@ -1915,10 +1919,10 @@ kasten. With prefix argument, asks for a target link instead."
            (deft-cache-update-file source-file)))))
 
 (defun zettel-rename-and-update-title ()
-  "Using most of the code from deft.el's DEFT-RENAME-FILE."
+  "Using most of the code from deft.el's `DEFT-RENAME-FILE'."
   (interactive)
   (let (old-filename new-filename old-name new-name)
-    (setq old-filename (widget-get (widget-at) :tag))
+    (setq old-filename (button-get (button-at (point)) 'tag))
     (when old-filename
       (setq old-name (file-name-base old-filename))
       (setq new-name (read-string
@@ -2087,5 +2091,7 @@ backlink."
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
+;; Was: deft-filter-clear
+(define-key deft-mode-map (kbd "C-c C-c") 'zettel-set-category)
 
 (provide 'zettel)
