@@ -494,9 +494,10 @@ symbol."
     (t
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun zettel-normalize-metadata (file)
-  "Replaces the metadata section of the given FILE."
-  (let ((metadata (zettel-metadata file))
+(defun zettel-normalize-metadata (file &optional metadata)
+  "Replaces the FILE's metadata section with either the given METADATA or
+by parsing the FILE's metadata."
+  (let ((metadata (or metadata (zettel-metadata file)))
         (old-point (point)))
     (save-excursion
       (with-current-buffer (get-file-buffer file)
@@ -525,7 +526,8 @@ symbol."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-(defun zettel-update-metadata (key value)
+;; TODO: Remove, deprecated
+(defun zettel-update-metadata-in-vivo (key value)
   "Updates the Zettel metadata section in the current buffer, setting the KEY
 to VALUE."
   (let ((key-name (zettel-metadata-yaml-key key))
@@ -1208,7 +1210,7 @@ user from cached and visiting Zettel."
                     (zettel-visiting-buffer-list t))
             (zettel-ivy-titles-reverse-alist)))
    (lambda (path)
-     (zettel-update-metadata :parent (zettel-file-link path)))))
+     (zettel-update-metadata-in-vivo :parent (zettel-file-link path)))))
 
 ;; TODO: Remove or update
 (defun zettel-numerus-children (slug)
