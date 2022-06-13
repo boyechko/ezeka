@@ -958,26 +958,30 @@ list of extras to also add."
 the Deft cache. With prefix argument, offers a few options for including
 Zettel descriptions. If the user selects a Zettel that does not exist in the
 list of cached or visiting Zettel, just insert the link to what was
-selected."
+selected. If the cursor in already inside a link, replace it instead."
   (interactive "P")
   (let* ((choices
           (delete-dups (append
                         (mapcar (lambda (path)
                                   (cons (deft-file-title path) path))
                                 (zettel-visiting-buffer-list t))
-                        (zettel-ivy-titles-reverse-alist)))))
+                        (zettel-ivy-titles-reverse-alist #'string>)))))
     (if choices
-        (let ((link (zettel-ivy-read-reverse-alist-action
-                     "Insert link to: " choices 'zettel-file-link nil)))
-          (if (cdr link)
-              (if arg
-                  (zettel-insert-link-with-extras (cdr link))
-                (insert (zettel-org-format-link (cdr link))))
-            (insert (zettel-org-format-link
-                     (zettel-make-link (zettel-directory-kasten deft-directory)
-                                       (car link))))))
+        (let* ((choice (zettel-ivy-read-reverse-alist-action
+                        "Insert link to: " choices 'zettel-file-link nil))
+               (link (or (cdr choice)
+                         ;; Make a new link
+                         (zettel-make-link
+                          (zettel-directory-kasten deft-directory)
+                          (car choice)))))
+          (if (not (zettel-link-at-point-p))
+              (zettel-insert-link-with-extras link (if arg nil :slug-only))
+            ;; When replacing, don't including anything
+            (delete-region (match-beginning 0) (match-end 0))
+            (insert (zettel-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
+;; TODO: Remove, deprecated
 (defun zettel-insert-link-to-stored-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 `zettel-stored-links'."
@@ -1311,7 +1315,7 @@ argument, on the key. Returns a cons cell consisting of the match from
               :require-match require-match)
     result))
 
-(defun zettel-ivy-titles-reverse-alist ()
+(defun zettel-ivy-titles-reverse-alist (&optional sort)
   "Returns a reverse alist of choices consisting of cached Zettel titles and
 their paths. For use with `zettel-ivy-read-reverse-alist-action'."
   (let (titles-alist)
@@ -1319,7 +1323,9 @@ their paths. For use with `zettel-ivy-read-reverse-alist-action'."
             (maphash (lambda (key val)
                        (push (cons (or val key) key) titles-alist))
                      deft-hash-titles)
-            titles-alist)
+            (if (functionp sort)
+                (cl-sort titles-alist sort :key #'car)
+              titles-alist))
           (t
            (error "No Deft titles cached")))))
 
