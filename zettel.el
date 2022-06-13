@@ -442,36 +442,43 @@ Group 2 is the value.")
 (defvar zettel-regexp-combined-title
   (concat "^§"
           zettel-regexp-link
-          "\\. \\({\\([^}]+\\)} \\)*\\([^#]+\\)\\( \\(#.*\\)\\)*$")
+          "\\. \\({\\([^}]+\\)} \\)*\\([^#@]+\\)\\(#[^@]+\\)*\\(@.*\\)*")
   "Regular expression for a combined title string, used in `zettel-metadata'.
 Group 2 is the kasten.
 Group 3 is the slug.
 Group 5 is the category.
 Group 6 is the title itself.
-Group 8 is the keyword block.")
+Group 7 is the keyword block.
+Group 8 is the citation key.")
 
 (defun zettel-decode-combined-title (title)
-  "Returns an alist of metadata from a combined title."
-  (when (and title (string-match zettel-regexp-combined-title title))
-    (let ((slug (match-string 3 title)))
-      (list (cons :slug slug)
-            (cons :type (zettel-type slug))
-            (cons :category (match-string 5 title))
-            (cons :title (match-string 6 title))
-            (when (match-string 8 title)
-              (cons :keywords
-                    (split-string (match-string 8 title))))))))
+  "Returns an alist of metadata from a combined title. If cannot decode,
+return the original title."
+  (if (and title (string-match zettel-regexp-combined-title title))
+      (let ((slug (match-string 3 title)))
+        (list (cons :slug slug)
+              (cons :type (zettel-type slug))
+              (cons :category (match-string 5 title))
+              (cons :title (string-trim-right (match-string 6 title) " "))
+              (when (match-string 7 title)
+                (cons :keywords
+                      (string-trim-right (match-string 7 title) " ")))
+              (when (match-string 8 title)
+                (cons :citekey
+                      (string-trim-right (match-string 8 title) " ")))))
+    (list (cons :title title))))
 
 (defun zettel-encode-combined-title (metadata)
   "Returns a list of two elements: 1) string that encodes into the title line
 the given METADATA, and 2) leftover metadata."
-  (list (format "§%s. %s%s"
+  (list (format "§%s. {%s} %s%s"
                 (alist-get :link metadata)
-                (if (alist-get :category metadata)
-                    (concat "{" (alist-get :category metadata) "} ")
-                  "{None}")
-                (alist-get :title metadata))
-        (set-difference metadata '((:link) (:category) (:title) (:type))
+                (or (alist-get :category metadata) "Unset")
+                (alist-get :title metadata)
+                (if (alist-get :citekey metadata)
+                    (concat " " (alist-get :citekey metadata))
+                  ""))
+        (set-difference metadata '((:link) (:category) (:title) (:type) (:citekey))
                         :key #'car)))
 
 (defun zettel-metadata-yaml-key (keyword)
@@ -565,11 +572,13 @@ content of the FILE. They keys are converted to keywords."
                                       value)))
                           (error "Malformed metadata line: '%s'" line))))
                   metadata-section))
-         (title (alist-get :title metadata)))
-    (when title
+         (title (alist-get :title metadata))
+         (decoded (zettel-decode-combined-title title)))
+    ;; When successfully decoded combined title, replace the original title with
+    ;; the decoded metadata.
+    (when decoded
       (setq metadata
-        (append (zettel-decode-combined-title title)
-                (cl-remove :title metadata :key #'car))))
+        (append decoded (cl-remove :title metadata :key #'car))))
     (push (cons :kasten (zettel-file-kasten file)) metadata)
     (push (cons :link (zettel-file-link file)) metadata)))
 
