@@ -1059,6 +1059,10 @@ and system clipboard. With prefix argument, saves the combinted title from `'."
                     (t
                      (message "Save title of what?")))))
     (when file
+      ;; FIXME: Is this too low-level for here? Should `zettel-file-content'
+      ;; handle this situation (cache too old) somehow?
+      (when (and deft-hash-contents (deft-file-contents file))
+        (deft-cache-update-file file))
       (let* ((metadata (zettel-metadata file))
              (title (if arg
                         (car (zettel-encode-combined-title metadata))
