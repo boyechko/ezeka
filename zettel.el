@@ -613,8 +613,9 @@ buffer."
   '(lambda ()
      (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
      (add-hook 'after-save-hook
-       (lambda ()
-         (deft-cache-file buffer-file-name)))))
+       '(lambda ()
+          (deft-cache-file buffer-file-name))
+       nil t)))
 
 ;;;=============================================================================
 ;;; Numerus Currens
