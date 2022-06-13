@@ -7,6 +7,10 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;; TODO:
 ;;;;
+;;;; - implement some kind of checksum check for keeping draft up to date
+;;;; - add function to set readings metadata from org LOGBOOK at point
+;;;; - rename "undecoded" title to something like summary or first-line
+;;;; - insert link to bookmark (C-x r) file
 ;;;; - save list of RUMEN Kasten titles for use in other Emacs instances
 ;;;; - good way to set keywords, ideally with completion of existing ones
 ;;;; - remove bibkey from title when inserting link with title
@@ -66,6 +70,13 @@ the Zettel directory."
 timestamp.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
+
+;; FIXME: Is this or the individually-named variables redundant?
+(defvar zettel-type-regexp-alist
+  `((:bolus   . ,zettel-regexp-bolus-currens) ; FIXME: temporary
+    (:numerus . ,zettel-regexp-numerus-currens)
+    (:tempus  . ,zettel-regexp-tempus-currens))
+  "An alist of type and its regular expressions for the various slug types.")
 
 (defvar zettel-regexp-slug
   ;; Strip the groups in the component regexps
@@ -286,6 +297,7 @@ specified, asks the user to resolve the ambiguity."
                      (error "No Zettelkästen defined")))))
   (setf (alist-get type zettel-default-kasten) kasten))
 
+;; FIXME: Rename `zettel-type' to `zettel-slug-type'?
 (defun zettel-kasten-slug-type (kasten)
   "Returns the Zettel slug naming type for the given kasten based on
 `zettel-kaesten'."
@@ -298,9 +310,16 @@ specified, asks the user to resolve the ambiguity."
 
 (defun zettel-make-link (kasten slug)
   "Make a new proper link to SLUG in KASTEN."
-  (if (rassoc kasten zettel-default-kasten)
-      slug
-    (concat kasten ":" slug)))
+  (let ((slug-type (zettel-kasten-slug-type kasten)))
+    (cond ((not slug-type)
+           (error "Unknown kasten: %s" kasten))
+          ((not
+            (string-match-p (alist-get slug-type zettel-type-regexp-alist) slug))
+           (error "Slug doesn't match the slug type for %s kasten" kasten))
+          ((rassoc kasten zettel-default-kasten)
+           slug)
+          (t
+           (concat kasten ":" slug)))))
 
 (defun zettel-numerus-subdirectory (slug)
   "Returns the right subdirectory for the given numerus currens slug."
@@ -358,6 +377,7 @@ This function replaces `deft-absolute-filename' for Zettel."
        (first args)))))
 (advice-add 'deft-absolute-filename :around 'deft-absolute-filename--zettel)
 
+;; FIXME: Rename `zettel-type' to `zettel-slug-type'?
 (defun zettel-type (slug-or-file)
   "Returns the type of the given slug or file: :NUMERUS or :TEMPUS."
   (let ((slug (file-name-base slug-or-file)))
