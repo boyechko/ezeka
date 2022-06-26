@@ -1271,35 +1271,43 @@ the links are on the right of titles; otherwise, to the left."
   "Finds the provided Zettel link, returning T if it's a Zettel link. If the
 file is empty, inserts the metadata template."
   (when (zettel-link-p link)
-    (with-selected-window )
-    (funcall (if zettel-proliferate-frames
-                 #'find-file-other-frame
-               #'find-file)
-             (zettel-absolute-filename link))
-    (call-interactively #'zettel-insert-metadata-template)))
+    (let ((file (zettel-absolute-filename link)))
+      (funcall (if zettel-proliferate-frames
+                   #'find-file-other-frame
+                 #'find-file)
+               file)
+      (when (zerop (buffer-size))
+       (call-interactively #'zettel-insert-metadata-template)))))
 
 (defun zettel-find-link-ace-window (link)
   "Finds the provided Zettel link and opens it in the selected window. This
 function ignores the value of `zettel-proliferate-frames'."
   (when (zettel-link-p link)
-    (with-selected-window (ace-select-window)
-      (find-file (zettel-absolute-filename link))
-      (when (= (point-min) (point-max)) ; file is empty
-        (message "Empty Zettel, inserting metadata template")
-        (call-interactively #'zettel-insert-metadata-template)))))
+    (let* ((file (zettel-absolute-filename link))
+           (new-buffer
+            (if (> (max (length (window-list)) (length (frame-list))) 1)
+                (with-selected-window (ace-select-window)
+                  (find-file file))
+              (find-file-other-frame file))))
+      (with-current-buffer new-buffer
+        (when (zerop (buffer-size))
+          (call-interactively #'zettel-insert-metadata-template))))))
 
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. With universal prefix, asks the user to type the link
-instead."
+cached Zettel titles. With universal prefix, open the link using
+`zettel-find-link-simply'. With double universal prefix, asks the user to
+type the link instead."
   (interactive "P")
-  (zettel-find-link
-   (if (not arg)
-       (zettel-file-link (cdr (zettel-ivy-read-reverse-alist-action
-                               "Select title: "
-                               (zettel-ivy-titles-reverse-alist)
-                               #'identity)))
-     (read-string "Zettel link to find: "))))
+  (funcall (if (eql arg '(4))
+               #'zettel-find-link-simply
+             #'zettel-find-link)
+           (if (eql arg '(16))
+               (read-string "Zettel link to find: ")
+             (zettel-file-link (cdr (zettel-ivy-read-reverse-alist-action
+                                     "Select title: "
+                                     (zettel-ivy-titles-reverse-alist)
+                                     #'identity))))))
 
 (defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
   "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
