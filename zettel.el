@@ -814,6 +814,16 @@ link). The first group is the link target."
 `zettel-link-at-point-p'."
   (match-string-no-properties 1))
 
+(defun zettel-kill-link-at-point ()
+  "If there is a Zettel link at point, kill it, including the square brackets."
+  (interactive)
+  (when (zettel-link-at-point-p)
+    (let ((start (match-beginning 0))
+          (end (match-end 0)))
+      (kill-new (buffer-substring-no-properties start end))
+      (delete-region start end)
+      (just-one-space 1))))
+
 ;; TODO: Obsolete
 (defun zettel-store-link (arg)
   "Add the link 1) to the Deft file at point if in *Deft* buffer, or 2) to
@@ -2133,6 +2143,9 @@ backlink."
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-select-link)
 (define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
+
+;; This shadows the default `kill-sexp'
+(define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-at-point)
 
 ;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
