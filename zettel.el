@@ -805,7 +805,7 @@ Based on `rename-file-and-buffer'."
 
 (defun zettel-link-at-point-p ()
   "Returns T if the thing at point is a wiki link (i.e. [[XXX]] or org-mode
-link)."
+link). The first group is the link target."
   (thing-at-point-looking-at
    (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))
 
@@ -1112,6 +1112,34 @@ file in Finder with it selected."
            (concat "zlinksto" " " (zettel-file-link buffer-file-name)))
   (when arg
     (switch-to-buffer-other-window "*Async Shell Command*")))
+
+(defun zettel-show-link-title-in-minibuffer ()
+  "Displays Zettel title in minibuffer of the link under cursor."
+  (while-no-input
+    (redisplay))
+  (when (and (eq major-mode 'org-mode)
+             (zettel-link-at-point-p))
+    (let* ((file (zettel-absolute-filename (match-string 1)))
+           (title (or (deft-file-title file)
+                      (zettel-deft-parse-title-function
+                       (magit-file-line file)))))
+      (message title))))
+
+(add-hook 'zettel-mode-hook
+  '(lambda ()
+     (add-hook 'post-command-hook
+       'zettel-show-link-title-in-minibuffer)))
+
+;; Show the beginning of Zettel title in mode-line
+(defun zettel-mode-line-buffer-identification ()
+  (interactive)
+  (multiple-value-bind (name category title)
+      (split-string (or (deft-file-title buffer-file-name)
+                        "noname  category  title of zettel") "  " t)
+    (setq-local mode-line-buffer-identification
+                `(:eval ,(mapconcat #'identity
+                           (subseq (split-string title " ") 0 2) " ")))))
+(add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-identification)
 
 ;;;=============================================================================
 ;;; Genealogical
