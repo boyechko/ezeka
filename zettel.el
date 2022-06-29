@@ -12,7 +12,6 @@
 ;;;; - C-u `zettel-open-link-at-point' should allow choosing a function to use
 ;;;; - `zettel-deft-parse-title-function' should have citekey column
 ;;;; - `deft-filter-zettel-category' should not clobber existing input
-;;;; - opening link from Deft should use `zettel-find-link-ace-window'
 ;;;; - intelligently include category when insert link with title (2022-06-14)
 ;;;; - remove various obsolete functions from this file (2022-06-14)
 ;;;; - implement some kind of checksum check for keeping draft up to date
@@ -385,16 +384,6 @@ This function replaces `deft-absolute-filename' for Zettel."
             (t (error "This is not a proper Zettel link: %s" link)))
           (zettel-kasten-directory kasten))))
     (error "This is not a proper Zettel link: %s" link)))
-
-(defun deft-absolute-filename--zettel (orig-fun &rest args)
-  "Replaces the default `deft-absolute-filename' with
-`zettel-absolute-filename'."
-  (let ((kasten (zettel-directory-kasten deft-directory)))
-    (zettel-absolute-filename
-     (if kasten
-         (concat kasten ":" (first args))
-       (first args)))))
-(advice-add 'deft-absolute-filename :around 'deft-absolute-filename--zettel)
 
 ;; FIXME: Rename `zettel-type' to `zettel-slug-type'?
 (defun zettel-type (slug-or-file)
@@ -1549,7 +1538,7 @@ as the value for `deft-parse-title-function'."
               (alist-get :title metadata)))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
-(defun deft-new-file-maybe-named (arg)
+(defun zettel-adv--deft-new-file-maybe-named (arg)
   "Extends `deft-new-file' to call `deft-new-file-named' if called with
 prefix argument."
   (interactive "p")
@@ -1557,7 +1546,8 @@ prefix argument."
       (call-interactively #'deft-new-file-named)
     (deft-new-file)))
 
-(advice-add 'deft-auto-populate-title-maybe :around #'list)
+;; Don't ever auto populate the title
+(advice-add 'deft-auto-populate-title-maybe :around #'identity)
 
 (defun zettel-add-section-sign-to-deft-filter ()
   "Inserts the Unicode section sign (§) to Deft filter string."
@@ -1618,7 +1608,7 @@ prefix argument, asks for a different name."
         (zettel-make-link kasten (file-name-base file)))
      (call-interactively #'rename-file-and-buffer))))
 
-(defun deft-new-file--add-zettel-title (orig-fun slug)
+(defun zettel-adv--deft-new-file-insert-metadata (orig-fun slug)
   "Replaces deft's default behavior of putting the filter string
 on the first line with the Zettel title string."
   ;; `DEFT-NEW-FILE-NAMED' returns either a string (from MESSAGE) about an
@@ -1629,7 +1619,17 @@ on the first line with the Zettel title string."
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
         (zettel-insert-metadata-template)))))
-(advice-add 'deft-new-file-named :around #'deft-new-file--add-zettel-title)
+(advice-add 'deft-new-file-named :around #'zettel-adv--deft-new-file-insert-metadata)
+
+(defun zettel-adv--deft-absolute-filename (orig-fun &rest args)
+  "Replaces the default `deft-absolute-filename' with
+`zettel-absolute-filename'."
+  (let ((kasten (zettel-directory-kasten deft-directory)))
+    (zettel-absolute-filename
+     (if kasten
+         (concat kasten ":" (first args))
+       (first args)))))
+(advice-add 'deft-absolute-filename :around 'zettel-adv--deft-absolute-filename)
 
 ;;
 ;; Sorting deft-buffer by filename
@@ -1668,6 +1668,13 @@ that of FILE2. Case is ignored."
             deft-current-sort-method
             (if deft-incremental-search "" "/R"))))
 (advice-add 'deft-toggle-sort-method :after 'deft-set-mode-name)
+
+(defun zettel-adv--deft-open-button (orig-fun &rest args)
+  "Advice :around `deft-open-button' to call `zettel-find-link' instead of
+`deft-open-file'."
+  (zettel-find-link
+   (zettel-file-link (button-get (first args) 'tag))))
+(advice-add 'deft-open-button :around #'zettel-adv--deft-open-button)
 
 ;;;=============================================================================
 ;;; Org-Mode Intergration
@@ -1755,7 +1762,7 @@ org subtree."
                 new-file (zettel-absolute-filename tempus-currens))
           (let* ((content (org-get-entry)))
             ;; Code adapted from `deft-new-file', since calling that function in
-            ;; turn calls my `deft-new-file--add-zettel-title' that interferes
+            ;; turn calls my `zettel-adv--deft-new-file-insert-metadata' that interferes
             ;; with populating the file properly.
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
