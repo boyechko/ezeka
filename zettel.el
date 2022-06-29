@@ -13,14 +13,12 @@
 ;;;; - `zettel-deft-parse-title-function' should have citekey column
 ;;;; - `deft-filter-zettel-category' should not clobber existing input
 ;;;; - intelligently include category when insert link with title (2022-06-14)
-;;;; - remove various obsolete functions from this file (2022-06-14)
 ;;;; - implement some kind of checksum check for keeping draft up to date
 ;;;; - add function to set readings metadata from org LOGBOOK at point
 ;;;; - rename "undecoded" title to something like summary or first-line
 ;;;; - insert link to bookmark (C-x r) file
 ;;;; - save list of RUMEN Kasten titles for use in other Emacs instances
 ;;;; - good way to set keywords, ideally with completion of existing ones
-;;;; - remove bibkey from title when inserting link with title
 ;;;; - add an easy way to insert zlinksto output
 
 (require 'deft)
@@ -111,17 +109,6 @@ Groups 1-3 are year, month, day.")
   "T*\\([0-9]\\{2\\}\\):*\\([0-9]\\{2\\}\\)\\>"
   "The regular expression that matches ISO 8601-like time.
 Groups 1-2 are hour and minute.")
-
-(defvar zettel-stored-links '()
-  "A stack of links stored with `zettel-store-link'.")
-
-(defvar zettel-stored-links-history '()
-  "History of the links stored with `zettel-store-link'.")
-
-(defvar zettel-link-backlink nil
-  "Stores the file name of the document into which a link was inserted with
-`zettel-insert-link-intrusive' or `zettel-insert-link', allowing for creation
-of backlinks.")
 
 (defvar zettel-deft-active-kasten nil
   "The name of the active Zettelkasten, if any. This variable is set by
@@ -528,29 +515,6 @@ by parsing the FILE's metadata."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-;; TODO: Remove, deprecated
-(defun zettel-update-metadata-in-vivo (key value)
-  "Updates the Zettel metadata section in the current buffer, setting the KEY
-to VALUE."
-  (let ((key-name (zettel-metadata-yaml-key key))
-        (value-string (zettel-metadata-yaml-value value))
-        found)
-    (save-excursion
-      (save-restriction
-        (goto-char (point-min))
-        (when (re-search-forward "^$" nil t 1)
-          (narrow-to-region (point-min) (point)))
-        (goto-char (point-min))
-        (while (re-search-forward zettel-regexp-metadata-line nil t)
-          (when (equal (match-string-no-properties 1) key-name)
-            (replace-match
-             (format "%s: %s" (match-string-no-properties 1) value-string))
-            (setq found t)))
-        (unless found
-          (open-line 1)
-          (forward-line)
-          (insert (format "%s: %s" key-name value-string)))))))
-
 (defun zettel-metadata (file)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
@@ -824,30 +788,6 @@ link). The first group is the link target."
       (delete-region start end)
       (just-one-space 1))))
 
-;; TODO: Obsolete
-(defun zettel-store-link (arg)
-  "Add the link 1) to the Deft file at point if in *Deft* buffer, or 2) to
-the file in current buffer into `zettel-stored-links'."
-  (interactive "p")
-  (let* ((file (cond ((equal major-mode 'deft-mode)
-                      (button-get (button-at (point)) 'tag))
-                     ((and (= arg 4) (zettel-link-at-point-p))
-                      (zettel-absolute-filename (zettel-link-at-point)))
-                     (buffer-file-name
-                      buffer-file-name)
-                     (t
-                      (message "No file to store a link to."))))
-         (link (zettel-file-link file))
-         (already-stored (member link zettel-stored-links)))
-    (when already-stored
-      (setq zettel-stored-links (remove link zettel-stored-links)))
-    (push link zettel-stored-links)
-    (message (if already-stored
-                 "Link moved to the front: %s"
-               "Link stored: %s")
-             (remove-if #'null zettel-stored-links))))
-(advice-add 'zettel-store-link :before 'zettel-kill-ring-save-link)
-
 ;; TODO: Get rid of this function and change existing calls
 (defun zettel-wiki-link (target &optional include-title where add-spaces)
   "Returns a wiki link to TARGET, which can be either a link or a filepath.
@@ -878,43 +818,6 @@ WHERE can be RIGHT or LEFT."
             link
             (if description
                 (format "[%s]" description) ""))))
-
-;; TODO: Remove, deprecated
-(defun zettel-insert-link (arg)
-  "Insert the top link from `zettel-stored-links'. If called with
-prefix argument, insert the link title to the left of the link.
-If with double prefix argument, insert the title to the right."
-  (interactive "P")
-  (if zettel-stored-links
-      (let ((link (pop zettel-stored-links)))
-        ;; Save the link in link history
-        (push link zettel-stored-links-history)
-        ;; Insert the link
-        (insert
-         (zettel-wiki-link link (consp arg) (equal arg '(16)) t))
-        ;; Save the backlink
-        (setq zettel-link-backlink buffer-file-name))
-    (message "No link to insert")))
-
-;; TODO: Remove, deprecated?
-(defun zettel-insert-link-intrusive (arg)
-  "Like `zettel-insert-link', but also opens the Zettel of the
-link inserted if it doesn't already have a backlink, and adds the
-current Zettel to the `zettel-link-backlink'."
-  (interactive "P")
-  (when zettel-stored-links
-    (let* ((link (first zettel-stored-links))
-           (file (zettel-absolute-filename link)))
-      (zettel-insert-link arg)
-      ;; If the linked file doesn't already have a link to the current one,
-      ;; opens the linked file in a new window, but does not switch to it.
-      (cond ((string-match (regexp-quote (zettel-wiki-link buffer-file-name))
-                           (zettel-file-content file))
-             (message "The linked note %s has a backlink to %s already"
-                      link
-                      (zettel-file-link buffer-file-name)))
-            (t
-             (deft-open-file file t t))))))
 
 (defun zettel-insert-link-with-extras (link extra)
   "Inserts the Zettel link, allowing the user to interactively select from a
@@ -989,58 +892,6 @@ selected. If the cursor in already inside a link, replace it instead."
             (delete-region (match-beginning 0) (match-end 0))
             (insert (zettel-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
-
-;; TODO: Remove, deprecated
-(defun zettel-insert-link-to-stored-or-visiting (arg)
-  "Inserts a link to another Zettel being currently visited or to those in
-`zettel-stored-links'."
-  (interactive "P")
-  (let* ((files (delete-dups (append (mapcar #'zettel-absolute-filename
-                                             zettel-stored-links)
-                                     (zettel-visiting-buffer-list t)))))
-    (if files
-        (progn
-          (push (zettel-ivy-read-reverse-alist-action files 'zettel-file-link)
-                zettel-stored-links)
-          (zettel-insert-link arg)
-          ;; FIXME: This is very brute force to remove the inserted link from
-          ;; the list, so need to rewrite once I figure out what to do about
-          ;; links.
-          (setq zettel-stored-links '()))
-      (user-error "No stored links or visited Zettel"))))
-
-(defun zettel-insert-backlink (arg)
-  "Like `zettel-insert-link', but instead of popping a link from
-`zettel-stored-links', inserts the link in
-`zettel-link-backlink', if set."
-  (interactive "P")
-  (cond (zettel-link-backlink
-         (insert (zettel-wiki-link zettel-link-backlink
-                                   (consp arg) (equal arg '(16)) t))
-         (setq zettel-link-backlink nil))
-        (t
-         (message "No backlink to insert."))))
-
-(defun zettel-list-links ()
-  "Lists the currently stored links and backlink."
-  (interactive)
-  (message "Stored links: %s Backlink: %s"
-           (mapcar #'file-name-base zettel-stored-links)
-           (file-name-base zettel-link-backlink)))
-
-(defun zettel-drop-link ()
-  "Drops the most recent stored link."
-  (interactive)
-  (message "Dropping link to %s, remaining links: %s"
-           (file-name-base (pop zettel-stored-links))
-           (mapcar #'file-name-base zettel-stored-links)))
-
-(defun zettel-clear-links ()
-  "Clears `zettel-stored-links' and `zettel-link-backlink'."
-  (interactive)
-  (setq zettel-stored-links nil
-        zettel-link-backlink nil)
-  (message "Zettel links and backlink cleared"))
 
 (defun zettel-insert-link-from-clipboard (arg)
   "Link `zettel-insert-link' but attempts to get the link slug
@@ -1256,44 +1107,17 @@ full link."
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
 user from cached and visiting Zettel."
   (interactive)
-  (zettel-ivy-read-reverse-alist-action
-   "Set parent: "
-   (delete-dups
-    (append (mapcar (lambda (path)
-                      (cons (deft-file-title path) path))
-                    (zettel-visiting-buffer-list t))
-            (zettel-ivy-titles-reverse-alist)))
-   (lambda (path)
-     (zettel-update-metadata-in-vivo :parent (zettel-file-link path)))))
-
-;; TODO: Remove or update
-(defun zettel-numerus-children (slug)
-  "Returns a list of the slugs of Zettel's children. If the Zettel doesn't
-have any children, returns NIL."
-  (multiple-value-bind (number letters)
-      (zettel-numerus-parts slug)
-    (let ((children-regex (format "%s-%s[a-z]$" number (or letters ""))))
-      (sort
-       (mapcar #'file-name-base
-               (remove-if-not #'(lambda (x) (string-match children-regex x))
-                              deft-all-files
-                              :key #'file-name-base))
-       #'string-lessp))))
-
-;; TODO: Remove or update
-(defun zettel-insert-list-of-children (slug arg)
-  "Insert a list of links to children and their titles for the
-given slug (defaults to current one). With prefix argument,
-the links are on the right of titles; otherwise, to the left."
-  (interactive (list
-                (read-string
-                 (format "slug (%s): " (file-name-base buffer-file-name))
-                 nil nil (file-name-base buffer-file-name))
-                current-prefix-arg))
-  (when (zettel-p buffer-file-name)
-    (dolist (child (zettel-numerus-children slug))
-      (beginning-of-line)
-      (insert "* " (zettel-wiki-link (zettel-absolute-filename child) t arg) "\n"))))
+  (let ((metadata (zettel-metadata buffer-file-name)))
+    (zettel-ivy-read-reverse-alist-action
+     "Set parent to: "
+     (delete-dups
+      (append (mapcar (lambda (path)
+                        (cons (deft-file-title path) path))
+                      (zettel-visiting-buffer-list t))
+              (zettel-ivy-titles-reverse-alist)))
+     (lambda (path)
+       (setf (alist-get :parent metadata) (zettel-file-link path))
+       (zettel-normalize-metadata buffer-file-name metadata)))))
 
 ;;;=============================================================================
 ;;; Buffers, Files, Categories
@@ -1952,19 +1776,6 @@ Zettelkasten work."
                         (alist-get :kasten metadata)))
             "%b")))
 
-(defun zettel-update-frame-title ()
-  "Sets the frame title for the current Zettel buffer to be more useful."
-  (when (and (boundp 'zettel-mode) zettel-mode)
-    (let ((metadata (zettel-metadata buffer-file-name)))
-      (setq-local frame-title-format
-                  (list "@" (upcase zettel-deft-active-kasten)
-                        " "
-                        "{" (alist-get :category metadata) "}"
-                        " "
-                        "«" (alist-get :title metadata) "»"
-                        " "
-                        "§" (alist-get :slug metadata))))))
-
 ;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
@@ -2003,58 +1814,6 @@ kasten. With prefix argument, asks for a target link instead."
           ((eq major-mode 'deft-mode)
            (deft-cache-update-file source-file)))))
 
-;; FIXME: Update? Rename? Remove?
-(defun zettel-rename-and-update-title ()
-  "Using most of the code from deft.el's `DEFT-RENAME-FILE'."
-  (interactive)
-  (let (old-filename new-filename old-name new-name)
-    (setq old-filename (button-get (button-at (point)) 'tag))
-    (when old-filename
-      (setq old-name (file-name-base old-filename))
-      (setq new-name (read-string
-                      (concat "Rename " old-name " to (without extension): ")
-                      old-name))
-      (setq new-filename
-        (concat (file-name-as-directory deft-directory)
-                new-name "." deft-extension))
-      ;; Use appropriate command depending on if tracked or not
-      (if (vc-backend old-name)
-          (vc-rename-file old-filename new-filename)
-        (rename-file old-filename new-filename))
-      ;; Update the title
-      (zettel-match-title-to-filename)
-      ;; Update Deft
-      (deft-update-visiting-buffers old-filename new-filename)
-      (deft-refresh))))
-
-(defun zettel-match-title-to-filename ()
-  "Updates the title metadata tag to match the file's filename.
-Adds an 'oldname' tag with the previous name."
-  (interactive)
-  (error "FIXME: Old way of handling oldname")
-  (let (oldname)
-    (save-excursion
-      (save-restriction
-        (goto-char (point-min))
-        (forward-paragraph)
-        (narrow-to-region (point-min) (point))
-        (goto-char (point-min))
-        (when (re-search-forward "title: §\\([a-z0-9:-]+\\)\\.")
-          (setq oldname (match-string 1))
-          (replace-match (file-name-base buffer-file-name) t nil nil 1)
-          (forward-paragraph)
-          (forward-line 1)
-          (insert (concat "oldname: " oldname))
-          (open-line 1))))))
-
-(defun zettel-batch-update-titles ()
-  "Runs `zettel-match-title-to-filename' on all the
-`deft-current-files'."
-  (interactive)
-  (dolist (zettel deft-current-files)
-    (find-file zettel)
-    (zettel-match-title-to-filename)))
-
 (defun zettel-filter-for-link-at-point ()
   "Modifies the Deft filter to look for the Zettel linked with
 the link at point. If there is only one match, opens the note in
@@ -2074,26 +1833,6 @@ another window."
              (message "No notes with current or old name matching `%s'" link))
             (t
              (switch-to-buffer-other-window deft-buffer))))))
-
-(defun zettel-replace-link-at-point (arg)
-  "Replaces the link at point with the stored link. With a prefix
-argument, or if there are no stored links, replaces with the
-backlink."
-  (interactive "P")
-  (when (zettel-link-at-point-p)
-    (let ((link  (zettel-link-at-point)))
-      (save-excursion
-        ;; Make sure we are at the start of the link
-        (unless (string-match "\\[\\[[^]]+\\]\\]" (thing-at-point 'sexp))
-          (re-search-backward "\\[\\["))
-        (kill-sexp)
-        (cond ((or (equal arg '(4))
-                   (not zettel-stored-links))
-               (zettel-insert-backlink nil))
-              ((integerp arg)
-               (zettel-insert-link-intrusive arg))
-              (t
-               (zettel-insert-link-intrusive nil)))))))
 
 (defun zettel-generate-n-new-slugs (how-many type)
   "Generates a bunch of new slugs, making sure there are no dulicates."
