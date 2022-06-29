@@ -7,6 +7,14 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;; TODO:
 ;;;;
+;;;; - `zettel-kill-ring-save-link-title' should look ahead on the same line
+;;;;   if there isn't one at point
+;;;; - C-u `zettel-open-link-at-point' should allow choosing a function to use
+;;;; - `zettel-deft-parse-title-function' should have citekey column
+;;;; - `deft-filter-zettel-category' should not clobber existing input
+;;;; - opening link from Deft should use `zettel-find-link-ace-window'
+;;;; - intelligently include category when insert link with title (2022-06-14)
+;;;; - remove various obsolete functions from this file (2022-06-14)
 ;;;; - implement some kind of checksum check for keeping draft up to date
 ;;;; - add function to set readings metadata from org LOGBOOK at point
 ;;;; - rename "undecoded" title to something like summary or first-line
@@ -15,7 +23,6 @@
 ;;;; - good way to set keywords, ideally with completion of existing ones
 ;;;; - remove bibkey from title when inserting link with title
 ;;;; - add an easy way to insert zlinksto output
-;;;; - open links to other Kasten in their own Emacs instance, if available
 
 (require 'deft)
 
@@ -824,6 +831,7 @@ link)."
 `zettel-link-at-point-p'."
   (match-string-no-properties 1))
 
+;; TODO: Obsolete
 (defun zettel-store-link (arg)
   "Add the link 1) to the Deft file at point if in *Deft* buffer, or 2) to
 the file in current buffer into `zettel-stored-links'."
@@ -878,6 +886,7 @@ WHERE can be RIGHT or LEFT."
             (if description
                 (format "[%s]" description) ""))))
 
+;; TODO: Remove, deprecated
 (defun zettel-insert-link (arg)
   "Insert the top link from `zettel-stored-links'. If called with
 prefix argument, insert the link title to the left of the link.
@@ -894,6 +903,7 @@ If with double prefix argument, insert the title to the right."
         (setq zettel-link-backlink buffer-file-name))
     (message "No link to insert")))
 
+;; TODO: Remove, deprecated?
 (defun zettel-insert-link-intrusive (arg)
   "Like `zettel-insert-link', but also opens the Zettel of the
 link inserted if it doesn't already have a backlink, and adds the
@@ -987,6 +997,7 @@ selected. If the cursor in already inside a link, replace it instead."
             (insert (zettel-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
+;; TODO: Remove, deprecated
 (defun zettel-insert-link-to-stored-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 `zettel-stored-links'."
@@ -1957,6 +1968,7 @@ kasten. With prefix argument, asks for a target link instead."
           ((eq major-mode 'deft-mode)
            (deft-cache-update-file source-file)))))
 
+;; FIXME: Update? Rename? Remove?
 (defun zettel-rename-and-update-title ()
   "Using most of the code from deft.el's `DEFT-RENAME-FILE'."
   (interactive)
