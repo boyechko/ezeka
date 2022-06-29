@@ -222,12 +222,18 @@ nil if there is nothing there."
 ;;; Fundamental Functions
 ;;;=============================================================================
 
-(defun zettel-p (file)
-  "Returns non-NIL if the file is a Zettel."
+(defun zettel-p (file-or-buffer)
+  "Returns non-NIL if the file or buffer is a Zettel."
   (interactive "f")
-  (when file
-    (and (string-equal (file-name-extension file) deft-extension)
-         (string-match zettel-regexp-slug (file-name-base file)))))
+  (when file-or-buffer
+   (let ((file (typecase file-or-buffer
+                 (buffer (buffer-file-name file-or-buffer))
+                 (string file-or-buffer)
+                 (t
+                  (error "Don't know how to handle this type")))))
+     (when file
+       (and (string-equal (file-name-extension file) deft-extension)
+            (string-match zettel-regexp-slug (file-name-base file)))))))
 
 (defun zettel-kasten-directory (kasten)
   "Returns the directory of the given KASTEN."
