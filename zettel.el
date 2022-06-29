@@ -587,29 +587,23 @@ content of the FILE. They keys are converted to keywords."
     (push (cons :link (zettel-file-link file)) metadata)))
 
 (defun zettel-update-metadata-date ()
-  "Updates the date in the metadata section of the Zettel in the current
-buffer."
+  "Updates the modification time in the metadata section of the Zettel in the
+current buffer."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
+         (now (format-time-string "%Y-%m-%d %a %H:%M"))
          (metadata (zettel-metadata buffer-file-name))
-         (modified (alist-get :modified metadata))
-         (created (alist-get :created metadata)))
-    (if modified
-        (when (and (not (string-equal modified today))
-                   (save-match-data
-                     (y-or-n-p
-                      (format "Saving %s. Update the modified date? "
-                              (file-name-base buffer-file-name)))))
-          (message "Updating metadata modified date in %s from %s to %s."
-                   buffer-file-name modified today)
-          (zettel-update-metadata :modified today))
-      (when (and (not (string-equal created today))
-                 (y-or-n-p (format "Saving %s. Add modified date? "
-                                   (file-name-base buffer-file-name))))
-        (message "Adding metadata modified date in %s (created on %s)."
-                 buffer-file-name created)
-        (zettel-update-metadata :modified today)))
-    (zettel-normalize-metadata buffer-file-name)))
+         (last-modified (or (alist-get :modified metadata)
+                            (alist-get :created metadata))))
+    (unless (string-equal (or last-modified "") now)
+      ;; FIXME: Probably better to convert modification times to Emacs's encoded
+      ;; time rather than doing it with strings.
+      (when (or (string= (subseq last-modified 0 (length today)) today)
+                (y-or-n-p (format "%s last modified at %s. Update the modification time to now? "
+                                  (file-name-base buffer-file-name)
+                                  last-modified)))
+        (setf (alist-get :modified metadata) now)))
+    (zettel-normalize-metadata buffer-file-name metadata)))
 
 (add-hook 'zettel-mode-hook
   '(lambda ()
@@ -1567,16 +1561,14 @@ changes the existing one. With prefix argument, replaces the current
 ;; Insert my zettel title string into new zettel rather than contents of deft's
 ;; filter string.
 ;;
-(defun zettel-insert-metadata-template (&optional category title)
+(defun zettel-insert-metadata-template (category title)
   "Inserts the metadata template into the current buffer."
-  (interactive (list (zettel-ivy-read-category)))
-  (let ((base (file-name-base buffer-file-name))
-        (link (zettel-file-link buffer-file-name))
-        insert-point)
-    (if (not (= (point-min) (point-max))) ; file is not empty
-        (error "The Zettel is not empty")
-      (insert "title: §" link ". ")
-      (setq insert-point (point))
+  (interactive (list (zettel-ivy-read-category)
+                     (read-string "Zettel title: " nil nil "Untitled")))
+  (let ((file (file-name-base buffer-file-name))
+        (link (zettel-file-link buffer-file-name)))
+    (when (zerop (buffer-size))
+      (insert (format "title: §%s. {%s} %s" link (or category "Unset") (or title "Untitled")))
       (insert "\ncreated: "
               ;; Insert creation date, making it match a tempus currens filename
               (format-time-string
@@ -1592,9 +1584,7 @@ changes the existing one. With prefix argument, replaces the current
               "\n")                     ; i.e. current time
       (when (assoc link zettel-parent-of-new-child)
         (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)) "\n"))
-      (goto-char insert-point)
-      (insert (format "{%s} %s" (or category "Unset") (or title "")))
-      (end-of-line))))
+      (insert "\n"))))
 
 (defun zettel-incorporate-file (file kasten &optional arg)
   "Moves the file in the current buffer to the appropriate Zettelkasten. With
@@ -1618,7 +1608,7 @@ on the first line with the Zettel title string."
     (let ((file (deft-absolute-filename slug)))
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
-        (zettel-insert-metadata-template)))))
+        (call-interactively #'zettel-insert-metadata-template)))))
 (advice-add 'deft-new-file-named :around #'zettel-adv--deft-new-file-insert-metadata)
 
 (defun zettel-adv--deft-absolute-filename (orig-fun &rest args)
