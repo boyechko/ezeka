@@ -807,7 +807,7 @@ Based on `rename-file-and-buffer'."
   "Returns T if the thing at point is a wiki link (i.e. [[XXX]] or org-mode
 link). The first group is the link target."
   (thing-at-point-looking-at
-   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))
+   (concat "[[:space:]]*\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\][[:space:]]*")))
 
 (defun zettel-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
@@ -1141,7 +1141,7 @@ file in Finder with it selected."
        'zettel-show-link-title-in-minibuffer)))
 
 ;; Show the beginning of Zettel title in mode-line
-(defun zettel-mode-line-buffer-identification ()
+(defun zettel-mode-line-buffer-id ()
   (interactive)
   (multiple-value-bind (name category title)
       (split-string (or (deft-file-title buffer-file-name)
@@ -1149,7 +1149,7 @@ file in Finder with it selected."
     (setq-local mode-line-buffer-identification
                 `(:eval ,(mapconcat #'identity
                            (subseq (split-string title " ") 0 2) " ")))))
-(add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-identification)
+(add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 ;;;=============================================================================
 ;;; Genealogical
