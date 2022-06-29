@@ -1281,11 +1281,13 @@ file is empty, inserts the metadata template."
 
 (defun zettel-find-link-ace-window (link)
   "Finds the provided Zettel link and opens it in the selected window. This
-function ignores the value of `zettel-proliferate-frames'."
+function ignores the value of `zettel-proliferate-frames'. With prefix
+argument, don't try creating a new frame."
   (when (zettel-link-p link)
     (let* ((file (zettel-absolute-filename link))
            (new-buffer
-            (if (> (max (length (window-list)) (length (frame-list))) 1)
+            (if (or (> (max (length (window-list)) (length (frame-list))) 1)
+                    (equal prefix-arg '(4)))
                 (with-selected-window (ace-select-window)
                   (find-file file))
               (find-file-other-frame file))))
