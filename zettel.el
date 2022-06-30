@@ -788,25 +788,6 @@ link). The first group is the link target."
       (delete-region start end)
       (just-one-space 1))))
 
-;; TODO: Get rid of this function and change existing calls
-(defun zettel-wiki-link (target &optional include-title where add-spaces)
-  "Returns a wiki link to TARGET, which can be either a link or a filepath.
-WHERE can be RIGHT or LEFT."
-  (let* ((file (or (if (file-name-absolute-p target)
-                       target
-                     (zettel-absolute-filename target))
-                   (error "Link target doesn't exist; make sure it's saved")))
-         (link-text (zettel-file-link file)))
-    ;; FIXME: More elegant way to do the following?
-    (concat (if (or (not add-spaces) (spacep (char-before))) "" " ")
-            (if include-title
-                (let ((title (alist-get :title (zettel-metadata file))))
-                  (if (or (eq where 'left) (null where))
-                      (format "%s [[%s]]" title link-text)
-                    (format "[[%s]] %s" link-text title)))
-              (format "[[%s]]" link-text)) 
-            (if (or (not add-spaces) (spacep (char-after))) "" " "))))
-
 (defun zettel-org-format-link (target &optional description)
   "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
   (let* ((file (or (if (file-name-absolute-p target)
@@ -819,51 +800,34 @@ WHERE can be RIGHT or LEFT."
             (if description
                 (format "[%s]" description) ""))))
 
-(defun zettel-insert-link-with-extras (link extra)
-  "Inserts the Zettel link, allowing the user to interactively select from a
-list of extras to also add."
-  (let ((file (zettel-absolute-filename link)))
-    (unless extra
-      (ivy-read "Also include: "
-                '(("Title before" . :title-before)
-                  ("Title after" . :title-after)
-                  ("Citekey before" . :citekey-before)
-;;                  ("Title in description" . :desc-title)
-;;                  ("Category before" . :category-before)
-;;                  ("Category in description" . :desc-category)
-                  ("Just the slug" . :slug-only)
-                  "Anything else as description")
-                :action #'(lambda (cons)
-                            (setq extra (cdr cons)))))
-    ;; TODO: Simplify the code; very repetitive
-    (cond ((eq extra :title-after)
-           (insert (zettel-org-format-link link)
-                   " "
-                   (alist-get :title (zettel-metadata file))))
-          ((eq extra :title-before)
-           (insert (alist-get :title (zettel-metadata file))
-                   " "
-                   (zettel-org-format-link link)))
-          ((eq extra :citekey-before)
-           (insert (alist-get :citekey (zettel-metadata file))
-                   " "
-                   (zettel-org-format-link link)))
-          ((eq extra :category-before)
-           (insert (alist-get :category (zettel-metadata file))
-                   " "
-                   (zettel-org-format-link link)))
-          ((eq extra :desc-title)
-           (insert (zettel-org-format-link
-                    link
-                    (alist-get :title (zettel-metadata file)))))
-          ((eq extra :desc-category)
-           (insert (zettel-org-format-link
-                    link
-                    (alist-get :category (zettel-metadata file)))))
-          ((eq extra :slug-only)
-           (insert (zettel-org-format-link (zettel-link-slug link))))
-          (t
-           (insert (zettel-org-format-link link extra))))))
+(defun zettel-insert-link-with-extras (link &optional extra where)
+  "Inserts the Zettel link, allowing the user to interactively add any extra
+fields and where to put them. If EXTRA is 'NONE, don't add any extras."
+  (let* ((file (zettel-absolute-filename link))
+         (metadata (zettel-metadata file))
+         (extra (or extra
+                    (alist-get (make-symbol
+                                (concat ":"
+                                        (ivy-read
+                                         "Which extra? "
+                                         '("title" "citekey" "category"))))
+                               metadata)))
+         (where (or where
+                    (ivy-read "Where? " '("before" "after" "description")))))
+    (insert (if (spacep (char-before)) "" " ")
+            (if (eq extra 'none)
+                (zettel-org-format-link link)
+              (concat (if (string= where "before")
+                          (concat extra " ")
+                        "")
+                      (zettel-org-format-link
+                       link
+                       (when (string= where "description")
+                         extra))
+                      (if (string= where "after")
+                          (concat " " extra)
+                        "")))
+            (if (spacep (char-after)) "" " "))))
 
 (defun zettel-insert-link-to-cached-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
@@ -887,7 +851,7 @@ selected. If the cursor in already inside a link, replace it instead."
                           (zettel-directory-kasten deft-directory)
                           (car choice)))))
           (if (not (zettel-link-at-point-p))
-              (zettel-insert-link-with-extras link (if arg nil :slug-only))
+              (zettel-insert-link-with-extras link 'none)
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
             (insert (zettel-org-format-link link))))
@@ -901,8 +865,7 @@ from OS clipboard."
         (backlink (when buffer-file-name
                     (zettel-link-slug buffer-file-name))))
     (when (zettel-link-p link)
-      (insert
-       (zettel-wiki-link link (consp arg) (equal arg '(16)) t))
+      (zettel-insert-link-with-extras link (unless arg 'none))
       (when backlink
         (rb-set-clipboard-data backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
@@ -1046,16 +1009,13 @@ try to find the Nth ancestor."
         (message "No descendant found")))))
 
 (defun zettel-insert-ancestor-link (arg)
-  "Insert a link to the ancestor of the current zettel. With a
-numerical prefix argument, try to find Nth ancestor. With
-universal argument, behave like `zettel-insert-link'."
+  "Insert a link to the ancestor of the current Zettel. With a numerical
+prefix argument, try to find Nth ancestor."
   (interactive "P")
   (let* ((degree (if (integerp arg) arg 1))
-         (link (zettel-trace-genealogy buffer-file-name degree))
-         ;; If user specified degree, include title by default.
-         (arg (if (integerp arg) '(4) arg)))
+         (link (zettel-trace-genealogy buffer-file-name degree)))
     (if link
-        (insert (zettel-wiki-link link (consp arg) (equal arg '(16))))
+        (zettel-insert-link-with-extras link)
       (message "Could not find such ancestor"))))
 
 (defvar zettel-parent-of-new-child nil
@@ -1537,7 +1497,7 @@ that of FILE2. Case is ignored."
 facilitate refiling."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
-  (org-set-property "FROM" (zettel-wiki-link buffer-file-name t 'right))
+  (org-set-property "FROM" (zettel-insert-link-with-extras buffer-file-name))
   (org-set-property "CREATED"
                     ;; FIXME: Surely there is a better function to do this, no?
                     (format-time-string
