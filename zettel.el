@@ -82,6 +82,13 @@ Groups 4-5 are hour, minute.")
     (:tempus  . ,zettel-regexp-tempus-currens))
   "An alist of type and its regular expressions for the various slug types.")
 
+(defvar zettel-type-example-alist
+  '((:bolus   . "123-abc") ; FIXME: temporary
+    (:numerus . "a-1234")
+    (:tempus  . "20210123T1234"))
+  "An alist of type and an example of what it looks like for the various slug
+types.")
+
 (defvar zettel-regexp-slug
   ;; Strip the groups in the component regexps
   (concat "\\("
@@ -1333,16 +1340,17 @@ with double prefix argument calls `zettel-deft-choose-directory' instead."
 as the value for `deft-parse-title-function'."
   (let ((metadata (zettel-decode-combined-title
                    (replace-regexp-in-string "^\\(title: +\\)" "" line))))
-    (when metadata
-      ;; FIXME: Any more elegant way to do this?
-      ;; FIXME: I should make an alist of slug-len and cat-len for each zettel type
-      (if (eq (zettel-type (alist-get :slug metadata)) :tempus)
-          (setq slug-len 13             ; 19700101T0000
-                cat-len 15)
-        (setq slug-len 6                ; a-0000
-              cat-len 15))
-      ;; SLUG CATEGORY/CITEKEY TITLE
-      (format (format "%%-%ds%%-%ds%%s" (+ slug-len 2) cat-len)
+    (if (not (alist-get :slug metadata))
+        "[Could not parse title]"
+      (setq slug-len (length
+                      (alist-get (zettel-type (alist-get :slug metadata))
+                                 zettel-type-example-alist))
+            cat-len (if zettel-categories
+                        (apply #'max (mapcar #'length zettel-categories))
+                      15))
+      ;; SLUG__CATEGORY/CITEKEY__TITLE [_ represents space]
+      ;; `zettel-mode-line-buffer-id' relies on there being two spaces
+      (format (format "%%-%ds%%-%ds%%s" (+ slug-len 2) (+ cat-len 2))
               (alist-get :slug metadata)
               (let ((cat (if (alist-get :citekey metadata)
                              ;; Skip @
