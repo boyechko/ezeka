@@ -1214,14 +1214,16 @@ in another window."
   (zettel-ivy-read-reverse-alist-action
    "Switch to Zettel: "
    (mapcar (lambda (path)
-             (when (null (deft-file-title path))
-               (deft-cache-file path))
-             (cons (format "%s%s"
-                           (if (buffer-modified-p (get-file-buffer path))
-                               "✒︎"
-                             "")
-                           (deft-file-title path))
-                   path))
+             (if (not deft-hash-titles)
+                 (error "Deft hash table is not initialized")
+               (when (null (deft-file-title path))
+                 (deft-cache-file path))
+               (cons (format "%s%s"
+                             (if (buffer-modified-p (get-file-buffer path))
+                                 "✒︎"
+                               "")
+                             (deft-file-title path))
+                     path)))
            (zettel-visiting-buffer-list t))
    (if (not arg) 'find-file 'find-file-other-window)))
 
