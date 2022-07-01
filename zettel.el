@@ -1530,6 +1530,48 @@ org-mode's interactive `org-time-stamp' command."
                            "%Y%m%dT%H%M")
      "]]")))
 
+;; TODO: Rewrite the following three functions based on the one above
+(defun zettel-convert-org-timestamp-to-iso8601 ()
+  "Convert the org-mode timestamp at point to the compact ISO 8601 form."
+  (interactive)
+  (let ((regexp "\\[\\([0-9]+\\)-\\([0-9]+\\)-\\([0-9]+\\) [A-Za-z]\\{3\\} \\([0-9]+\\):\\([0-9]+\\)\\]"))
+    (when (thing-at-point-looking-at regexp)
+      (let ((link (format "[[%s%s%sT%s%s]]"
+                          (match-string 1)
+                          (match-string 2)
+                          (match-string 3)
+                          (match-string 4)
+                          (match-string 5))))
+        (delete-region (match-beginning 0) (match-end 0))
+        (insert link)))))
+
+(defun zettel-convert-iso8601-to-org-timestamp ()
+  "Convert the compact ISO 8601 timestamp at point to the org-mode timestamp."
+  (interactive)
+  (let ((regexp ))
+    (when (thing-at-point-looking-at regexp)
+      ;; FIXME: Cheating to use "Day"
+      (let ((link (format "[%s-%s-%s Day %s:%s]"
+                          (match-string 1)
+                          (match-string 2)
+                          (match-string 3)
+                          (match-string 4)
+                          (match-string 5))))
+        (delete-region (match-beginning 0) (match-end 0))
+        (insert link)))))
+
+(defun zettel-org-timestamp-from-iso8601 (string)
+  "Returns an org-mode timestamp from the given ISO8601 timestamp."
+  (let ((regexp "\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)T\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)"))
+    (when (string-match regexp string)
+      ;; FIXME: Cheating to use "Day"
+      (format "[%s-%s-%s Day %s:%s]"
+              (match-string 1 string)
+              (match-string 2 string)
+              (match-string 3 string)
+              (match-string 4 string)
+              (match-string 5 string)))))
+
 (defun zettel-org-include-cached-file ()
   "Add an org-mode #+INCLUDE to a cached Zettel."
   (interactive)
