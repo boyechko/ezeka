@@ -761,6 +761,7 @@ Based on `rename-file-and-buffer'."
              ;; Use the created metadata and make up the time of creation
              ;; FIXME: Any more elegant way to do this?
              (zettel-decode-time-into-tempus-currens
+              ;; TODO: This needs to handle org-mode timestamps in metadata
               (zettel-encode-iso8601-datetime
                (concat (alist-get :created metadata)
                        "T"
@@ -1402,16 +1403,16 @@ changes the existing one. With prefix argument, replaces the current
     (when (zerop (buffer-size))
       (insert (format "title: §%s. {%s} %s" link (or category "Unset") (or title "Untitled")))
       (insert "\ncreated: "
-              ;; Insert creation date, making it match a tempus currens filename
+              ;; Insert creation time, making it match a tempus currens filename
               (format-time-string
-               "%Y-%m-%d"
+               "%Y-%m-%d %a %H:%M"
                (let ((today (format-time-string "%Y%m%d")))
                  (if (and (eq :tempus (zettel-type buffer-file-name))
-                          (not (string-match-p (regexp-quote today) base))
+                          (not (string-match-p (regexp-quote today) file))
                           (not
                            (when (called-interactively-p 'any)
-                             (y-or-n-p "Past tempus currens; set created date to today? "))))
-                     (zettel-encode-iso8601-datetime base)
+                             (y-or-n-p "Past tempus currens; set created time to now? "))))
+                     (zettel-encode-iso8601-datetime file)
                    nil)))
               "\n")                     ; i.e. current time
       (when (assoc link zettel-parent-of-new-child)
