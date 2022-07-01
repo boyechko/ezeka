@@ -1746,6 +1746,26 @@ Zettelkasten, and also handling 'subkasten:' notation."
                  :around #'markdown-cwltf--fix-link)))
 
 ;;;=============================================================================
+;;; Citar Integration
+;;;=============================================================================
+
+(defvar zettel-bibliographic-note-directory (in-zettel-dir "reticulum")
+  "Directory where `citar-open-notes' can find my notes about the source.")
+
+(defun zettel-symlink-bibliographic-note (arg file citekey)
+  "Creates a symbolic link from the given Zettel file to the specified
+citekey. With prefix argument, replace the existing link."
+  (interactive (list current-prefix-arg
+                     buffer-file-name
+                     (or (alist-get :citekey (zettel-metadata buffer-file-name))
+                         (read-string "Citekey: "))))
+  (make-symbolic-link file
+                      (format "%s/%s.%s"
+                              zettel-bibliographic-note-directory "/" citekey
+                              deft-default-extension)
+                      arg))
+
+;;;=============================================================================
 ;;; Bookmark Integration
 ;;;=============================================================================
 
