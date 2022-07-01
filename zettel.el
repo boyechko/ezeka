@@ -1854,12 +1854,10 @@ kasten. With prefix argument, asks for a target link instead."
 the link at point. If there is only one match, opens the note in
 another window."
   (interactive)
-  (error "FIXME: Old way of handling oldname")
-  (push (buffer-file-name) zettel-stored-links)
   (when (zettel-link-at-point-p)
     (let ((link (zettel-link-at-point))
           (deft-incremental-search nil))
-      (deft-filter (concat "oldname: " link "$") t)
+      (deft-filter (concat "^oldnames: \\[.*" link ".*\\]$") t)
       (unless deft-current-files
         (deft-filter (concat "§" link ".") t))
       (cond ((= (length deft-current-files) 1)
