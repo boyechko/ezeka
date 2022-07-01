@@ -7,6 +7,7 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;; TODO:
 ;;;;
+;;;; - is it possible to advise `buffer-name' to display Zettel names usefully?
 ;;;; - `zettel-kill-ring-save-link-title' should look ahead on the same line
 ;;;;   if there isn't one at point
 ;;;; - C-u `zettel-open-link-at-point' should allow choosing a function to use
@@ -1264,7 +1265,8 @@ prefix argument, allows the user to type in a custom category."
   (dolist (file deft-all-files)
     (add-to-list 'zettel-categories
       (alist-get :category (zettel-metadata file))))
-  (message "Populated with %d categories" (length zettel-categories)))
+  (message "%d categories in %d files"
+           (length zettel-categories) (length deft-all-files)))
 
 (defun zettel-add-bibliographic-category ()
   "Add a category to the Zettel title based on the bibliographic title."
@@ -1374,7 +1376,7 @@ prefix argument."
     (deft-new-file)))
 
 ;; Don't ever auto populate the title
-(advice-add 'deft-auto-populate-title-maybe :around #'identity)
+(advice-add 'deft-auto-populate-title-maybe :around #'list)
 
 (defun zettel-add-section-sign-to-deft-filter ()
   "Inserts the Unicode section sign (§) to Deft filter string."
