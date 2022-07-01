@@ -1911,30 +1911,35 @@ another window."
 (define-key zettel-mode-map (kbd "C-c _") 'zettel-find-descendant)
 (define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
-(define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+
+;;
+;; Unsafe mode keybindings
+;;
 (define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-select-link)
 (define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
+(define-key zettel-mode-map (kbd "C-c C-d") 'zettel-kill-ring-save-link-title)
+(define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 
-;; This shadows the default `kill-sexp'
+;; Shadows the default `kill-sexp'
 (define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-at-point)
 
-;; These keybindings shadow Org-mode's global "C-c l" and local "C-c C-l"
+;; Shadows Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-to-cached-or-visiting)
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
 
-;; Was: `org-ctrl-c-tab'
+;; Shadows org-mode's `org-ctrl-c-tab'
 ;;(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
 
-;; Was: org-set-property-and-value
+;; Shadows org-mode's `org-set-property-and-value'
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
 (define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
 
 ;; Ztools interaction
 (define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
-;; Was: org-toggle-ordered-property
+;; Shadows org-mode's `org-toggle-ordered-property'
 (define-key zettel-mode-map (kbd "C-c C-x l") 'zettel-links-to)
 
 ;;;-----------------------------------------------------------------------------
@@ -1948,7 +1953,7 @@ another window."
 (define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
 
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
-(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-maybe-named)
+(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
