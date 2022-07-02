@@ -780,22 +780,28 @@ Based on `rename-file-and-buffer'."
   "Returns T if the thing at point is a wiki link (i.e. [[XXX]] or org-mode
 link). The first group is the link target."
   (thing-at-point-looking-at
-   (concat "[[:space:]]*\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\][[:space:]]*")))
+   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))
 
 (defun zettel-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
 `zettel-link-at-point-p'."
   (match-string-no-properties 1))
 
-(defun zettel-kill-link-at-point ()
-  "If there is a Zettel link at point, kill it, including the square brackets."
-  (interactive)
-  (when (zettel-link-at-point-p)
-    (let ((start (match-beginning 0))
-          (end (match-end 0)))
-      (kill-new (buffer-substring-no-properties start end))
-      (delete-region start end)
-      (just-one-space 1))))
+(defun zettel-kill-link-or-sexp-at-point (&optional arg)
+  "If there is a Zettel link at point, kill it, including the square
+brackets. Otherwise, call `kill-sex'."
+  (interactive "p")
+  (if (zettel-link-at-point-p)
+      (let ((start (match-beginning 0))
+            (end (match-end 0)))
+        (kill-new (buffer-substring-no-properties start end))
+        (delete-region start end)
+        (let ((around (string (preceding-char) (following-char))))
+         (cond ((string-match-p "\\s \\s " around)
+                (just-one-space 1))
+               ((string-match-p "\\s " around)
+                (just-one-space 0)))))
+    (kill-sexp arg)))
 
 (defun zettel-org-format-link (target &optional description)
   "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
@@ -1927,7 +1933,7 @@ another window."
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
 
 ;; Shadows the default `kill-sexp'
-(define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-at-point)
+(define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-or-sexp-at-point)
 
 ;; Shadows Org-mode's global "C-c l" and local "C-c C-l"
 (define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
