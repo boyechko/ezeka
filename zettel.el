@@ -814,17 +814,21 @@ link). The first group is the link target."
 fields and where to put them. If EXTRA is 'NONE, don't add any extras."
   (let* ((file (zettel-absolute-filename link))
          (metadata (zettel-metadata file))
-         (extra (or extra
-                    (alist-get (make-symbol
-                                (concat ":"
-                                        (ivy-read
-                                         "Which extra? "
-                                         '("title" "citekey" "category"))))
-                               metadata)))
-         (where (or where
+         (extra (if extra
+                    (if (eq extra 'none)
+                        nil
+                      extra)
+                  (alist-get (intern-soft
+                              (concat ":" (ivy-read
+                                           "Which extra? "
+                                           '("title" "citekey"
+                                             "category" "none"))))
+                             metadata)))
+         (where (or (not extra)
+                    where
                     (ivy-read "Where? " '("before" "after" "description")))))
     (insert (if (spacep (char-before)) "" " ")
-            (if (eq extra 'none)
+            (if (or (null extra) (eq extra 'none))
                 (zettel-org-format-link link)
               (concat (if (string= where "before")
                           (concat extra " ")
@@ -860,7 +864,7 @@ selected. If the cursor in already inside a link, replace it instead."
                           (zettel-directory-kasten deft-directory)
                           (car choice)))))
           (if (not (zettel-link-at-point-p))
-              (zettel-insert-link-with-extras link 'none)
+              (zettel-insert-link-with-extras link)
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
             (insert (zettel-org-format-link link))))
