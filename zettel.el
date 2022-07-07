@@ -138,7 +138,8 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
 
 (defcustom zettel-directory nil
   "The central Zettelkasten directory."
-  :type 'string)
+  :type 'string
+  :group 'zettel)
 
 (defcustom zettel-kaesten
   ;; name | directory | slug type | sort-order (| deft-sort-method)
@@ -151,12 +152,14 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
     ("fabula"     :tempus  7)
     ("machina"    :tempus  8))
   "An alist containing the names and slug types of kaesten."
-  :type 'alist)
+  :type 'alist
+  :group 'zettel)
 
 (defcustom zettel-kaesten-aliases nil
   "An alist of any other aliases for the `zettel-kaesten'. This is an alist of
 the actual name followed by the alias."
-  :type 'alist)
+  :type 'alist
+  :group 'zettel)
 
 (defcustom zettel-default-kasten
   ;; slug type | kasten name
@@ -165,26 +168,25 @@ the actual name followed by the alias."
     (:tempus . "omasum"))
   "An alist of default Kasten (i.e. not requiring fully qualified link) for
 each slug type."
-  :type 'alist)
+  :type 'alist
+  :group 'zettel)
 
 (defcustom zettel-categories nil
   "A list of categories used for Zettel."
-  :type 'list)
+  :type 'list
+  :group 'zettel)
 
-(defcustom zettel-proliferate-frames nil
-  "When non-NIL, create new frames when opening links."
-  :type 'boolean)
+(defcustom zettel-number-of-frames nil
+  "Try to use only this many frames. Nil means single frame."
+  :type 'symbol
+  :options '(one two many)
+  :group 'zettel)
 
 (defcustom zettel-sort-by-name-descending t
   "When non-NIL, `deft-sort-files-by-name' will sort in a descending order,
 otherwise ascending."
-  :type 'boolean)
-
-(defcustom zettel-find-link-function #'zettel-find-link-simply
-  "Which function of one argument --- the link --- to use in order to find
-Zettel links. The function needs to return NIL if it cannot find the given
-link."
-  :type 'function)
+  :type 'boolean
+  :group 'zettel)
 
 ;;;=============================================================================
 ;;; General Functions
@@ -1115,50 +1117,31 @@ user from cached and visiting Zettel."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
-(defun zettel-find-link (link)
-  "Attempts to find the given Zettel link with the function specified in
-`zettel-find-link-function'. Returns T."
-  (funcall zettel-find-link-function link)
-  t)
-
-(defun zettel-find-link-simply (link)
-  "Finds the provided Zettel link, returning T if it's a Zettel link. If the
-file is empty, inserts the metadata template."
+(defun zettel-find-link (link &optional arg)
+  "Attempts to find the given Zettel link based on the value of
+`zettel-number-of-frames'. Returns T if the link is a Zettel link."
   (when (zettel-link-p link)
     (let ((file (zettel-absolute-filename link)))
-      (funcall (if zettel-proliferate-frames
-                   #'find-file-other-frame
-                 #'find-file)
-               file)
+      (case zettel-number-of-frames
+        (two (if (>= (length (frame-list)) 2)
+                 (with-selected-window (ace-select-window)
+                   (find-file file))
+               (find-file-other-frame file)))
+        (one (find-file file))
+        (nil (find-file file))
+        (t (find-file-other-frame file)))
       (when (zerop (buffer-size))
-       (call-interactively #'zettel-insert-metadata-template)))))
-
-(defun zettel-find-link-ace-window (link)
-  "Finds the provided Zettel link and opens it in the selected window. This
-function ignores the value of `zettel-proliferate-frames'. With prefix
-argument, don't try creating a new frame."
-  (when (zettel-link-p link)
-    (let* ((file (zettel-absolute-filename link))
-           (new-buffer
-            (if (or (> (max (length (window-list)) (length (frame-list))) 1)
-                    (equal prefix-arg '(4)))
-                (with-selected-window (ace-select-window)
-                  (find-file file))
-              (find-file-other-frame file))))
-      (with-current-buffer new-buffer
-        (when (zerop (buffer-size))
-          (call-interactively #'zettel-insert-metadata-template))))))
+        (call-interactively #'zettel-insert-metadata-template))
+      ;; make sure to return T for `org-open-link-functions'
+      t)))
 
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. With universal prefix, open the link using
-`zettel-find-link-simply'. With double universal prefix, asks the user to
-type the link instead."
+cached Zettel titles. With universal prefix, asks the user to type the link
+instead."
   (interactive "P")
-  (funcall (if (eql arg '(4))
-               #'zettel-find-link-simply
-             #'zettel-find-link)
-           (if (eql arg '(16))
+  (funcall #'zettel-find-link
+           (if arg
                (read-string "Zettel link to find: ")
              (zettel-file-link (cdr (zettel-ivy-read-reverse-alist-action
                                      "Select title: "
@@ -1324,25 +1307,33 @@ prefix argument, allows the user to type in a custom category."
   (lambda ()
     (setq show-trailing-whitespace nil)))
 
-(defun zettel-deft-choose-kasten (arg new-kasten)
+(defun zettel-deft-choose-kasten (arg new-kasten &optional number-of-frames)
   "If there is an existing `deft-buffer', switches to it, otherwise
-interactively selects the deft directory from among `zettel-kaesten'. With
-a prefix argument, selects new deft directory regardless of `deft-buffer';
-with double prefix argument calls `zettel-deft-choose-directory' instead."
+interactively selects the deft directory from among `zettel-kaesten'. With a
+prefix argument, selects new deft directory regardless of `deft-buffer'; with
+double prefix argument calls `zettel-deft-choose-directory' instead. With
+optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
   (interactive
-   (list
-    current-prefix-arg
-    (when (or (null (get-buffer deft-buffer))
-              (equal current-prefix-arg '(4)))
-      (ivy-read "Zettel kasten: " zettel-kaesten))))
+   (if (or (null (get-buffer deft-buffer))
+           (equal current-prefix-arg '(4)))
+       (list current-prefix-arg
+             (ivy-read "Zettel kasten: " zettel-kaesten)
+             (intern (ivy-read "Number of frames: " '(one two many))))
+     (list current-prefix-arg nil zettel-number-of-frames)))
   (cond ((equal arg '(16))
          (call-interactively #'zettel-deft-choose-directory))
         ((not new-kasten)
-         (if zettel-proliferate-frames
-             (switch-to-buffer-other-frame deft-buffer)
-           (switch-to-buffer deft-buffer)))
+         ;; FIXME: This should handle `zettel-number-of-frames' being TWO
+         (case zettel-number-of-frames
+           (nil (switch-to-buffer deft-buffer))
+           (one (switch-to-buffer deft-buffer))
+           (two (with-selected-window (ace-select-window)
+                  (switch-to-buffer deft-buffer)))
+           (many
+            (switch-to-buffer-other-frame deft-buffer))))
         (t
-         (setq zettel-deft-active-kasten new-kasten)
+         (setq zettel-deft-active-kasten new-kasten
+               zettel-number-of-frames number-of-frames)
          (zettel-deft-choose-directory (zettel-kasten-directory new-kasten)))))
 
 (defun zettel-deft-choose-directory (directory)
@@ -1695,18 +1686,17 @@ org subtree."
 
 (defun zettel-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link. With a
-prefix argument, calls `ZETTEL-FIND-LINK-SIMPLY' rather than whatever is in
-`ZETTEL-FIND-LINK-FUNCTION'."
-  (interactive "p")
+prefix argument, temporarily sets `zettel-number-of-frames' to TWO."
+  (interactive "P")
   (save-excursion
     (forward-word)
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
       ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-      (funcall (if (or arg current-prefix-arg)
-                   #'zettel-find-link-simply
-                 #'zettel-find-link)
-               (match-string-no-properties 1))
+      (let ((zettel-number-of-frames (if (or arg current-prefix-arg)
+                                         'two
+                                       zettel-number-of-frames)))
+        (zettel-find-link (match-string-no-properties 1)))
       ;; This function is later added to `org-open-at-point-functions', so "must
       ;; return t if they identify and follow a link at point. If they don’t find
       ;; anything interesting at point, they must return nil."
@@ -1810,12 +1800,6 @@ bookmark's filename property to the Zettel link."
 ;;;=============================================================================
 ;;; Frames
 ;;;=============================================================================
-
-(defun zettel-toggle-proliferate-frames ()
-  "Toggle the value of `zettel-proliferate-frames' variable."
-  (interactive)
-  (message "Proliferating frames set to %s"
-   (setq zettel-proliferate-frames (not zettel-proliferate-frames))))
 
 (defun zettel-formatted-frame-title ()
   "Returns a string suitable for `frame-title-format' as a way to
