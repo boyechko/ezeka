@@ -450,20 +450,19 @@ Group 8 is the citation key.")
 
 (defun zettel-decode-combined-title (title)
   "Returns an alist of metadata from a combined title. If cannot decode,
-return the original title."
-  (if (and title (string-match zettel-regexp-combined-title title))
-      (let ((slug (match-string 3 title)))
-        (list (cons :slug slug)
-              (cons :type (zettel-type slug))
-              (cons :category (match-string 5 title))
-              (cons :title (string-trim-right (match-string 6 title) " "))
-              (when (match-string 7 title)
-                (cons :keywords
-                      (string-trim-right (match-string 7 title) " ")))
-              (when (match-string 8 title)
-                (cons :citekey
-                      (string-trim-right (match-string 8 title) " ")))))
-    (list (cons :title title))))
+returns NIL."
+  (when (and title (string-match zettel-regexp-combined-title title))
+    (let ((slug (match-string 3 title)))
+      (list (cons :slug slug)
+            (cons :type (zettel-type slug))
+            (cons :category (match-string 5 title))
+            (cons :title (string-trim-right (match-string 6 title) " "))
+            (when (match-string 7 title)
+              (cons :keywords
+                    (string-trim-right (match-string 7 title) " ")))
+            (when (match-string 8 title)
+              (cons :citekey
+                    (string-trim-right (match-string 8 title) " ")))))))
 
 (defun zettel-encode-combined-title (metadata)
   "Returns a list of two elements: 1) string that encodes into the title line
