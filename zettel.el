@@ -368,8 +368,9 @@ specified, asks the user to resolve the ambiguity."
       (when result
         (file-name-as-directory result)))))
 
-(defun zettel-absolute-filename (link)
-  "Return an absolute filename to the Zettel link.
+(defun zettel-absolute-filename (link &optional noerror)
+  "Return an absolute filename to the Zettel link. If NOERROR is non-NIL,
+don't signal an error if the link is invalid.
 
 This function replaces `deft-absolute-filename' for Zettel."
   (if (zettel-link-p link)
@@ -382,9 +383,11 @@ This function replaces `deft-absolute-filename' for Zettel."
             (:numerus (zettel-numerus-subdirectory slug))
             (:tempus (zettel-tempus-subdirectory slug))
             (:bolus (zettel-bolus-subdirectory slug)) ; FIXME: temporary
-            (t (error "This is not a proper Zettel link: %s" link)))
+            (t (unless noerror
+                 (error "This is not a proper Zettel link: %s" link))))
           (zettel-kasten-directory kasten))))
-    (error "This is not a proper Zettel link: %s" link)))
+    (unless noerror
+      (error "This is not a proper Zettel link: %s" link))))
 
 ;; FIXME: Rename `zettel-type' to `zettel-slug-type'?
 (defun zettel-type (slug-or-file)
