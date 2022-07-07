@@ -823,45 +823,45 @@ brackets. Otherwise, call `kill-sex'."
             (if description
                 (format "[%s]" description) ""))))
 
-(defun zettel-insert-link-with-extras (link &optional extra where)
-  "Inserts the Zettel link, allowing the user to interactively add any extra
-fields and where to put them. If EXTRA is 'NONE, don't add any extras."
+(defun zettel-insert-link-with-metadata (link &optional field where)
+  "Inserts the Zettel link, optionally adding a metadata FIELD put
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION)."
   (let* ((file (zettel-absolute-filename link))
          (metadata (zettel-metadata file))
-         (extra (if extra
-                    (if (eq extra 'none)
-                        nil
-                      extra)
-                  (alist-get (intern-soft
-                              (concat ":" (ivy-read
-                                           "Which extra? "
-                                           '("title" "citekey"
-                                             "category" "none"))))
-                             metadata)))
-         (where (or (not extra)
-                    where
-                    (ivy-read "Where? " '("before" "after" "description")))))
+         (field (alist-get
+                 (or field
+                     (when (called-interactively-p 'any)
+                       (intern-soft
+                        (ivy-read
+                         "Which metadata field? "
+                         '(":title" ":citekey" ":category")))))
+                 metadata))
+         (where (or where
+                    (when (called-interactively-p 'any)
+                      (intern-soft
+                       (ivy-read "Where? "
+                                 '(":before" ":after" ":description")))))))
     (insert (if (spacep (char-before)) "" " ")
-            (if (or (null extra) (eq extra 'none))
+            (if (null field)
                 (zettel-org-format-link link)
-              (concat (if (string= where "before")
-                          (concat extra " ")
+              (concat (if (eq where :before)
+                          (concat field " ")
                         "")
                       (zettel-org-format-link
                        link
-                       (when (string= where "description")
-                         extra))
-                      (if (string= where "after")
-                          (concat " " extra)
+                       (when (eq where :description)
+                         field))
+                      (if (eq where :after)
+                          (concat " " field)
                         "")))
             (if (spacep (char-after)) "" " "))))
 
 (defun zettel-insert-link-to-cached-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 the Deft cache. With prefix argument, offers a few options for including
-Zettel descriptions. If the user selects a Zettel that does not exist in the
-list of cached or visiting Zettel, just insert the link to what was
-selected. If the cursor in already inside a link, replace it instead."
+Zettel metadata. If the user selects a Zettel that does not exist in the list
+of cached or visiting Zettel, just insert the link to what was selected. If
+the cursor in already inside a link, replace it instead."
   (interactive "P")
   (let* ((choices
           (delete-dups (append
@@ -878,21 +878,25 @@ selected. If the cursor in already inside a link, replace it instead."
                           (zettel-directory-kasten deft-directory)
                           (car choice)))))
           (if (not (zettel-link-at-point-p))
-              (zettel-insert-link-with-extras link)
+              (if arg
+                  (funcall-interactively #'zettel-insert-link-with-metadata link)
+                (zettel-insert-link-with-metadata link :title :before))
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
             (insert (zettel-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
 (defun zettel-insert-link-from-clipboard (arg)
-  "Link `zettel-insert-link' but attempts to get the link slug
-from OS clipboard."
+  "Link `zettel-insert-link' but attempts to get the link slug from OS
+clipboard. With prefix argument, ask for a metadata field to include."
   (interactive "P")
   (let ((link (rb-get-clipboard-data))
         (backlink (when buffer-file-name
                     (zettel-link-slug buffer-file-name))))
     (when (zettel-link-p link)
-      (zettel-insert-link-with-extras link (unless arg 'none))
+      (if arg
+          (funcall-interactively #'zettel-insert-link-with-metadata link)
+        (zettel-insert-link-with-metadata link))
       (when backlink
         (rb-set-clipboard-data backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
@@ -1036,13 +1040,14 @@ try to find the Nth ancestor."
         (message "No descendant found")))))
 
 (defun zettel-insert-ancestor-link (arg)
-  "Insert a link to the ancestor of the current Zettel. With a numerical
-prefix argument, try to find Nth ancestor."
+  "Insert a link to the ancestor of the current Zettel, adding its title (if
+available) before the link. With a numerical prefix argument, try to find Nth
+ancestor."
   (interactive "P")
   (let* ((degree (if (integerp arg) arg 1))
          (link (zettel-trace-genealogy buffer-file-name degree)))
     (if link
-        (zettel-insert-link-with-extras link)
+        (zettel-insert-link-with-metadata link :title :before)
       (message "Could not find such ancestor"))))
 
 (defvar zettel-parent-of-new-child nil
@@ -1528,7 +1533,8 @@ that of FILE2. Case is ignored."
 facilitate refiling."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
-  (org-set-property "FROM" (zettel-insert-link-with-extras buffer-file-name))
+  (org-set-property "FROM" (zettel-insert-link-with-metadata
+                            buffer-file-name :title :after))
   (org-set-property "CREATED"
                     ;; FIXME: Surely there is a better function to do this, no?
                     (format-time-string
