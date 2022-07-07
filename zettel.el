@@ -118,6 +118,12 @@ Groups 1-3 are year, month, day.")
   "The regular expression that matches ISO 8601-like time.
 Groups 1-2 are hour and minute.")
 
+(defvar zettel-regexp-iso8601-datetime
+  (concat zettel-regexp-iso8601-date zettel-regexp-iso8601-time)
+  "The regular expression that matches ISO 8601 date and time separate with T.
+Groups 1-3 are year, month, day.
+Groups 4-5 are hour and minute.")
+
 (defvar zettel-deft-active-kasten nil
   "The name of the active Zettelkasten, if any. This variable is set by
 `zettel-deft-choose-kasten'.")
@@ -1557,17 +1563,16 @@ org-mode's interactive `org-time-stamp' command."
 (defun zettel-convert-iso8601-to-org-timestamp ()
   "Convert the compact ISO 8601 timestamp at point to the org-mode timestamp."
   (interactive)
-  (let ((regexp ))
-    (when (thing-at-point-looking-at regexp)
-      ;; FIXME: Cheating to use "Day"
-      (let ((link (format "[%s-%s-%s Day %s:%s]"
-                          (match-string 1)
-                          (match-string 2)
-                          (match-string 3)
-                          (match-string 4)
-                          (match-string 5))))
-        (delete-region (match-beginning 0) (match-end 0))
-        (insert link)))))
+  (when (thing-at-point-looking-at zettel-regexp-iso8601-datetime)
+    ;; FIXME: Cheating to use "Day"
+    (let ((link (format "[%s-%s-%s Day %s:%s]"
+                        (match-string 1)
+                        (match-string 2)
+                        (match-string 3)
+                        (match-string 4)
+                        (match-string 5))))
+      (delete-region (match-beginning 0) (match-end 0))
+      (insert link))))
 
 (defun zettel-org-timestamp-from-iso8601 (string)
   "Returns an org-mode timestamp from the given ISO8601 timestamp."
