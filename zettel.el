@@ -930,13 +930,15 @@ and system clipboard. With prefix argument, saves the combinted title from `'."
         (message "Saved [%s] in the kill ring" title)))))
 
 (defun zettel-kill-ring-save-link (arg)
-  "Save the deft note at point or the buffer base filename in the kill ring
+  "Save the Zettel link at point or the buffer base filename in the kill ring
 to be used as a wiki link elsewhere. With prefix argument, save the file name
 relative to `zettel-directory' instead. With two prefix arguments, open the
 file in Finder with it selected."
   (interactive "p")
   (let ((file (cond ((equal major-mode 'deft-mode)
                      (button-get (button-at (point)) 'tag))
+                    ((zettel-link-at-point-p)
+                     (zettel-absolute-filename (zettel-link-at-point) t))
                     (buffer-file-name
                      buffer-file-name)
                     (t
