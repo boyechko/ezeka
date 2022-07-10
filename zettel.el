@@ -1770,15 +1770,20 @@ Zettelkasten, and also handling 'subkasten:' notation."
 (defun zettel-symlink-bibliographic-note (arg file citekey)
   "Creates a symbolic link from the given Zettel file to the specified
 citekey. With prefix argument, replace the existing link."
-  (interactive (list current-prefix-arg
-                     buffer-file-name
-                     (or (alist-get :citekey (zettel-metadata buffer-file-name))
-                         (read-string "Citekey: "))))
-  (make-symbolic-link file
-                      (format "%s/%s.%s"
-                              zettel-bibliographic-note-directory "/" citekey
-                              deft-default-extension)
-                      arg))
+  (interactive
+   (list current-prefix-arg
+         buffer-file-name
+         (let ((citekey (alist-get :citekey
+                                   (zettel-metadata buffer-file-name))))
+           (if (string-match "^@*\\([[:alnum:]-]+\\)" citekey)
+               (match-string 1 citekey)
+             (read-string "Citekey (without @): ")))))
+  (let ((note-name (concat citekey "." deft-default-extension)))
+    (when (y-or-n-p (format "Create the symlink '%s' to this note? " note-name))
+      (make-symbolic-link
+       (file-relative-name file zettel-bibliographic-note-directory)
+       (expand-file-name note-name zettel-bibliographic-note-directory)
+       arg))))
 
 ;;;=============================================================================
 ;;; Bookmark Integration
