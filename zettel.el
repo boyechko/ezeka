@@ -1853,7 +1853,8 @@ Zettelkasten work."
 
 (defun zettel-zmove-to-another-kasten (source-file &optional target-link)
   "Generates a zmove shell command to move the current Zettel to another
-kasten. With prefix argument, asks for a target link instead."
+kasten. With prefix argument, asks for a target link instead. Returns the
+target link."
   (interactive (list (cond (zettel-mode
                             buffer-file-name)
                            ((eq major-mode 'magit-status-mode)
@@ -1885,7 +1886,8 @@ kasten. With prefix argument, asks for a target link instead."
           ((eq major-mode 'magit-status-mode)
            (magit-refresh))
           ((eq major-mode 'deft-mode)
-           (deft-cache-update-file source-file)))))
+           (deft-cache-update-file source-file)))
+    target-link))
 
 (defun zettel-filter-for-link-at-point ()
   "Modifies the Deft filter to look for the Zettel linked with
