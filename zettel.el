@@ -1025,12 +1025,18 @@ file in Finder with it selected."
 ;; Show the beginning of Zettel title in mode-line
 (defun zettel-mode-line-buffer-id ()
   (interactive)
-  (multiple-value-bind (name category title)
-      (split-string (or (deft-file-title buffer-file-name)
-                        "noname  category  title of zettel") "  " t)
-    (setq-local mode-line-buffer-identification
-                `(:eval ,(mapconcat #'identity
-                           (subseq (split-string title " ") 0 2) " ")))))
+  (multiple-value-bind (slug category citekey title)
+      ;; <slug>	<category>	<citekey>	<title>
+      (split-string (or (deft-file-title buffer-file-name) "") "\t" t " +")
+    ;; FIXME: Clunky, but some deft-titles don't have citekeys or categories
+    (if (or title citekey category)
+        (let* ((words (split-string (or title citekey category) " "))
+               (first-three (mapconcat #'identity
+                              (subseq words 0 (min 3 (length words)))
+                              " ")))
+          (setq-local mode-line-buffer-identification first-three))
+      (setq-local mode-line-buffer-identification
+                  (format "%12s" (zettel-file-link buffer-file-name))))))
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 ;;;=============================================================================
