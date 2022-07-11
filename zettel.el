@@ -508,7 +508,7 @@ symbol."
 by parsing the FILE's metadata."
   (let ((metadata (or metadata (zettel-metadata file)))
         (old-point (point)))
-    (save-excursion
+    (save-mark-and-excursion
       (with-current-buffer (get-file-buffer file)
         (save-restriction
           (goto-char (point-min))
@@ -1475,7 +1475,7 @@ changes the existing one. With prefix argument, replaces the current
 (defun zettel-insert-metadata-template (category title)
   "Inserts the metadata template into the current buffer."
   (interactive (list (zettel-ivy-read-category)
-                     (read-string "Zettel title: " nil nil "Untitled")))
+                     (read-string "Zettel title: ")))
   (let ((file (file-name-base buffer-file-name))
         (link (zettel-file-link buffer-file-name)))
     (when (zerop (buffer-size))
