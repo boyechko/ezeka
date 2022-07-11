@@ -827,38 +827,46 @@ brackets. Otherwise, call `kill-sex'."
             (if description
                 (format "[%s]" description) ""))))
 
-(defun zettel-insert-link-with-metadata (link &optional field where)
+(defun zettel-insert-link-with-metadata (link &optional field where confirm)
   "Inserts the Zettel link, optionally adding a metadata FIELD put
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION)."
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL, ask for
+confirmation before inserting metadata."
   (let* ((file (zettel-absolute-filename link))
          (metadata (zettel-metadata file))
-         (field (alist-get
-                 (or field
-                     (when (called-interactively-p 'any)
-                       (intern-soft
-                        (ivy-read
-                         "Which metadata field? "
-                         '(":title" ":citekey" ":category")))))
-                 metadata))
-         (where (or where
+         (field (or field
                     (when (called-interactively-p 'any)
+                      (intern-soft
+                       (ivy-read
+                        "Which metadata field? "
+                        '(":none" ":title" ":citekey" ":category"))))))
+         (value (alist-get field metadata))
+         (where (or where
+                    (when field
                       (intern-soft
                        (ivy-read "Where? "
                                  '(":before" ":after" ":description")))))))
-    (insert (if (spacep (char-before)) "" " ")
-            (if (null field)
-                (zettel-org-format-link link)
-              (concat (if (eq where :before)
-                          (concat field " ")
-                        "")
-                      (zettel-org-format-link
-                       link
-                       (when (eq where :description)
-                         field))
-                      (if (eq where :after)
-                          (concat " " field)
-                        "")))
-            (if (spacep (char-after)) "" " "))))
+    (insert (if (or (bolp) (spacep (char-before))) "" " ")
+            (if (or (null value)
+                    (not confirm)
+                    (progn
+                      ;; Pressing return just defaults to NO rather than quit
+                      (define-key query-replace-map [return] 'act)
+                      (y-or-n-p (format (if (eq where :description)
+                                            "Insert %s in the link %s? "
+                                          "Insert %s %s the link? ")
+                                        field where))))
+                (concat (if (eq where :before)
+                            (concat value " ")
+                          "")
+                        (zettel-org-format-link
+                         link
+                         (when (eq where :description)
+                           value))
+                        (if (eq where :after)
+                            (concat " " value)
+                          ""))
+              (zettel-org-format-link link))
+            (if (or (eolp) (spacep (char-after))) "" " "))))
 
 (defun zettel-insert-link-to-cached-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
@@ -884,7 +892,7 @@ the cursor in already inside a link, replace it instead."
           (if (not (zettel-link-at-point-p))
               (if arg
                   (funcall-interactively #'zettel-insert-link-with-metadata link)
-                (zettel-insert-link-with-metadata link :title :before))
+                (zettel-insert-link-with-metadata link :title :before t))
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
             (insert (zettel-org-format-link link))))
@@ -1058,7 +1066,7 @@ ancestor."
   (let* ((degree (if (integerp arg) arg 1))
          (link (zettel-trace-genealogy buffer-file-name degree)))
     (if link
-        (zettel-insert-link-with-metadata link :title :before)
+        (zettel-insert-link-with-metadata link :title :before t)
       (message "Could not find such ancestor"))))
 
 (defvar zettel-parent-of-new-child nil
