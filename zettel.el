@@ -970,6 +970,18 @@ file in Finder with it selected."
         (when (= arg 16)
           (shell-command (format "open -R %s &" file)))))))
 
+(defun zettel-kill-ring-save-link-at-point ()
+  "Save the first link at or after point."
+  (interactive)
+  (save-excursion
+   (let ((link (if (zettel-link-at-point-p)
+                   (zettel-link-at-point)
+                 (when (re-search-forward zettel-regexp-link nil t)
+                   (match-string-no-properties 0)))))
+     (when link
+       (kill-new link)
+       (message "Copied link to [%s]" link)))))
+
 ;; Modified from zetteldeft's `zetteldeft-avy-link-search'.
 (defun zettel-avy-link-search ()
   "Use `avy' to follow a Zettel wiki link."
@@ -1952,6 +1964,7 @@ another window."
 (define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+(define-key zettel-mode-map (kbd "C-c $") 'zettel-kill-ring-save-link-at-point)
 
 ;;
 ;; Unsafe mode keybindings
