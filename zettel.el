@@ -1159,19 +1159,25 @@ user from cached and visiting Zettel."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
-(defun zettel-find-link (link &optional arg)
+(defun zettel-find-link (link &optional same-window)
   "Attempts to find the given Zettel link based on the value of
-`zettel-number-of-frames'. Returns T if the link is a Zettel link."
+`zettel-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
+same window. Returns T if the link is a Zettel link."
   (when (zettel-link-p link)
-    (let ((file (zettel-absolute-filename link)))
-      (case zettel-number-of-frames
-        (two (if (>= (length (frame-list)) 2)
-                 (with-selected-window (ace-select-window)
-                   (find-file file))
-               (find-file-other-frame file)))
-        (one (find-file file))
-        (nil (find-file file))
-        (t (find-file-other-frame file)))
+    (let ((file (zettel-absolute-filename link))
+          window)
+      (if same-window
+          (find-file file)
+        (case zettel-number-of-frames
+          (two (if (< (length (frame-list)) 2)
+                   (find-file-other-frame file)
+                 (select-window (ace-select-window))
+                 (find-file file)))
+          (one (let ((pop-up-windows t))
+                 (select-window (ace-select-window))
+                 (find-file file)))
+          (nil (find-file file))
+          (t (find-file-other-frame file))))
       (when (zerop (buffer-size))
         (call-interactively #'zettel-insert-metadata-template))
       ;; make sure to return T for `org-open-link-functions'
@@ -1714,7 +1720,7 @@ org subtree."
 
      ;; Do the same for Zettel links that lack even the link markup. This is
      ;; useful for following parents/children.
-     (push 'zettel-open-link-at-point org-open-at-point-functions)
+     (push #'zettel-open-link-at-point org-open-at-point-functions)
 
      ;; This allows following links as part of #+INCLUDE statements.
      ;; TODO: Add a function to follow #+INCLUDE links
@@ -1728,17 +1734,15 @@ org subtree."
 
 (defun zettel-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link. With a
-prefix argument, temporarily sets `zettel-number-of-frames' to TWO."
+prefix argument, ignore `zettel-number-of-frames' and open the link in the
+same window."
   (interactive "P")
   (save-excursion
     (forward-word)
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
       ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-      (let ((zettel-number-of-frames (if (or arg current-prefix-arg)
-                                         'two
-                                       zettel-number-of-frames)))
-        (zettel-find-link (match-string-no-properties 1)))
+      (zettel-find-link (match-string-no-properties 1) current-prefix-arg)
       ;; This function is later added to `org-open-at-point-functions', so "must
       ;; return t if they identify and follow a link at point. If they don’t find
       ;; anything interesting at point, they must return nil."
