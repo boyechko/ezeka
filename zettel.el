@@ -885,10 +885,16 @@ the cursor in already inside a link, replace it instead."
         (let* ((choice (zettel-ivy-read-reverse-alist-action
                         "Insert link to: " choices 'zettel-file-link nil))
                (link (or (cdr choice)
-                         ;; Make a new link
-                         (zettel-make-link
-                          (zettel-directory-kasten deft-directory)
-                          (car choice)))))
+                         ;; Create a new child if there is no match
+                         (let ((new-child (zettel-insert-new-child nil)))
+                           (kill-new (car choice)) ; save the entered text
+                           (save-excursion
+                             (with-current-buffer
+                                 (zettel-absolute-filename
+                                  (zettel-find-link new-child))
+                               (zettel-insert-metadata-template
+                                nil (car choice))))
+                           new-child))))
           (if (not (zettel-link-at-point-p))
               (if arg
                   (funcall-interactively #'zettel-insert-link-with-metadata link)
@@ -1080,13 +1086,13 @@ ancestor."
     (add-to-list 'zettel-parent-of-new-child (cons child-link parent))
     child-link))
 
-(defun zettel-insert-new-child (arg)
+(defun zettel-insert-new-child (&optional arg)
   "Creates a new Zettel in the current `deft-directory', inserting a link to
 it at point, saves the current Zettel as its parent, and sets the
 `zettel-link-backlink' to current Zettel. With prefix argument, allows the
 user to select the Zettelkasten. With double prefix argument, asks for the
-full link."
-  (interactive "p")
+full link. Returns link the new child."
+  (interactive "P")
   (let ((parent-link
          (zettel-file-link (cond ((zettel-p buffer-file-name)
                                   buffer-file-name)
@@ -1095,12 +1101,12 @@ full link."
                                  (t
                                   (user-error "Child of what?")))))
         child-link)
-    (if (= arg 16)
+    (if (equal arg '(16))
         (while (not child-link)
           (setq child-link (read-string "Enter link for new child: "))
           (when (file-exists-p (zettel-absolute-filename child-link))
             (message "This Zettel already exists; try again")))
-      (let ((kasten (cond ((= arg 4)
+      (let ((kasten (cond ((equal arg '(4))
                            (ivy-read "Zettelkasten: "
                                      (if (listp zettel-kaesten)
                                          (mapcar #'first zettel-kaesten)
@@ -1112,7 +1118,8 @@ full link."
         (setq child-link (zettel-generate-new-child parent-link kasten))))
     (if (equal major-mode 'deft-mode)
         (deft-new-file-named (zettel-link-slug child-link))
-      (insert (zettel-org-format-link child-link)))))
+      (insert (zettel-org-format-link child-link)))
+    child-link))
 
 (defun zettel-ivy-set-parent ()
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
