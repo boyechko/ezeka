@@ -420,9 +420,10 @@ expression, with or without time."
               minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
-(defun zettel-file-content (file)
+(defun zettel-file-content (file &optional noerror)
   "Returns the content of the file, getting it either from an opened buffer,
-Deft cache, or the file itself."
+Deft cache, or the file itself. If NOERROR is non-NIL, don't signal an error
+if cannot get the content."
   (cond ((get-file-buffer file)
          (with-current-buffer (get-file-buffer file)
            (save-restriction
@@ -433,9 +434,10 @@ Deft cache, or the file itself."
         ((file-exists-p file)
          (with-temp-buffer
            (insert-file-contents file)
-           (buffer-string)))
+           (buffer-substring-no-properties (point-min) (point-max))))
         (t
-         (error "Cannot get content for %s" file))))
+         (unless noerror
+          (error "Cannot get content for %s" file)))))
 
 ;;;=============================================================================
 ;;; Metadata
@@ -978,15 +980,20 @@ file in Finder with it selected."
     (redisplay))
   (when (and (eq major-mode 'org-mode)
              (zettel-link-at-point-p))
-    (let* ((file (zettel-absolute-filename (match-string 1)))
+    (let* ((file (zettel-absolute-filename (match-string 1) t))
            (title (or (deft-file-title file)
                       (zettel-deft-parse-title-function
-                       (magit-file-line file)))))
+                       (first (split-string
+                               (or (zettel-file-content file t) "")
+                               "\n"))))))
       (message title))))
-
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (add-hook 'post-command-hook
+       'zettel-show-link-title-in-minibuffer)))
+(add-hook 'zettel-mode-hook
+  '(lambda ()
+     (add-hook 'after-save-hook
        'zettel-show-link-title-in-minibuffer)))
 
 ;; Show the beginning of Zettel title in mode-line
