@@ -1402,31 +1402,45 @@ optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
   (deft-refresh)
   (zettel-populate-categories))
 
-(defun zettel-deft-parse-title-function (line)
+(defun zettel-deft-parse-title-function (line &optional show-missing)
   "Function for post-processing titles for display in Deft buffer, intended
-as the value for `deft-parse-title-function'."
-  (let ((metadata (zettel-decode-combined-title
-                   (replace-regexp-in-string "^\\(title: +\\)" "" line))))
-    (if (not (alist-get :slug metadata))
-        "[Could not parse title]"
-      (setq slug-len (length
-                      (alist-get (zettel-type (alist-get :slug metadata))
-                                 zettel-type-example-alist))
-            cat-len (if zettel-categories
-                        (apply #'max (mapcar #'length zettel-categories))
-                      15))
-      ;; SLUG__CATEGORY/CITEKEY__TITLE [_ represents space]
-      ;; `zettel-mode-line-buffer-id' relies on there being two spaces
-      (format (format "%%-%ds%%-%ds%%s" (+ slug-len 2) (+ cat-len 2))
-              (alist-get :slug metadata)
-              (let ((cat (if (alist-get :citekey metadata)
-                             ;; Skip @
-                             (subseq (alist-get :citekey metadata) 1)
-                           (alist-get :category metadata))))
-                (if (> (length cat) cat-len)
-                    (concat (subseq cat 0 (- cat-len 2)) "..")
-                  cat))
-              (alist-get :title metadata)))))
+as the value for `deft-parse-title-function'. If SHOW-MISSING is non-NIL,
+the missing metadata is explicitly displayed."
+  (when line
+    (let* ((metadata (zettel-decode-combined-title
+                      (replace-regexp-in-string "^\\(title: +\\)" "" line)))
+           (slug (or (alist-get :slug metadata)
+                     (if show-missing "<slug>" "")))
+           (cat (or (alist-get :category metadata)
+                    (if show-missing "<category>" "")))
+           (key (or (alist-get :citekey metadata)
+                    (if show-missing "<citekey>" "")))
+           (key (if (string-match "^@" key)
+                    (replace-match "" nil nil key)
+                  key))
+           (title (or (alist-get :title metadata)
+                      (if (not (zerop (length line)))
+                          line
+                        "<title>")))
+           (SLUG-LEN
+            (length
+             (alist-get (or (zettel-type (alist-get :slug metadata))
+                            (zettel-kasten-slug-type zettel-deft-active-kasten)
+                            :tempus)    ; assume longest
+                        zettel-type-example-alist)))
+           (CAT-LEN 12)
+           (KEY-LEN 10)
+           ;; SLUG---CATEGORY---CITEKEY---TITLE [where --- is tab]
+           (fmt (format "%%-%ds\t%%-%ds\t%%-%ds\t%%s" SLUG-LEN CAT-LEN KEY-LEN)))
+      (format fmt                       ; requires 4 arguments
+              slug
+              (if (> (length cat) CAT-LEN)
+                  (concat (subseq cat 0 (- CAT-LEN 1)) "…")
+                cat)
+              (if (> (length key) KEY-LEN)
+                  (concat (subseq key 0 (- KEY-LEN 1)) "…")
+                key)
+              title))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
 (defun zettel-adv--deft-new-file-maybe-named (arg)
