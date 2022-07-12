@@ -1573,8 +1573,8 @@ that of FILE2. Case is ignored."
 (defun zettel-adv--deft-open-button (orig-fun &rest args)
   "Advice :around `deft-open-button' to call `zettel-find-link' instead of
 `deft-open-file'."
-  (zettel-find-link
-   (zettel-file-link (button-get (first args) 'tag))))
+  (zettel-find-link (zettel-file-link (button-get (first args) 'tag))
+                    current-prefix-arg))
 (advice-add 'deft-open-button :around #'zettel-adv--deft-open-button)
 
 ;;;=============================================================================
@@ -2030,6 +2030,7 @@ another window."
 
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
+(define-key deft-mode-map (kbd "C-c C-o") 'push-button)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; Was: deft-find-file
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
