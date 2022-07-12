@@ -7,12 +7,8 @@
 ;;;;-----------------------------------------------------------------------------
 ;;;; TODO:
 ;;;;
-;;;; - is it possible to advise `buffer-name' to display Zettel names usefully?
 ;;;; - `zettel-kill-ring-save-link-title' should look ahead on the same line
 ;;;;   if there isn't one at point
-;;;; - C-u `zettel-open-link-at-point' should allow choosing a function to use
-;;;; - `zettel-deft-parse-title-function' should have citekey column
-;;;; - `deft-filter-zettel-category' should not clobber existing input
 ;;;; - intelligently include category when insert link with title (2022-06-14)
 ;;;; - implement some kind of checksum check for keeping draft up to date
 ;;;; - add function to set readings metadata from org LOGBOOK at point
@@ -1966,7 +1962,7 @@ Zettelkasten work."
               (format "〔%s〕"
                       (upcase zettel-deft-active-kasten))
             "")
-          (if (and (boundp 'zettel-mode) zettel-mode)
+          (if (zettel-p buffer-file-name)
               (let ((metadata (zettel-metadata buffer-file-name)))
                 (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
                         (alist-get :title metadata)
@@ -2084,7 +2080,7 @@ another window."
 ;;
 ;; Unsafe mode keybindings
 ;;
-(define-key zettel-mode-map (kbd "C-c C-S-f") 'zettel-select-link)
+(define-key zettel-mode-map (kbd "C-c C-s") 'zettel-select-link)
 (define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
 (define-key zettel-mode-map (kbd "C-c C-d") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
