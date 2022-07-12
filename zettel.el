@@ -1040,6 +1040,97 @@ file in Finder with it selected."
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 ;;;=============================================================================
+;;; Inserting snippets
+;;;=============================================================================
+
+;;; TODO:
+;;;
+;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
+;;; - don't copy subtrees marked with COMMENT
+;;; - update the snippet title in the heading while I'm at it
+;;; - command to edit the current heading in situ and locate same text point
+;;; - quickly scan through all the headings and see if any need updating?
+;;; - add marker that I'm including text from the Zettel; define a new org block?
+(defun zettel-insert-snippet-text (arg file)
+  "Inserts the combination of Summary and Snippet sections from the given
+snippet FILE into the current buffer. With prefix argument, forces update."
+  (interactive
+   ;; Assume the file is the last link on the current line
+   (list current-prefix-arg
+         (save-excursion
+           (end-of-line)
+           (org-previous-link)
+           (when (zettel-link-at-point-p)
+             (zettel-absolute-filename (zettel-link-at-point))))))
+  ;; Get the metadata and most recent modification
+  (save-excursion
+    (save-restriction
+      (let* ((metadata (zettel-metadata file))
+             (modified (format "[%s]" (or (alist-get :modified metadata)
+                                          (alist-get :created metadata))))
+             current?)
+        ;; Update the timestamp if modification time is more recent
+        (end-of-line)
+        (if (org-at-timestamp-p 'inactive)
+            (if (string= (org-element-property :raw-value (org-element-context))
+                         modified)
+                (setq current? t)       ; we still have most recent text
+              ;; Need to repeat `org-at-timestamp-p' for match data
+              (when (org-at-timestamp-p 'inactive)
+                (replace-match modified)))
+          (just-one-space)
+          (insert modified))
+        (if (and current? (null arg))
+            (message "Snippet is up to date; leaving alone")
+          (when (y-or-n-p "Update the text? ")
+            ;; If current line is a comment, create a heading after it
+            (when (org-at-comment-p)
+              (org-insert-subheading nil))
+            ;; Delete existing text
+            (org-narrow-to-subtree)
+            (forward-line 1)
+            (let ((start (point))
+                  (comments-removed 0)
+                  content)
+              (delete-region start (point-max))
+              ;; Get the Summary and Snippet subtrees from snippet file
+              (with-current-buffer (find-file-noselect file)
+                (let (copy-from)
+                  ;; Include Summary section if present
+                  (when (org-find-exact-headline-in-buffer "Summary")
+                    (goto-char (org-find-exact-headline-in-buffer "Summary"))
+                    (setq copy-from (point)))
+                  (goto-char (or (org-find-exact-headline-in-buffer "Snippet")
+                                 (org-find-exact-headline-in-buffer "Content")
+                                 (error "Can't find the Snippet or Content section")))
+                  (unless copy-from (setq copy-from (point)))
+                  (org-end-of-subtree)
+                  (setq content (buffer-substring copy-from (point)))))
+              ;; Insert the copied subtrees and remove its headings and comments
+              (insert content)
+              (goto-char start)
+              (while (re-search-forward "^[#*]+ " nil t)
+                (goto-char (match-beginning 0))
+                (kill-line 1)
+                (rb-collapse-blank-lines))
+              ;; Remove my notes in {...} and Zettel links
+              (goto-char start)
+              (while (re-search-forward (rx (optional blank)
+                                            (group
+                                             (or (and "[[" (+? (not space)) "]]")
+                                                 (and "{" (+? anything) "}"))))
+                                        nil t)
+                (when (eq (elt (match-string 1) 0) ?{)
+                  (incf comments-removed))
+                (replace-match ""))
+              (org-indent-region (point-min) (point-max))
+              (goto-char (point-max))
+              (insert "\n")
+              (when (> comments-removed 0)
+                (message "Removed %d comments" comments-removed))
+              t)))))))
+
+;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
 
