@@ -32,9 +32,15 @@ Clamp do
     if not target
       STDERR.puts "Target is neither a valid link nor a valid path"
       exit(1)
-    elsif File.exists?(target.path)
+    elsif target.path.file?
       STDERR.puts "Target already exists: #{target.path}"
       exit(1)
+    elsif not target.path.dirname.directory?
+      STDERR.puts "Target directory doesn't exist, attempting to create"
+      unless Dir.mkdir(target.path.dirname)
+        STDERR.puts "Could not create directory #{target.path.dirname}"
+        exit(1)
+      end
     end
 
     # Give user chance to interrupt if using interactively
