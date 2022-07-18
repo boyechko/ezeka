@@ -5,18 +5,6 @@
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
 ;;;;-----------------------------------------------------------------------------
-;;;; TODO:
-;;;;
-;;;; - `zettel-kill-ring-save-link-title' should look ahead on the same line
-;;;;   if there isn't one at point
-;;;; - intelligently include category when insert link with title (2022-06-14)
-;;;; - implement some kind of checksum check for keeping draft up to date
-;;;; - add function to set readings metadata from org LOGBOOK at point
-;;;; - rename "undecoded" title to something like summary or first-line
-;;;; - insert link to bookmark (C-x r) file
-;;;; - save list of RUMEN Kasten titles for use in other Emacs instances
-;;;; - good way to set keywords, ideally with completion of existing ones
-;;;; - add an easy way to insert zlinksto output
 
 (require 'deft)
 
