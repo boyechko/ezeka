@@ -1026,10 +1026,17 @@ in the minibuffer."
     ;; FIXME: Clunky, but some deft-titles don't have citekeys or categories
     (if (or title citekey category)
         (let* ((words (split-string (or title citekey category) " "))
-               (first-three (mapconcat #'identity
-                              (subseq words 0 (min 3 (length words)))
-                              " ")))
-          (setq-local mode-line-buffer-identification first-three))
+               (first3 (mapconcat #'identity
+                         (subseq words 0 (min 3 (length words)))
+                         " "))
+               (slug-end (if (or (eq (zettel-type slug) :numerus)
+                                 (eq (zettel-type slug) :bolus))  ; FIXME: temporary
+                             slug
+                           (concat "~"
+                                   (subseq slug (- (length slug)
+                                                   (length "0101T0101"))))))
+               (buffer-id (format "%s: %s" slug-end first3)))
+          (setq-local mode-line-buffer-identification buffer-id))
       (setq-local mode-line-buffer-identification
                   (format "%12s" (zettel-file-link buffer-file-name))))))
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
