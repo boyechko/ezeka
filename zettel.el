@@ -1388,21 +1388,23 @@ SKIP-CURRENT is T, remove the current buffer."
   "Quickly switch to other open Zettel buffers. With prefix argument, do so
 in another window."
   (interactive "P")
-  (zettel-ivy-read-reverse-alist-action
-   "Switch to Zettel: "
-   (mapcar (lambda (path)
-             (if (not deft-hash-titles)
-                 (error "Deft hash table is not initialized")
-               (when (null (deft-file-title path))
-                 (deft-cache-file path))
-               (cons (format "%s%s"
-                             (if (buffer-modified-p (get-file-buffer path))
-                                 "✒︎"
-                               "")
-                             (deft-file-title path))
-                     path)))
-           (zettel-visiting-buffer-list t))
-   (if (not arg) 'find-file 'find-file-other-window)))
+  (let ((choices
+         (mapcar (lambda (path)
+                   (if (not deft-hash-titles)
+                       (error "Deft hash table is not initialized")
+                     (when (null (deft-file-title path))
+                       (deft-cache-file path))
+                     (cons (format "%s%s"
+                                   (if (buffer-modified-p (get-file-buffer path))
+                                       "✒︎"
+                                     "")
+                                   (deft-file-title path))
+                           path)))
+                 (zettel-visiting-buffer-list t))))
+    (zettel-ivy-read-reverse-alist-action
+     "Switch to Zettel: "
+     (or choices (zettel-ivy-titles-reverse-alist #'string>))
+     (if (not arg) 'find-file 'find-file-other-window))))
 
 (defun zettel-ivy-read-category (&optional arg prompt sort-fn)
   "Uses `ivy-read' to select a category from `zettel-categories'. With prefix
