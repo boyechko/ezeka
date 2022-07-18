@@ -874,7 +874,7 @@ the cursor in already inside a link, replace it instead."
   (let* ((choices
           (delete-dups (append
                         (mapcar (lambda (path)
-                                  (cons (deft-file-title path) path))
+                                  (cons (zettel-deft-parsed-title path) path))
                                 (zettel-visiting-buffer-list t))
                         (zettel-ivy-titles-reverse-alist #'string>)))))
     (if choices
@@ -996,19 +996,29 @@ file in Finder with it selected."
   (when arg
     (switch-to-buffer-other-window "*Async Shell Command*")))
 
+(defun zettel-deft-parsed-title (file)
+  "Returns the result of `deft-file-title' if available or the result of
+`zettel-deft-parse-title-function' on the first line of the given FILE."
+  (or (deft-file-title file)
+      (zettel-deft-parse-title-function
+       (first (split-string
+               (or (zettel-file-content file t) "")
+               "\n")))))
+
 (defun zettel-show-link-title-in-minibuffer ()
-  "Displays Zettel title in minibuffer of the link under cursor."
+  "Displays Zettel title of the link under cursor, less category and citekey,
+in the minibuffer."
   (while-no-input
     (redisplay))
   (when (and (eq major-mode 'org-mode)
              (zettel-link-at-point-p))
     (let* ((file (zettel-absolute-filename (match-string 1) t))
-           (title (or (deft-file-title file)
-                      (zettel-deft-parse-title-function
-                       (first (split-string
-                               (or (zettel-file-content file t) "")
-                               "\n"))))))
-      (message title))))
+           (title (zettel-deft-parsed-title file))
+           (title
+            (if (string-match "^\\([[:alnum:]-]+\\).*	.*	\\(.*\\)$" title)
+                (format "%s / %s" (match-string 1 title) (match-string 2 title))
+              title)))
+      (message (s-center (window-width) title)))))
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (add-hook 'post-command-hook
