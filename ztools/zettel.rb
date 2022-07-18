@@ -227,12 +227,15 @@ class Zettel
 
   private
 
-  METADATA_DATE_FORMAT = "%F"   # ISO-8601 date format (%Y-%m-%d)
-
   METADATA_KEYS = [:title, :subtitle, :author,
                    :created, :modified,
                    :parent, :firstborn, :oldnames,
                    :keywords, :readings]
+
+  METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
+  COMMENT_LINE = /^#/
+  TIME_PATTERN = /^\d{4}-\d{2}-\d{2}( [[:alpha:]]{3} \d{2}:\d{2})*$/
+  METADATA_TIME_FORMAT = "%F %a %H:%M" # Org-mode timestamp format
 
   # Returns a YAML block as a string, using inline sequence style.
   #
@@ -257,15 +260,11 @@ class Zettel
     if val.is_a?(Array)
       return "#{key}: [ #{val.join(', ')} ]"
     elsif val.is_a?(Time)
-      return "#{key}: #{val.strftime(METADATA_DATE_FORMAT)}"
+      return "#{key}: #{val.strftime(METADATA_TIME_FORMAT)}"
     else
       return "#{key}: #{val}"
     end
   end
-
-  METADATA_LINE = /^([[:alpha:]-]+): +(.+)$/
-  COMMENT_LINE = /^#/
-  ISO8601_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
   # Returns a hash representing the YAML block given.
   #
@@ -279,7 +278,7 @@ class Zettel
         key = $1.to_sym
         value = $2
 
-        if value =~ ISO8601_PATTERN
+        if value =~ TIME_PATTERN
           begin
             value = Time.parse(value)
           rescue ArgumentError
