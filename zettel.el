@@ -468,7 +468,7 @@ returns NIL."
             (cons :title (string-trim-right (match-string 6 title) " "))
             (when (match-string 7 title)
               (cons :keywords
-                    (string-trim-right (match-string 7 title) " ")))
+                    (list (string-trim-right (match-string 7 title) " "))))
             (when (match-string 8 title)
               (cons :citekey
                     (string-trim-right (match-string 8 title) " ")))))))
