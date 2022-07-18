@@ -917,7 +917,7 @@ clipboard. With prefix argument, ask for a metadata field to include."
 
 (defun zettel-kill-ring-save-link-title (arg)
   "Save the title of the wiki link at point or the buffer to the kill ring
-and system clipboard. With prefix argument, saves the combinted title from `'."
+and system clipboard. With prefix argument, saves the 'combinted title'."
   (interactive "P")
   (let ((file (cond ((zettel-link-at-point-p)
                      (zettel-absolute-filename (zettel-link-at-point)))
@@ -966,17 +966,18 @@ file in Finder with it selected."
         (when (= arg 16)
           (shell-command (format "open -R %s &" file)))))))
 
-(defun zettel-kill-ring-save-link-at-point ()
-  "Save the first link at or after point."
+(defun zettel-kill-ring-save-next-link ()
+  "Save the first link at or after point (but before EOL)."
   (interactive)
   (save-excursion
    (let ((link (if (zettel-link-at-point-p)
                    (zettel-link-at-point)
-                 (when (re-search-forward zettel-regexp-link nil t)
-                   (match-string-no-properties 0)))))
+                 (let ((eol (save-excursion (end-of-visual-line) (point))))
+                   (when (re-search-forward zettel-regexp-link eol t)
+                     (match-string-no-properties 0))))))
      (when link
        (kill-new link)
-       (message "Copied link to [%s]" link)))))
+       (message "Saved [%s] to kill ring" link)))))
 
 ;; Modified from zetteldeft's `zetteldeft-avy-link-search'.
 (defun zettel-avy-link-search ()
