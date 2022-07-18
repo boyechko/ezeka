@@ -1404,10 +1404,14 @@ in another window."
            (zettel-visiting-buffer-list t))
    (if (not arg) 'find-file 'find-file-other-window)))
 
-(defun zettel-ivy-read-category (&optional arg prompt)
+(defun zettel-ivy-read-category (&optional arg prompt sort-fn)
   "Uses `ivy-read' to select a category from `zettel-categories'. With prefix
-argument, asks the user to type in the category directly."
-  (let ((prompt (or prompt "Category: ")))
+argument, asks the user to type in the category directly. If SORT-FN is
+given, use that to sort the list first."
+  (let ((prompt (or prompt "Category: "))
+        (categories (if (functionp sort-fn)
+                        (cl-sort zettel-categories sort-fn :key #'cdr)
+                      zettel-categories)))
     (if current-prefix-arg
         (read-string prompt)
       (ivy-read prompt zettel-categories))))
@@ -1421,7 +1425,7 @@ prefix argument, allows the user to type in a custom category."
                             (button-get (button-at (point)) 'tag))
                            (t
                             (user-error "Set category of what?")))
-                     (zettel-ivy-read-category)))
+                     (zettel-ivy-read-category nil nil #'>)))
   (let ((orig-buffer (current-buffer)))
     (save-excursion
       (with-current-buffer (find-file-noselect file)
@@ -1438,8 +1442,10 @@ prefix argument, allows the user to type in a custom category."
   (interactive)
   (setq zettel-categories '())
   (dolist (file deft-all-files)
-    (add-to-list 'zettel-categories
-      (alist-get :category (zettel-metadata file))))
+    (let* ((category (alist-get :category (zettel-metadata file)))
+           (frequency (alist-get category zettel-categories 0 nil #'string-equal)))
+      (setf (alist-get category zettel-categories nil nil #'string-equal)
+            (1+ frequency))))
   (message "%d categories in %d files"
            (length zettel-categories) (length deft-all-files)))
 
@@ -1585,7 +1591,8 @@ prefix argument."
   "Inserts a category into deft-filter if there is no category there or
 changes the existing one. With prefix argument, replaces the current
 `deft-filter-regexp'."
-  (interactive (list (zettel-ivy-read-category) current-prefix-arg))
+  (interactive (list (zettel-ivy-read-category nil nil #'>)
+                     current-prefix-arg))
   (deft-filter (format "{%s}" category)
     (or arg (null deft-filter-regexp))))
 
@@ -1595,7 +1602,7 @@ changes the existing one. With prefix argument, replaces the current
 ;;
 (defun zettel-insert-metadata-template (category title)
   "Inserts the metadata template into the current buffer."
-  (interactive (list (zettel-ivy-read-category)
+  (interactive (list (zettel-ivy-read-category nil nil #'>)
                      (read-string "Zettel title: ")))
   (let ((file (file-name-base buffer-file-name))
         (link (zettel-file-link buffer-file-name)))
