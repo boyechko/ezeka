@@ -1045,8 +1045,16 @@ in the minibuffer."
 ;;; Inserting snippets
 ;;;=============================================================================
 
+(defcustom zettel-insert-snippet-summary nil
+  "Non-nil means insert the snippet summary."
+  :type 'boolean)
+
+(defcustom zettel-insert-snippet-footnotes nil
+  "Non-nil means insert footnotes."
+  :type 'boolean)
+
 ;;; TODO:
-;;;
+;;; - implement some kind of checksum check for keeping draft up to date
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
 ;;; - don't copy subtrees marked with COMMENT
 ;;; - update the snippet title in the heading while I'm at it
@@ -1093,12 +1101,14 @@ snippet FILE into the current buffer. With prefix argument, forces update."
             (forward-line 1)
             (let ((start (point))
                   (comments-removed 0)
+                  (footnotes-removed 0)
                   (content '()))
               (delete-region start (point-max))
               ;; Get the Summary and Snippet subtrees from snippet file
               (with-current-buffer (find-file-noselect file)
                 ;; Include Summary section if present
-                (when (org-find-exact-headline-in-buffer "Summary")
+                (when (and zettel-insert-snippet-summary
+                           (org-find-exact-headline-in-buffer "Summary"))
                   (goto-char (org-find-exact-headline-in-buffer "Summary"))
                   (forward-line)
                   (let ((copy-from (point)))
@@ -1118,10 +1128,9 @@ snippet FILE into the current buffer. With prefix argument, forces update."
               (insert "\n")
               (apply #'insert (nreverse content))
               (goto-char start)
-              (while (re-search-forward "^[*]+ " nil t)
+              (while (re-search-forward "^[*]+ " nil t) ; remove headings
                 (goto-char (match-beginning 0))
-                (kill-line 1)
-                (rb-collapse-blank-lines))
+                (kill-line 1))
               ;; Remove my notes in {...} and Zettel links
               (goto-char start)
               (while (re-search-forward (rx (optional blank)
@@ -1132,11 +1141,19 @@ snippet FILE into the current buffer. With prefix argument, forces update."
                 (when (eq (elt (match-string 1) 0) ?{)
                   (incf comments-removed))
                 (replace-match ""))
+              ;; Remove footnotes if need be
+              (unless zettel-insert-snippet-footnotes
+                (goto-char start)
+                (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
+                  (goto-char (match-beginning 0))
+                  (kill-paragraph 1)
+                  (incf footnotes-removed)))
               (org-indent-region (point-min) (point-max))
               (goto-char (point-max))
               (insert "\n")
-              (when (> comments-removed 0)
-                (message "Removed %d comments" comments-removed))
+              (rb-collapse-blank-lines)
+              (message "Removed %d comments and %d footnotes"
+                       comments-removed footnotes-removed)
               t)))))))
 
 ;;;=============================================================================
