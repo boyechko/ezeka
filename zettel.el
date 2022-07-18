@@ -1276,29 +1276,33 @@ user from cached and visiting Zettel."
 ;;; Buffers, Files, Categories
 ;;;=============================================================================
 
+(defun zettel-find-file (file &optional same-window)
+  "Edit the given file based on the value of `zettel-number-of-frames'. If
+SAME-WINDOW is non-NIL, opens the buffer visiting the file in the same
+window."
+  (if same-window
+      (find-file file)
+    (case zettel-number-of-frames
+      (two (if (< (length (frame-list)) 2)
+               (find-file-other-frame file)
+             (select-window (ace-select-window))
+             (find-file file)))
+      (one (let ((pop-up-windows t))
+             (select-window (ace-select-window))
+             (find-file file)))
+      (nil (find-file file))
+      (t (find-file-other-frame file)))))
+
 (defun zettel-find-link (link &optional same-window)
   "Attempts to find the given Zettel link based on the value of
 `zettel-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
 same window. Returns T if the link is a Zettel link."
   (when (zettel-link-p link)
-    (let ((file (zettel-absolute-filename link))
-          window)
-      (if same-window
-          (find-file file)
-        (case zettel-number-of-frames
-          (two (if (< (length (frame-list)) 2)
-                   (find-file-other-frame file)
-                 (select-window (ace-select-window))
-                 (find-file file)))
-          (one (let ((pop-up-windows t))
-                 (select-window (ace-select-window))
-                 (find-file file)))
-          (nil (find-file file))
-          (t (find-file-other-frame file))))
-      (when (zerop (buffer-size))
-        (call-interactively #'zettel-insert-metadata-template))
-      ;; make sure to return T for `org-open-link-functions'
-      t)))
+    (zettel-find-file (zettel-absolute-filename link) same-window)
+    (when (zerop (buffer-size))
+      (call-interactively #'zettel-insert-metadata-template))
+    ;; make sure to return T for `org-open-link-functions'
+    t))
 
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
@@ -1690,8 +1694,7 @@ that of FILE2. Case is ignored."
 (defun zettel-adv--deft-open-button (orig-fun &rest args)
   "Advice :around `deft-open-button' to call `zettel-find-link' instead of
 `deft-open-file'."
-  (zettel-find-link (zettel-file-link (button-get (first args) 'tag))
-                    current-prefix-arg))
+  (zettel-find-file (button-get (first args) 'tag) current-prefix-arg))
 (advice-add 'deft-open-button :around #'zettel-adv--deft-open-button)
 
 ;;;=============================================================================
