@@ -583,6 +583,16 @@ current buffer according to the value of `zettel-update-modifaction-date'."
         (setf (alist-get :modified metadata) now)))
     (zettel-normalize-metadata buffer-file-name metadata)))
 
+(defun zettel-update-title ()
+  "Interactively asks for a different title and updates the Zettel's metadata."
+  (interactive)
+  (when (zettel-p buffer-file-name)
+    (let ((metadata (zettel-metadata buffer-file-name)))
+      (setf (alist-get :title metadata)
+            (read-string "Change title to what? "
+                         (alist-get :title metadata)))
+      (zettel-normalize-metadata buffer-file-name metadata))))
+
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
@@ -2128,6 +2138,8 @@ another window."
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key zettel-mode-map (kbd "C-c $") 'zettel-kill-ring-save-link-at-point)
+;; This shadows org-mode's `org-agenda-file-to-front'
+(define-key zettel-mode-map (kbd "C-c [") 'zettel-update-title)
 
 ;;
 ;; Unsafe mode keybindings
