@@ -1411,10 +1411,13 @@ instead."
   (funcall #'zettel-find-link
            (if arg
                (read-string "Zettel link to find: ")
-             (zettel-file-link (cdr (zettel-ivy-read-reverse-alist-action
-                                     "Select title: "
-                                     (zettel-ivy-titles-reverse-alist)
-                                     #'identity))))))
+             (let ((choice (zettel-ivy-read-reverse-alist-action
+                            "Select title: "
+                            (zettel-ivy-titles-reverse-alist)
+                            #'identity)))
+               (zettel-file-link
+                (or (cdr choice)
+                    (zettel-absolute-filename (car choice))))))))
 
 (defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
   "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
