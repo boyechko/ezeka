@@ -436,30 +436,30 @@ Group 2 is the value.")
 (defvar zettel-regexp-combined-title
   (concat "^§"
           zettel-regexp-link
-          "\\. \\({\\([^}]+\\)} \\)*\\([^#@]+\\)\\(#[^@]+\\)*\\(@.*\\)*")
+          "\\. \\({\\([^}]+\\)}\\)*\\([^#@]+\\)*\\(@\\S-+\\)*\\(#.+\\)*")
   "Regular expression for a combined title string, used in `zettel-metadata'.
 Group 2 is the kasten.
 Group 3 is the slug.
 Group 5 is the category.
 Group 6 is the title itself.
-Group 7 is the keyword block.
-Group 8 is the citation key.")
+Group 7 is the citation key.
+Group 8 is the keyword block.")
 
-(defun zettel-decode-combined-title (title)
+(defun zettel-decode-combined-title (combined)
   "Returns an alist of metadata from a combined title. If cannot decode,
 returns NIL."
-  (when (and title (string-match zettel-regexp-combined-title title))
-    (let ((slug (match-string 3 title)))
+  (when (and combined (string-match zettel-regexp-combined-title combined))
+    (let ((slug     (match-string 3 combined))
+          (category (match-string 5 combined))
+          (title    (match-string 6 combined))
+          (citekey  (match-string 7 combined))
+          (keywords (match-string 8 combined)))
       (list (cons :slug slug)
             (cons :type (zettel-type slug))
-            (cons :category (match-string 5 title))
-            (cons :title (string-trim-right (match-string 6 title) " "))
-            (when (match-string 7 title)
-              (cons :keywords
-                    (list (string-trim-right (match-string 7 title) " "))))
-            (when (match-string 8 title)
-              (cons :citekey
-                    (string-trim-right (match-string 8 title) " ")))))))
+            (cons :category category)
+            (cons :title (if title (string-trim title) ""))
+            (when citekey (cons :citekey (string-trim citekey)))
+            (when keywords (cons :keywords (list (string-trim keywords))))))))
 
 (defun zettel-encode-combined-title (metadata)
   "Returns a list of two elements: 1) string that encodes into the title line
