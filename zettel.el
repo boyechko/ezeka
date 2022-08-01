@@ -1504,7 +1504,7 @@ in another window."
                            path)))
                  (zettel-visiting-buffer-list t))))
     (zettel-ivy-read-reverse-alist-action
-     "Switch to Zettel: "
+     (if choices "Visit live buffer: " "Visit cached: ")
      (or choices (zettel-ivy-titles-reverse-alist #'string>))
      (if (not arg) 'find-file 'find-file-other-window))))
 
