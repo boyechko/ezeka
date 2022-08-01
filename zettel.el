@@ -508,9 +508,9 @@ by parsing the FILE's metadata."
                                       (zettel-metadata-yaml-value (cdr cons)))))
                   (let (ordered-metadata)
                     (dolist (key '(:subtitle :author
-                                   :created :modified
-                                   :parent :firstborn :oldnames
-                                   :readings :keywords)
+                                             :created :modified
+                                             :parent :firstborn :oldnames
+                                             :readings :keywords)
                                  (nreverse ordered-metadata))
                       (when (alist-get key remaining-metadata)
                         (push (cons key (alist-get key remaining-metadata))
@@ -531,19 +531,20 @@ content of the FILE. They keys are converted to keywords."
                    "\n\n"))
            "\n"))
          (metadata
-          (mapcar #'(lambda (line)
-                      (when (> (length line) 0)
-                        (if (string-match zettel-regexp-metadata-line line)
-                            (let ((key (intern (concat ":" (match-string 1 line))))
-                                  (value (match-string 2 line)))
-                              (cons key
-                                    ;; Handle lists properly
-                                    (if (string-match "^\\[\\(.*\\)\\]$" value)
-                                        (split-string (match-string 1 value)
-                                                      "," t "[[:space:]]+")
-                                      value)))
-                          (error "Malformed metadata line: '%s'" line))))
-                  metadata-section))
+          (mapcar
+           (lambda (line)
+             (when (> (length line) 0)
+               (if (string-match zettel-regexp-metadata-line line)
+                   (let ((key (intern (concat ":" (match-string 1 line))))
+                         (value (string-trim (match-string 2 line) " " " ")))
+                     (cons key
+                           ;; Handle lists properly
+                           (if (string-match "^\\[\\(.*\\)\\]$" value)
+                               (split-string (match-string 1 value)
+                                             "," t "[[:space:]]+")
+                             value)))
+                 (error "Malformed metadata line: '%s'" line))))
+           metadata-section))
          (title (alist-get :title metadata))
          (decoded (zettel-decode-combined-title title)))
     ;; When successfully decoded combined title, replace the original title with
