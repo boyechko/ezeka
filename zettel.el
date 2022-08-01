@@ -1185,6 +1185,33 @@ inserted through `zettel-insert-snippet-text'."
     (org-back-to-heading t)
     (org-next-link)
     (org-open-at-point)))
+
+(defun zettel-transclude-snippet (link)
+  "Inserts the transclusion statement from given snippet LINKE into the
+current buffer."
+  (interactive
+   ;; Assume the file is the last link on the current line
+   (list (save-excursion
+           (org-back-to-heading)
+           (end-of-line)
+           (org-previous-link)
+           (when (zettel-link-at-point-p)
+             (zettel-link-at-point)))))
+  ;; Get the metadata and most recent modification
+  (save-excursion
+    (save-restriction
+      (let* ((file (zettel-absolute-filename link))
+             (metadata (zettel-metadata file)))
+        (org-narrow-to-subtree)
+        ;; Update the heading title
+        (org-edit-headline
+         (format "%s [[%s]]" (alist-get :title metadata) link))
+        ;; Delete existing text
+        (org-back-to-heading t)
+        (delete-region (point-at-bol 2) (org-end-of-subtree t))
+        ;; Insert the transclusion line
+        (insert (format "\n#+transclude: [[%s::begin]] :lines 2- :end \"end\""
+                        (file-relative-name file)))))))
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
