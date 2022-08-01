@@ -9,33 +9,6 @@
 (require 'deft)
 
 ;;;=============================================================================
-;;; Mode
-;;;=============================================================================
-
-;; Cretea a keymap for the mode
-(defvar zettel-mode-map (make-sparse-keymap)
-  "Keymap for Zettel mode.")
-
-;; Define a minor mode for working with Zettelkasten in deft
-(define-minor-mode zettel-mode
-  "Make the keymap zettel-mode-map active."
-  :lighter " Zettel"
-  :keymap zettel-mode-map
-  :require 'deft)
-
-;; Enable zettel-mode for files that match the pattern
-(eval-after-load "markdown"
-  (add-hook 'markdown-mode-hook
-    '(lambda ()
-       (when (zettel-p buffer-file-name)
-         (zettel-mode 1)))))
-(add-hook 'org-mode-hook
-  '(lambda ()
-     (when (zettel-p buffer-file-name)
-       (setq org-export-with-broken-links t)
-       (zettel-mode 1))))
-
-;;;=============================================================================
 ;;; Internal Variables
 ;;;=============================================================================
 
@@ -650,7 +623,7 @@ abase26 equivalent of 0, namely 'a'."
       (push (% n 26) digits)
       (setq n (/ n 26)))
     (push n digits)
-    (when width 
+    (when width
       (while (> width (length digits))
         (push 0 digits)))
     (apply #'concat (mapcar #'abase26-decimal-to-letter digits))))
@@ -802,6 +775,34 @@ link). The first group is the link target."
   "Return the Zettel link at point. Needs to be called after
 `zettel-link-at-point-p'."
   (match-string-no-properties 1))
+
+(defun zettel-find-file (file &optional same-window)
+  "Edit the given file based on the value of `zettel-number-of-frames'. If
+SAME-WINDOW is non-NIL, opens the buffer visiting the file in the same
+window."
+  (if same-window
+      (find-file file)
+    (case zettel-number-of-frames
+      (two (if (< (length (frame-list)) 2)
+               (find-file-other-frame file)
+             (select-window (ace-select-window))
+             (find-file file)))
+      (one (let ((pop-up-windows t))
+             (select-window (ace-select-window))
+             (find-file file)))
+      (nil (find-file file))
+      (t (find-file-other-frame file)))))
+
+(defun zettel-find-link (link &optional same-window)
+  "Attempts to find the given Zettel link based on the value of
+`zettel-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
+same window. Returns T if the link is a Zettel link."
+  (when (zettel-link-p link)
+    (zettel-find-file (zettel-absolute-filename link) same-window)
+    (when (zerop (buffer-size))
+      (call-interactively #'zettel-insert-metadata-template))
+    ;; make sure to return T for `org-open-link-functions'
+    t))
 
 (defun zettel-kill-link-or-sexp-at-point (&optional arg)
   "If there is a Zettel link at point, kill it, including the square
@@ -1063,187 +1064,6 @@ in the minibuffer."
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 ;;;=============================================================================
-;;; Inserting snippets
-;;;=============================================================================
-
-(defcustom zettel-insert-snippet-summary nil
-  "Non-nil means insert the snippet summary."
-  :type 'boolean)
-
-(defcustom zettel-insert-snippet-footnotes nil
-  "Non-nil means insert footnotes."
-  :type 'boolean)
-
-;;; TODO:
-;;; - implement some kind of checksum check for keeping draft up to date
-;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
-;;; - don't copy subtrees marked with COMMENT
-;;; - update the snippet title in the heading while I'm at it
-;;; - command to edit the current heading in situ and locate same text point
-;;; - quickly scan through all the headings and see if any need updating?
-;;; - add marker that I'm including text from the Zettel; define a new org block?
-(defun zettel-insert-snippet-text (arg file)
-  "Inserts the combination of Summary and Snippet sections from the given
-snippet FILE into the current buffer. With prefix argument, forces update."
-  (interactive
-   ;; Assume the file is the last link on the current line
-   (list current-prefix-arg
-         (save-excursion
-           (end-of-line)
-           (org-previous-link)
-           (when (zettel-link-at-point-p)
-             (zettel-absolute-filename (zettel-link-at-point))))))
-  ;; Get the metadata and most recent modification
-  (save-excursion
-    (save-restriction
-      (let* ((metadata (zettel-metadata file))
-             (modified (format "[%s]" (or (alist-get :modified metadata)
-                                          (alist-get :created metadata))))
-             current?)
-        ;; Update the timestamp if modification time is more recent
-        (end-of-line)
-        (if (org-at-timestamp-p 'inactive)
-            (if (string= (org-element-property :raw-value (org-element-context))
-                         modified)
-                (setq current? t)       ; we still have most recent text
-              ;; Need to repeat `org-at-timestamp-p' for match data
-              (when (org-at-timestamp-p 'inactive)
-                (replace-match modified)))
-          (just-one-space)
-          (insert modified))
-        (if (and current? (null arg))
-            (message "Snippet is up to date; leaving alone")
-          (when (y-or-n-p "Update the text? ")
-            ;; If current line is a comment, create a heading after it
-            (when (org-at-comment-p)
-              (org-insert-subheading nil))
-            ;; Delete existing text
-            (org-narrow-to-subtree)
-            (forward-line 1)
-            (let ((start (point))
-                  (comments-removed 0)
-                  (footnotes-removed 0)
-                  (content '()))
-              (delete-region start (point-max))
-              ;; Get the Summary and Snippet subtrees from snippet file
-              (with-current-buffer (find-file-noselect file)
-                ;; Include Summary section if present
-                (when (and zettel-insert-snippet-summary
-                           (org-find-exact-headline-in-buffer "Summary"))
-                  (goto-char (org-find-exact-headline-in-buffer "Summary"))
-                  (forward-line)
-                  (let ((copy-from (point)))
-                    (org-end-of-subtree)
-                    (mapcar #'(lambda (line)
-                                (push (concat "# " line "\n") content))
-                            (split-string
-                             (buffer-substring-no-properties copy-from (point))
-                             "\n" t))))
-                (goto-char (or (org-find-exact-headline-in-buffer "Snippet")
-                               (org-find-exact-headline-in-buffer "Content")
-                               (error "Can't find the Snippet or Content section")))
-                (let ((copy-from (point)))
-                  (org-end-of-subtree)
-                  (push (buffer-substring copy-from (point)) content)))
-              ;; Insert the copied subtrees and remove its headings and comments
-              (insert "\n")
-              (apply #'insert (nreverse content))
-              (goto-char start)
-              (while (re-search-forward "^[*]+ " nil t) ; remove headings
-                (goto-char (match-beginning 0))
-                (kill-line 1))
-              ;; Remove my notes in {...} and Zettel links
-              (goto-char start)
-              (while (re-search-forward (rx (optional blank)
-                                            (group
-                                             (or (and "[[" (+? (not space)) "]]")
-                                                 (and "{" (+? anything) "}"))))
-                                        nil t)
-                (when (eq (elt (match-string 1) 0) ?{)
-                  (incf comments-removed))
-                (replace-match ""))
-              ;; Remove footnotes if need be
-              (unless zettel-insert-snippet-footnotes
-                (goto-char start)
-                (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
-                  (goto-char (match-beginning 0))
-                  (kill-paragraph 1)
-                  (incf footnotes-removed)))
-              (org-indent-region (point-min) (point-max))
-              (goto-char (point-max))
-              (insert "\n")
-              (rb-collapse-blank-lines)
-              (message "Removed %d comments and %d footnotes"
-                       comments-removed footnotes-removed)
-              t)))))))
-
-(defun zettel-find-inserted-snippet ()
-  "While the point is within the org entry, find the source of the snippet
-inserted through `zettel-insert-snippet-text'."
-  (interactive)
-  (save-excursion
-    (org-back-to-heading t)
-    (org-next-link)
-    (org-open-at-point)))
-
-(defun zettel-transclude-snippet (link)
-  "Inserts the transclusion statement from given snippet LINKE into the
-current buffer."
-  (interactive
-   ;; Assume the file is the last link on the current line
-   (list (save-excursion
-           (org-back-to-heading)
-           (end-of-line)
-           (org-previous-link)
-           (when (zettel-link-at-point-p)
-             (zettel-link-at-point)))))
-  ;; Get the metadata and most recent modification
-  (save-excursion
-    (save-restriction
-      (let* ((file (zettel-absolute-filename link))
-             (metadata (zettel-metadata file)))
-        (org-narrow-to-subtree)
-        ;; Update the heading title
-        (org-edit-headline
-         (format "%s [[%s]]" (alist-get :title metadata) link))
-        ;; Delete existing text
-        (org-back-to-heading t)
-        (delete-region (point-at-bol 2) (org-end-of-subtree t))
-        ;; Insert the transclusion line
-        (insert (format "\n#+transclude: [[%s::begin]] :lines 2- :end \"end\""
-                        (file-relative-name file)))))))
-
-(defcustom zettel-snippet-heading "Snippet"
-  "The text of the snippet heading."
-  :type 'string)
-
-(defun zettel-org-footnote-action-maybe-local (&optional arg)
-  "This is a wrapper around `org-footnote-action' to be used in the
-transcluded snippets, making sure that the footnotes are placed locally
-rather in whatever `org-footnote-section' is set to."
-  (interactive "P")
-  (let (snippet?)
-    (save-excursion
-      (org-back-to-heading t)
-      (setq snippet?
-        (string-equal (nth 4 (org-heading-components)) zettel-snippet-heading)))
-    (if (not snippet?)
-        (org-footnote-action arg)
-      (let ((org-footnote-section nil)
-            (context (org-context)))
-        (org-element-cache-reset)
-        ;; taken from `org-footnote-action'
-        (if (not (and context (> (point)
-	                             (save-excursion
-		                           (goto-char (org-element-property :end context))
-		                           (skip-chars-backward " \t")
-		                           (point)))))
-            (org-footnote-action arg)
-          (kill-new (format-time-string "%H%M"))
-          (org-footnote-new))))))
-(define-key org-mode-map (kbd "C-c C-x f") 'zettel-org-footnote-action-maybe-local)
-
-;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
 
@@ -1372,52 +1192,22 @@ user from cached and visiting Zettel."
        (zettel-normalize-metadata buffer-file-name metadata)))))
 
 ;;;=============================================================================
-;;; Buffers, Files, Categories
+;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun zettel-find-file (file &optional same-window)
-  "Edit the given file based on the value of `zettel-number-of-frames'. If
-SAME-WINDOW is non-NIL, opens the buffer visiting the file in the same
-window."
-  (if same-window
-      (find-file file)
-    (case zettel-number-of-frames
-      (two (if (< (length (frame-list)) 2)
-               (find-file-other-frame file)
-             (select-window (ace-select-window))
-             (find-file file)))
-      (one (let ((pop-up-windows t))
-             (select-window (ace-select-window))
-             (find-file file)))
-      (nil (find-file file))
-      (t (find-file-other-frame file)))))
-
-(defun zettel-find-link (link &optional same-window)
-  "Attempts to find the given Zettel link based on the value of
-`zettel-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
-same window. Returns T if the link is a Zettel link."
-  (when (zettel-link-p link)
-    (zettel-find-file (zettel-absolute-filename link) same-window)
-    (when (zerop (buffer-size))
-      (call-interactively #'zettel-insert-metadata-template))
-    ;; make sure to return T for `org-open-link-functions'
-    t))
-
-(defun zettel-select-link (arg)
-  "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. With universal prefix, asks the user to type the link
-instead."
-  (interactive "P")
-  (funcall #'zettel-find-link
-           (if arg
-               (read-string "Zettel link to find: ")
-             (let ((choice (zettel-ivy-read-reverse-alist-action
-                            "Select title: "
-                            (zettel-ivy-titles-reverse-alist)
-                            #'identity)))
-               (zettel-file-link
-                (or (cdr choice)
-                    (zettel-absolute-filename (car choice))))))))
+(defun zettel-ivy-titles-reverse-alist (&optional sort)
+  "Returns a reverse alist of choices consisting of cached Zettel titles and
+their paths. For use with `zettel-ivy-read-reverse-alist-action'."
+  (let (titles-alist)
+    (cond (deft-hash-titles
+            (maphash (lambda (key val)
+                       (push (cons (or val key) key) titles-alist))
+                     deft-hash-titles)
+            (if (functionp sort)
+                (cl-sort titles-alist sort :key #'car)
+              titles-alist))
+          (t
+           (error "No Deft titles cached")))))
 
 (defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
   "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
@@ -1436,19 +1226,21 @@ argument, on the key. Returns a cons cell consisting of the match from
               :require-match require-match)
     result))
 
-(defun zettel-ivy-titles-reverse-alist (&optional sort)
-  "Returns a reverse alist of choices consisting of cached Zettel titles and
-their paths. For use with `zettel-ivy-read-reverse-alist-action'."
-  (let (titles-alist)
-    (cond (deft-hash-titles
-            (maphash (lambda (key val)
-                       (push (cons (or val key) key) titles-alist))
-                     deft-hash-titles)
-            (if (functionp sort)
-                (cl-sort titles-alist sort :key #'car)
-              titles-alist))
-          (t
-           (error "No Deft titles cached")))))
+(defun zettel-select-link (arg)
+  "Interactively asks the user to select a link from the list of currently
+cached Zettel titles. With universal prefix, asks the user to type the link
+instead."
+  (interactive "P")
+  (funcall #'zettel-find-link
+           (if arg
+               (read-string "Zettel link to find: ")
+             (let ((choice (zettel-ivy-read-reverse-alist-action
+                            "Select title: "
+                            (zettel-ivy-titles-reverse-alist)
+                            #'identity)))
+               (zettel-file-link
+                (or (cdr choice)
+                    (zettel-absolute-filename (car choice))))))))
 
 (defun zettel-ivy-metadata-reverse-alist (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
@@ -1507,6 +1299,27 @@ in another window."
      (if choices "Visit live buffer: " "Visit cached: ")
      (or choices (zettel-ivy-titles-reverse-alist #'string>))
      (if (not arg) 'find-file 'find-file-other-window))))
+
+(defun zettel-formatted-frame-title ()
+  "Returns a string suitable for `frame-title-format' as a way to
+consistently format the frame title with useful information for
+Zettelkasten work."
+  (interactive)
+  (concat (if zettel-deft-active-kasten
+              (format "〔%s〕"
+                      (upcase zettel-deft-active-kasten))
+            "")
+          (if (zettel-p buffer-file-name)
+              (let ((metadata (zettel-metadata buffer-file-name)))
+                (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
+                        (alist-get :title metadata)
+                        (alist-get :slug metadata)
+                        (alist-get :kasten metadata)))
+            "%b")))
+
+;;;=============================================================================
+;;; Categories
+;;;=============================================================================
 
 (defun zettel-ivy-read-category (&optional arg prompt sort-fn)
   "Uses `ivy-read' to select a category from `zettel-categories'. With prefix
@@ -1811,6 +1624,27 @@ that of FILE2. Case is ignored."
   (zettel-find-file (button-get (first args) 'tag) current-prefix-arg))
 (advice-add 'deft-open-button :around #'zettel-adv--deft-open-button)
 
+;;-----------------------------------------------------------------------------
+;; Deft-Mode Keybindings
+;;-----------------------------------------------------------------------------
+
+;; "Shadow" the built-in slug generator to generate timestamps by default,
+;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
+(eval-after-load "deft"
+  '(defalias 'deft-unused-slug 'zettel-next-unused-slug))
+(define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
+
+(define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
+(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
+(define-key deft-mode-map (kbd "C-c C-o") 'push-button)
+(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
+(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-link) ; was: `deft-toggle-sort-method'
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; was: `deft-find-file'
+(define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
+(define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
+;; Was: deft-filter-clear
+(define-key deft-mode-map (kbd "C-c C-c") 'zettel-set-category)
+
 ;;;=============================================================================
 ;;; Org-Mode Intergration
 ;;;=============================================================================
@@ -1951,27 +1785,6 @@ org subtree."
               " "
               (alist-get :title (zettel-metadata new-file))))))
 
-;; Org links
-(eval-after-load "org"
-  '(progn
-     ;; Try to resolve "fuzzy" links (i.e. without explicit protocol). This is
-     ;; all that is needed to handle links in the form [[ZETTEL-LINK]].
-     (push #'zettel-find-link org-open-link-functions)
-
-     ;; Do the same for Zettel links that lack even the link markup. This is
-     ;; useful for following parents/children.
-     (push #'zettel-open-link-at-point org-open-at-point-functions)
-
-     ;; This allows following links as part of #+INCLUDE statements.
-     ;; TODO: Add a function to follow #+INCLUDE links
-     ))
-
-;; Treat : (colon) as part of the word, allowing forward/backward-word over full
-;; Zettel links.
-(add-hook 'zettel-mode-hook
-  '(lambda ()
-     (modify-syntax-entry ?: "w")))
-
 (defun zettel-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link. With a
 prefix argument, ignore `zettel-number-of-frames' and open the link in the
@@ -1993,7 +1806,6 @@ same window."
   (interactive "e")
   (mouse-set-point ev)
   (zettel-open-link-at-point t))
-(define-key zettel-mode-map [C-down-mouse-1] 'zettel-open-link-at-mouse)
 
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
@@ -2003,6 +1815,201 @@ same window."
               (or (alist-get :title (zettel-metadata file)) ""))
     ;; (format "[[%s][%s]]" file (file-name-base file))
     (error "Not a Zettel")))
+
+;; Org links
+(eval-after-load "org"
+  '(progn
+     ;; Try to resolve "fuzzy" links (i.e. without explicit protocol). This is
+     ;; all that is needed to handle links in the form [[ZETTEL-LINK]].
+     (push #'zettel-find-link org-open-link-functions)
+
+     ;; Do the same for Zettel links that lack even the link markup. This is
+     ;; useful for following parents/children.
+     (push #'zettel-open-link-at-point org-open-at-point-functions)
+
+     ;; This allows following links as part of #+INCLUDE statements.
+     ;; TODO: Add a function to follow #+INCLUDE links
+     ))
+
+;;;-----------------------------------------------------------------------------
+;;; Org-Mode: Inserting Snippets
+;;;-----------------------------------------------------------------------------
+
+(defcustom zettel-insert-snippet-summary nil
+  "Non-nil means insert the snippet summary."
+  :type 'boolean)
+
+(defcustom zettel-insert-snippet-footnotes nil
+  "Non-nil means insert footnotes."
+  :type 'boolean)
+
+;;; TODO:
+;;; - implement some kind of checksum check for keeping draft up to date
+;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
+;;; - don't copy subtrees marked with COMMENT
+;;; - update the snippet title in the heading while I'm at it
+;;; - command to edit the current heading in situ and locate same text point
+;;; - quickly scan through all the headings and see if any need updating?
+;;; - add marker that I'm including text from the Zettel; define a new org block?
+(defun zettel-insert-snippet-text (arg file)
+  "Inserts the combination of Summary and Snippet sections from the given
+snippet FILE into the current buffer. With prefix argument, forces update."
+  (interactive
+   ;; Assume the file is the last link on the current line
+   (list current-prefix-arg
+         (save-excursion
+           (end-of-line)
+           (org-previous-link)
+           (when (zettel-link-at-point-p)
+             (zettel-absolute-filename (zettel-link-at-point))))))
+  ;; Get the metadata and most recent modification
+  (save-excursion
+    (save-restriction
+      (let* ((metadata (zettel-metadata file))
+             (modified (format "[%s]" (or (alist-get :modified metadata)
+                                          (alist-get :created metadata))))
+             current?)
+        ;; Update the timestamp if modification time is more recent
+        (end-of-line)
+        (if (org-at-timestamp-p 'inactive)
+            (if (string= (org-element-property :raw-value (org-element-context))
+                         modified)
+                (setq current? t)       ; we still have most recent text
+              ;; Need to repeat `org-at-timestamp-p' for match data
+              (when (org-at-timestamp-p 'inactive)
+                (replace-match modified)))
+          (just-one-space)
+          (insert modified))
+        (if (and current? (null arg))
+            (message "Snippet is up to date; leaving alone")
+          (when (y-or-n-p "Update the text? ")
+            ;; If current line is a comment, create a heading after it
+            (when (org-at-comment-p)
+              (org-insert-subheading nil))
+            ;; Delete existing text
+            (org-narrow-to-subtree)
+            (forward-line 1)
+            (let ((start (point))
+                  (comments-removed 0)
+                  (footnotes-removed 0)
+                  (content '()))
+              (delete-region start (point-max))
+              ;; Get the Summary and Snippet subtrees from snippet file
+              (with-current-buffer (find-file-noselect file)
+                ;; Include Summary section if present
+                (when (and zettel-insert-snippet-summary
+                           (org-find-exact-headline-in-buffer "Summary"))
+                  (goto-char (org-find-exact-headline-in-buffer "Summary"))
+                  (forward-line)
+                  (let ((copy-from (point)))
+                    (org-end-of-subtree)
+                    (mapcar #'(lambda (line)
+                                (push (concat "# " line "\n") content))
+                            (split-string
+                             (buffer-substring-no-properties copy-from (point))
+                             "\n" t))))
+                (goto-char (or (org-find-exact-headline-in-buffer "Snippet")
+                               (org-find-exact-headline-in-buffer "Content")
+                               (error "Can't find the Snippet or Content section")))
+                (let ((copy-from (point)))
+                  (org-end-of-subtree)
+                  (push (buffer-substring copy-from (point)) content)))
+              ;; Insert the copied subtrees and remove its headings and comments
+              (insert "\n")
+              (apply #'insert (nreverse content))
+              (goto-char start)
+              (while (re-search-forward "^[*]+ " nil t) ; remove headings
+                (goto-char (match-beginning 0))
+                (kill-line 1))
+              ;; Remove my notes in {...} and Zettel links
+              (goto-char start)
+              (while (re-search-forward (rx (optional blank)
+                                            (group
+                                             (or (and "[[" (+? (not space)) "]]")
+                                                 (and "{" (+? anything) "}"))))
+                                        nil t)
+                (when (eq (elt (match-string 1) 0) ?{)
+                  (incf comments-removed))
+                (replace-match ""))
+              ;; Remove footnotes if need be
+              (unless zettel-insert-snippet-footnotes
+                (goto-char start)
+                (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
+                  (goto-char (match-beginning 0))
+                  (kill-paragraph 1)
+                  (incf footnotes-removed)))
+              (org-indent-region (point-min) (point-max))
+              (goto-char (point-max))
+              (insert "\n")
+              (rb-collapse-blank-lines)
+              (message "Removed %d comments and %d footnotes"
+                       comments-removed footnotes-removed)
+              t)))))))
+
+(defun zettel-find-inserted-snippet ()
+  "While the point is within the org entry, find the source of the snippet
+inserted through `zettel-insert-snippet-text'."
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (org-next-link)
+    (org-open-at-point)))
+
+(defun zettel-transclude-snippet (link)
+  "Inserts the transclusion statement from given snippet LINKE into the
+current buffer."
+  (interactive
+   ;; Assume the file is the last link on the current line
+   (list (save-excursion
+           (org-back-to-heading)
+           (end-of-line)
+           (org-previous-link)
+           (when (zettel-link-at-point-p)
+             (zettel-link-at-point)))))
+  ;; Get the metadata and most recent modification
+  (save-excursion
+    (save-restriction
+      (let* ((file (zettel-absolute-filename link))
+             (metadata (zettel-metadata file)))
+        (org-narrow-to-subtree)
+        ;; Update the heading title
+        (org-edit-headline
+         (format "%s [[%s]]" (alist-get :title metadata) link))
+        ;; Delete existing text
+        (org-back-to-heading t)
+        (delete-region (point-at-bol 2) (org-end-of-subtree t))
+        ;; Insert the transclusion line
+        (insert (format "\n#+transclude: [[%s::begin]] :lines 2- :end \"end\""
+                        (file-relative-name file)))))))
+
+(defcustom zettel-snippet-heading "Snippet"
+  "The text of the snippet heading."
+  :type 'string)
+
+(defun zettel-org-footnote-action-maybe-local (&optional arg)
+  "This is a wrapper around `org-footnote-action' to be used in the
+transcluded snippets, making sure that the footnotes are placed locally
+rather in whatever `org-footnote-section' is set to."
+  (interactive "P")
+  (let (snippet?)
+    (save-excursion
+      (org-back-to-heading t)
+      (setq snippet?
+        (string-equal (nth 4 (org-heading-components)) zettel-snippet-heading)))
+    (if (not snippet?)
+        (org-footnote-action arg)
+      (let ((org-footnote-section nil)
+            (context (org-context)))
+        (org-element-cache-reset)
+        ;; taken from `org-footnote-action'
+        (if (not (and context (> (point)
+	                             (save-excursion
+		                           (goto-char (org-element-property :end context))
+		                           (skip-chars-backward " \t")
+		                           (point)))))
+            (org-footnote-action arg)
+          (kill-new (format-time-string "%H%M"))
+          (org-footnote-new))))))
 
 ;;;=============================================================================
 ;;; Markdown-Mode Integration
@@ -2096,27 +2103,6 @@ bookmark's filename property to the Zettel link."
     (setq-local bookmark-make-record-function 'bookmark-make-record-zettel)))
 
 ;;;=============================================================================
-;;; Frames
-;;;=============================================================================
-
-(defun zettel-formatted-frame-title ()
-  "Returns a string suitable for `frame-title-format' as a way to
-consistently format the frame title with useful information for
-Zettelkasten work."
-  (interactive)
-  (concat (if zettel-deft-active-kasten
-              (format "〔%s〕"
-                      (upcase zettel-deft-active-kasten))
-            "")
-          (if (zettel-p buffer-file-name)
-              (let ((metadata (zettel-metadata buffer-file-name)))
-                (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
-                        (alist-get :title metadata)
-                        (alist-get :slug metadata)
-                        (alist-get :kasten metadata)))
-            "%b")))
-
-;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
 
@@ -2207,6 +2193,39 @@ another window."
                    (alist-get :slug metadata) (alist-get :title metadata)))))))
 (add-hook 'post-command-hook 'magit-show-zettel-title-in-minibuffer)
 
+;;;=============================================================================
+;;; Mode
+;;;=============================================================================
+
+;; Cretea a keymap for the mode
+(defvar zettel-mode-map (make-sparse-keymap)
+  "Keymap for Zettel mode.")
+
+;; Define a minor mode for working with Zettelkasten in deft
+(define-minor-mode zettel-mode
+  "Make the keymap zettel-mode-map active."
+  :lighter " Zettel"
+  :keymap zettel-mode-map
+  :require 'deft)
+
+;; Enable zettel-mode for files that match the pattern
+(eval-after-load "markdown"
+  (add-hook 'markdown-mode-hook
+    '(lambda ()
+       (when (zettel-p buffer-file-name)
+         (zettel-mode 1)))))
+(add-hook 'org-mode-hook
+  '(lambda ()
+     (when (zettel-p buffer-file-name)
+       (setq org-export-with-broken-links t)
+       (zettel-mode 1))))
+
+;; Treat : (colon) as part of the word, allowing forward/backward-word over full
+;; Zettel links.
+(add-hook 'zettel-mode-hook
+  '(lambda ()
+     (modify-syntax-entry ?: "w")))
+
 ;;;-----------------------------------------------------------------------------
 ;;; Zettel-Mode Key Bindings
 ;;;
@@ -2229,6 +2248,9 @@ another window."
 ;; Shadows prefix map for `orgtbl-ascii-plot' and `org-plit/gnuplot'
 (define-key zettel-mode-map (kbd "C-c \"") 'zettel-avy-link-search)
 
+;; Shadows `org-open-at-mouse', but allows opening in same window with C-u
+(define-key zettel-mode-map [C-down-mouse-1] 'zettel-open-link-at-mouse)
+
 ;;
 ;; Unsafe: reserved for major modes
 ;;
@@ -2250,26 +2272,5 @@ another window."
 (define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
 ;; Shadows org-mode's `org-toggle-ordered-property'
 (define-key zettel-mode-map (kbd "C-c C-x l") 'zettel-links-to)
-
-;;;-----------------------------------------------------------------------------
-;;; Deft-Mode Keybindings
-;;;-----------------------------------------------------------------------------
-
-;; "Shadow" the built-in slug generator to generate timestamps by default,
-;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
-(eval-after-load "deft"
-  '(defalias 'deft-unused-slug 'zettel-next-unused-slug))
-(define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
-
-(define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
-(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
-(define-key deft-mode-map (kbd "C-c C-o") 'push-button)
-(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-link) ; was: `deft-toggle-sort-method'
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; was: `deft-find-file'
-(define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
-(define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
-;; Was: deft-filter-clear
-(define-key deft-mode-map (kbd "C-c C-c") 'zettel-set-category)
 
 (provide 'zettel)
