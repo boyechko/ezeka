@@ -1841,46 +1841,38 @@ org-mode's interactive `org-time-stamp' command."
                            "%Y%m%dT%H%M")
      "]]")))
 
-;; TODO: Rewrite the following three functions based on the one above
-(defun zettel-convert-org-timestamp-to-iso8601 ()
-  "Convert the org-mode timestamp at point to the compact ISO 8601 form."
-  (interactive)
-  (let ((regexp "\\[\\([0-9]+\\)-\\([0-9]+\\)-\\([0-9]+\\) [A-Za-z]\\{3\\} \\([0-9]+\\):\\([0-9]+\\)\\]"))
-    (when (thing-at-point-looking-at regexp)
-      (let ((link (format "[[%s%s%sT%s%s]]"
-                          (match-string 1)
-                          (match-string 2)
-                          (match-string 3)
-                          (match-string 4)
-                          (match-string 5))))
-        (delete-region (match-beginning 0) (match-end 0))
-        (insert link)))))
-
-(defun zettel-convert-iso8601-to-org-timestamp ()
-  "Convert the compact ISO 8601 timestamp at point to the org-mode timestamp."
-  (interactive)
-  (when (thing-at-point-looking-at zettel-regexp-iso8601-datetime)
-    ;; FIXME: Cheating to use "Day"
-    (let ((link (format "[%s-%s-%s Day %s:%s]"
-                        (match-string 1)
-                        (match-string 2)
-                        (match-string 3)
-                        (match-string 4)
-                        (match-string 5))))
-      (delete-region (match-beginning 0) (match-end 0))
-      (insert link))))
-
-(defun zettel-org-timestamp-from-iso8601 (string)
-  "Returns an org-mode timestamp from the given ISO8601 timestamp."
-  (let ((regexp "\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)T\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)"))
-    (when (string-match regexp string)
-      ;; FIXME: Cheating to use "Day"
-      (format "[%s-%s-%s Day %s:%s]"
-              (match-string 1 string)
-              (match-string 2 string)
-              (match-string 3 string)
-              (match-string 4 string)
-              (match-string 5 string)))))
+(defun zettel-dwim-with-this-timestring (beg end)
+  "Do What I Mean with the timestring in the region. If the timestring is
+IS8601, make it into an org-time-stamp, and vice-versa. If it's something
+else, try to make it into org-time-stamp."
+  (interactive
+   (cond ((org-at-timestamp-p t)
+          (list (match-beginning 0) (match-end 0)))
+         ((or (thing-at-point-looking-at zettel-regexp-iso8601-datetime)
+              (thing-at-point-looking-at zettel-regexp-iso8601-date))
+          (list (match-beginning 0) (match-end 0)))
+         ((region-active-p)
+          (list (region-beginning) (region-end)))
+         ((user-error "Region not active"))))
+  (let ((text (buffer-substring-no-properties beg end))
+        timestamp)
+    (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
+           (let ((parsed (iso8601-parse text)))
+             (delete-region beg end)
+             (org-insert-time-stamp (iso8601--encode-time parsed)
+                                    (integerp (car parsed)) t)))
+          ((setq timestamp              ; org timestamp -> ISO-8601
+             (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
+                                            text
+                                          (format "[%s]" text))))
+           (delete-region beg end)
+           (insert
+            (org-timestamp-format timestamp "[[%Y%m%dT%H%M]]")))
+          ((integerp (car (parse-time-string text))) ; otherwise -> org timestamp
+           (delete-region beg end)
+           (org-insert-time-stamp (encode-time (parse-time-string text)) t t))
+          (t
+           (signal 'wrong-type-argument text)))))
 
 (defun zettel-org-include-cached-file ()
   "Add an org-mode #+INCLUDE to a cached Zettel."
