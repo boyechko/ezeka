@@ -555,9 +555,14 @@ content of the FILE. They keys are converted to keywords."
     (push (cons :kasten (zettel-file-kasten file)) metadata)
     (push (cons :link (zettel-file-link file)) metadata)))
 
+(defcustom zettel-update-modification-date t
+  "Determines whether `zettel-update-metadata-date' updates the modification
+date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
+  :type 'symbol)
+
 (defun zettel-update-metadata-date ()
   "Updates the modification time in the metadata section of the Zettel in the
-current buffer."
+current buffer according to the value of `zettel-update-modifaction-date'."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
          (now (format-time-string "%Y-%m-%d %a %H:%M"))
@@ -567,10 +572,14 @@ current buffer."
     (unless (string-equal (or last-modified "") now)
       ;; FIXME: Probably better to convert modification times to Emacs's encoded
       ;; time rather than doing it with strings.
-      (when (or (string= (subseq last-modified 0 (length today)) today)
-                (y-or-n-p (format "%s last modified at %s. Update the modification time to now? "
-                                  (file-name-base buffer-file-name)
-                                  last-modified)))
+      (when (or (equal zettel-update-modification-date 'always)
+                (and (equal zettel-update-modification-date 'sameday)
+                     (string= (subseq last-modified 0 (length today)) today))
+                (and (member zettel-update-modification-date '(confirm t))
+                     (y-or-n-p
+                      (format "%s last modified at %s. Update to now? "
+                              (file-name-base buffer-file-name)
+                              last-modified))))
         (setf (alist-get :modified metadata) now)))
     (zettel-normalize-metadata buffer-file-name metadata)))
 
