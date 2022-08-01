@@ -1995,6 +1995,13 @@ same window."
       ;; anything interesting at point, they must return nil."
       t)))
 
+(defun zettel-open-link-at-mouse (ev)
+  "Open a Zettel link at mouse point."
+  (interactive "e")
+  (mouse-set-point ev)
+  (zettel-open-link-at-point t))
+(define-key zettel-mode-map [C-down-mouse-1] 'zettel-open-link-at-mouse)
+
 (defun org-zettel-link-context (file)
   "Returns a string of Zettel context."
   (if (zettel-p file)
