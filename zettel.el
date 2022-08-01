@@ -2212,7 +2212,8 @@ another window."
 ;;;
 ;; According to key binding conventions, the only bindings reserved for minor
 ;; modes are "Sequences consisting of C-c followed by any other punctuation
-;; character" than {, }, <, >, : or ;, which are reserved for major modes.
+;; character" than {, }, <, >, : or ; that are reserved for major modes,
+;; leaving the following: ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
 ;;;-----------------------------------------------------------------------------
 
 (define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
@@ -2222,33 +2223,30 @@ another window."
 (define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
 (define-key zettel-mode-map (kbd "C-c $") 'zettel-kill-ring-save-link-at-point)
-;; This shadows org-mode's `org-agenda-file-to-front'
+(define-key zettel-mode-map (kbd "C-c +") 'zettel-dwim-with-this-timestring)
+;; Shadows `org-agenda-file-to-front'
 (define-key zettel-mode-map (kbd "C-c [") 'zettel-update-title)
+;; Shadows prefix map for `orgtbl-ascii-plot' and `org-plit/gnuplot'
+(define-key zettel-mode-map (kbd "C-c \"") 'zettel-avy-link-search)
 
 ;;
-;; Unsafe mode keybindings
+;; Unsafe: reserved for major modes
 ;;
-(define-key zettel-mode-map (kbd "C-c C-s") 'zettel-select-link)
-(define-key zettel-mode-map (kbd "C-c C-g") 'zettel-avy-link-search)
-(define-key zettel-mode-map (kbd "C-c C-d") 'zettel-kill-ring-save-link-title)
 (define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
-
-;; Shadows the default `kill-sexp'
+;; Shadows `org-schedule'
+(define-key zettel-mode-map (kbd "C-c C-s") 'zettel-select-link)
+;; Shadows `org-deadline'
+(define-key zettel-mode-map (kbd "C-c C-d") 'zettel-kill-ring-save-link-title)
+;; Shadows `kill-sexp' in global-map
 (define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-or-sexp-at-point)
-
-;; Shadows Org-mode's global "C-c l" and local "C-c C-l"
-(define-key deft-mode-map (kbd "C-c l") 'zettel-store-link)
+;; Shadows `org-insert-link'
 (define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-to-cached-or-visiting)
 (define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
-
-;; Shadows org-mode's `org-ctrl-c-tab'
+;; Shadows `org-ctrl-c-tab'
 ;;(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
-
-;; Shadows org-mode's `org-set-property-and-value'
+;; Shadows `org-set-property-and-value'
 (define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
 (define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
-
-;; Ztools interaction
 (define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
 ;; Shadows org-mode's `org-toggle-ordered-property'
 (define-key zettel-mode-map (kbd "C-c C-x l") 'zettel-links-to)
@@ -2267,7 +2265,8 @@ another window."
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
 (define-key deft-mode-map (kbd "C-c C-o") 'push-button)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; Was: deft-find-file
+(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-link) ; was: `deft-toggle-sort-method'
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; was: `deft-find-file'
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 ;; Was: deft-filter-clear
