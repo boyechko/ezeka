@@ -7,6 +7,7 @@
 ;;;;-----------------------------------------------------------------------------
 
 (require 'deft)
+(require 'org)
 
 ;;;=============================================================================
 ;;; Internal Variables
@@ -2197,16 +2198,60 @@ another window."
 ;;; Mode
 ;;;=============================================================================
 
-;; Cretea a keymap for the mode
-(defvar zettel-mode-map (make-sparse-keymap)
-  "Keymap for Zettel mode.")
-
 ;; Define a minor mode for working with Zettelkasten in deft
 (define-minor-mode zettel-mode
   "Make the keymap zettel-mode-map active."
   :lighter " Zettel"
-  :keymap zettel-mode-map
-  :require 'deft)
+  :require 'deft
+  :keymap
+  (mapcar (lambda (tuple)
+            (cons (if (stringp (car tuple)) (kbd (car tuple)) (car tuple))
+                  (cdr tuple)))
+          ;;------------------------------------------------------------------
+          ;; According to key binding conventions, the only bindings reserved
+          ;; for minor modes are "Sequences consisting of C-c followed by any
+          ;; other punctuation character" than {, }, <, >, : or ; that are
+          ;; reserved for major modes, leaving the following:
+          ;;
+          ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
+          ;;------------------------------------------------------------------
+          '(("C-c ^" . zettel-find-ancestor)
+            ("C-c ^" . zettel-find-ancestor)
+            ("C-c _" . zettel-find-descendant)
+            ("C-c @" . zettel-insert-ancestor-link)
+            ("C-c ," . zettel-insert-new-child)
+            ("C-c ~" . zettel-kill-ring-save-link-title)
+            ("C-c #" . zettel-kill-ring-save-link)
+            ("C-c $" . zettel-kill-ring-save-link-at-point)
+            ("C-c +" . zettel-dwim-with-this-timestring)
+            ;; Shadows `org-agenda-file-to-front'
+            ("C-c [" . zettel-update-title)
+            ;; Shadows prefix map for `orgtbl-ascii-plot' and `org-plit/gnuplot'
+            ("C-c \"" . zettel-avy-link-search)
+            ;; Shadows `org-open-at-mouse', but allows opening in same window with C-u
+            ([C-down-mouse-1] . zettel-open-link-at-mouse)
+            ;;
+            ;; Unsafe: reserved for major modes
+            ;;
+            ("C-c C-'" . zettel-set-category)
+            ;; Shadows `org-schedule'
+            ("C-c C-s" . zettel-select-link)
+            ;; Shadows `org-deadline'
+            ("C-c C-d" . zettel-kill-ring-save-link-title)
+            ;; Shadows `kill-sexp' in global-map
+            ("C-M-k" . zettel-kill-link-or-sexp-at-point)
+            ;; Shadows `org-insert-link'
+            ("C-c C-l" . zettel-insert-link-to-cached-or-visiting)
+            ("C-c C-M-l" . zettel-insert-link-from-clipboard)
+            ;; Shadows `org-ctrl-c-tab'
+            ;;("C-c C-i" . 'zettel-org-include-cached-file)
+            ;; Shadows `org-set-property-and-value'
+            ("C-c C-x P" . zettel-ivy-set-parent)
+            ("C-c C-x F" . zettel-org-set-todo-properties)
+            ("C-c C-x z" . zettel-zmove-to-another-kasten)
+            ;; Shadows org-mode's `org-toggle-ordered-property'
+            ("C-c C-x l" . zettel-links-to)
+            )))
 
 ;; Enable zettel-mode for files that match the pattern
 (eval-after-load "markdown"
@@ -2225,52 +2270,5 @@ another window."
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (modify-syntax-entry ?: "w")))
-
-;;;-----------------------------------------------------------------------------
-;;; Zettel-Mode Key Bindings
-;;;
-;; According to key binding conventions, the only bindings reserved for minor
-;; modes are "Sequences consisting of C-c followed by any other punctuation
-;; character" than {, }, <, >, : or ; that are reserved for major modes,
-;; leaving the following: ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-;;;-----------------------------------------------------------------------------
-
-(define-key zettel-mode-map (kbd "C-c ^") 'zettel-find-ancestor)
-(define-key zettel-mode-map (kbd "C-c _") 'zettel-find-descendant)
-(define-key zettel-mode-map (kbd "C-c @") 'zettel-insert-ancestor-link)
-(define-key zettel-mode-map (kbd "C-c ,") 'zettel-insert-new-child)
-(define-key zettel-mode-map (kbd "C-c ~") 'zettel-kill-ring-save-link-title)
-(define-key zettel-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key zettel-mode-map (kbd "C-c $") 'zettel-kill-ring-save-link-at-point)
-(define-key zettel-mode-map (kbd "C-c +") 'zettel-dwim-with-this-timestring)
-;; Shadows `org-agenda-file-to-front'
-(define-key zettel-mode-map (kbd "C-c [") 'zettel-update-title)
-;; Shadows prefix map for `orgtbl-ascii-plot' and `org-plit/gnuplot'
-(define-key zettel-mode-map (kbd "C-c \"") 'zettel-avy-link-search)
-
-;; Shadows `org-open-at-mouse', but allows opening in same window with C-u
-(define-key zettel-mode-map [C-down-mouse-1] 'zettel-open-link-at-mouse)
-
-;;
-;; Unsafe: reserved for major modes
-;;
-(define-key zettel-mode-map (kbd "C-c C-'") 'zettel-set-category)
-;; Shadows `org-schedule'
-(define-key zettel-mode-map (kbd "C-c C-s") 'zettel-select-link)
-;; Shadows `org-deadline'
-(define-key zettel-mode-map (kbd "C-c C-d") 'zettel-kill-ring-save-link-title)
-;; Shadows `kill-sexp' in global-map
-(define-key zettel-mode-map (kbd "C-M-k") 'zettel-kill-link-or-sexp-at-point)
-;; Shadows `org-insert-link'
-(define-key zettel-mode-map (kbd "C-c C-l") 'zettel-insert-link-to-cached-or-visiting)
-(define-key zettel-mode-map (kbd "C-c C-M-l") 'zettel-insert-link-from-clipboard)
-;; Shadows `org-ctrl-c-tab'
-;;(define-key zettel-mode-map (kbd "C-c C-i") 'zettel-org-include-cached-file)
-;; Shadows `org-set-property-and-value'
-(define-key zettel-mode-map (kbd "C-c C-x P") 'zettel-ivy-set-parent)
-(define-key zettel-mode-map (kbd "C-c C-x F") 'zettel-org-set-todo-properties)
-(define-key zettel-mode-map (kbd "C-c C-x z") 'zettel-zmove-to-another-kasten)
-;; Shadows org-mode's `org-toggle-ordered-property'
-(define-key zettel-mode-map (kbd "C-c C-x l") 'zettel-links-to)
 
 (provide 'zettel)
