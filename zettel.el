@@ -1177,6 +1177,14 @@ snippet FILE into the current buffer. With prefix argument, forces update."
                        comments-removed footnotes-removed)
               t)))))))
 
+(defun zettel-find-inserted-snippet ()
+  "While the point is within the org entry, find the source of the snippet
+inserted through `zettel-insert-snippet-text'."
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (org-next-link)
+    (org-open-at-point)))
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
