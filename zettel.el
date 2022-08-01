@@ -1343,6 +1343,18 @@ full link. Returns link the new child."
       (insert (zettel-org-format-link child-link)))
     child-link))
 
+(defun zettel-insert-new-child-from-org-item (&optional arg)
+  "Wrapper around `zettel-insert-new-child' that, if the point is in a list
+item, first saves the text of the item in the kill ring before inserting the
+new child link. Passes the prefix argument to `zettel-insert-new-child'."
+  (interactive "P")
+  (let ((begin (org-in-item-p)))
+    (when begin
+      (let ((text (org-trim
+                   (buffer-substring-no-properties (1+ begin) (point)))))
+        (kill-new text)))
+    (zettel-insert-new-child arg)))
+
 (defun zettel-ivy-set-parent ()
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
 user from cached and visiting Zettel."
