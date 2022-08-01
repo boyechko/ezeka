@@ -1212,6 +1212,37 @@ current buffer."
         ;; Insert the transclusion line
         (insert (format "\n#+transclude: [[%s::begin]] :lines 2- :end \"end\""
                         (file-relative-name file)))))))
+
+(defcustom zettel-snippet-heading "Snippet"
+  "The text of the snippet heading."
+  :type 'string)
+
+(defun zettel-org-footnote-action-maybe-local (&optional arg)
+  "This is a wrapper around `org-footnote-action' to be used in the
+transcluded snippets, making sure that the footnotes are placed locally
+rather in whatever `org-footnote-section' is set to."
+  (interactive "P")
+  (let (snippet?)
+    (save-excursion
+      (org-back-to-heading t)
+      (setq snippet?
+        (string-equal (nth 4 (org-heading-components)) zettel-snippet-heading)))
+    (if (not snippet?)
+        (org-footnote-action arg)
+      (let ((org-footnote-section nil)
+            (context (org-context)))
+        (org-element-cache-reset)
+        ;; taken from `org-footnote-action'
+        (if (not (and context (> (point)
+	                             (save-excursion
+		                           (goto-char (org-element-property :end context))
+		                           (skip-chars-backward " \t")
+		                           (point)))))
+            (org-footnote-action arg)
+          (kill-new (format-time-string "%H%M"))
+          (org-footnote-new))))))
+(define-key org-mode-map (kbd "C-c C-x f") 'zettel-org-footnote-action-maybe-local)
+
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
