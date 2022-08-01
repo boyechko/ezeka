@@ -1602,7 +1602,6 @@ optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
   (cond ((equal arg '(16))
          (call-interactively #'zettel-deft-choose-directory))
         ((not new-kasten)
-         ;; FIXME: This should handle `zettel-number-of-frames' being TWO
          (case zettel-number-of-frames
            (nil (switch-to-buffer deft-buffer))
            (one (switch-to-buffer deft-buffer))
@@ -1711,7 +1710,10 @@ changes the existing one. With prefix argument, replaces the current
   (let ((file (file-name-base buffer-file-name))
         (link (zettel-file-link buffer-file-name)))
     (when (zerop (buffer-size))
-      (insert (format "title: §%s. {%s} %s" link (or category "Unset") (or title "Untitled")))
+      (insert (format "title: §%s. {%s} %s"
+                      link
+                      (or category "Unset")
+                      (or title "Untitled")))
       (insert "\ncreated: "
               ;; Insert creation time, making it match a tempus currens filename
               (format-time-string
