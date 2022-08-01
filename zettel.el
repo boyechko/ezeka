@@ -1989,7 +1989,7 @@ same window."
     (backward-word)
     (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
       ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-      (zettel-find-link (match-string-no-properties 1) current-prefix-arg)
+      (zettel-find-link (match-string-no-properties 1) (or arg current-prefix-arg))
       ;; This function is later added to `org-open-at-point-functions', so "must
       ;; return t if they identify and follow a link at point. If they don’t find
       ;; anything interesting at point, they must return nil."
