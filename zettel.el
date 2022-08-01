@@ -1289,12 +1289,12 @@ try to find the Nth ancestor."
 (defun zettel-insert-ancestor-link (arg)
   "Insert a link to the ancestor of the current Zettel, adding its title (if
 available) before the link. With a numerical prefix argument, try to find Nth
-ancestor."
+ancestor. With a universal argument, ask for confirmation before inserting."
   (interactive "P")
   (let* ((degree (if (integerp arg) arg 1))
          (link (zettel-trace-genealogy buffer-file-name degree)))
     (if link
-        (zettel-insert-link-with-metadata link :title :before t)
+        (zettel-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
 (defvar zettel-parent-of-new-child nil
