@@ -1513,12 +1513,13 @@ in another window."
 argument, asks the user to type in the category directly. If SORT-FN is
 given, use that to sort the list first."
   (let ((prompt (or prompt "Category: "))
-        (categories (if (functionp sort-fn)
-                        (cl-sort zettel-categories sort-fn :key #'cdr)
-                      zettel-categories)))
+        (categories (if (not (functionp sort-fn))
+                        zettel-categories
+                      (let ((cats-copy (cl-copy-list zettel-categories)))
+                        (cl-sort cats-copy sort-fn :key #'cdr)))))
     (if current-prefix-arg
         (read-string prompt)
-      (ivy-read prompt zettel-categories))))
+      (ivy-read prompt categories))))
 
 (defun zettel-set-category (file category)
   "Sets the category to the Zettel title based on `zettel-categories'. With
