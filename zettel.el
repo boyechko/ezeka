@@ -1040,25 +1040,26 @@ in the minibuffer."
 ;; Show the beginning of Zettel title in mode-line
 (defun zettel-mode-line-buffer-id ()
   (interactive)
-  (multiple-value-bind (slug category citekey title)
-      ;; <slug>	<category>	<citekey>	<title>
-      (split-string (or (deft-file-title buffer-file-name) "") "\t" t " +")
-    ;; FIXME: Clunky, but some deft-titles don't have citekeys or categories
-    (if (or title citekey category)
-        (let* ((words (split-string (or title citekey category) " "))
-               (first3 (mapconcat #'identity
-                         (subseq words 0 (min 3 (length words)))
-                         " "))
-               (slug-end (if (or (eq (zettel-type slug) :numerus)
-                                 (eq (zettel-type slug) :bolus))  ; FIXME: temporary
-                             slug
-                           (concat "~"
-                                   (subseq slug (- (length slug)
-                                                   (length "0101T0101"))))))
-               (buffer-id (format "%s: %s" slug-end first3)))
-          (setq-local mode-line-buffer-identification buffer-id))
-      (setq-local mode-line-buffer-identification
-                  (format "%12s" (zettel-file-link buffer-file-name))))))
+  (when buffer-file-name
+    (multiple-value-bind (slug category citekey title)
+        ;; <slug>	<category>	<citekey>	<title>
+        (split-string (or (deft-file-title buffer-file-name) "") "\t" t " +")
+      ;; FIXME: Clunky, but some deft-titles don't have citekeys or categories
+      (if (or title citekey category)
+          (let* ((words (split-string (or title citekey category) " "))
+                 (first3 (mapconcat #'identity
+                           (subseq words 0 (min 3 (length words)))
+                           " "))
+                 (slug-end (if (or (eq (zettel-type slug) :numerus)
+                                   (eq (zettel-type slug) :bolus)) ; FIXME: temporary
+                               slug
+                             (concat "~"
+                                     (subseq slug (- (length slug)
+                                                     (length "0101T0101"))))))
+                 (buffer-id (format "%s: %s" slug-end first3)))
+            (setq-local mode-line-buffer-identification buffer-id))
+        (setq-local mode-line-buffer-identification
+                    (format "%12s" (zettel-file-link buffer-file-name)))))))
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 ;;;=============================================================================
