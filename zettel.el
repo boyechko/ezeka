@@ -905,15 +905,16 @@ the cursor in already inside a link, replace it instead."
 
 (defun zettel-insert-link-from-clipboard (arg)
   "Link `zettel-insert-link' but attempts to get the link slug from OS
-clipboard. With prefix argument, ask for a metadata field to include."
+clipboard, inserting it with metadata. With prefix argument, insert just the
+link itself."
   (interactive "P")
   (let ((link (rb-get-clipboard-data))
         (backlink (when buffer-file-name
-                    (zettel-link-slug buffer-file-name))))
+                    (zettel-file-link buffer-file-name))))
     (when (zettel-link-p link)
       (if arg
-          (funcall-interactively #'zettel-insert-link-with-metadata link)
-        (zettel-insert-link-with-metadata link))
+          (zettel-insert-link-with-metadata link)
+        (zettel-insert-link-with-metadata link :title :before t))
       (when backlink
         (rb-set-clipboard-data backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
