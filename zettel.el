@@ -1992,9 +1992,10 @@ rather in whatever `org-footnote-section' is set to."
   (interactive "P")
   (let (snippet?)
     (save-excursion
-      (org-back-to-heading t)
+      (org-back-to-heading-or-point-min t)
       (setq snippet?
-        (string-equal (nth 4 (org-heading-components)) zettel-snippet-heading)))
+        (and (org-context)
+             (string-equal (nth 4 (org-heading-components)) zettel-snippet-heading))))
     (if (not snippet?)
         (org-footnote-action arg)
       (let ((org-footnote-section nil)
