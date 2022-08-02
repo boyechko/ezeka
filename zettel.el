@@ -549,7 +549,8 @@ current buffer according to the value of `zettel-update-modifaction-date'."
       (when (or (equal zettel-update-modification-date 'always)
                 (and (equal zettel-update-modification-date 'sameday)
                      (string= (subseq last-modified 0 (length today)) today))
-                (and (member zettel-update-modification-date '(confirm t))
+                ;; Automatic updating conditions not met; need to confirm
+                (and (member zettel-update-modification-date '(sameday confirm t))
                      (y-or-n-p
                       (format "%s last modified at %s. Update to now? "
                               (file-name-base buffer-file-name)
@@ -566,14 +567,6 @@ current buffer according to the value of `zettel-update-modifaction-date'."
             (read-string "Change title to what? "
                          (alist-get :title metadata)))
       (zettel-normalize-metadata buffer-file-name metadata))))
-
-(add-hook 'zettel-mode-hook
-  '(lambda ()
-     (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
-     (add-hook 'after-save-hook
-       '(lambda ()
-          (deft-cache-file buffer-file-name))
-       nil t)))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -2270,5 +2263,14 @@ another window."
 (add-hook 'zettel-mode-hook
   '(lambda ()
      (modify-syntax-entry ?: "w")))
+
+;; On save, update modificate date and deft-cache
+(add-hook 'zettel-mode-hook
+  '(lambda ()
+     (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
+     (add-hook 'after-save-hook
+       '(lambda ()
+          (deft-cache-file buffer-file-name))
+       nil t)))
 
 (provide 'zettel)
