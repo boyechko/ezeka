@@ -1402,12 +1402,17 @@ prefix argument, selects new deft directory regardless of `deft-buffer'; with
 double prefix argument calls `zettel-deft-choose-directory' instead. With
 optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
   (interactive
-   (if (or (null (get-buffer deft-buffer))
-           (equal current-prefix-arg '(4)))
-       (list current-prefix-arg
-             (ivy-read "Zettel kasten: " zettel-kaesten)
-             (intern (ivy-read "Number of frames: " '(one two many))))
-     (list current-prefix-arg nil zettel-number-of-frames)))
+   (cond ((null (get-buffer deft-buffer))
+          (list current-prefix-arg
+                (ivy-read "Zettel kasten: " zettel-kaesten)
+                (or zettel-number-of-frames
+                    (intern (ivy-read "Number of frames: " '(one two many))))))
+         ((equal current-prefix-arg '(4))
+          (list current-prefix-arg
+                (ivy-read "Zettel kasten: " zettel-kaesten)
+                (intern (ivy-read "Number of frames: " '(one two many)))))
+         (t (list current-prefix-arg nil zettel-number-of-frames))))
+  (setq zettel-number-of-frames number-of-frames)
   (cond ((equal arg '(16))
          (call-interactively #'zettel-deft-choose-directory))
         ((not new-kasten)
@@ -1419,8 +1424,7 @@ optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
            (many
             (switch-to-buffer-other-frame deft-buffer))))
         (t
-         (setq zettel-deft-active-kasten new-kasten
-               zettel-number-of-frames number-of-frames)
+         (setq zettel-deft-active-kasten new-kasten)
          (zettel-deft-choose-directory (zettel-kasten-directory new-kasten)))))
 
 (defun zettel-deft-choose-directory (directory)
