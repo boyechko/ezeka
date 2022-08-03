@@ -1058,6 +1058,20 @@ in the minibuffer."
                     (format "%12s" (zettel-file-link buffer-file-name)))))))
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
+(defun zettel-update-link-prefix-title ()
+  "Kills text from point to the next Zettel link, replacing it with that
+Zettel's title."
+  (interactive)
+  (save-excursion
+    (let ((start (point)))
+      (org-next-link)
+      (when (zettel-link-at-point-p)
+        (let* ((file (zettel-absolute-filename (zettel-link-at-point)))
+               (title (alist-get :title (zettel-metadata file))))
+          (delete-region start (1- (point)))
+          (backward-char)
+          (insert title))))))
+
 ;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
@@ -2215,11 +2229,10 @@ another window."
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
           ;;------------------------------------------------------------------
           '(("C-c ^" . zettel-find-ancestor)
-            ("C-c ^" . zettel-find-ancestor)
             ("C-c _" . zettel-find-descendant)
             ("C-c @" . zettel-insert-ancestor-link)
             ("C-c ," . zettel-insert-new-child)
-            ("C-c ~" . zettel-kill-ring-save-link-title)
+            ("C-c /" . zettel-kill-ring-save-link-title)
             ("C-c #" . zettel-kill-ring-save-link)
             ("C-c $" . zettel-kill-ring-save-link-at-point)
             ("C-c +" . zettel-dwim-with-this-timestring)
