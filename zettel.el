@@ -1177,11 +1177,20 @@ full link. Returns link the new child."
 item, first saves the text of the item in the kill ring before inserting the
 new child link. Passes the prefix argument to `zettel-insert-new-child'."
   (interactive "P")
-  (let ((begin (org-in-item-p)))
-    (when begin
-      (let ((text (org-trim
-                   (buffer-substring-no-properties (1+ begin) (point)))))
-        (kill-new text)))
+  (let* ((start (or (org-in-item-p) (point)))
+         (text (cond ((region-active-p)
+                      (buffer-substring-no-properties
+                       (region-beginning) (region-end)))
+                     ((org-in-item-p)
+                      (buffer-substring-no-properties (1+ start) (point)))
+                     (t (save-excursion
+                          (beginning-of-line)
+                          (when (<= (- start (point)) 100) ; FIXME: hardcoded
+                            (buffer-substring-no-properties
+                             (point) (1- start)))))))
+         ())
+    (when text
+      (kill-new (org-trim text)))
     (zettel-insert-new-child arg)))
 
 (defun zettel-ivy-set-parent ()
