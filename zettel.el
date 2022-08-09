@@ -1272,19 +1272,19 @@ user from cached and visiting Zettel."
 
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. With universal prefix, asks the user to type the link
+cached Zettel titles. With universal prefix, finds the link in another
+buffer. With double universal prefix, asks the user to type the link
 instead."
   (interactive "P")
-  (funcall #'zettel-find-link
-           (if arg
-               (read-string "Zettel link to find: ")
-             (let ((choice (zettel-ivy-read-reverse-alist-action
-                            "Select title: "
-                            (zettel-ivy-titles-reverse-alist)
-                            #'identity)))
-               (zettel-file-link
-                (or (cdr choice)
-                    (zettel-absolute-filename (car choice))))))))
+  (zettel-find-file (if (equal arg '(16))
+                        (read-string "Zettel link to find: ")
+                      (let ((choice (zettel-ivy-read-reverse-alist-action
+                                     "Select title: "
+                                     (zettel-ivy-titles-reverse-alist)
+                                     #'identity)))
+                        (or (cdr choice)
+                            (zettel-absolute-filename (car choice)))))
+                    (not (equal arg '(4)))))
 
 (defun zettel-visiting-buffer-list (&optional skip-current)
   "Returns a list of Zettel files that are currently being visited. If
