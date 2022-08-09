@@ -1242,12 +1242,17 @@ new child link. Passes the prefix argument to `zettel-insert-new-child'."
                       (buffer-substring-no-properties (1+ start) (point)))
                      (t (save-excursion
                           (beginning-of-line)
-                          (when (<= (- start (point)) 100) ; FIXME: hardcoded
-                            (buffer-substring-no-properties
-                             (point) (1- start)))))))
-         ())
+                          ;; FIXME: Might be good to have some limit to prevent
+                          ;; killing whole paragraphs worth of text with soft
+                          ;; newlines.
+                          (buffer-substring-no-properties
+                           (point) (1- start))))))
+         (citekey (string-trim
+                   (zettel-deft-file-title-citekey buffer-file-name))))
     (when text
-      (kill-new (org-trim text)))
+      (kill-new (concat (org-trim text)
+                        (unless (string-empty-p citekey) " @")
+                        citekey)))
     (zettel-insert-new-child arg)))
 
 (defun zettel-ivy-set-parent ()
@@ -1515,6 +1520,11 @@ the missing metadata is explicitly displayed."
                 key)
               title))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
+
+(defun zettel-deft-file-title-citekey (file)
+  "Returns the citekey, if any, of the given Zettel file."
+  (--if-let (deft-file-title file)
+      (third (split-string it "\t" nil " "))))
 
 (defun zettel-adv--deft-new-file-maybe-named (arg)
   "Extends `deft-new-file' to call `deft-new-file-named' if called with
