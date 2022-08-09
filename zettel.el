@@ -411,7 +411,7 @@ Group 2 is the value.")
   (concat "^§"
           zettel-regexp-link
           "\\. \\({\\([^}]+\\)}\\)*\\([^#@]+\\)*\\(@\\S-+\\)*\\(#.+\\)*")
-  "Regular expression for a combined title string, used in `zettel-metadata'.
+  "Regular expression for a combined title string, used in `zettel-file-metadata'.
 Group 2 is the kasten.
 Group 3 is the slug.
 Group 5 is the category.
@@ -464,7 +464,7 @@ symbol."
 (defun zettel-normalize-metadata (file &optional metadata)
   "Replaces the FILE's metadata section with either the given METADATA or
 by parsing the FILE's metadata."
-  (let ((metadata (or metadata (zettel-metadata file)))
+  (let ((metadata (or metadata (zettel-file-metadata file)))
         (old-point (point)))
     (save-mark-and-excursion
       (with-current-buffer (get-file-buffer file)
@@ -493,18 +493,10 @@ by parsing the FILE's metadata."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-(defun zettel-metadata (file)
-  "Returns an alist of metadata for the given FILE based on the most current
-content of the FILE. They keys are converted to keywords."
-  (let* ((metadata-section
-          (split-string
-           (first (split-string
-                   ;; Do a sane thing when I opened a Zettel file directly
-                   ;; rather than through Deft interface.
-                   (zettel-file-content file)
-                   "\n\n"))
-           "\n"))
-         (metadata
+(defun zettel-decode-metadata-section (yaml-section)
+  "Returns an alist of metadata decoded from the given yaml metadata section.
+They keys are converted to keywords."
+  (let* ((metadata
           (mapcar
            (lambda (line)
              (when (> (length line) 0)
@@ -518,7 +510,7 @@ content of the FILE. They keys are converted to keywords."
                                              "," t "[[:space:]]+")
                              value)))
                  (error "Malformed metadata line: '%s'" line))))
-           metadata-section))
+           (split-string yaml-section "\n")))
          (title (alist-get :title metadata))
          (decoded (zettel-decode-combined-title title)))
     ;; When successfully decoded combined title, replace the original title with
@@ -528,6 +520,16 @@ content of the FILE. They keys are converted to keywords."
         (append decoded (cl-remove :title metadata :key #'car))))
     (push (cons :kasten (zettel-file-kasten file)) metadata)
     (push (cons :link (zettel-file-link file)) metadata)))
+
+(defun zettel-file-metadata (file)
+  "Returns an alist of metadata for the given FILE based on the most current
+content of the FILE. They keys are converted to keywords."
+  (zettel-decode-metadata-section
+   (first (split-string
+           ;; Do a sane thing when I opened a Zettel file directly rather than
+           ;; through Deft interface.
+           (zettel-file-content file)
+           "\n\n"))))
 
 (defcustom zettel-update-modification-date t
   "Determines whether `zettel-update-metadata-date' updates the modification
@@ -540,7 +542,7 @@ current buffer according to the value of `zettel-update-modifaction-date'."
   (interactive)
   (let* ((today (format-time-string "%Y-%m-%d"))
          (now (format-time-string "%Y-%m-%d %a %H:%M"))
-         (metadata (zettel-metadata buffer-file-name))
+         (metadata (zettel-file-metadata buffer-file-name))
          (last-modified (or (alist-get :modified metadata)
                             (alist-get :created metadata))))
     (unless (string-equal (or last-modified "") now)
@@ -562,7 +564,7 @@ current buffer according to the value of `zettel-update-modifaction-date'."
   "Interactively asks for a different title and updates the Zettel's metadata."
   (interactive)
   (when (zettel-p buffer-file-name)
-    (let ((metadata (zettel-metadata buffer-file-name)))
+    (let ((metadata (zettel-file-metadata buffer-file-name)))
       (setf (alist-get :title metadata)
             (read-string "Change title to what? "
                          (alist-get :title metadata)))
@@ -732,7 +734,7 @@ Based on `rename-file-and-buffer'."
       ;; If already tempus currens, just return that slug
       (zettel-link-slug link)
     ;; Otherwise come up with an appropriate slug based on the metadata
-    (let ((metadata (zettel-metadata (zettel-absolute-filename link)))
+    (let ((metadata (zettel-file-metadata (zettel-absolute-filename link)))
           oldname)
       (cond ((setq oldname
                (find-if #'(lambda (l)
@@ -799,7 +801,7 @@ suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
 Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
   (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
     (mapcar #'(lambda (file)
-                (let ((metadata (zettel-metadata file))
+                (let ((metadata (zettel-file-metadata file))
                       (buf (get-file-buffer file)))
                   (cons (format fmt
                                 (if (and buf (buffer-modified-p buf)) "*" " ")
@@ -888,7 +890,7 @@ brackets. Otherwise, call `kill-sex'."
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL, ask for
 confirmation before inserting metadata."
   (let* ((file (zettel-absolute-filename link))
-         (metadata (zettel-metadata file))
+         (metadata (zettel-file-metadata file))
          (field (or field
                     (when (called-interactively-p 'any)
                       (intern-soft
@@ -993,7 +995,7 @@ and system clipboard. With prefix argument, saves the 'combinted title'."
       ;; handle this situation (cache too old) somehow?
       (when (and deft-hash-contents (deft-file-contents file))
         (deft-cache-update-file file))
-      (let* ((metadata (zettel-metadata file))
+      (let* ((metadata (zettel-file-metadata file))
              (title (if arg
                         (car (zettel-encode-combined-title metadata))
                       (alist-get :title metadata))))
@@ -1124,7 +1126,7 @@ Zettel's title."
       (org-next-link)
       (when (zettel-link-at-point-p)
         (let* ((file (zettel-absolute-filename (zettel-link-at-point)))
-               (title (alist-get :title (zettel-metadata file))))
+               (title (alist-get :title (zettel-file-metadata file))))
           (delete-region start (1- (point)))
           (backward-char)
           (insert title))))))
@@ -1144,7 +1146,7 @@ most remote link that could be found."
       (zettel-trace-genealogy (alist-get (if (plusp degree)
                                              :parent
                                            :firstborn)
-                                         (zettel-metadata
+                                         (zettel-file-metadata
                                           (if (zettel-link-p file-or-link)
                                               (zettel-absolute-filename file-or-link)
                                             file-or-link)))
@@ -1259,7 +1261,7 @@ new child link. Passes the prefix argument to `zettel-insert-new-child'."
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
 user from cached and visiting Zettel."
   (interactive)
-  (let ((metadata (zettel-metadata buffer-file-name)))
+  (let ((metadata (zettel-file-metadata buffer-file-name)))
     (zettel-ivy-read-reverse-alist-action
      "Set parent to: "
      (delete-dups
@@ -1340,7 +1342,7 @@ Zettelkasten work."
                       (upcase zettel-deft-active-kasten))
             "")
           (if (zettel-p buffer-file-name)
-              (let ((metadata (zettel-metadata buffer-file-name)))
+              (let ((metadata (zettel-file-metadata buffer-file-name)))
                 (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
                         (alist-get :title metadata)
                         (alist-get :slug metadata)
@@ -1390,7 +1392,7 @@ prefix argument, allows the user to type in a custom category."
   (interactive)
   (setq zettel-categories '())
   (dolist (file deft-all-files)
-    (let* ((category (alist-get :category (zettel-metadata file)))
+    (let* ((category (alist-get :category (zettel-file-metadata file)))
            (frequency (alist-get category zettel-categories 0 nil #'string-equal)))
       (setf (alist-get category zettel-categories nil nil #'string-equal)
             (1+ frequency))))
@@ -1766,7 +1768,7 @@ else, try to make it into org-time-stamp."
                  (snippet-section (replace-regexp-in-string
                                    "ß" "Snippet "
                                    (first (split-string
-                                           (alist-get :title (zettel-metadata file))
+                                           (alist-get :title (zettel-file-metadata file))
                                            ":")))))
              (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n"
                              (file-relative-name file)
@@ -1823,7 +1825,7 @@ org subtree."
       (org-cut-subtree)
       (insert (zettel-org-format-link (zettel-file-link new-file))
               " "
-              (alist-get :title (zettel-metadata new-file))))))
+              (alist-get :title (zettel-file-metadata new-file))))))
 
 (defun zettel-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link. With a
@@ -1852,7 +1854,7 @@ same window."
   (if (zettel-p file)
       (format "[[%s]] %s"
               (file-name-base file)
-              (or (alist-get :title (zettel-metadata file)) ""))
+              (or (alist-get :title (zettel-file-metadata file)) ""))
     ;; (format "[[%s][%s]]" file (file-name-base file))
     (error "Not a Zettel")))
 
@@ -1905,7 +1907,7 @@ snippet FILE into the current buffer. With prefix argument, forces update."
   ;; Get the metadata and most recent modification
   (save-excursion
     (save-restriction
-      (let* ((metadata (zettel-metadata file))
+      (let* ((metadata (zettel-file-metadata file))
              (modified (format "[%s]" (or (alist-get :modified metadata)
                                           (alist-get :created metadata))))
              current?)
@@ -2010,7 +2012,7 @@ current buffer."
   (save-excursion
     (save-restriction
       (let* ((file (zettel-absolute-filename link))
-             (metadata (zettel-metadata file)))
+             (metadata (zettel-file-metadata file)))
         (org-narrow-to-subtree)
         ;; Update the heading title
         (org-edit-headline
@@ -2113,7 +2115,7 @@ citekey. With prefix argument, replace the existing link."
    (list current-prefix-arg
          buffer-file-name
          (let ((citekey (alist-get :citekey
-                                   (zettel-metadata buffer-file-name))))
+                                   (zettel-file-metadata buffer-file-name))))
            (if (string-match "^@*\\([[:alnum:]-]+\\)" citekey)
                (match-string 1 citekey)
              (read-string "Citekey (without @): ")))))
