@@ -1623,7 +1623,7 @@ on the first line with the Zettel title string."
 ;; Sorting deft-buffer by filename
 ;;
 (defun deft-sort-files-by-name (files)
-  "Sort FILES by name, in reverse, ignoring case."
+  "Sort FILES by name in reverse order, ignoring case."
   (sort files (lambda (f1 f2)
                 (funcall (if zettel-sort-by-name-descending
                              #'string-lessp
@@ -1646,7 +1646,13 @@ that of FILE2. Case is ignored."
   (sort files 'zettel-title-lessp))
 
 (eval-after-load "deft"
-  '(defalias 'deft-sort-files-by-title 'deft-sort-files-by-name))
+  '(progn
+     ;; Use our own `deft-sort-files-by-name' rather that respects
+     ;; `zettel-sort-by-name-descending'.
+     (defalias 'deft-sort-files-by-title 'deft-sort-files-by-name)
+     ;; "Shadow" the built-in slug generator to generate timestamps by default,
+     ;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
+     (defalias 'deft-unused-slug 'zettel-next-unused-slug)))
 
 ;; Having a visual indicator of the sort method is helpful
 (defun deft-set-mode-name ()
@@ -1667,12 +1673,7 @@ that of FILE2. Case is ignored."
 ;; Deft-Mode Keybindings
 ;;-----------------------------------------------------------------------------
 
-;; "Shadow" the built-in slug generator to generate timestamps by default,
-;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
-(eval-after-load "deft"
-  '(defalias 'deft-unused-slug 'zettel-next-unused-slug))
 (define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
-
 (define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
 (define-key deft-mode-map (kbd "C-c C-o") 'push-button)
@@ -1681,8 +1682,6 @@ that of FILE2. Case is ignored."
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; was: `deft-find-file'
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
-;; Was: deft-filter-clear
-(define-key deft-mode-map (kbd "C-c C-c") 'zettel-set-category)
 
 ;;;=============================================================================
 ;;; Org-Mode Intergration
