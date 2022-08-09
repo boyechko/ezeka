@@ -756,6 +756,63 @@ Based on `rename-file-and-buffer'."
                           (zettel-next-unused-slug :tempus)))))))
 
 ;;;=============================================================================
+;;; Ivy
+;;;=============================================================================
+
+(defun zettel-ivy-titles-reverse-alist (&optional sort-by)
+  "Returns a reverse alist of choices consisting of cached Zettel titles and
+their paths. For use with `zettel-ivy-read-reverse-alist-action'. SORT-BY is
+either 'MTIME [default] or 'TITLE."
+  (let (titles-alist)
+    (cond (deft-hash-titles
+            (maphash (lambda (key val)
+                       (push (cons val key) titles-alist))
+                     deft-hash-titles)
+            (cl-sort titles-alist
+                     (if (equal sort-by 'title)
+                         #'deft-file-title-lessp
+                       #'deft-file-newer-p)
+                     :key #'cdr))
+          (t
+           (error "No Deft titles cached")))))
+
+(defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
+  "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
+pairs. Upon selection, call the given FUNC, a function accepting one
+argument, on the key. Returns a cons cell consisting of the match from
+`ivy-read' and the result of FUNC."
+  (let (result)
+    (ivy-read prompt
+              choices
+              :action (lambda (choice)
+                        (setq result
+                          (if (consp choice)
+                              (cons (car choice) (funcall func (cdr choice)))
+                            (cons choice nil))))
+              :re-builder 'ivy--regex-ignore-order
+              :require-match require-match)
+    result))
+
+(defun zettel-ivy-metadata-reverse-alist (files)
+  "Given a list of Zettel files, returns a nicely formatted list of choices
+suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
+Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
+  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
+    (mapcar #'(lambda (file)
+                (let ((metadata (zettel-metadata file))
+                      (buf (get-file-buffer file)))
+                  (cons (format fmt
+                                (if (and buf (buffer-modified-p buf)) "*" " ")
+                                (alist-get :slug metadata)
+                                (alist-get :category metadata)
+                                (subseq (alist-get :title metadata) 0
+                                        (min (length (alist-get :title metadata))
+                                             53))
+                                (or (alist-get :keywords metadata) ""))
+                        file)))
+            files)))
+
+;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
 
@@ -879,7 +936,7 @@ the cursor in already inside a link, replace it instead."
                         (mapcar (lambda (path)
                                   (cons (zettel-deft-parsed-title path) path))
                                 (zettel-visiting-buffer-list t))
-                        (zettel-ivy-titles-reverse-alist #'string>)))))
+                        (zettel-ivy-titles-reverse-alist 'mtime)))))
     (if choices
         (let* ((choice (zettel-ivy-read-reverse-alist-action
                         "Insert link to: " choices 'zettel-file-link nil))
@@ -1213,37 +1270,6 @@ user from cached and visiting Zettel."
 ;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun zettel-ivy-titles-reverse-alist (&optional sort)
-  "Returns a reverse alist of choices consisting of cached Zettel titles and
-their paths. For use with `zettel-ivy-read-reverse-alist-action'."
-  (let (titles-alist)
-    (cond (deft-hash-titles
-            (maphash (lambda (key val)
-                       (push (cons (or val key) key) titles-alist))
-                     deft-hash-titles)
-            (if (functionp sort)
-                (cl-sort titles-alist sort :key #'car)
-              titles-alist))
-          (t
-           (error "No Deft titles cached")))))
-
-(defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
-  "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
-pairs. Upon selection, call the given FUNC, a function accepting one
-argument, on the key. Returns a cons cell consisting of the match from
-`ivy-read' and the result of FUNC."
-  (let (result)
-    (ivy-read prompt
-              choices
-              :action (lambda (choice)
-                        (setq result
-                          (if (consp choice)
-                              (cons (car choice) (funcall func (cdr choice)))
-                            (cons choice nil))))
-              :re-builder 'ivy--regex-ignore-order
-              :require-match require-match)
-    result))
-
 (defun zettel-select-link (arg)
   "Interactively asks the user to select a link from the list of currently
 cached Zettel titles. With universal prefix, asks the user to type the link
@@ -1259,25 +1285,6 @@ instead."
                (zettel-file-link
                 (or (cdr choice)
                     (zettel-absolute-filename (car choice))))))))
-
-(defun zettel-ivy-metadata-reverse-alist (files)
-  "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
-Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
-  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
-    (mapcar #'(lambda (file)
-                (let ((metadata (zettel-metadata file))
-                      (buf (get-file-buffer file)))
-                  (cons (format fmt
-                                (if (and buf (buffer-modified-p buf)) "*" " ")
-                                (alist-get :slug metadata)
-                                (alist-get :category metadata)
-                                (subseq (alist-get :title metadata) 0
-                                        (min (length (alist-get :title metadata))
-                                             53))
-                                (or (alist-get :keywords metadata) ""))
-                        file)))
-            files)))
 
 (defun zettel-visiting-buffer-list (&optional skip-current)
   "Returns a list of Zettel files that are currently being visited. If
@@ -1315,7 +1322,7 @@ in another window."
                  (zettel-visiting-buffer-list t))))
     (zettel-ivy-read-reverse-alist-action
      (if choices "Visit live buffer: " "Visit cached: ")
-     (or choices (zettel-ivy-titles-reverse-alist #'string>))
+     (or choices (zettel-ivy-titles-reverse-alist))
      (if (not arg) 'find-file 'find-file-other-window))))
 
 (defun zettel-formatted-frame-title ()
