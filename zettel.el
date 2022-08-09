@@ -1704,14 +1704,16 @@ facilitate refiling."
   "Inserts a tempus currens link after having the user select the date using
 org-mode's interactive `org-time-stamp' command."
   (interactive)
-  (let ((start (point)))
-    (org-time-stamp '(4) t)
-    (insert
-     "[["
-     (org-timestamp-format (org-timestamp-from-string
-                            (delete-and-extract-region start (point)))
-                           "%Y%m%dT%H%M")
-     "]]")))
+  (let ((datetime
+         (with-temp-buffer
+           (let ((start (point)))
+             (org-time-stamp '(4) t)
+             (org-timestamp-format (org-timestamp-from-string
+                                    (delete-and-extract-region start (point)))
+                                   "%Y%m%dT%H%M")))))
+    (if (eq major-mode 'deft-mode)
+        (deft-new-file-named datetime)
+      (insert (zettel-org-format-link datetime)))))
 
 (defun zettel-dwim-with-this-timestring (beg end)
   "Do What I Mean with the timestring in the region. If the timestring is
