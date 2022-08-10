@@ -1052,28 +1052,9 @@ file in Finder with it selected."
       (zettel-open-link-at-point))))
 
 (defun zettel-links-to (arg)
-  "List links to the current Zettel from anywhere else in the Zettelkasten."
   (interactive "P")
-  (shell-command (concat "zlinksto" " "
-                         (zettel-file-link buffer-file-name))
-                 (get-buffer-create "*Backlinks*"))
-  (with-current-buffer "*Backlinks*"
-    (let ((links
-           (split-string
-            (buffer-substring-no-properties (point-min) (point-max)))))
-      (delete-region (point-min) (point-max))
-      (dolist (link links)
-        (let* ((file (zettel-absolute-filename link))
-               (content (zettel-file-content file))
-               (metadata (zettel-decode-metadata-section
-                          (first (split-string content "\n\n"))
-                          file)))
-          (insert (format "- %s [[%s]]\n\n"
-                          (alist-get :title metadata)
-                          link))))
-      (org-mode)
-      (zettel-mode)))
-  (switch-to-buffer "*Backlinks*"))
+  (let ((link (zettel-file-link buffer-file-name)))
+    (rgrep link "*.txt" zettel-directory nil)))
 
 (defun zettel-deft-parsed-title (file)
   "Returns the result of `deft-file-title' if available or the result of
