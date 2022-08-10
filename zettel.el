@@ -541,25 +541,26 @@ date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
   "Updates the modification time in the metadata section of the Zettel in the
 current buffer according to the value of `zettel-update-modifaction-date'."
   (interactive)
-  (let* ((today (format-time-string "%Y-%m-%d"))
-         (now (format-time-string "%Y-%m-%d %a %H:%M"))
-         (metadata (zettel-file-metadata buffer-file-name))
-         (last-modified (or (alist-get :modified metadata)
-                            (alist-get :created metadata))))
-    (unless (string-equal (or last-modified "") now)
-      ;; FIXME: Probably better to convert modification times to Emacs's encoded
-      ;; time rather than doing it with strings.
-      (when (or (equal zettel-update-modification-date 'always)
-                (and (equal zettel-update-modification-date 'sameday)
-                     (string= (subseq last-modified 0 (length today)) today))
-                ;; Automatic updating conditions not met; need to confirm
-                (and (member zettel-update-modification-date '(sameday confirm t))
-                     (y-or-n-p
-                      (format "%s last modified at %s. Update to now? "
-                              (file-name-base buffer-file-name)
-                              last-modified))))
-        (setf (alist-get :modified metadata) now)))
-    (zettel-normalize-metadata buffer-file-name metadata)))
+  (when (zettel-p buffer-file-name)
+    (let* ((today (format-time-string "%Y-%m-%d"))
+           (now (format-time-string "%Y-%m-%d %a %H:%M"))
+           (metadata (zettel-file-metadata buffer-file-name))
+           (last-modified (or (alist-get :modified metadata)
+                              (alist-get :created metadata))))
+      (unless (string-equal (or last-modified "") now)
+        ;; FIXME: Probably better to convert modification times to Emacs's encoded
+        ;; time rather than doing it with strings.
+        (when (or (equal zettel-update-modification-date 'always)
+                  (and (equal zettel-update-modification-date 'sameday)
+                       (string= (subseq last-modified 0 (length today)) today))
+                  ;; Automatic updating conditions not met; need to confirm
+                  (and (member zettel-update-modification-date '(sameday confirm t))
+                       (y-or-n-p
+                        (format "%s last modified at %s. Update to now? "
+                                (file-name-base buffer-file-name)
+                                last-modified))))
+          (setf (alist-get :modified metadata) now)))
+      (zettel-normalize-metadata buffer-file-name metadata))))
 
 (defun zettel-update-title ()
   "Interactively asks for a different title and updates the Zettel's metadata."
@@ -1091,7 +1092,7 @@ in the minibuffer."
 ;; Show the beginning of Zettel title in mode-line
 (defun zettel-mode-line-buffer-id ()
   (interactive)
-  (when buffer-file-name
+  (when (zettel-p buffer-file-name)
     (multiple-value-bind (slug category citekey title)
         ;; <slug>	<category>	<citekey>	<title>
         (split-string (or (deft-file-title buffer-file-name) "") "\t" t " +")
