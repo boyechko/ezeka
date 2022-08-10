@@ -493,9 +493,9 @@ by parsing the FILE's metadata."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-(defun zettel-decode-metadata-section (yaml-section)
-  "Returns an alist of metadata decoded from the given yaml metadata section.
-They keys are converted to keywords."
+(defun zettel-decode-metadata-section (yaml-section file)
+  "Returns an alist of metadata decoded from the given yaml metadata section
+of FILE. They keys are converted to keywords."
   (let* ((metadata
           (mapcar
            (lambda (line)
@@ -529,7 +529,8 @@ content of the FILE. They keys are converted to keywords."
            ;; Do a sane thing when I opened a Zettel file directly rather than
            ;; through Deft interface.
            (zettel-file-content file)
-           "\n\n"))))
+           "\n\n"))
+   file))
 
 (defcustom zettel-update-modification-date t
   "Determines whether `zettel-update-metadata-date' updates the modification
@@ -1052,13 +1053,27 @@ file in Finder with it selected."
 
 (defun zettel-links-to (arg)
   "List links to the current Zettel from anywhere else in the Zettelkasten."
-  (interactive "p")
-  (funcall (if arg
-               #'async-shell-command
-             #'shell-command)
-           (concat "zlinksto" " " (zettel-file-link buffer-file-name)))
-  (when arg
-    (switch-to-buffer-other-window "*Async Shell Command*")))
+  (interactive "P")
+  (shell-command (concat "zlinksto" " "
+                         (zettel-file-link buffer-file-name))
+                 (get-buffer-create "*Backlinks*"))
+  (with-current-buffer "*Backlinks*"
+    (let ((links
+           (split-string
+            (buffer-substring-no-properties (point-min) (point-max)))))
+      (delete-region (point-min) (point-max))
+      (dolist (link links)
+        (let* ((file (zettel-absolute-filename link))
+               (content (zettel-file-content file))
+               (metadata (zettel-decode-metadata-section
+                          (first (split-string content "\n\n"))
+                          file)))
+          (insert (format "- %s [[%s]]\n\n"
+                          (alist-get :title metadata)
+                          link))))
+      (org-mode)
+      (zettel-mode)))
+  (switch-to-buffer "*Backlinks*"))
 
 (defun zettel-deft-parsed-title (file)
   "Returns the result of `deft-file-title' if available or the result of
