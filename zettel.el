@@ -669,14 +669,14 @@ to avoid duplicates."
                (setq slug (zettel-generate-new-slug type)))))
           ((and (eq type :numerus)
                 (file-exists-p (in-zettel-dir zettel-pregenerated-numeri)))
-           (message "Getting next numerus from `zettel-pregenerated-numeri'...")
            (let ((buffer (find-file-noselect
                           (in-zettel-dir zettel-pregenerated-numeri))))
              (with-current-buffer buffer
                (setq slug
                  (string-trim (delete-and-extract-region
                                1 (search-forward-regexp "[[:space:]]" nil t))))
-               (basic-save-buffer))))
+               (let ((inhibit-message t)) ; don't show the "Wrote ..." messages
+                 (basic-save-buffer)))))
           (t
            (message "Generating unused slug without checking for duplicates...")
            (setq slug (zettel-generate-new-slug type))))
