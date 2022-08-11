@@ -840,11 +840,14 @@ REQUIRE-MATCH is non-nil, do not allow entering link manually."
 ;;; Zettel Links
 ;;;=============================================================================
 
-(defun zettel-link-at-point-p ()
-  "Returns T if the thing at point is a wiki link (i.e. [[XXX]] or org-mode
-link). The first group is the link target."
+(defun zettel-link-at-point-p (&optional freeform)
+  "Returns non-nil if the thing at point is a wiki link (i.e. [[XXX]]). The
+first group is the link target. If FREEFORM is non-nil, also consider Zettel
+links that are not enclosed in square brackets."
   (thing-at-point-looking-at
-   (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))
+   (if freeform
+       (concat "\\(" zettel-regexp-link "\\)")
+     (concat "\\[\\[\\(" zettel-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]"))))
 
 (defun zettel-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
@@ -1849,16 +1852,13 @@ org subtree."
 prefix argument, ignore `zettel-number-of-frames' and open the link in the
 same window."
   (interactive "P")
-  (save-excursion
-    (forward-word)
-    (backward-word)
-    (when (thing-at-point-looking-at (concat "\\(" zettel-regexp-link "\\)"))
-      ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-      (zettel-find-link (match-string-no-properties 1) (or arg current-prefix-arg))
-      ;; This function is later added to `org-open-at-point-functions', so "must
-      ;; return t if they identify and follow a link at point. If they don’t find
-      ;; anything interesting at point, they must return nil."
-      t)))
+  (when (zettel-link-at-point-p t)
+    ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
+    (zettel-find-link (zettel-link-at-point) (or arg current-prefix-arg))
+    ;; This function is later added to `org-open-at-point-functions', so "must
+    ;; return t if they identify and follow a link at point. If they don’t find
+    ;; anything interesting at point, they must return nil."
+    t))
 
 (defun zettel-open-link-at-mouse (ev)
   "Open a Zettel link at mouse point."
