@@ -816,6 +816,22 @@ Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
                         file)))
             files)))
 
+(defun zettel-ivy-select-link (&optional prompt require-match)
+  "Interactively asks the user to select a link from the list of currently
+cached Zettel titles. PROMPT is the prompt to pass to `ivy-read'; if
+REQUIRE-MATCH is non-nil, do not allow entering link manually."
+  (let ((choice
+         (zettel-ivy-read-reverse-alist-action (or prompt "Select link to: ")
+                                               (zettel-ivy-titles-reverse-alist)
+                                               #'identity
+                                               require-match)))
+    (cond ((cdr choice)                 ; link selected from candidates
+           (zettel-file-link (cdr choice)))
+          ((zettel-link-p (car choice)) ; valid link typed in
+           (car choice))
+          (t
+           (signal 'wrong-type-argument '("That is not a valid link"))))))
+
 ;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
@@ -1274,7 +1290,7 @@ user from cached and visiting Zettel."
 ;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun zettel-select-link (arg)
+(defun zettel-select-and-find-link (arg)
   "Interactively asks the user to select a link from the list of currently
 cached Zettel titles. With universal prefix, finds the link in another
 buffer. With double universal prefix, asks the user to type the link
@@ -1677,8 +1693,8 @@ that of FILE2. Case is ignored."
 (define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
 (define-key deft-mode-map (kbd "C-c C-o") 'push-button)
 (define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-link) ; was: `deft-toggle-sort-method'
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-link) ; was: `deft-find-file'
+(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-and-find-link) ; was: `deft-toggle-sort-method'
+(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-and-find-link) ; was: `deft-find-file'
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 
@@ -2272,7 +2288,7 @@ another window."
             ;;
             ("C-c C-'" . zettel-set-category)
             ;; Shadows `org-schedule'
-            ("C-c C-s" . zettel-select-link)
+            ("C-c C-s" . zettel-select-and-find-link)
             ;; Shadows `org-deadline'
             ("C-c C-d" . zettel-kill-ring-save-link-title)
             ;; Shadows `kill-sexp' in global-map
