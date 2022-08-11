@@ -185,6 +185,20 @@ nil if there is nothing there."
                                     "/usr/bin/pbcopy"))))
       (t nil))))
 
+(defun zettel--grab-dwim-file-target (&optional link-at-point)
+  "Returns the do-what-I-mean Zettel file from a variety of modes. If
+LINK-AT-POINT is non-nil, prioritize such a link if exists."
+  (cond ((zettel-link-at-point-p)
+         (zettel-absolute-filename (zettel-link-at-point) t))
+        ((and zettel-mode (zettel-p buffer-file-name t))
+         buffer-file-name)
+        ((eq major-mode 'magit-status-mode)
+         (magit-file-at-point))
+        ((eq major-mode 'deft-mode)
+         (button-get (button-at (point)) 'tag))
+        (t
+         (zettel-ivy-select-link))))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -1012,14 +1026,7 @@ link itself."
   "Save the title of the wiki link at point or the buffer to the kill ring
 and system clipboard. With prefix argument, saves the 'combinted title'."
   (interactive "P")
-  (let ((file (cond ((zettel-link-at-point-p)
-                     (zettel-absolute-filename (zettel-link-at-point)))
-                    ((zettel-p buffer-file-name)
-                     buffer-file-name)
-                    ((equal major-mode 'deft-mode)
-                     (button-get (button-at (point)) 'tag))
-                    (t
-                     (message "Save title of what?")))))
+  (let ((file (zettel--grab-dwim-file-target t)))
     (when file
       ;; FIXME: Is this too low-level for here? Should `zettel-file-content'
       ;; handle this situation (cache too old) somehow?
@@ -1040,14 +1047,7 @@ to be used as a wiki link elsewhere. With prefix argument, save the file name
 relative to `zettel-directory' instead. With two prefix arguments, open the
 file in Finder with it selected."
   (interactive "p")
-  (let ((file (cond ((equal major-mode 'deft-mode)
-                     (button-get (button-at (point)) 'tag))
-                    ((zettel-link-at-point-p)
-                     (zettel-absolute-filename (zettel-link-at-point) t))
-                    (buffer-file-name
-                     buffer-file-name)
-                    (t
-                     (message "Save a link to what?")))))
+  (let ((file (zettel--grab-dwim-file-target t)))
     (when file
       (let ((link (if (= arg 4)
                       (file-relative-name file zettel-directory)
@@ -1080,10 +1080,13 @@ file in Finder with it selected."
     (when (consp (avy-jump zettel-regexp-link))
       (zettel-open-link-at-point))))
 
-(defun zettel-links-to (arg)
-  (interactive "P")
-  (let ((link (zettel-file-link buffer-file-name)))
-    (rgrep link "*.txt" zettel-directory nil)))
+(defun zettel-links-to (link)
+  "Runs a recursive grep (`rgrep') to find references to the link at point or
+to current Zettel. With prefix argument, explicitly select the link."
+  (interactive (list (if current-prefix-arg
+                         (zettel-ivy-select-link)
+                       (zettel-file-link (zettel--grab-dwim-file-target t)))))
+  (rgrep link "*.txt" zettel-directory nil))
 
 (defun zettel-deft-parsed-title (file)
   "Returns the result of `deft-file-title' if available or the result of
@@ -1228,13 +1231,7 @@ it at point, saves the current Zettel as its parent, and sets the
 user to select the Zettelkasten. With double prefix argument, asks for the
 full link. Returns link the new child."
   (interactive "P")
-  (let ((parent-link
-         (zettel-file-link (cond ((zettel-p buffer-file-name)
-                                  buffer-file-name)
-                                 ((equal major-mode 'deft-mode)
-                                  (button-get (button-at (point)) 'tag))
-                                 (t
-                                  (user-error "Child of what?")))))
+  (let ((parent-link (zettel-file-link (zettel--grab-dwim-file-target)))
         child-link)
     (if (equal arg '(16))
         (while (not child-link)
@@ -1394,12 +1391,7 @@ given, use that to sort the list first."
 (defun zettel-set-category (file category)
   "Sets the category to the Zettel title based on `zettel-categories'. With
 prefix argument, allows the user to type in a custom category."
-  (interactive (list (cond ((zettel-p buffer-file-name)
-                            buffer-file-name)
-                           ((equal major-mode 'deft-mode)
-                            (button-get (button-at (point)) 'tag))
-                           (t
-                            (user-error "Set category of what?")))
+  (interactive (list (zettel--grab-dwim-file-target)
                      (zettel-ivy-read-category nil nil #'>)))
   (let ((orig-buffer (current-buffer)))
     (save-excursion
@@ -1709,6 +1701,7 @@ that of FILE2. Case is ignored."
 (define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-and-find-link) ; was: `deft-find-file'
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
+(define-key deft-mode-map (kbd "C-c C-x l") 'zettel-links-to)
 
 ;;;=============================================================================
 ;;; Org-Mode Intergration
@@ -2175,14 +2168,7 @@ bookmark's filename property to the Zettel link."
   "Generates a zmove shell command to move the current Zettel to another
 kasten. With prefix argument, asks for a target link instead. Returns the
 target link."
-  (interactive (list (cond (zettel-mode
-                            buffer-file-name)
-                           ((eq major-mode 'magit-status-mode)
-                            (magit-file-at-point))
-                           ((eq major-mode 'deft-mode)
-                            (button-get (button-at (point)) 'tag))
-                           (t
-                            (read-file-name "Move which Zettel? ")))
+  (interactive (list (zettel--grab-dwim-file-target)
                      (ivy-read "Which kasten to move to? " zettel-kaesten)))
   (let ((source-link (zettel-file-link source-file)))
     (if (not target-link)
