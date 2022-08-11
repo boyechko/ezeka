@@ -2192,6 +2192,38 @@ target link."
            (deft-cache-update-file source-file)))
     target-link))
 
+(defun zettel-zmove-all-in-browser-region (start end kasten arg)
+  "Move all files listed in the active region of deft-browser to KASTEN. With
+prefix argument, confirm each move and ask about destination kasten."
+  (interactive (list (region-beginning)
+                     (region-end)
+                     (ivy-read "Which kasten to move to? " zettel-kaesten)
+                     current-prefix-arg))
+  (save-excursion
+    (save-restriction
+      (let* ((lines (split-string
+                     (buffer-substring-no-properties start end) "\n" t))
+             (alist (mapcar (lambda (line)
+                              (let ((split (split-string line "\t")))
+                                (cons (first split) (fourth split))))
+                            lines))
+             (j 1))
+        (dolist (tup alist)
+          (let* ((slug (car tup))
+                 (title (cdr tup))
+                 (file (zettel-absolute-filename slug)))
+            (when (or (not arg)
+                      (setq kasten
+                        (ivy-read "Which kasten to move to? " zettel-kaesten))
+                      (y-or-n-p
+                       (format "[%d/%d] Move %s [%s] to %s? "
+                               j (length alist) slug title kasten)))
+              (message "[%d/%d] Moved %s to %s in %s" j (length alist) slug
+                       (zettel-zmove-to-another-kasten file kasten)
+                       kasten))
+            (incf j)))
+        (deft-refresh)))))
+
 (defun zettel-filter-for-link-at-point ()
   "Modifies the Deft filter to look for the Zettel linked with
 the link at point. If there is only one match, opens the note in
