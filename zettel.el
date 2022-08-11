@@ -1,6 +1,6 @@
 ;;;; -*- mode: emacs-lisp -*-
 ;;;;-----------------------------------------------------------------------------
-;;;;        Author: Richard Boyechko <rb-emacs@diachronic.net>
+;;;;        Author: Richard Boyechko <code@diachronic.net>
 ;;;;   Description: Zettelkasten implementation based on Deft
 ;;;;  Date Created: 2015-06-31
 ;;;;      Comments:
@@ -190,7 +190,11 @@ nil if there is nothing there."
 ;;;=============================================================================
 
 (defun zettel-p (file-or-buffer)
-  "Returns non-NIL if the file or buffer is a Zettel."
+  "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
+of these conditions are met:
+1) the file exists;
+2) its extension is `deft-extension'; and
+3) its filename matches `zettel-regexp-slug'."
   (interactive "f")
   (when file-or-buffer
    (let ((file (typecase file-or-buffer
@@ -1761,7 +1765,7 @@ else, try to make it into org-time-stamp."
            (delete-region beg end)
            (org-insert-time-stamp (encode-time (parse-time-string text)) t t))
           (t
-           (signal 'wrong-type-argument text)))))
+           (signal 'wrong-type-argument (list text))))))
 
 (defun zettel-org-include-cached-file ()
   "Add an org-mode #+INCLUDE to a cached Zettel."
