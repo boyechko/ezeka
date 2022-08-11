@@ -189,22 +189,27 @@ nil if there is nothing there."
 ;;; Fundamental Functions
 ;;;=============================================================================
 
-(defun zettel-p (file-or-buffer)
+(defun zettel-p (file-or-buffer &optional strict)
   "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
 of these conditions are met:
 1) the file exists;
-2) its extension is `deft-extension'; and
-3) its filename matches `zettel-regexp-slug'."
+2) its extension is `deft-extension';
+3) its filename matches `zettel-regexp-slug'; and, if STRICT is non-NIL,
+4) the file is inside `zettel-directory'."
   (interactive "f")
   (when file-or-buffer
-   (let ((file (typecase file-or-buffer
-                 (buffer (buffer-file-name file-or-buffer))
-                 (string file-or-buffer)
-                 (t
-                  (error "Don't know how to handle this type")))))
-     (when file
-       (and (string-equal (file-name-extension file) deft-extension)
-            (string-match zettel-regexp-slug (file-name-base file)))))))
+    (let ((file (typecase file-or-buffer
+                  (buffer (buffer-file-name file-or-buffer))
+                  (string (expand-file-name file-or-buffer))
+                  (t
+                   (signal 'type-error
+                           '("FILE-OR-BUFFER can only be file or buffer"))))))
+      (when file
+        (and (string-equal (file-name-extension file) deft-extension)
+             (string-match zettel-regexp-slug (file-name-base file))
+             (if strict
+                 (string-prefix-p zettel-directory file)
+               t))))))
 
 (defun zettel-kasten-directory (kasten)
   "Returns the directory of the given KASTEN."
