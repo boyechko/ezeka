@@ -2146,7 +2146,7 @@ bookmark's filename property to the Zettel link."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defun zettel-zmove-to-another-kasten (source-file &optional target-link)
+(defun zettel-zmove-to-another-kasten (source-file &optional kasten target-link)
   "Generates a zmove shell command to move the current Zettel to another
 kasten. With prefix argument, asks for a target link instead. Returns the
 target link."
@@ -2157,21 +2157,20 @@ target link."
                            ((eq major-mode 'deft-mode)
                             (button-get (button-at (point)) 'tag))
                            (t
-                            (read-file-name "Move which Zettel? ")))))
+                            (read-file-name "Move which Zettel? ")))
+                     (ivy-read "Which kasten to move to? " zettel-kaesten)))
   (let ((source-link (zettel-file-link source-file)))
-    (if (and (not target-link) (called-interactively-p 'any))
+    (if (not target-link)
         (if (equal current-prefix-arg '(4))
             (read-string "Enter target link: ")
-          (let ((kasten (ivy-read "Which kasten to move to? "
-                                  zettel-kaesten)))
-            (setq target-link
-              (zettel-make-link
-               kasten
-               (case (second (assoc kasten zettel-kaesten #'string=))
-                 (:numerus (zettel-next-unused-slug :numerus))
-                 (:tempus (zettel-tempus-currens-slug-for source-link))
-                 (t
-                  (error "Don't know how to handle this")))))))
+          (setq target-link
+            (zettel-make-link
+             kasten
+             (case (second (assoc kasten zettel-kaesten #'string=))
+               (:numerus (zettel-next-unused-slug :numerus))
+               (:tempus (zettel-tempus-currens-slug-for source-link))
+               (t
+                (error "Don't know how to handle this"))))))
       (error "Don't know where to move %s" source-link))
     (shell-command (format "zmove %s %s" source-link target-link))
     (cond ((string= source-file buffer-file-name)
