@@ -172,40 +172,10 @@ otherwise ascending."
 ;;; General Functions
 ;;;=============================================================================
 
-(defun spacep (char)
-  "Returns T if the character is some kind of a space."
+(defun space-or-punct-p (char)
+  "Returns T if the character is a space or punctuation."
   (when char
     (string-match-p "[[:space:][:punct:]]" (char-to-string char))))
-
-(unless (fboundp 'rb-random-elt)
- (defun rb-random-elt (sequence)
-   "Return a random element of SEQUENCE."
-   (when (sequencep sequence)
-     (elt sequence (random (length sequence))))))
-
-(unless (fboundp 'rb-get-clipboard-data)
-  (defun rb-get-clipboard-data ()
-    "System-independent way to get current clipboard data. Returns
-nil if there is nothing there."
-    (case system-type
-      (gnu/linux (x-get-selection 'CLIPBOARD))
-      (windows-nt (w32-get-clipboard-data))
-      (darwin (shell-command-to-string "/usr/bin/pbpaste"))
-      (t nil))))
-
-(unless (fboundp 'rb-set-clipboard-data)
-  (defun rb-set-clipboard-data (string)
-    "System-independent way to copy the given STRING to clipboard."
-    (case system-type
-      (gnu/linux (error "Not implemented"))
-      (windows-nt (error "Not implemented"))
-      (darwin
-       (save-excursion
-         (with-temp-buffer
-           (insert string)
-           (shell-command-on-region (point-min) (point-max)
-                                    "/usr/bin/pbcopy"))))
-      (t nil))))
 
 (defun zettel--grab-dwim-file-target (&optional link-at-point)
   "Returns the do-what-I-mean Zettel file from a variety of modes. If
@@ -971,7 +941,7 @@ confirmation before inserting metadata."
                       (intern-soft
                        (ivy-read "Where? "
                                  '(":before" ":after" ":description")))))))
-    (insert (if (or (bolp) (spacep (char-before))) "" " ")
+    (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
             (if (or (null value)
                     (not confirm)
                     (progn
@@ -992,7 +962,7 @@ confirmation before inserting metadata."
                             (concat " " value)
                           ""))
               (zettel-org-format-link link))
-            (if (or (eolp) (spacep (char-after))) "" " "))))
+            (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
 (defun zettel-insert-link-to-cached-or-visiting (arg)
   "Inserts a link to another Zettel being currently visited or to those in
@@ -1035,7 +1005,7 @@ the cursor in already inside a link, replace it instead."
 clipboard, inserting it with metadata. With prefix argument, insert just the
 link itself."
   (interactive "P")
-  (let ((link (rb-get-clipboard-data))
+  (let ((link (gui-get-selection 'CLIPBOARD))
         (backlink (when buffer-file-name
                     (zettel-file-link buffer-file-name))))
     (when (zettel-link-p link)
@@ -1043,7 +1013,7 @@ link itself."
           (zettel-insert-link-with-metadata link)
         (zettel-insert-link-with-metadata link :title :before t))
       (when backlink
-        (rb-set-clipboard-data backlink)
+        (gui-set-selection 'CLIPBOARD backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
 
 (defun zettel-kill-ring-save-link-title (arg)
@@ -1062,7 +1032,7 @@ and system clipboard. With prefix argument, saves the 'combinted title'."
                       (alist-get :title metadata))))
         (kill-new title)
         (unless select-enable-clipboard
-          (rb-set-clipboard-data title))
+          (gui-set-selection 'CLIPBOARD title))
         (message "Saved [%s] in the kill ring" title)))))
 
 (defun zettel-kill-ring-save-link (arg)
@@ -1078,7 +1048,7 @@ file in Finder with it selected."
                     (zettel-file-link file))))
         (if select-enable-clipboard
             (kill-new link)
-          (rb-set-clipboard-data link))
+          (gui-set-selection 'CLIPBOARD link))
         (message "Saved [%s] in the kill ring" link)
         (when (= arg 16)
           (shell-command (format "open -R %s &" file)))))))
