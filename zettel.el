@@ -231,7 +231,7 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
   "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
 of these conditions are met:
 1) the file exists;
-2) its extension is `deft-extension';
+2) its extension is `deft-default-extension';
 3) its filename matches `zettel-regexp-slug'; and, if STRICT is non-NIL,
 4) the file is inside `zettel-directory'."
   (interactive "f")
@@ -243,7 +243,7 @@ of these conditions are met:
                    (signal 'type-error
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
-        (and (string-equal (file-name-extension file) deft-extension)
+        (and (string-equal (file-name-extension file) deft-default-extension)
              (string-match zettel-regexp-slug (file-name-base file))
              (if strict
                  (string-prefix-p zettel-directory file)
@@ -384,7 +384,7 @@ This function replaces `deft-absolute-filename' for Zettel."
       (let ((kasten (zettel-link-kasten link))
             (slug (zettel-link-slug link)))
         (expand-file-name
-         (concat slug "." deft-extension)
+         (concat slug "." deft-default-extension)
          (expand-file-name
           (case (zettel-type slug)
             (:numerus (zettel-numerus-subdirectory slug))
@@ -736,10 +736,10 @@ to avoid duplicates."
 
 (defun zettel-rename-with-unused-slug ()
   "Rename the current file and buffer to an unused filename
-slug (short name) in `deft-directory' with `deft-extension'.
+slug (short name) in `deft-directory' with `deft-default-extension'.
 Based on `rename-file-and-buffer'."
   (interactive)
-  (rename-file-and-buffer (concat (zettel-next-unused-slug) "." deft-extension)))
+  (rename-file-and-buffer (concat (zettel-next-unused-slug) "." deft-default-extension)))
 
 (defun slug-pronounceable-p (letters next)
   "Returns NIL if NEXT is not pronounceable after LETTERS."
