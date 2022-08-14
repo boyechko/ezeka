@@ -1,10 +1,32 @@
-;;;; -*- mode: emacs-lisp -*-
-;;;;-----------------------------------------------------------------------------
-;;;;        Author: Richard Boyechko <code@diachronic.net>
-;;;;   Description: Zettelkasten implementation based on Deft
-;;;;  Date Created: 2015-06-31
-;;;;      Comments:
-;;;;-----------------------------------------------------------------------------
+;;; zettel.el --- Eclectic Zettelkasten on top of Deft and Org -*- lexical-binding: t -*-
+
+;; Copyright (C) 2015-2022 Richard Boyechko
+
+;; Author: Richard Boyechko <code@diachronic.net>
+;; Version: 0.1
+;; Package-Requires: ((emacs "25.1") (deft "0.8") (org "9.5"))
+;; Keywords: deft zettelkasten org
+;; URL: https://github.com/boyechko/eclectic-zettelkasten
+
+;; This file is not part of Emacs
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This package provides a very personalized implementation of Zettelkasten
+;; on top of Deft and Org that began on 2015-06-31.
 
 (require 'deft)
 (require 'org)
@@ -195,7 +217,9 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
         ((eq major-mode 'magit-status-mode)
          (magit-file-at-point))
         ((eq major-mode 'deft-mode)
-         (button-get (button-at (point)) 'tag))
+         (--if-let (button-at (point))
+             (button-get it 'tag)
+           (zettel-ivy-select-link)))
         (t
          (zettel-ivy-select-link))))
 
