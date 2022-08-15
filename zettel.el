@@ -1547,6 +1547,11 @@ the missing metadata is explicitly displayed."
               title))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
+(defun zettel-deft-file-title-title (file)
+  "Returns the actual title of the given Zettel file."
+  (--if-let (deft-file-title file)
+      (fourth (split-string it "\t" nil " "))))
+
 (defun zettel-deft-file-title-citekey (file)
   "Returns the citekey, if any, of the given Zettel file."
   (--if-let (deft-file-title file)
