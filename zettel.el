@@ -2169,8 +2169,8 @@ bookmark's filename property to the Zettel link."
 
 (defun zettel-zmove-to-another-kasten (source-file &optional kasten target-link)
   "Generates a zmove shell command to move the current Zettel to another
-kasten. With prefix argument, asks for a target link instead. Returns the
-target link."
+kasten. With prefix argument, asks for a target link instead. Opens the
+target link and returns it."
   (interactive (list (zettel--grab-dwim-file-target)
                      (ivy-read "Which kasten to move to? " zettel-kaesten)))
   (let ((source-link (zettel-file-link source-file)))
@@ -2197,7 +2197,7 @@ target link."
            (magit-refresh))
           ((eq major-mode 'deft-mode)
            (deft-cache-update-file source-file)))
-    target-link))
+    (zettel-find-link target-link t)))
 
 (defun zettel-zmove-all-in-browser-region (start end kasten arg)
   "Move all files listed in the active region of deft-browser to KASTEN. With
