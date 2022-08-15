@@ -1082,7 +1082,14 @@ to current Zettel. With prefix argument, explicitly select the link."
   (interactive (list (if current-prefix-arg
                          (zettel-ivy-select-link)
                        (zettel-file-link (zettel--grab-dwim-file-target t)))))
-  (rgrep link "*.txt" zettel-directory nil))
+  (grep-compute-defaults)
+  (rgrep link "*.txt" (f-slash zettel-directory) nil))
+
+(defun zettel-rgrep (string)
+  "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
+  (interactive "sSearch for what? ")
+  (grep-compute-defaults)
+  (rgrep string "*.txt" (f-slash zettel-directory) nil))
 
 (defun zettel-deft-parsed-title (file)
   "Returns the result of `deft-file-title' if available or the result of
