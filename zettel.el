@@ -1547,20 +1547,23 @@ the missing metadata is explicitly displayed."
               title))))
 (setq deft-parse-title-function 'zettel-deft-parse-title-function)
 
-(defun zettel-deft-file-title-title (file)
-  "Returns the actual title of the given Zettel file."
-  (--if-let (deft-file-title file)
-      (fourth (split-string it "\t" nil " "))))
-
-(defun zettel-deft-file-title-citekey (file)
-  "Returns the citekey, if any, of the given Zettel file."
-  (--if-let (deft-file-title file)
-      (caddr (split-string it "\t" nil " "))))
+(defalias 'zettel-deft-file-title-slug 'zettel-file-slug
+  "Returns the slug part of `deft-file-title' of the given Zettel file.")
 
 (defun zettel-deft-file-title-category (file)
-  "Returns the category, if any, of the given Zettel file."
+  "Returns the category part of `deft-file-title' of the given Zettel file."
   (--if-let (deft-file-title file)
       (cadr (split-string it "[ \t]+" nil))))
+
+(defun zettel-deft-file-title-citekey (file)
+  "Returns the citekey part of `deft-file-title' of the given Zettel file."
+  (--if-let (deft-file-title file)
+      (caddr (split-string it "[ \t]+" nil " "))))
+
+(defun zettel-deft-file-title-title (file)
+  "Returns the title part of `deft-file-title' of the given Zettel file."
+  (--if-let (deft-file-title file)
+      (cadddr (split-string it "[ \t]+" nil " "))))
 
 (defun zettel-adv--deft-new-file-maybe-named (arg)
   "Extends `deft-new-file' to call `deft-new-file-named' if called with
