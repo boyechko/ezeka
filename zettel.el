@@ -1120,6 +1120,9 @@ in the minibuffer."
 (defun zettel-mode-line-buffer-id ()
   (interactive)
   (when (zettel-p buffer-file-name)
+    (let ((title (if deft-hash-titles
+                     (or (deft-file-title buffer-file-name) "")
+                   "")))
       (cl-multiple-value-bind (slug category citekey title)
           ;; <slug>	<category>	<citekey>	<title>
           (split-string title "\t" t " +")
@@ -1139,6 +1142,7 @@ in the minibuffer."
                   (format "%s: %s" slug-end
                           (replace-regexp-in-string "/" "" first-few))))
             (setq-local mode-line-buffer-identification buffer-id))))))
+  )
 (add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
 
 (defun zettel-update-link-prefix-title ()
