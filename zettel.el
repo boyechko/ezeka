@@ -1595,12 +1595,14 @@ changes the existing one. With prefix argument, replaces the current
 ;; Insert my zettel title string into new zettel rather than contents of deft's
 ;; filter string.
 ;;
-(defun zettel-insert-metadata-template (category title)
+(defun zettel-insert-metadata-template (category title &optional parent)
   "Inserts the metadata template into the current buffer."
   (interactive (list (zettel-ivy-read-category nil nil #'>)
                      (read-string "Zettel title: ")))
-  (let ((file (file-name-base buffer-file-name))
-        (link (zettel-file-link buffer-file-name)))
+  (let* ((file (file-name-base buffer-file-name))
+         (link (zettel-file-link buffer-file-name))
+         (parent (or parent
+                     (cdr (assoc link zettel-parent-of-new-child)))))
     (when (zerop (buffer-size))
       (insert (format "title: §%s. {%s} %s"
                       link
@@ -1619,8 +1621,8 @@ changes the existing one. With prefix argument, replaces the current
                      (zettel-encode-iso8601-datetime file)
                    nil)))
               "\n")                     ; i.e. current time
-      (when (assoc link zettel-parent-of-new-child)
-        (insert "parent: " (cdr (assoc link zettel-parent-of-new-child)) "\n"))
+      (when parent
+        (insert "parent: " parent "\n"))
       (insert "\n"))))
 
 (defun zettel-incorporate-file (file kasten &optional arg)
