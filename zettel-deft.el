@@ -1,4 +1,4 @@
-;;; zettel.el --- Eclectic Zettelkasten Deft Integration -*- lexical-binding: t -*-
+;;; zettel-deft.el --- Eclectic Zettelkasten Deft Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
@@ -459,3 +459,5 @@ that of FILE2. Case is ignored."
 (define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
 (define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
 (define-key deft-mode-map (kbd "C-c C-x l") 'zettel-links-to)
+
+(provide 'zettel-deft)

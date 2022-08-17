@@ -1,4 +1,4 @@
-;;; zettel.el --- Eclectic Zettelkasten Ivy Integration -*- lexical-binding: t -*-
+;;; zettel-ivy.el --- Eclectic Zettelkasten Ivy Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
