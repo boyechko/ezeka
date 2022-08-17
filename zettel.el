@@ -1,11 +1,11 @@
-;;; zettel.el --- Eclectic Zettelkasten on top of Deft and Org -*- lexical-binding: t -*-
+;;; zettel.el --- Eclectic Zettelkasten -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25.1") (deft "0.8") (org "9.5"))
-;; Keywords: deft zettelkasten org
+;; Package-Requires: ((emacs "25.1") (org "9.5"))
+;; Keywords: zettelkasten org
 ;; URL: https://github.com/boyechko/eclectic-zettelkasten
 
 ;; This file is not part of Emacs
@@ -26,9 +26,8 @@
 ;;; Commentary:
 
 ;; This package provides a very personalized implementation of Zettelkasten
-;; on top of Deft and Org that began on 2015-06-31.
+;; relying on Org, Deft (now moved to zettel-deft.el) that began on 2015-06-31.
 
-(require 'deft)
 (require 'org)
 
 ;;;=============================================================================
@@ -104,10 +103,6 @@ Groups 1-2 are hour and minute.")
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour and minute.")
 
-(defvar zettel-deft-active-kasten nil
-  "The name of the active Zettelkasten, if any. This variable is set by
-`zettel-deft-choose-kasten'.")
-
 (defvar zettel-pregenerated-numeri "auto/unused-numeri.dat"
   "List of unused numri curentes to use for creating new numerus currens
 Zettel in rumen when Emacs cannot check the list of existing files.")
@@ -121,8 +116,13 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   :type 'string
   :group 'zettel)
 
+(defcustom zettel-file-extension "txt"
+  "Default extension for Zettel files."
+  :type 'string
+  :group 'zettel)
+
 (defcustom zettel-kaesten
-  ;; name | directory | slug type | sort-order (| deft-sort-method)
+  ;; name | directory | slug type | list-order
   `(("os"         :tempus  1)
     ("rumen"      :numerus 2)
     ("esophagus"  :numerus 3)
@@ -162,12 +162,6 @@ each slug type."
   :options '(one two many)
   :group 'zettel)
 
-(defcustom zettel-sort-by-name-descending t
-  "When non-NIL, `deft-sort-files-by-name' will sort in a descending order,
-otherwise ascending."
-  :type 'boolean
-  :group 'zettel)
-
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
@@ -177,6 +171,7 @@ otherwise ascending."
   (when char
     (string-match-p "[[:space:][:punct:]]" (char-to-string char))))
 
+;; TODO: More extensible way to do this without invoking other modes?
 (defun zettel--grab-dwim-file-target (&optional link-at-point)
   "Returns the do-what-I-mean Zettel file from a variety of modes. If
 LINK-AT-POINT is non-nil, prioritize such a link if exists."
@@ -186,7 +181,7 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
          buffer-file-name)
         ((eq major-mode 'magit-status-mode)
          (magit-file-at-point))
-        ((eq major-mode 'deft-mode)
+        ((eq major-mode 'deft-mode)     ; TODO Factor out
          (--if-let (button-at (point))
              (button-get it 'tag)
            (zettel-ivy-select-link)))
@@ -201,7 +196,7 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
   "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
 of these conditions are met:
 1) the file exists;
-2) its extension is `deft-default-extension';
+2) its extension is `zettel-file-extension';
 3) its filename matches `zettel-regexp-slug'; and, if STRICT is non-NIL,
 4) the file is inside `zettel-directory'."
   (interactive "f")
@@ -213,7 +208,7 @@ of these conditions are met:
                    (signal 'type-error
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
-        (and (string-equal (file-name-extension file) deft-default-extension)
+        (and (string-equal (file-name-extension file) zettel-file-extension)
              (string-match zettel-regexp-slug (file-name-base file))
              (if strict
                  (string-prefix-p zettel-directory file)
@@ -346,15 +341,13 @@ specified, asks the user to resolve the ambiguity."
         (file-name-as-directory result)))))
 
 (defun zettel-absolute-filename (link &optional noerror)
-  "Return an absolute filename to the Zettel link. If NOERROR is non-NIL,
-don't signal an error if the link is invalid.
-
-This function replaces `deft-absolute-filename' for Zettel."
+  "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
+don't signal an error if the link is invalid."
   (if (zettel-link-p link)
       (let ((kasten (zettel-link-kasten link))
             (slug (zettel-link-slug link)))
         (expand-file-name
-         (concat slug "." deft-default-extension)
+         (concat slug "." zettel-file-extension)
          (expand-file-name
           (cl-case (zettel-type slug)
             (:numerus (zettel-numerus-subdirectory slug))
@@ -395,24 +388,34 @@ expression, with or without time."
               minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
-(defun zettel-file-content (file &optional noerror)
-  "Returns the content of the file, getting it either from an opened buffer,
-Deft cache, or the file itself. If NOERROR is non-NIL, don't signal an error
-if cannot get the content."
-  (cond ((get-file-buffer file)
-         (with-current-buffer (get-file-buffer file)
-           (save-restriction
-             (widen)
-             (buffer-substring-no-properties (point-min) (point-max)))))
-        ((and deft-hash-contents (deft-file-contents file))
-         (deft-file-contents file))
-        ((file-exists-p file)
-         (with-temp-buffer
-           (insert-file-contents file)
-           (buffer-substring-no-properties (point-min) (point-max))))
-        (t
-         (unless noerror
-           (error "Cannot get content for %s" file)))))
+(defun zettel-file-content (file &optional metadata-only noerror)
+  "Returns the content of the FILE, getting it either from an opened buffer
+or the file itself. If NOERROR is non-NIL, don't signal an error if cannot
+get the content. If METADATA-ONLY is non-nil, only get the metadata."
+  (cl-flet ((retrieve-content ()
+              "Get the content from `current-buffer'."
+              (widen)
+              (buffer-substring-no-properties
+               (point-min)
+               (if (not metadata-only)
+                   (point-max)
+                 (goto-char (point-min))
+                 (if (re-search-forward "\n\n" nil t)
+                     (match-beginning 0)
+                   (unless noerror
+                     (error "Cannot separate metadata")))))))
+    (cond ((get-file-buffer file)
+           (save-excursion
+             (save-restriction
+               (with-current-buffer (get-file-buffer file)
+                 (retrieve-content)))))
+          ((file-exists-p file)
+           (with-temp-buffer
+             (insert-file-contents file)
+             (retrieve-content)))
+          (t
+           (unless noerror
+             (error "Cannot get content for %s" file))))))
 
 ;;;=============================================================================
 ;;; Metadata
@@ -425,7 +428,7 @@ Group 1 is the key.
 Group 2 is the value.")
 
 (defvar zettel-regexp-combined-title
-  (concat "^§"
+  (concat "^title: §"
           zettel-regexp-link
           "\\. \\({\\([^}]+\\)}\\)*\\([^#@]+\\)*\\(@\\S-+\\)*\\(#.+\\)*")
   "Regular expression for a combined title string, used in `zettel-file-metadata'.
@@ -542,13 +545,7 @@ of FILE. They keys are converted to keywords."
 (defun zettel-file-metadata (file)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
-  (zettel-decode-metadata-section
-   (car (split-string
-         ;; Do a sane thing when I opened a Zettel file directly rather than
-         ;; through Deft interface.
-         (zettel-file-content file)
-         "\n\n"))
-   file))
+  (zettel-decode-metadata-section (zettel-file-content file t t)))
 
 (defcustom zettel-update-modification-date t
   "Determines whether `zettel-update-metadata-date' updates the modification
@@ -669,76 +666,35 @@ abase26 equivalent of 0, namely 'a'."
                       (abase26-encode (random 26))))
     (t        (error "Unknown Zettel type"))))
 
-(defun zettel-next-unused-slug (&optional type)
-  "Returns the next unused slug, relying on `zettel-deft-active-kasten' and
-`zettel-kaesten' to figure out the type if not given, and on `deft-all-files'
-to avoid duplicates."
-  (let* ((active-kasten-type (cadr (assoc zettel-deft-active-kasten
-                                            zettel-kaesten
-                                            #'string=)))
-         (type (or type active-kasten-type))
-         slug)
-    (cond ((eq type :tempus)
-           (setq slug (zettel-generate-new-slug type)))
-          ((eq type active-kasten-type)
-           (message "Generating next unused slug of type %s" type)
-           (let ((used (mapcar #'zettel-file-slug deft-all-files)))
-             (while (or (not slug) (member slug used))
-               (setq slug (zettel-generate-new-slug type)))))
-          ((and (eq type :numerus)
-                (file-exists-p (in-zettel-dir zettel-pregenerated-numeri)))
-           (let ((buffer (find-file-noselect
-                          (in-zettel-dir zettel-pregenerated-numeri))))
-             (with-current-buffer buffer
-               (setq slug
-                 (string-trim (delete-and-extract-region
-                               1 (search-forward-regexp "[[:space:]]" nil t))))
-               (let ((inhibit-message t)) ; don't show the "Wrote ..." messages
-                 (basic-save-buffer)))))
-          (t
-           (message "Generating unused slug without checking for duplicates...")
-           (setq slug (zettel-generate-new-slug type))))
+(defun zettel-next-unused-slug (kasten)
+  "Returns the next unused slug for the given KASTEN from `zettel-kaesten'."
+  (let ((type (zettel-kasten-slug-type kasten))
+        slug)
+    (cl-flet ((exists? ()
+                "Checks if SLUG is either NIL or exists."
+                (or (null slug)
+                    (file-exists-p
+                     (zettel-absolute-filename (zettel-make-link kasten slug))))))
+     (cond ((eq type :tempus)
+            (while (exists?)
+              (setq slug (zettel-generate-new-slug type))))
+           ((and (eq type :numerus)
+                 (file-exists-p (in-zettel-dir zettel-pregenerated-numeri)))
+            (let ((buffer (find-file-noselect
+                           (in-zettel-dir zettel-pregenerated-numeri))))
+              (with-current-buffer buffer
+                (while (exists?)
+                  (setq slug
+                    (string-trim (delete-and-extract-region
+                                  1 (search-forward-regexp "[[:space:]]" nil t)))))
+                (let ((inhibit-message t)) ; don't show the "Wrote ..." messages
+                  (basic-save-buffer))
+                (message "%d pregenerated numerus/i left"
+                         (count-lines (point-min) (point-max))))))
+           (t
+            (while (exists?)
+              (setq slug (zettel-generate-new-slug type))))))
     slug))
-
-(defun deft-new-unused-zettel ()
-  "Create a new Zettel with unused numerus currens."
-  (interactive)
-  (deft-new-file-named (zettel-next-unused-slug)))
-
-(defun zettel-rename-with-unused-slug ()
-  "Rename the current file and buffer to an unused filename
-slug (short name) in `deft-directory' with `deft-default-extension'.
-Based on `rename-file-and-buffer'."
-  (interactive)
-  (rename-file-and-buffer (concat (zettel-next-unused-slug) "." deft-default-extension)))
-
-(defun slug-pronounceable-p (letters next)
-  "Returns NIL if NEXT is not pronounceable after LETTERS."
-  (cl-flet* ((lastn (seq n)
-                    "Returns last N members of SEQ, or nil if it's too
-              short."
-                    (when (<= n (length seq))
-                      (cl-subseq seq (- n))))
-             (clusterp (str)
-                       (member str '("ai" "au" "ea" "ia" "io" "oa" "oi" "ou" "ua"
-                                     "ch" "ck" "ff" "gh" "gl" "mn" "ph"
-                                     "qu" "rh" "rp" "rs" "rt" "rz" "sc" "sh" "sk"
-                                     "st" "th" "zh")))
-             (liquidp (ch) (member ch '("l" "r")))
-             (sibilantp (ch) (member ch '("s" "z")))
-             (vowelp (ch) (member ch '("a" "e" "i" "o" "u" "y")))
-             (consonantp (ch) (not (vowelp ch))))
-    (let* ((next (if (characterp next) (char-to-string next) next))
-           (prev (lastn letters 1))
-           (cluster (concat prev next)))
-      (when (or (not letters)
-                (clusterp cluster)
-                (and (vowelp prev) (consonantp next))
-                (and (consonantp prev) (vowelp next))
-                (and (consonantp prev)
-                     (or (and (not (liquidp prev)) (liquidp next))
-                         (or (sibilantp prev) (sibilantp next)))))
-        t))))
 
 ;;;=============================================================================
 ;;; Tempus Currens
@@ -776,80 +732,7 @@ Based on `rename-file-and-buffer'."
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
-                          (zettel-next-unused-slug :tempus)))))))
-
-;;;=============================================================================
-;;; Ivy
-;;;=============================================================================
-
-(defun zettel-ivy-titles-reverse-alist (&optional sort-by)
-  "Returns a reverse alist of choices consisting of cached Zettel titles and
-their paths. For use with `zettel-ivy-read-reverse-alist-action'. SORT-BY is
-either 'MTIME [default] or 'TITLE."
-  (let (titles-alist)
-    (cond (deft-hash-titles
-            (maphash (lambda (key val)
-                       (push (cons val key) titles-alist))
-                     deft-hash-titles)
-            (cl-sort titles-alist
-                     (if (equal sort-by 'title)
-                         #'deft-file-title-lessp
-                       #'deft-file-newer-p)
-                     :key #'cdr))
-          (t
-           (error "No Deft titles cached")))))
-
-(defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
-  "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
-pairs. Upon selection, call the given FUNC, a function accepting one
-argument, on the key. Returns a cons cell consisting of the match from
-`ivy-read' and the result of FUNC."
-  (let (result)
-    (ivy-read prompt
-              choices
-              :action (lambda (choice)
-                        (setq result
-                          (if (consp choice)
-                              (cons (car choice) (funcall func (cdr choice)))
-                            (cons choice nil))))
-              :re-builder 'ivy--regex-ignore-order
-              :require-match require-match)
-    result))
-
-(defun zettel-ivy-metadata-reverse-alist (files)
-  "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
-Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
-  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
-    (mapcar (lambda (file)
-              (let ((metadata (zettel-file-metadata file))
-                    (buf (get-file-buffer file)))
-                (cons (format fmt
-                              (if (and buf (buffer-modified-p buf)) "*" " ")
-                              (alist-get :slug metadata)
-                              (alist-get :category metadata)
-                              (cl-subseq (alist-get :title metadata) 0
-                                         (min (length (alist-get :title metadata))
-                                              53))
-                              (or (alist-get :keywords metadata) ""))
-                      file)))
-            files)))
-
-(defun zettel-ivy-select-link (&optional prompt require-match)
-  "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. PROMPT is the prompt to pass to `ivy-read'; if
-REQUIRE-MATCH is non-nil, do not allow entering link manually."
-  (let ((choice
-         (zettel-ivy-read-reverse-alist-action (or prompt "Select link to: ")
-                                               (zettel-ivy-titles-reverse-alist)
-                                               #'identity
-                                               require-match)))
-    (cond ((cdr choice)                 ; link selected from candidates
-           (zettel-file-link (cdr choice)))
-          ((zettel-link-p (car choice)) ; valid link typed in
-           (car choice))
-          (t
-           (signal 'wrong-type-argument '("That is not a valid link"))))))
+                          (zettel-next-unused-slug (zettel-link-kasten link))))))))
 
 ;;;=============================================================================
 ;;; Zettel Links
@@ -966,42 +849,6 @@ confirmation before inserting metadata."
               (zettel-org-format-link link))
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
-(defun zettel-insert-link-to-cached-or-visiting (arg)
-  "Inserts a link to another Zettel being currently visited or to those in
-the Deft cache. With prefix argument, offers a few options for including
-Zettel metadata. If the user selects a Zettel that does not exist in the list
-of cached or visiting Zettel, just insert the link to what was selected. If
-the cursor in already inside a link, replace it instead."
-  (interactive "P")
-  (let* ((choices
-          (delete-dups (append
-                        (mapcar (lambda (path)
-                                  (cons (zettel-deft-parsed-title path) path))
-                                (zettel-visiting-buffer-list t))
-                        (zettel-ivy-titles-reverse-alist 'mtime)))))
-    (if choices
-        (let* ((choice (zettel-ivy-read-reverse-alist-action
-                        "Insert link to: " choices 'zettel-file-link nil))
-               (link (or (cdr choice)
-                         ;; Create a new child if there is no match
-                         (let ((new-child (zettel-insert-new-child nil)))
-                           (kill-new (car choice)) ; save the entered text
-                           (save-excursion
-                             (with-current-buffer
-                                 (zettel-absolute-filename
-                                  (zettel-find-link new-child))
-                               (zettel-insert-metadata-template
-                                nil (car choice))))
-                           new-child))))
-          (if (not (zettel-link-at-point-p))
-              (if arg
-                  (funcall-interactively #'zettel-insert-link-with-metadata link)
-                (zettel-insert-link-with-metadata link :title :before t))
-            ;; When replacing, don't including anything
-            (delete-region (match-beginning 0) (match-end 0))
-            (insert (zettel-org-format-link link))))
-      (user-error "No Deft cache or visited Zettel"))))
-
 (defun zettel-insert-link-from-clipboard (arg)
   "Link `zettel-insert-link' but attempts to get the link slug from OS
 clipboard, inserting it with metadata. With prefix argument, insert just the
@@ -1019,15 +866,12 @@ link itself."
         (message "Backlink to %s copied to clipboard" backlink)))))
 
 (defun zettel-kill-ring-save-link-title (arg)
-  "Save the title of the wiki link at point or the buffer to the kill ring
-and system clipboard. With prefix argument, saves the 'combinted title'."
+  "Save the title to the kill ring and system clipboard of either the Zettel
+link at point or, if there is none, the current buffer. With prefix argument,
+saves the 'combinted title'."
   (interactive "P")
   (let ((file (zettel--grab-dwim-file-target t)))
     (when file
-      ;; FIXME: Is this too low-level for here? Should `zettel-file-content'
-      ;; handle this situation (cache too old) somehow?
-      (when (and deft-hash-contents (deft-file-contents file))
-        (deft-cache-update-file file))
       (let* ((metadata (zettel-file-metadata file))
              (title (if arg
                         (car (zettel-encode-combined-title metadata))
@@ -1068,14 +912,6 @@ file in Finder with it selected."
         (kill-new link)
         (message "Saved [%s] to kill ring" link)))))
 
-;; Modified from zetteldeft's `zetteldeft-avy-link-search'.
-(defun zettel-avy-link-search ()
-  "Use `avy' to follow a Zettel wiki link."
-  (interactive)
-  (save-excursion
-    (when (consp (avy-jump zettel-regexp-link))
-      (zettel-open-link-at-point))))
-
 (defun zettel-links-to (link)
   "Runs a recursive grep (`rgrep') to find references to the link at point or
 to current Zettel. With prefix argument, explicitly select the link."
@@ -1091,66 +927,26 @@ to current Zettel. With prefix argument, explicitly select the link."
   (grep-compute-defaults)
   (rgrep string "*.txt" (f-slash zettel-directory) nil))
 
-(defun zettel-deft-parsed-title (file)
-  "Returns the result of `deft-file-title' if available or the result of
-`zettel-deft-parse-title-function' on the first line of the given FILE."
-  (or (deft-file-title file)
-      (zettel-deft-parse-title-function
-       (car (split-string
-             (or (zettel-file-content file t) "")
-             "\n")))))
-
-(defun zettel-show-link-title-in-minibuffer ()
-  "Displays Zettel title of the link under cursor, less category and citekey,
-in the minibuffer."
-  (while-no-input
-    (redisplay))
-  (when (and (eq major-mode 'org-mode)
-             (zettel-link-at-point-p))
-    (let* ((file (zettel-absolute-filename (match-string 1) t))
-           (title (zettel-deft-parsed-title file))
-           (title
-            (if (string-match "^\\([[:alnum:]-]+\\).*	.*	\\(.*\\)$" title)
-                (format "%s / %s" (match-string 1 title) (match-string 2 title))
-              title)))
-      (message (s-center (window-width) title)))))
-(add-hook 'zettel-mode-hook
-  (lambda ()
-    (add-hook 'post-command-hook
-      'zettel-show-link-title-in-minibuffer)))
-(add-hook 'zettel-mode-hook
-  (lambda ()
-    (add-hook 'after-save-hook
-      'zettel-show-link-title-in-minibuffer)))
-
 ;; Show the beginning of Zettel title in mode-line
-(defun zettel-mode-line-buffer-id ()
+(defun zettel-show-title-in-mode-line ()
   (interactive)
   (when (zettel-p buffer-file-name)
-    (let ((title (if deft-hash-titles
-                     (or (deft-file-title buffer-file-name) "")
-                   "")))
-      (cl-multiple-value-bind (slug category citekey title)
-          ;; <slug>	<category>	<citekey>	<title>
-          (split-string title "\t" t " +")
-        ;; FIXME: Clunky, but some deft-titles don't have citekeys or categories
-        (when (or title citekey category)
-          (let* ((words (split-string (or title citekey category) " "))
-                 (first-few (mapconcat #'identity
-                              (cl-subseq words 0 (min 5 (length words)))
-                              " "))
-                 (slug-end (if (or (eq (zettel-type slug) :numerus)
-                                   (eq (zettel-type slug) :bolus)) ; FIXME: temporary
-                               slug
-                             (concat "~"
-                                     (cl-subseq slug (- (length slug)
-                                                        (length "0101T0101"))))))
-                 (buffer-id
-                  (format "%s: %s" slug-end
-                          (replace-regexp-in-string "/" "" first-few))))
-            (setq-local mode-line-buffer-identification buffer-id))))))
-  )
-(add-hook 'zettel-mode-hook 'zettel-mode-line-buffer-id)
+    (save-excursion
+     (save-restriction
+       (widen)
+       (goto-char (point-min))
+       (let ((metadata
+              (zettel-decode-combined-title
+               (buffer-substring-no-properties
+                (point-min) (progn (end-of-line) (point))))))
+         (when metadata
+           (let ((words (split-string (alist-get :title metadata))))
+             (setq-local mode-line-misc-info
+                         (replace-regexp-in-string
+                          "/" "" (mapconcat #'identity
+                                   (cl-subseq words 0 (min 5 (length words)))
+                                   " "))))))))))
+(add-hook 'zettel-mode-hook 'zettel-show-title-in-mode-line)
 
 (defun zettel-update-link-prefix-title ()
   "Kills text from point to the next Zettel link, replacing it with that
@@ -1227,38 +1023,35 @@ ancestor. With a universal argument, ask for confirmation before inserting."
   "Generates a new child of the given PARENT in the KASTEN."
   (let ((child-link (zettel-make-link
                      kasten
-                     (zettel-next-unused-slug (zettel-kasten-slug-type kasten)))))
+                     (zettel-next-unused-slug kasten))))
     (add-to-list 'zettel-parent-of-new-child (cons child-link parent))
     child-link))
 
 (defun zettel-insert-new-child (&optional arg)
-  "Creates a new Zettel in the current `deft-directory', inserting a link to
-it at point, saves the current Zettel as its parent, and sets the
-`zettel-link-backlink' to current Zettel. With prefix argument, allows the
-user to select the Zettelkasten. With double prefix argument, asks for the
-full link. Returns link the new child."
+  "Inserts a link to a new Zettel in the same Kasten as the current Zettel,
+saves the current Zettel as its parent, and sets the `zettel-link-backlink'
+to current Zettel. With prefix argument, allows the user to select a
+different Kasten. With double prefix argument, asks for the full link.
+Returns link the new child."
   (interactive "P")
-  (let ((parent-link (zettel-file-link (zettel--grab-dwim-file-target)))
-        child-link)
-    (if (equal arg '(16))
-        (while (not child-link)
-          (setq child-link (read-string "Enter link for new child: "))
-          (when (file-exists-p (zettel-absolute-filename child-link))
-            (message "This Zettel already exists; try again")))
-      (let ((kasten (cond ((equal arg '(4))
-                           (ivy-read "Zettelkasten: "
-                                     (if (listp zettel-kaesten)
-                                         (mapcar #'first zettel-kaesten)
-                                       (error "No Zettelkasten defined"))))
-                          (t
-                           (unless (assoc :numerus zettel-default-kasten)
-                             (call-interactively #'zettel-set-default-kasten))
-                           (zettel-directory-kasten deft-directory)))))
-        (setq child-link (zettel-generate-new-child parent-link kasten))))
-    (if (equal major-mode 'deft-mode)
-        (deft-new-file-named (zettel-link-slug child-link))
-      (insert (zettel-org-format-link child-link)))
-    child-link))
+  (when (zettel-p buffer-file-name t)
+    (let ((parent-link (zettel-file-link buffer-file-name))
+          child-link)
+      (if (equal arg '(16))
+          (while (not child-link)
+            (setq child-link (read-string "Enter link for new child: "))
+            (when (file-exists-p (zettel-absolute-filename child-link))
+              (message "This Zettel already exists; try again")))
+        (let ((kasten (if (equal arg '(4))
+                          (completing-read
+                           "Kasten: "
+                           (if (listp zettel-kaesten)
+                               (mapcar #'car zettel-kaesten)
+                             (error "No `zettel-kaesten' defined")))
+                        (zettel-link-kasten parent-link))))
+          (setq child-link (zettel-generate-new-child parent-link kasten))))
+      (insert (zettel-org-format-link child-link))
+      child-link)))
 
 (defun zettel-insert-new-child-from-org-item (&optional arg)
   "Wrapper around `zettel-insert-new-child' that, if the point is in a list
@@ -1278,29 +1071,14 @@ new child link. Passes the prefix argument to `zettel-insert-new-child'."
                           ;; newlines.
                           (buffer-substring-no-properties
                            (point) (1- start))))))
-         (citekey (string-trim
-                   (zettel-deft-file-title-citekey buffer-file-name))))
+         (citekey (or (alist-get :citekey
+                        (zettel-file-metadata buffer-file-name))
+                      "")))
     (when text
       (kill-new (concat (org-trim text)
-                        (unless (string-empty-p citekey) " @")
+                        (when citekey " @")
                         citekey)))
     (zettel-insert-new-child arg)))
-
-(defun zettel-ivy-set-parent ()
-  "Sets the parent metadata of the current Zettel to the Zettel chosen by the
-user from cached and visiting Zettel."
-  (interactive)
-  (let ((metadata (zettel-file-metadata buffer-file-name)))
-    (zettel-ivy-read-reverse-alist-action
-     "Set parent to: "
-     (delete-dups
-      (append (mapcar (lambda (path)
-                        (cons (deft-file-title path) path))
-                      (zettel-visiting-buffer-list t))
-              (zettel-ivy-titles-reverse-alist)))
-     (lambda (path)
-       (setf (alist-get :parent metadata) (zettel-file-link path))
-       (zettel-normalize-metadata buffer-file-name metadata)))))
 
 ;;;=============================================================================
 ;;; Buffers and Frames
@@ -1339,40 +1117,14 @@ SKIP-CURRENT is T, remove the current buffer."
           (kill-buffer (get-file-buffer file)))
         (zettel-visiting-buffer-list t)))
 
-(defun zettel-switch-to-buffer (arg)
-  "Quickly switch to other open Zettel buffers. With prefix argument, do so
-in another window."
-  (interactive "P")
-  (let ((choices
-         (mapcar (lambda (path)
-                   (if (not deft-hash-titles)
-                       (error "Deft hash table is not initialized")
-                     (when (null (deft-file-title path))
-                       (deft-cache-file path))
-                     (cons (format "%s%s"
-                                   (if (buffer-modified-p (get-file-buffer path))
-                                       "✒︎"
-                                     "")
-                                   (deft-file-title path))
-                           path)))
-                 (zettel-visiting-buffer-list t))))
-    (zettel-ivy-read-reverse-alist-action
-     (if choices "Visit live buffer: " "Visit cached: ")
-     (or choices (zettel-ivy-titles-reverse-alist))
-     (if (not arg) 'find-file 'find-file-other-window))))
-
 (defun zettel-formatted-frame-title ()
   "Returns a string suitable for `frame-title-format' as a way to
 consistently format the frame title with useful information for
 Zettelkasten work."
   (interactive)
-  (concat (if zettel-deft-active-kasten
-              (format "〔%s〕"
-                      (upcase zettel-deft-active-kasten))
-            "")
-          (if (zettel-p buffer-file-name)
+  (concat (if (zettel-p buffer-file-name)
               (let ((metadata (zettel-file-metadata buffer-file-name)))
-                (format "%s §%s@%s"     ; {%s} (alist-get :category metadata)
+                (format "%s §%s@%s"
                         (alist-get :title metadata)
                         (alist-get :slug metadata)
                         (alist-get :kasten metadata)))
@@ -1411,190 +1163,10 @@ prefix argument, allows the user to type in a custom category."
         (unless (eq orig-buffer (current-buffer))
           (save-buffer))))))
 
-(defun zettel-populate-categories ()
-  "Populate `zettel-categories' based on the titles in Deft cache."
-  (interactive)
-  (setq zettel-categories '())
-  (dolist (file deft-all-files)
-    (let* ((category (alist-get :category (zettel-file-metadata file)))
-           (frequency (alist-get category zettel-categories 0 nil #'string-equal)))
-      (setf (alist-get category zettel-categories nil nil #'string-equal)
-            (1+ frequency))))
-  (message "%d categories in %d files"
-           (length zettel-categories) (length deft-all-files)))
-
-(defun zettel-add-bibliographic-category ()
-  "Add a category to the Zettel title based on the bibliographic title."
-  (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    ;; 1: slug
-    ;; 2: given name(s)
-    ;; 3: family name
-    ;; 4: title
-    ;; 5: year
-    (when (re-search-forward "^title: §?\\([0-9a-z:-]+\\)\\. \
-\\(\\w+ \\)+\\(\\w+\\), \\([^(]+\\) (\\([0-9]+\\))")
-      (replace-match (cl-subseq (match-string 2) 0 1) nil nil nil 2)
-      (replace-match "title: §\\1. {\\3\\5} \\2. \\3's \\4 (\\5)"))))
-
 ;;;=============================================================================
-;;; Deft-Mode Integration
+;;; Populating Files
 ;;;=============================================================================
 
-;; Adjust how Deft lists Zettel
-(setq deft-strip-title-regexp "^\\(title: +\\)"
-      ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
-      deft-strip-summary-regexp ".*"
-      ;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
-      ;; Modified: "\\(^\\w+: .*\\)"
-      deft-time-format nil
-      deft-use-filename-as-title nil
-      deft-current-sort-method 'mtime)
-
-(add-hook 'deft-mode-hook
-  (lambda ()
-    (setq show-trailing-whitespace nil)))
-
-(defun zettel-deft-choose-kasten (arg new-kasten &optional number-of-frames)
-  "If there is an existing `deft-buffer', switches to it, otherwise
-interactively selects the deft directory from among `zettel-kaesten'. With a
-prefix argument, selects new deft directory regardless of `deft-buffer'; with
-double prefix argument calls `zettel-deft-choose-directory' instead. With
-optinal NUMBER-OF-FRAMES, set the `zettel-number-of-frames' to that value."
-  (interactive
-   (cond ((null (get-buffer deft-buffer))
-          (list current-prefix-arg
-                (ivy-read "Zettel kasten: " zettel-kaesten)
-                (or zettel-number-of-frames
-                    (intern (ivy-read "Number of frames: " '(one two many))))))
-         ((equal current-prefix-arg '(4))
-          (list current-prefix-arg
-                (ivy-read "Zettel kasten: " zettel-kaesten)
-                (intern (ivy-read "Number of frames: " '(one two many)))))
-         (t (list current-prefix-arg nil zettel-number-of-frames))))
-  (setq zettel-number-of-frames number-of-frames)
-  (cond ((equal arg '(16))
-         (call-interactively #'zettel-deft-choose-directory))
-        ((not new-kasten)
-         (cl-case zettel-number-of-frames
-           (nil (switch-to-buffer deft-buffer))
-           (one (switch-to-buffer deft-buffer))
-           (two (with-selected-window (ace-select-window)
-                  (switch-to-buffer deft-buffer)))
-           (many
-            (switch-to-buffer-other-frame deft-buffer))))
-        (t
-         (setq zettel-deft-active-kasten new-kasten)
-         (zettel-deft-choose-directory (zettel-kasten-directory new-kasten)))))
-
-(defun zettel-deft-choose-directory (directory)
-  "Interactively selects the directory, starting in `zettel-directory'."
-  (interactive
-   (list
-    (read-directory-name "Deft directory: "
-                         zettel-directory
-                         "" t)))
-  (when (and (get-buffer deft-buffer))
-    (kill-buffer deft-buffer))
-  (setq deft-directory directory
-        deft-buffer (format "*Deft: %s*"
-                            (capitalize
-                             (file-name-base (directory-file-name directory)))))
-  (deft)
-  (deft-filter nil)
-  (deft-refresh)
-  (zettel-populate-categories))
-
-(defun zettel-deft-parse-title-function (line &optional show-missing)
-  "Function for post-processing titles for display in Deft buffer, intended
-as the value for `deft-parse-title-function'. If SHOW-MISSING is non-NIL,
-the missing metadata is explicitly displayed."
-  (when line
-    (let* ((metadata (zettel-decode-combined-title
-                      (replace-regexp-in-string "^\\(title: +\\)" "" line)))
-           (slug (or (alist-get :slug metadata)
-                     (if show-missing "<slug>" "")))
-           (cat (or (alist-get :category metadata)
-                    (if show-missing "<category>" "")))
-           (key (or (alist-get :citekey metadata)
-                    (if show-missing "<citekey>" "")))
-           (key (if (string-match "^@" key)
-                    (replace-match "" nil nil key)
-                  key))
-           (title (or (alist-get :title metadata)
-                      (if (not (zerop (length line)))
-                          line
-                        "<title>")))
-           (SLUG-LEN
-            (length
-             (alist-get (or (zettel-type (alist-get :slug metadata))
-                            (zettel-kasten-slug-type zettel-deft-active-kasten)
-                            :tempus)    ; assume longest
-                        zettel-type-example-alist)))
-           (CAT-LEN 12)
-           (KEY-LEN 10)
-           ;; SLUG---CATEGORY---CITEKEY---TITLE [where --- is tab]
-           (fmt (format "%%-%ds\t%%-%ds\t%%-%ds\t%%s" SLUG-LEN CAT-LEN KEY-LEN)))
-      (format fmt                       ; requires 4 arguments
-              slug
-              (if (> (length cat) CAT-LEN)
-                  (concat (cl-subseq cat 0 (- CAT-LEN 1)) "…")
-                cat)
-              (if (> (length key) KEY-LEN)
-                  (concat (cl-subseq key 0 (- KEY-LEN 1)) "…")
-                key)
-              title))))
-(setq deft-parse-title-function 'zettel-deft-parse-title-function)
-
-(defalias 'zettel-deft-file-title-slug 'zettel-file-slug
-  "Returns the slug part of `deft-file-title' of the given Zettel file.")
-
-(defun zettel-deft-file-title-category (file)
-  "Returns the category part of `deft-file-title' of the given Zettel file."
-  (--if-let (deft-file-title file)
-      (cadr (split-string it "[ \t]+" nil))))
-
-(defun zettel-deft-file-title-citekey (file)
-  "Returns the citekey part of `deft-file-title' of the given Zettel file."
-  (--if-let (deft-file-title file)
-      (caddr (split-string it "[ \t]+" nil " "))))
-
-(defun zettel-deft-file-title-title (file)
-  "Returns the title part of `deft-file-title' of the given Zettel file."
-  (--if-let (deft-file-title file)
-      (cadddr (split-string it "[ \t]+" nil " "))))
-
-(defun zettel-adv--deft-new-file-maybe-named (arg)
-  "Extends `deft-new-file' to call `deft-new-file-named' if called with
-prefix argument."
-  (interactive "p")
-  (if (= arg 4)
-      (call-interactively #'deft-new-file-named)
-    (deft-new-file)))
-
-;; Don't ever auto populate the title
-(advice-add 'deft-auto-populate-title-maybe :around #'list)
-
-(defun zettel-add-section-sign-to-deft-filter ()
-  "Inserts the Unicode section sign (§) to Deft filter string."
-  (interactive)
-  (setq last-command-event 167)
-  (deft-filter-increment))
-
-(defun deft-filter-zettel-category (category arg)
-  "Inserts a category into deft-filter if there is no category there or
-changes the existing one. With prefix argument, replaces the current
-`deft-filter-regexp'."
-  (interactive (list (zettel-ivy-read-category nil nil #'>)
-                     current-prefix-arg))
-  (deft-filter (format "{%s}" category)
-    (or arg (null deft-filter-regexp))))
-
-;;
-;; Insert my zettel title string into new zettel rather than contents of deft's
-;; filter string.
-;;
 (defun zettel-insert-metadata-template (category title &optional parent)
   "Inserts the metadata template into the current buffer."
   (interactive (list (zettel-ivy-read-category nil nil #'>)
@@ -1637,94 +1209,6 @@ prefix argument, asks for a different name."
         (zettel-make-link kasten (file-name-base file)))
      (call-interactively #'rename-file-and-buffer))))
 
-(defun zettel-adv--deft-new-file-insert-metadata (orig-fun slug)
-  "Replaces deft's default behavior of putting the filter string
-on the first line with the Zettel title string."
-  ;; `DEFT-NEW-FILE-NAMED' returns either a string (from MESSAGE) about an
-  ;; error, or the result of (GOTO-CHAR (POINT-MAX)), which means an integer
-  ;; buffer location.
-  (when (integerp (funcall orig-fun slug))
-    (let ((file (deft-absolute-filename slug)))
-      (with-current-buffer (get-file-buffer file)
-        (erase-buffer)
-        (call-interactively #'zettel-insert-metadata-template)))))
-(advice-add 'deft-new-file-named :around #'zettel-adv--deft-new-file-insert-metadata)
-
-(defun zettel-adv--deft-absolute-filename (orig-fun &rest args)
-  "Replaces the default `deft-absolute-filename' with
-`zettel-absolute-filename'."
-  (let ((kasten (zettel-directory-kasten deft-directory)))
-    (zettel-absolute-filename
-     (if kasten
-         (concat kasten ":" (car args))
-       (car args)))))
-(advice-add 'deft-absolute-filename :around 'zettel-adv--deft-absolute-filename)
-
-;;
-;; Sorting deft-buffer by filename
-;;
-(defun deft-sort-files-by-name (files)
-  "Sort FILES by name in reverse order, ignoring case."
-  (sort files (lambda (f1 f2)
-                (funcall (if zettel-sort-by-name-descending
-                             #'string-lessp
-                           #'string-greaterp)
-                         (downcase (file-name-base f2))
-                         (downcase (file-name-base f1))))))
-
-(defun zettel-title-lessp (file1 file2)
-  "Return non-nil if the Zettel title of FILE1 is lexicographically less than
-that of FILE2. Case is ignored."
-  ;; FIXME: Hack to get the title from the result of
-  ;; `zettel-deft-parse-title-function'
-  (let ((title1 (caddr (split-string (or (deft-file-title file1) "") "  +")))
-        (title2 (caddr (split-string (or (deft-file-title file2) "") "  +"))))
-    (string-lessp (downcase (or title1 ""))
-                  (downcase (or title2 "")))))
-
-(defun deft-sort-files-by-zettel-title (files)
-  "Sort FILES by the Zettel title."
-  (sort files 'zettel-title-lessp))
-
-(eval-after-load "deft"
-  '(progn
-     ;; Use our own `deft-sort-files-by-name' rather that respects
-     ;; `zettel-sort-by-name-descending'.
-     (defalias 'deft-sort-files-by-title 'deft-sort-files-by-name)
-     ;; "Shadow" the built-in slug generator to generate timestamps by default,
-     ;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
-     (defalias 'deft-unused-slug 'zettel-next-unused-slug)))
-
-;; Having a visual indicator of the sort method is helpful
-(defun deft-set-mode-name ()
-  "Set the mode line text based on search mode."
-  (setq mode-name
-    (format "Deft[%s]%s"
-            deft-current-sort-method
-            (if deft-incremental-search "" "/R"))))
-(advice-add 'deft-toggle-sort-method :after 'deft-set-mode-name)
-
-(defun zettel-adv--deft-open-button (orig-fun &rest args)
-  "Advice :around `deft-open-button' to call `zettel-find-link' instead of
-`deft-open-file'."
-  (zettel-find-file (button-get (car args) 'tag) current-prefix-arg))
-(advice-add 'deft-open-button :around #'zettel-adv--deft-open-button)
-
-;;-----------------------------------------------------------------------------
-;; Deft-Mode Keybindings
-;;-----------------------------------------------------------------------------
-
-(define-key deft-mode-map (kbd "C-c C-S-n") 'deft-new-unused-zettel)
-(define-key deft-mode-map (kbd "C-c s") 'zettel-add-section-sign-to-deft-filter)
-(define-key deft-mode-map (kbd "C-c C-n") 'deft-new-file-named)
-(define-key deft-mode-map (kbd "C-c C-o") 'push-button)
-(define-key deft-mode-map (kbd "C-c #") 'zettel-kill-ring-save-link)
-(define-key deft-mode-map (kbd "C-c C-s") 'zettel-select-and-find-link) ; was: `deft-toggle-sort-method'
-(define-key deft-mode-map (kbd "C-c C-f") 'zettel-select-and-find-link) ; was: `deft-find-file'
-(define-key deft-mode-map (kbd "C-c C-'") 'deft-filter-zettel-category)
-(define-key deft-mode-map (kbd "C-c C-p") 'zettel-populate-categories)
-(define-key deft-mode-map (kbd "C-c C-x l") 'zettel-links-to)
-
 ;;;=============================================================================
 ;;; Org-Mode Intergration
 ;;;=============================================================================
@@ -1753,9 +1237,7 @@ org-mode's interactive `org-time-stamp' command."
              (org-timestamp-format (org-timestamp-from-string
                                     (delete-and-extract-region start (point)))
                                    "%Y%m%dT%H%M")))))
-    (if (eq major-mode 'deft-mode)
-        (deft-new-file-named datetime)
-      (insert (zettel-org-format-link datetime)))))
+    (insert (zettel-org-format-link datetime))))
 
 (defun zettel-dwim-with-this-timestring (beg end)
   "Do What I Mean with the timestring in the region. If the timestring is
@@ -1790,34 +1272,6 @@ else, try to make it into org-time-stamp."
           (t
            (signal 'wrong-type-argument (list text))))))
 
-(defun zettel-org-include-cached-file ()
-  "Add an org-mode #+INCLUDE to a cached Zettel."
-  (interactive)
-  (let* ((choices
-          (delete-dups (append
-                        (mapcar (lambda (path)
-                                  (cons (deft-file-title path) path))
-                                (zettel-visiting-buffer-list t))
-                        (zettel-ivy-titles-reverse-alist)))))
-    (if choices
-        (zettel-ivy-read-reverse-alist-action
-         "Include: "
-         choices
-         (lambda (file)
-           (let ((summary-section "Summary")
-                 (snippet-section (replace-regexp-in-string
-                                   "ß" "Snippet "
-                                   (car (split-string
-                                         (alist-get :title (zettel-file-metadata file))
-                                         ":")))))
-             (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n"
-                             (file-relative-name file)
-                             summary-section))
-             (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t"
-                             (file-relative-name file)
-                             snippet-section)))))
-      (user-error "No Deft cache or visited Zettel"))))
-
 (defun zettel-org-export-as-new-zettel ()
   "Creates a new Zettel file in the current Zettelkasten based on the current
 org subtree."
@@ -1846,20 +1300,12 @@ org subtree."
           (setq tempus-currens (org-timestamp-format timestamp "%Y%m%dT%H%M")
                 new-file (zettel-absolute-filename tempus-currens))
           (let* ((content (org-get-entry)))
-            ;; Code adapted from `deft-new-file', since calling that function in
-            ;; turn calls my `zettel-adv--deft-new-file-insert-metadata' that interferes
-            ;; with populating the file properly.
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
-              (deft-open-file new-file)
-              (with-current-buffer (get-file-buffer (file-truename new-file))
-                (insert (format "title: §%s. {Memo} %s\n" tempus-currens new-title))
-                (insert "created: " (format-time-string "%Y-%m-%d") "\n")
-                (insert "parent: " parent-link "\n")
-                (insert content)
-                (save-buffer))
-              (deft-cache-update-file new-file)
-              (deft-refresh-filter))))))
+              (with-current-buffer (get-buffer-create new-file)
+                (zettel-insert-metadata-template "Memo" new-title parent-link)
+                (insert "\n" content)
+                (save-buffer)))))))
     ;; Back in original buffer
     (with-current-buffer (get-file-buffer (file-truename parent-file))
       (org-cut-subtree)
@@ -2083,78 +1529,6 @@ rather in whatever `org-footnote-section' is set to."
           (org-footnote-new))))))
 
 ;;;=============================================================================
-;;; Markdown-Mode Integration
-;;;=============================================================================
-
-(eval-after-load 'markdown-mode
-  '(progn
-     ;; This must be enabled to have wiki links
-     (setq markdown-enable-wiki-links t)
-
-     ;;
-     ;; By default, `markdown-convert-wiki-link-to-filename' concatenates the
-     ;; file extension of the current buffer's file to the link name when you
-     ;; press C-c C-o over something like [[bib/Key2015.bib]], so it ends up
-     ;; opening Key2015.bib.txt. The markdown-cwltf-fix-link removes the extra
-     ;; extension, among other things.
-     ;;
-     ;; Unfortunately, `markdown-follow-wiki-link' also "ensure[s] that the new
-     ;; buffer remains in `markdown-mode'", so I need yet another work-around to
-     ;; fix that: `markdown-fwl-set-auto-mode'.
-     ;;
-
-     (defun markdown-fwl--set-auto-mode (&rest args)
-       "After advice for `markdown-follow-wiki-link'. Reverses the default
-behavir of ensuring that the buffer is in markdown mode, and instead sets it
-back to the mode it 'wants to be'."
-       (set-auto-mode t))
-     (advice-add 'markdown-follow-wiki-link :after #'markdown-fwl--set-auto-mode)
-
-     (defun markdown-cwltf--fix-link (orig-fun name)
-       "Advice for `markdown-convert-wiki-link-to-filename',
-completely overriding the originall functionality. It combines the not
-clobbering of extension, finding the right directory directory for the Zettel
-so that the links can be found across multiple directories within the main
-Zettelkasten, and also handling 'subkasten:' notation."
-       (save-match-data
-         (let ((result (or (zettel-absolute-filename name)
-                           (funcall orig-fun name))))
-           (if (string-match "\\.\\w+$" name)
-               (let ((orig-ext (match-string 0 name)))
-                 (if (string-match (concat orig-ext "\\(\\.\\w+\\)$") result)
-                     (replace-match orig-ext nil nil result)
-                   result))
-             result))))
-
-     (advice-add 'markdown-convert-wiki-link-to-filename
-                 :around #'markdown-cwltf--fix-link)))
-
-;;;=============================================================================
-;;; Citar Integration
-;;;=============================================================================
-
-(defvar zettel-bibliographic-note-directory (in-zettel-dir "reticulum")
-  "Directory where `citar-open-notes' can find my notes about the source.")
-
-(defun zettel-symlink-bibliographic-note (arg file citekey)
-  "Creates a symbolic link from the given Zettel file to the specified
-citekey. With prefix argument, replace the existing link."
-  (interactive
-   (list current-prefix-arg
-         buffer-file-name
-         (let ((citekey (alist-get :citekey
-                          (zettel-file-metadata buffer-file-name))))
-           (if (string-match "^@*\\([[:alnum:]-]+\\)" citekey)
-               (match-string 1 citekey)
-             (read-string "Citekey (without @): ")))))
-  (let ((note-name (concat citekey "." deft-default-extension)))
-    (when (y-or-n-p (format "Create the symlink '%s' to this note? " note-name))
-      (make-symbolic-link
-       (file-relative-name file zettel-bibliographic-note-directory)
-       (expand-file-name note-name zettel-bibliographic-note-directory)
-       arg))))
-
-;;;=============================================================================
 ;;; Bookmark Integration
 ;;;=============================================================================
 
@@ -2191,7 +1565,7 @@ target link and returns it."
             (zettel-make-link
              kasten
              (cl-case (cadr (assoc kasten zettel-kaesten #'string=))
-               (:numerus (zettel-next-unused-slug :numerus))
+               (:numerus (zettel-next-unused-slug kasten))
                (:tempus (zettel-tempus-currens-slug-for source-link))
                (t
                 (error "Don't know how to handle this"))))))
@@ -2204,60 +1578,8 @@ target link and returns it."
            (unless (eq (length (frame-list)) 1)
              (delete-frame)))
           ((eq major-mode 'magit-status-mode)
-           (magit-refresh))
-          ((eq major-mode 'deft-mode)
-           (deft-cache-update-file source-file)))
+           (magit-refresh)))
     (zettel-find-link target-link t)))
-
-(defun zettel-zmove-all-in-browser-region (start end kasten arg)
-  "Move all files listed in the active region of deft-browser to KASTEN. With
-prefix argument, confirm each move and ask about destination kasten."
-  (interactive (list (region-beginning)
-                     (region-end)
-                     (ivy-read "Which kasten to move to? " zettel-kaesten)
-                     current-prefix-arg))
-  (save-excursion
-    (save-restriction
-      (let* ((lines (split-string
-                     (buffer-substring-no-properties start end) "\n" t))
-             (alist (mapcar (lambda (line)
-                              (let ((split (split-string line "\t")))
-                                (cons (car split) (fourth split))))
-                            lines))
-             (j 1))
-        (dolist (tup alist)
-          (let* ((slug (car tup))
-                 (title (cdr tup))
-                 (file (zettel-absolute-filename slug)))
-            (when (or (not arg)
-                      (setq kasten
-                        (ivy-read "Which kasten to move to? " zettel-kaesten))
-                      (y-or-n-p
-                       (format "[%d/%d] Move %s [%s] to %s? "
-                               j (length alist) slug title kasten)))
-              (message "[%d/%d] Moved %s to %s in %s" j (length alist) slug
-                       (zettel-zmove-to-another-kasten file kasten)
-                       kasten))
-            (incf j)))
-        (deft-refresh)))))
-
-(defun zettel-filter-for-link-at-point ()
-  "Modifies the Deft filter to look for the Zettel linked with
-the link at point. If there is only one match, opens the note in
-another window."
-  (interactive)
-  (when (zettel-link-at-point-p)
-    (let ((link (zettel-link-at-point))
-          (deft-incremental-search nil))
-      (deft-filter (concat "^oldnames: \\[.*" link ".*\\]$") t)
-      (unless deft-current-files
-        (deft-filter (concat "§" link ".") t))
-      (cond ((= (length deft-current-files) 1)
-             (deft-open-file (car deft-current-files) t t))
-            ((null deft-current-files)
-             (message "No notes with current or old name matching `%s'" link))
-            (t
-             (switch-to-buffer-other-window deft-buffer))))))
 
 (defun zettel-generate-n-new-slugs (how-many type)
   "Generates a bunch of new slugs, making sure there are no dulicates."
@@ -2294,11 +1616,10 @@ another window."
 ;;; Mode
 ;;;=============================================================================
 
-;; Define a minor mode for working with Zettelkasten in deft
+;; Define a minor mode for working with Zettel files
 (define-minor-mode zettel-mode
   "Make the keymap zettel-mode-map active."
   :lighter " Zettel"
-  :require 'deft
   :keymap
   (mapcar (lambda (tuple)
             (cons (if (stringp (car tuple)) (kbd (car tuple)) (car tuple))
@@ -2349,11 +1670,6 @@ another window."
             )))
 
 ;; Enable zettel-mode for files that match the pattern
-(eval-after-load "markdown"
-  (add-hook 'markdown-mode-hook
-    (lambda ()
-      (when (zettel-p buffer-file-name)
-        (zettel-mode 1)))))
 (add-hook 'org-mode-hook
   (lambda ()
     (when (zettel-p buffer-file-name)
@@ -2366,13 +1682,9 @@ another window."
   (lambda ()
     (modify-syntax-entry ?: "w")))
 
-;; On save, update modificate date and deft-cache
+;; On save, update modificate date
 (add-hook 'zettel-mode-hook
   (lambda ()
-    (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)
-    (add-hook 'after-save-hook
-      (lambda ()
-        (deft-cache-file buffer-file-name))
-      nil t)))
+    (add-hook 'before-save-hook 'zettel-update-metadata-date nil t)))
 
 (provide 'zettel)
