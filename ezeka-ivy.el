@@ -1,10 +1,10 @@
-;;; zettel-ivy.el --- Eclectic Zettelkasten Ivy Integration -*- lexical-binding: t -*-
+;;; ezeka-ivy.el --- Eclectic Zettelkasten Ivy Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25.1") (ivy "0.13.4") (zettel "0.8"))
+;; Package-Requires: ((emacs "25.1") (ivy "0.13.4") (ezeka "0.8"))
 ;; Keywords: deft zettelkasten org
 ;; URL: https://github.com/boyechko/eclectic-zettelkasten
 
@@ -25,14 +25,14 @@
 
 ;;; Commentary:
 
-;; Ivy integration for zettel.el
+;; Ivy integration for ezeka.el
 
-(require 'zettel)
+(require 'ezeka)
 (require 'ivy)
 
-(defun zettel-ivy-titles-reverse-alist (&optional sort-by)
+(defun ezeka-ivy-titles-reverse-alist (&optional sort-by)
   "Returns a reverse alist of choices consisting of cached Zettel titles and
-their paths. For use with `zettel-ivy-read-reverse-alist-action'. SORT-BY is
+their paths. For use with `ezeka-ivy-read-reverse-alist-action'. SORT-BY is
 either 'MTIME [default] or 'TITLE."
   (let (titles-alist)
     (cond (deft-hash-titles
@@ -47,7 +47,7 @@ either 'MTIME [default] or 'TITLE."
           (t
            (error "No Deft titles cached")))))
 
-(defun zettel-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
+(defun ezeka-ivy-read-reverse-alist-action (prompt choices func &optional require-match)
   "Uses `ivy-read' to select from list of CHOICES alist composed of value/key
 pairs. Upon selection, call the given FUNC, a function accepting one
 argument, on the key. Returns a cons cell consisting of the match from
@@ -64,13 +64,13 @@ argument, on the key. Returns a cons cell consisting of the match from
               :require-match require-match)
     result))
 
-(defun zettel-ivy-metadata-reverse-alist (files)
+(defun ezeka-ivy-metadata-reverse-alist (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `zettel-ivy-read-reverse-alist-action' as collection.
-Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
+suitable for passing to `ezeka-ivy-read-reverse-alist-action' as collection.
+Relies on Zettel metadata, so slower than `ezeka-ivy-titles-reverse-alist'."
   (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
     (mapcar (lambda (file)
-              (let ((metadata (zettel-file-metadata file))
+              (let ((metadata (ezeka-file-metadata file))
                     (buf (get-file-buffer file)))
                 (cons (format fmt
                               (if (and buf (buffer-modified-p buf)) "*" " ")
@@ -83,23 +83,23 @@ Relies on Zettel metadata, so slower than `zettel-ivy-titles-reverse-alist'."
                       file)))
             files)))
 
-(defun zettel-ivy-select-link (&optional prompt require-match)
+(defun ezeka-ivy-select-link (&optional prompt require-match)
   "Interactively asks the user to select a link from the list of currently
 cached Zettel titles. PROMPT is the prompt to pass to `ivy-read'; if
 REQUIRE-MATCH is non-nil, do not allow entering link manually."
   (let ((choice
-         (zettel-ivy-read-reverse-alist-action (or prompt "Select link to: ")
-                                               (zettel-ivy-titles-reverse-alist)
-                                               #'identity
-                                               require-match)))
+         (ezeka-ivy-read-reverse-alist-action (or prompt "Select link to: ")
+                                              (ezeka-ivy-titles-reverse-alist)
+                                              #'identity
+                                              require-match)))
     (cond ((cdr choice)                 ; link selected from candidates
-           (zettel-file-link (cdr choice)))
-          ((zettel-link-p (car choice)) ; valid link typed in
+           (ezeka-file-link (cdr choice)))
+          ((ezeka-link-p (car choice)) ; valid link typed in
            (car choice))
           (t
            (signal 'wrong-type-argument '("That is not a valid link"))))))
 
-(defun zettel-insert-link-to-cached-or-visiting (arg)
+(defun ezeka-ivy-insert-link (arg)
   "Inserts a link to another Zettel being currently visited or to those in
 the Deft cache. With prefix argument, offers a few options for including
 Zettel metadata. If the user selects a Zettel that does not exist in the list
@@ -109,51 +109,51 @@ the cursor in already inside a link, replace it instead."
   (let* ((choices
           (delete-dups (append
                         (mapcar (lambda (path)
-                                  (cons (zettel-deft-parsed-title path) path))
-                                (zettel-visiting-buffer-list t))
-                        (zettel-ivy-titles-reverse-alist 'mtime)))))
+                                  (cons (ezeka-deft-parsed-title path) path))
+                                (ezeka-visiting-buffer-list t))
+                        (ezeka-ivy-titles-reverse-alist 'mtime)))))
     (if choices
-        (let* ((choice (zettel-ivy-read-reverse-alist-action
-                        "Insert link to: " choices 'zettel-file-link nil))
+        (let* ((choice (ezeka-ivy-read-reverse-alist-action
+                        "Insert link to: " choices 'ezeka-file-link nil))
                (link (or (cdr choice)
                          ;; Create a new child if there is no match
-                         (let ((new-child (zettel-insert-new-child nil)))
+                         (let ((new-child (ezeka-insert-new-child nil)))
                            (kill-new (car choice)) ; save the entered text
                            (save-excursion
                              (with-current-buffer
-                                 (zettel-link-file
-                                  (zettel-find-link new-child))
-                               (zettel-insert-metadata-template
+                                 (ezeka-link-file
+                                  (ezeka-find-link new-child))
+                               (ezeka-insert-metadata-template
                                 nil (car choice))))
                            new-child))))
-          (if (not (zettel-link-at-point-p))
+          (if (not (ezeka-link-at-point-p))
               (if arg
-                  (funcall-interactively #'zettel-insert-link-with-metadata link)
-                (zettel-insert-link-with-metadata link :title :before t))
+                  (funcall-interactively #'ezeka-insert-link-with-metadata link)
+                (ezeka-insert-link-with-metadata link :title :before t))
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
-            (insert (zettel-org-format-link link))))
+            (insert (ezeka-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
 ;; TODO: Also relies on Deft
-(defun zettel-ivy-set-parent ()
+(defun ezeka-ivy-set-parent ()
   "Sets the parent metadata of the current Zettel to the Zettel chosen by the
 user from cached and visiting Zettel."
   (interactive)
-  (let ((metadata (zettel-file-metadata buffer-file-name)))
-    (zettel-ivy-read-reverse-alist-action
+  (let ((metadata (ezeka-file-metadata buffer-file-name)))
+    (ezeka-ivy-read-reverse-alist-action
      "Set parent to: "
      (delete-dups
       (append (mapcar (lambda (path)
                         (cons (deft-file-title path) path))
-                      (zettel-visiting-buffer-list t))
-              (zettel-ivy-titles-reverse-alist)))
+                      (ezeka-visiting-buffer-list t))
+              (ezeka-ivy-titles-reverse-alist)))
      (lambda (path)
-       (setf (alist-get :parent metadata) (zettel-file-link path))
-       (zettel-normalize-metadata buffer-file-name metadata)))))
+       (setf (alist-get :parent metadata) (ezeka-file-link path))
+       (ezeka-normalize-metadata buffer-file-name metadata)))))
 
 ;; TODO: Also relies on Deft
-(defun zettel-switch-to-buffer (arg)
+(defun ezeka-ivy-switch-to-buffer (arg)
   "Quickly switch to other open Zettel buffers. With prefix argument, do so
 in another window."
   (interactive "P")
@@ -169,10 +169,10 @@ in another window."
                                      "")
                                    (deft-file-title path))
                            path)))
-                 (zettel-visiting-buffer-list t))))
-    (zettel-ivy-read-reverse-alist-action
+                 (ezeka-visiting-buffer-list t))))
+    (ezeka-ivy-read-reverse-alist-action
      (if choices "Visit live buffer: " "Visit cached: ")
-     (or choices (zettel-ivy-titles-reverse-alist))
+     (or choices (ezeka-ivy-titles-reverse-alist))
      (if (not arg) 'find-file 'find-file-other-window))))
 
-(provide 'zettel-ivy)
+(provide 'ezeka-ivy)

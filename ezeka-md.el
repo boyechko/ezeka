@@ -1,4 +1,4 @@
-;;; zettel-md.el --- Eclectic Zettelkasten Markdown Integration -*- lexical-binding: t -*-
+;;; ezeka-md.el --- Eclectic Zettelkasten Markdown Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
@@ -25,9 +25,9 @@
 
 ;;; Commentary:
 
-;; Markdown mode integration for zettel.el
+;; Markdown mode integration for ezeka.el
 
-(require 'zettel)
+(require 'ezeka)
 (require 'markdown-mode)
 
 ;; This must be enabled to have wiki links
@@ -59,7 +59,7 @@ clobbering of extension, finding the right directory directory for the Zettel
 so that the links can be found across multiple directories within the main
 Zettelkasten, and also handling 'subkasten:' notation."
   (save-match-data
-    (let ((result (or (zettel-link-file name)
+    (let ((result (or (ezeka-link-file name)
                       (funcall orig-fun name))))
       (if (string-match "\\.\\w+$" name)
           (let ((orig-ext (match-string 0 name)))
@@ -72,8 +72,8 @@ Zettelkasten, and also handling 'subkasten:' notation."
             :around #'markdown-cwltf--fix-link)
 
 (add-hook 'markdown-mode-hook
-    (lambda ()
-      (when (zettel-p buffer-file-name)
-        (zettel-mode 1))))
+  (lambda ()
+    (when (ezeka-note-p buffer-file-name)
+      (ezeka-mode 1))))
 
-(provide 'zettel-md)
+(provide 'ezeka-md)
