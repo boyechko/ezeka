@@ -224,7 +224,7 @@ in the minibuffer."
     (redisplay))
   (when (and (eq major-mode 'org-mode)
              (zettel-link-at-point-p))
-    (let* ((file (zettel-absolute-filename (match-string 1) t))
+    (let* ((file (zettel-link-file (match-string 1) t))
            (title (zettel-deft-parsed-title file))
            (title
             (if (string-match "^\\([[:alnum:]-]+\\).*	.*	\\(.*\\)$" title)
@@ -291,7 +291,7 @@ prefix argument, confirm each move and ask about destination kasten."
         (dolist (tup alist)
           (let* ((slug (car tup))
                  (title (cdr tup))
-                 (file (zettel-absolute-filename slug)))
+                 (file (zettel-link-file slug)))
             (when (or (not arg)
                       (setq kasten
                         (ivy-read "Which kasten to move to? " zettel-kaesten))
@@ -379,9 +379,9 @@ on the first line with the Zettel title string."
 
 (defun zettel-adv--deft-absolute-filename (orig-fun &rest args)
   "Replaces the default `deft-absolute-filename' with
-`zettel-absolute-filename'."
+`zettel-link-file'."
   (let ((kasten (zettel-directory-kasten deft-directory)))
-    (zettel-absolute-filename
+    (zettel-link-file
      (if kasten
          (concat kasten ":" (car args))
        (car args)))))
