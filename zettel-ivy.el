@@ -121,7 +121,7 @@ the cursor in already inside a link, replace it instead."
                            (kill-new (car choice)) ; save the entered text
                            (save-excursion
                              (with-current-buffer
-                                 (zettel-absolute-filename
+                                 (zettel-link-file
                                   (zettel-find-link new-child))
                                (zettel-insert-metadata-template
                                 nil (car choice))))

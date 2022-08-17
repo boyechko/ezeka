@@ -176,7 +176,7 @@ each slug type."
   "Returns the do-what-I-mean Zettel file from a variety of modes. If
 LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((zettel-link-at-point-p)
-         (zettel-absolute-filename (zettel-link-at-point) t))
+         (zettel-link-file (zettel-link-at-point) t))
         ((and zettel-mode (zettel-p buffer-file-name t))
          buffer-file-name)
         ((eq major-mode 'magit-status-mode)
@@ -340,7 +340,7 @@ specified, asks the user to resolve the ambiguity."
       (when result
         (file-name-as-directory result)))))
 
-(defun zettel-absolute-filename (link &optional noerror)
+(defun zettel-link-file (link &optional noerror)
   "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
 don't signal an error if the link is invalid."
   (if (zettel-link-p link)
@@ -674,7 +674,7 @@ abase26 equivalent of 0, namely 'a'."
                 "Checks if SLUG is either NIL or exists."
                 (or (null slug)
                     (file-exists-p
-                     (zettel-absolute-filename (zettel-make-link kasten slug))))))
+                     (zettel-link-file (zettel-make-link kasten slug))))))
      (cond ((eq type :tempus)
             (while (exists?)
               (setq slug (zettel-generate-new-slug type))))
@@ -710,7 +710,7 @@ abase26 equivalent of 0, namely 'a'."
       ;; If already tempus currens, just return that slug
       (zettel-link-slug link)
     ;; Otherwise come up with an appropriate slug based on the metadata
-    (let ((metadata (zettel-file-metadata (zettel-absolute-filename link)))
+    (let ((metadata (zettel-file-metadata (zettel-link-file link)))
           oldname)
       (cond ((setq oldname
                (cl-find-if
@@ -774,7 +774,7 @@ window."
 `zettel-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
 same window. Returns T if the link is a Zettel link."
   (when (zettel-link-p link)
-    (zettel-find-file (zettel-absolute-filename link) same-window)
+    (zettel-find-file (zettel-link-file link) same-window)
     (when (zerop (buffer-size))
       (call-interactively #'zettel-insert-metadata-template))
     ;; make sure to return T for `org-open-link-functions'
@@ -800,7 +800,7 @@ brackets. Otherwise, call `kill-sex'."
   "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
   (let* ((file (or (if (file-name-absolute-p target)
                        target
-                     (zettel-absolute-filename target))
+                     (zettel-link-file target))
                    (error "Link target doesn't exist; make sure it's saved")))
          (link (zettel-file-link file)))
     (format "[[%s]%s]"
@@ -812,7 +812,7 @@ brackets. Otherwise, call `kill-sex'."
   "Inserts the Zettel link, optionally adding a metadata FIELD put
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL, ask for
 confirmation before inserting metadata."
-  (let* ((file (zettel-absolute-filename link))
+  (let* ((file (zettel-link-file link))
          (metadata (zettel-file-metadata file))
          (field (or field
                     (when (called-interactively-p 'any)
@@ -957,7 +957,7 @@ Zettel's title."
     (let ((start (point)))
       (org-next-link)
       (when (zettel-link-at-point-p)
-        (let* ((file (zettel-absolute-filename (zettel-link-at-point)))
+        (let* ((file (zettel-link-file (zettel-link-at-point)))
                (title (alist-get :title (zettel-file-metadata file))))
           (delete-region start (1- (point)))
           (backward-char)
@@ -980,7 +980,7 @@ most remote link that could be found."
                                            :firstborn)
                                          (zettel-file-metadata
                                           (if (zettel-link-p file-or-link)
-                                              (zettel-absolute-filename file-or-link)
+                                              (zettel-link-file file-or-link)
                                             file-or-link)))
                               (if (> degree 0)
                                   (1- degree)
@@ -1041,7 +1041,7 @@ Returns link the new child."
       (if (equal arg '(16))
           (while (not child-link)
             (setq child-link (read-string "Enter link for new child: "))
-            (when (file-exists-p (zettel-absolute-filename child-link))
+            (when (file-exists-p (zettel-link-file child-link))
               (message "This Zettel already exists; try again")))
         (let ((kasten (if (equal arg '(4))
                           (completing-read
@@ -1098,7 +1098,7 @@ instead."
                                      (zettel-ivy-titles-reverse-alist)
                                      #'identity)))
                         (or (cdr choice)
-                            (zettel-absolute-filename (car choice)))))
+                            (zettel-link-file (car choice)))))
                     (not (equal arg '(4)))))
 
 (defun zettel-visiting-buffer-list (&optional skip-current)
@@ -1206,7 +1206,7 @@ prefix argument, asks for a different name."
                      current-prefix-arg))
   (rename-file-and-buffer
    (if (not arg)
-       (zettel-absolute-filename
+       (zettel-link-file
         (zettel-make-link kasten (file-name-base file)))
      (call-interactively #'rename-file-and-buffer))))
 
@@ -1299,7 +1299,7 @@ org subtree."
                 (t
                  (error "Could not get the timestamp for new Zettel")))
           (setq tempus-currens (org-timestamp-format timestamp "%Y%m%dT%H%M")
-                new-file (zettel-absolute-filename tempus-currens))
+                new-file (zettel-link-file tempus-currens))
           (let* ((content (org-get-entry)))
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
@@ -1378,7 +1378,7 @@ snippet FILE into the current buffer. With prefix argument, forces update."
            (end-of-line)
            (org-previous-link)
            (when (zettel-link-at-point-p)
-             (zettel-absolute-filename (zettel-link-at-point))))))
+             (zettel-link-file (zettel-link-at-point))))))
   ;; Get the metadata and most recent modification
   (save-excursion
     (save-restriction
@@ -1486,7 +1486,7 @@ current buffer."
   ;; Get the metadata and most recent modification
   (save-excursion
     (save-restriction
-      (let* ((file (zettel-absolute-filename link))
+      (let* ((file (zettel-link-file link))
              (metadata (zettel-file-metadata file)))
         (org-narrow-to-subtree)
         ;; Update the heading title
@@ -1541,7 +1541,7 @@ bookmark's filename property to the Zettel link."
 
 (defun bookmark-zettel-handler (bmk-record)
   "Bookmark record handler for Zettel bookmarks."
-  (find-file (zettel-absolute-filename (cdr (assoc 'filename bmk-record)))))
+  (find-file (zettel-link-file (cdr (assoc 'filename bmk-record)))))
 
 ;; Use the special zettel bookmark handler in Zettel buffers
 (add-hook 'zettel-mode-hook
