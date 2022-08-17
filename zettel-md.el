@@ -1,4 +1,4 @@
-;;; zettel.el --- Eclectic Zettelkasten Markdown Integration -*- lexical-binding: t -*-
+;;; zettel-md.el --- Eclectic Zettelkasten Markdown Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
@@ -76,3 +76,4 @@ Zettelkasten, and also handling 'subkasten:' notation."
       (when (zettel-p buffer-file-name)
         (zettel-mode 1))))
 
+(provide 'zettel-md)

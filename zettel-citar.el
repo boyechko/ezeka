@@ -1,4 +1,4 @@
-;;; zettel.el --- Eclectic Zettelkasten Citar Integration -*- lexical-binding: t -*-
+;;; zettel-citar.el --- Eclectic Zettelkasten Citar Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
