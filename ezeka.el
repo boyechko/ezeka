@@ -930,7 +930,8 @@ to current Zettel. With prefix argument, explicitly select the link."
 ;; Show the beginning of Zettel title in mode-line
 (defun ezeka-show-title-in-mode-line ()
   (interactive)
-  (when (ezeka-note-p buffer-file-name)
+  (when (and (ezeka-note-p buffer-file-name)
+             (not (zerop (buffer-size))))
     (save-excursion
       (save-restriction
         (widen)
@@ -938,7 +939,7 @@ to current Zettel. With prefix argument, explicitly select the link."
         (let ((metadata
                (ezeka-decode-combined-title
                 (buffer-substring-no-properties
-                 (or (re-search-forward "title: ") (point-min))
+                 (or (re-search-forward "title: " nil t) (point-min))
                  (point-at-eol)))))
           (when metadata
             (let ((words (split-string (alist-get :title metadata))))
