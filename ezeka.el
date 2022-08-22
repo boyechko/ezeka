@@ -671,26 +671,33 @@ abase26 equivalent of 0, namely 'a'."
   (let ((type (ezeka-kasten-slug-type kasten))
         slug)
     (cl-flet ((exists? ()
-                       "Checks if SLUG is either NIL or exists."
-                       (or (null slug)
-                           (file-exists-p
-                            (ezeka-link-file (ezeka-make-link kasten slug))))))
+                "Checks if SLUG is either NIL or exists."
+                (or (null slug)
+                    (file-exists-p
+                     (ezeka-link-file (ezeka-make-link kasten slug))))))
       (cond ((eq type :tempus)
              (while (exists?)
                (setq slug (ezeka-generate-new-slug type))))
             ((and (eq type :numerus)
                   (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
-             (let ((buffer (find-file-noselect
-                            (in-ezeka-dir ezeka-pregenerated-numeri-file))))
-               (with-current-buffer buffer
-                 (while (exists?)
-                   (setq slug
-                     (string-trim (delete-and-extract-region
-                                   1 (search-forward-regexp "[[:space:]]" nil t)))))
-                 (let ((inhibit-message t)) ; don't show the "Wrote ..." messages
-                   (basic-save-buffer))
-                 (message "%d pregenerated numerus/i left"
-                          (count-lines (point-min) (point-max))))))
+             (unwind-protect
+                 (with-current-buffer
+                     (find-file-noselect
+                      (in-ezeka-dir ezeka-pregenerated-numeri-file))
+                   (let ((left (count-lines (point-min) (point-max))))
+                     (unwind-protect
+                         (while (and (> left 0) (exists?))
+                           (setq slug
+                             (string-trim
+                              (delete-and-extract-region
+                               (point-min)
+                               (search-forward-regexp "[[:space:]]" nil t))))
+                           (cl-decf left))
+                       (let ((inhibit-message t))
+                         (basic-save-buffer)))
+                     (message "%d pregenerated numer%s left"
+                              left
+                              (if (= left 1) "us" "i"))))))
             (t
              (while (exists?)
                (setq slug (ezeka-generate-new-slug type))))))
