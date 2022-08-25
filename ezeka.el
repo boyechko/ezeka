@@ -82,10 +82,10 @@ types.")
   "A generalized regexp that matches any slug, whatever its slug type.")
 
 (defvar ezeka-regexp-link
-  (concat "\\(\\([[:alpha:]]+\\):\\)*" ezeka-regexp-slug)
+  (concat "\\(?9:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-slug "\\)")
   "The regular expression that matches Zettel links.
-Group 2 is the kasten, if specified.
-Group 3 is the slug.")
+Group 1 is the kasten, if specified.
+Group 2 is the slug.")
 
 (defvar ezeka-regexp-iso8601-date
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
@@ -258,17 +258,17 @@ of these conditions are met:
   "Returns non-NIL if the string could be a link to a Zettel."
   (and (string-match (concat "^" ezeka-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
-       (if (match-string-no-properties 2 string)
-           (or (assoc (match-string-no-properties 2 string) ezeka-kaesten)
-               (assoc (match-string-no-properties 2 string) ezeka-kaesten-aliases))
+       (if (match-string-no-properties 1 string)
+           (or (assoc (match-string-no-properties 1 string) ezeka-kaesten)
+               (assoc (match-string-no-properties 1 string) ezeka-kaesten-aliases))
          t)))
 
 (defun ezeka-link-kasten (link)
   "Returns the kasten part of the given LINK. If no kasten is explicitly
 specified, asks the user to resolve the ambiguity."
   (when (string-match ezeka-regexp-link link)
-    (let* ((kasten (match-string 2 link))
-           (slug (match-string 3 link))
+    (let* ((kasten (match-string 1 link))
+           (slug (match-string 2 link))
            (type (ezeka-type slug)))
       (or kasten
           (if-let ((default (alist-get type ezeka-default-kasten)))
@@ -297,7 +297,7 @@ specified, asks the user to resolve the ambiguity."
 (defun ezeka-link-slug (link)
   "Returns the slug part of the given LINK."
   (when (string-match ezeka-regexp-link link)
-    (match-string 3 link)))
+    (match-string 2 link)))
 
 (defun ezeka-make-link (kasten slug)
   "Make a new proper link to SLUG in KASTEN."
@@ -422,32 +422,32 @@ get the content. If METADATA-ONLY is non-nil, only get the metadata."
 ;;;=============================================================================
 
 (defvar ezeka-regexp-metadata-line
-  "\\(\\w+\\):\\s-+\\(.*\\)"
+  "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
   "The regular expression that matches a YAML metadata line.
 Group 1 is the key.
 Group 2 is the value.")
 
 (defvar ezeka-regexp-combined-title
-  (concat "^§"
-          ezeka-regexp-link
-          "\\. \\({\\([^}]+\\)}\\)*\\([^#@]+\\)*\\(@\\S-+\\)*\\(#.+\\)*")
+  (concat "§"
+          ezeka-regexp-link             ; \1 and \2
+          "\\(?9:\\.\\)* \\(?8:{\\(?3:[^}]+\\)}\\)*\\(?4:[^#@]+\\)*\\(?5:@\\S-+\\)*\\(?6:#.+\\)*")
   "Regular expression for a combined title string, used in `ezeka-file-metadata'.
-Group 2 is the kasten.
-Group 3 is the slug.
-Group 5 is the category.
-Group 6 is the title itself.
-Group 7 is the citation key.
-Group 8 is the keyword block.")
+Group 1 is the kasten.
+Group 2 is the slug.
+Group 3 is the category.
+Group 4 is the title itself.
+Group 5 is the citation key.
+Group 6 is the keyword block.")
 
 (defun ezeka-decode-combined-title (combined)
   "Returns an alist of metadata from a combined title. If cannot decode,
 returns NIL."
   (when (and combined (string-match ezeka-regexp-combined-title combined))
-    (let ((slug     (match-string 3 combined))
-          (category (match-string 5 combined))
-          (title    (match-string 6 combined))
-          (citekey  (match-string 7 combined))
-          (keywords (match-string 8 combined)))
+    (let ((slug     (match-string 2 combined))
+          (category (match-string 3 combined))
+          (title    (match-string 4 combined))
+          (citekey  (match-string 5 combined))
+          (keywords (match-string 6 combined)))
       (list (cons :slug slug)
             (cons :type (ezeka-type slug))
             (cons :category category)
@@ -750,9 +750,11 @@ abase26 equivalent of 0, namely 'a'."
 first group is the link target. If FREEFORM is non-nil, also consider Zettel
 links that are not enclosed in square brackets."
   (thing-at-point-looking-at
-   (if freeform
-       (concat "\\(" ezeka-regexp-link "\\)")
-     (concat "\\[\\[\\(" ezeka-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]"))))
+   (replace-regexp-in-string
+    "(\\?[0-9]:" "("
+    (if freeform
+        (concat "\\(?1:" ezeka-regexp-link "\\)")
+      (concat "\\[\\[\\(?1:" ezeka-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
 
 (defun ezeka-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
