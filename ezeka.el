@@ -427,6 +427,10 @@ get the content. If METADATA-ONLY is non-nil, only get the metadata."
 Group 1 is the key.
 Group 2 is the value.")
 
+(defvar ezeka-combined-title-format "title: §%s {%s} %s"
+  "The format string, suitable for use in FORMAT with argments of link,
+category, and title in that order.")
+
 (defvar ezeka-regexp-combined-title
   (concat "§"
           ezeka-regexp-link             ; \1 and \2
@@ -458,7 +462,7 @@ returns NIL."
 (defun ezeka-encode-combined-title (metadata)
   "Returns a list of two elements: 1) string that encodes into the title line
 the given METADATA, and 2) leftover metadata."
-  (list (format "§%s. {%s} %s%s"
+  (list (format "§%s {%s} %s%s"
                 (alist-get :link metadata)
                 (or (alist-get :category metadata) "Unset")
                 (alist-get :title metadata)
@@ -1167,9 +1171,13 @@ prefix argument, allows the user to type in a custom category."
     (save-excursion
       (with-current-buffer (find-file-noselect file)
         (goto-char (point-min))
-        (if (re-search-forward "^title: §?\\([^.]+\\)\\. \\({[^}]+} \\)*" nil t)
-            (replace-match (format "title: §\\1. {%s} " category))
-          (message "Not sure how to set the category here"))
+        (cond ((not (re-search-forward ezeka-regexp-combined-title nil t))
+               (message "Not sure how to set the category here"))
+              ((match-string 3)
+               (replace-match category nil nil nil 3))
+              (t
+               (goto-char (match-beginning 4))
+               (insert "{" category "} ")))
         ;; only save buffer if was not initially visiting it
         (unless (eq orig-buffer (current-buffer))
           (save-buffer))))))
@@ -1187,7 +1195,7 @@ prefix argument, allows the user to type in a custom category."
          (parent (or parent
                      (cdr (assoc link ezeka-note-parent-of-new-child)))))
     (when (zerop (buffer-size))
-      (insert (format "title: §%s. {%s} %s"
+      (insert (format ezeka-combined-title-format
                       link
                       (or category "Unset")
                       (or title "Untitled")))

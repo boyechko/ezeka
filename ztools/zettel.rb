@@ -170,9 +170,6 @@ class Zettel
   # Writes to the Zettel file the content of metadata (in YAML) and @text.
   def write_file()
     if File.writable?(@path)
-      # Make sure the title has the correct slug
-      @metadata[:title].gsub!(/§[^.]+\./, "§#{@link}.")
-
       File.write(@path, yaml_metadata() + "\n" + @text)
     else
       raise "The file for Zettel '#{@slug}' is not writable: #{@path}"
@@ -237,14 +234,23 @@ class Zettel
   TIME_PATTERN = /^\d{4}-\d{2}-\d{2}( [[:alpha:]]{3} \d{2}:\d{2})*$/
   METADATA_TIME_FORMAT = "%F %a %H:%M" # Org-mode timestamp format
 
+  # String that comes just before the slug
+  SLUG_PREFIX = "§"
+  # String used to separate the slug from the title
+  SLUG_TITLE_SEPARATOR = " "
+  # Regexp matching separation between the end of slug and beginning of title
+  SLUG_REGEXP = /[^ ]+/
+
   # Returns a YAML block as a string, using inline sequence style.
   #
   # Can't use YAML::to_yaml() because it does not support inline style.
   def yaml_metadata()
     result = ""
 
-    @metadata[:summary] = "§%s. {%s} %s" %
-                          [@slug, @metadata[:category], @metadata[:title]]
+    # Make sure the title has the correct slug
+    @metadata[:title].gsub!(/#{SLUG_PREFIX}#{SLUG_REGEXP}/,
+                            "#{SLUG_PREFIX}#{@link}")
+
     # Output the metadata in the order specified in METADATA_KEYS
     METADATA_KEYS.each { |key|
       result += "#{to_yaml_line(key)}\n" if @metadata[key]
