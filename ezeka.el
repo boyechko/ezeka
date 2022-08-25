@@ -184,9 +184,9 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
         ((eq major-mode 'deft-mode)     ; TODO Factor out
          (--if-let (button-at (point))
              (button-get it 'tag)
-           (ezeka-ivy-select-link)))
+           (ezeka-ivy-select-link)))    ; TODO Factor out
         (t
-         (ezeka-ivy-select-link))))
+         (ezeka-ivy-select-link))))     ; TODO Factor out
 
 ;;;=============================================================================
 ;;; Fundamental Functions
@@ -280,9 +280,9 @@ specified, asks the user to resolve the ambiguity."
   "Interactively set the default kasten for the given slug type. See
 `ezeka-default-kasten' for valid types."
   (interactive
-   (list (intern (ivy-read "Set default for which type of Zettel? "
+   (list (intern (completing-read "Set default for which type of Zettel? "
                            (mapcar #'first ezeka-default-kasten)))
-         (ivy-read "Set the default to what Kasten? "
+         (completing-read "Set the default to what Kasten? "
                    (if (listp ezeka-kaesten)
                        (mapcar #'first ezeka-kaesten)
                      (error "No Zettelkästen defined")))))
@@ -830,14 +830,14 @@ confirmation before inserting metadata."
          (field (or field
                     (when (called-interactively-p 'any)
                       (intern-soft
-                       (ivy-read
+                       (completing-read
                         "Which metadata field? "
                         '(":none" ":title" ":citekey" ":category"))))))
          (value (alist-get field metadata))
          (where (or where
                     (when field
                       (intern-soft
-                       (ivy-read "Where? "
+                       (completing-read "Where? "
                                  '(":before" ":after" ":description")))))))
     (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
             (if (or (null value)
@@ -927,10 +927,8 @@ file in Finder with it selected."
 
 (defun ezeka-links-to (link)
   "Runs a recursive grep (`rgrep') to find references to the link at point or
-to current Zettel. With prefix argument, explicitly select the link."
-  (interactive (list (if current-prefix-arg
-                         (ezeka-ivy-select-link)
-                       (ezeka-file-link (ezeka--grab-dwim-file-target t)))))
+to current Zettel."
+  (interactive (list (ezeka-file-link (ezeka--grab-dwim-file-target t))))
   (grep-compute-defaults)
   (rgrep link "*.txt" (f-slash ezeka-directory) nil))
 
@@ -1099,22 +1097,6 @@ new child link. Passes the prefix argument to `ezeka-insert-new-child'."
 ;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun ezeka-select-and-find-link (arg)
-  "Interactively asks the user to select a link from the list of currently
-cached Zettel titles. With universal prefix, finds the link in another
-buffer. With double universal prefix, asks the user to type the link
-instead."
-  (interactive "P")
-  (ezeka-find-file (if (equal arg '(16))
-                       (read-string "Zettel link to find: ")
-                     (let ((choice (ezeka-ivy-read-reverse-alist-action
-                                    "Select title: "
-                                    (ezeka-ivy-titles-reverse-alist)
-                                    #'identity)))
-                       (or (cdr choice)
-                           (ezeka-link-file (car choice)))))
-                   (not (equal arg '(4)))))
-
 (defun ezeka-visiting-buffer-list (&optional skip-current)
   "Returns a list of Zettel files that are currently being visited. If
 SKIP-CURRENT is T, remove the current buffer."
@@ -1145,14 +1127,41 @@ Zettelkasten work."
                         (alist-get :kasten metadata)))
             "%b")))
 
+(defun ezeka-completion-table (files)
+  "Given a list of Zettel files, returns a nicely formatted list of choices
+suitable for passing to `completing-read' as collection."
+  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
+    (mapcar (lambda (file)
+              (let ((metadata (ezeka-file-metadata file))
+                    (buf (get-file-buffer file)))
+                (cons (format fmt
+                              (if (and buf (buffer-modified-p buf)) "*" " ")
+                              (alist-get :slug metadata)
+                              (alist-get :category metadata)
+                              (cl-subseq (alist-get :title metadata) 0
+                                         (min (length (alist-get :title metadata))
+                                              53))
+                              (or (alist-get :keywords metadata) ""))
+                      file)))
+            files)))
+
+(defun ezeka-switch-to-buffer (arg)
+  "Quickly switch to other open Zettel buffers. With prefix argument, do so
+in another window."
+  (interactive "P")
+  (let ((table (ezeka-completion-table (ezeka-visiting-buffer-list t))))
+    (funcall (if arg 'find-file-other-window 'find-file)
+             (cdr (assoc-string
+                   (completing-read "Visit buffer: " table nil t) table)))))
+
 ;;;=============================================================================
 ;;; Categories
 ;;;=============================================================================
 
-(defun ezeka-ivy-read-category (&optional arg prompt sort-fn)
-  "Uses `ivy-read' to select a category from `ezeka-categories'. With prefix
-argument, asks the user to type in the category directly. If SORT-FN is
-given, use that to sort the list first."
+(defun ezeka-read-category (&optional arg prompt sort-fn)
+  "Uses `completing-read' to select a category from `ezeka-categories'. With
+prefix argument, asks the user to type in the category directly. If SORT-FN
+is given, use that to sort the list first."
   (let ((prompt (or prompt "Category: "))
         (categories (if (not (functionp sort-fn))
                         ezeka-categories
@@ -1160,13 +1169,13 @@ given, use that to sort the list first."
                         (cl-sort cats-copy sort-fn :key #'cdr)))))
     (if current-prefix-arg
         (read-string prompt)
-      (ivy-read prompt categories))))
+      (completing-read prompt categories))))
 
 (defun ezeka-set-category (file category)
   "Sets the category to the Zettel title based on `ezeka-categories'. With
 prefix argument, allows the user to type in a custom category."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     (ezeka-ivy-read-category nil nil #'>)))
+                     (ezeka-read-category nil nil #'>)))
   (let ((orig-buffer (current-buffer)))
     (save-excursion
       (with-current-buffer (find-file-noselect file)
@@ -1186,14 +1195,18 @@ prefix argument, allows the user to type in a custom category."
 ;;; Populating Files
 ;;;=============================================================================
 
-(defun ezeka-insert-metadata-template (category title &optional parent)
-  "Inserts the metadata template into the current buffer."
-  (interactive (list (ezeka-ivy-read-category nil nil #'>)
-                     (read-string "Zettel title: ")))
-  (let* ((file (file-name-base buffer-file-name))
-         (link (ezeka-file-link buffer-file-name))
-         (parent (or parent
-                     (cdr (assoc link ezeka-note-parent-of-new-child)))))
+(defun ezeka-insert-metadata-template (&optional link category title parent)
+  "Inserts the metadata template into the current buffer, populating the
+metadata with the LINK, CATEGORY, TITLE, and PARENT."
+  (interactive (list (if buffer-file-name
+                         (ezeka-file-link buffer-file-name)
+                       ;; FIXME: Rewrite with completing-read
+                       (read-string "Link to this note: "))
+                     (ezeka-read-category)
+                     (read-string "Title: ")
+                     (read-string "Link to parent? "
+                                  (cdr (assoc link ezeka-note-parent-of-new-child)))))
+  (let ((file (ezeka-link-file link)))
     (when (zerop (buffer-size))
       (insert (format ezeka-combined-title-format
                       link
@@ -1220,7 +1233,7 @@ prefix argument, allows the user to type in a custom category."
   "Moves the file in the current buffer to the appropriate Zettelkasten. With
 prefix argument, asks for a different name."
   (interactive (list (buffer-file-name)
-                     (ivy-read "Zettel kasten: " ezeka-kaesten)
+                     (completing-read "Zettel kasten: " ezeka-kaesten)
                      current-prefix-arg))
   (rename-file-and-buffer
    (if (not arg)
@@ -1321,8 +1334,15 @@ org subtree."
           (let* ((content (org-get-entry)))
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
+              ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
-                (ezeka-insert-metadata-template "Memo" new-title parent-link)
+                (ezeka-insert-metadata-template new-link
+                                                (completing-read "Category: "
+                                                                 ezeka-categories
+                                                                 nil
+                                                                 nil
+                                                                 "Memo")
+                                                new-title parent-link)
                 (insert "\n" content)
                 (save-buffer)))))))
     ;; Back in original buffer
@@ -1575,7 +1595,7 @@ bookmark's filename property to the Zettel link."
 kasten. With prefix argument, asks for a target link instead. Opens the
 target link and returns it."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     (ivy-read "Which kasten to move to? " ezeka-kaesten)))
+                     (completing-read "Which kasten to move to? " ezeka-kaesten)))
   (let ((source-link (ezeka-file-link source-file)))
     (if (not target-link)
         (if (equal current-prefix-arg '(4))
@@ -1604,7 +1624,7 @@ target link and returns it."
   "Generates a bunch of new slugs, making sure there are no dulicates."
   (interactive
    (list (read-number "How many? " 10)
-         (intern (ivy-read "Which type? "
+         (intern (completing-read "Which type? "
                            (mapcar #'first ezeka-default-kasten)))))
   (goto-char (point-max))
   (let (slugs)
@@ -1676,12 +1696,10 @@ target link and returns it."
             ;; Shadows `kill-sexp' in global-map
             ("C-M-k" . ezeka-kill-link-or-sexp-at-point)
             ;; Shadows `org-insert-link'
-            ("C-c C-l" . ezeka-ivy-insert-link)
             ("C-c C-M-l" . ezeka-insert-link-from-clipboard)
             ;; Shadows `org-ctrl-c-tab'
             ;;("C-c C-i" . 'ezeka-org-include-cached-file)
             ;; Shadows `org-set-property-and-value'
-            ("C-c C-x P" . ezeka-ivy-set-parent)
             ("C-c C-x F" . ezeka-org-set-todo-properties)
             ("C-c C-x z" . ezeka-zmove-to-another-kasten)
             ;; Shadows org-mode's `org-toggle-ordered-property'

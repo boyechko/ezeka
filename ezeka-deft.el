@@ -75,13 +75,13 @@ optinal NUMBER-OF-FRAMES, set the `ezeka-number-of-frames' to that value."
   (interactive
    (cond ((null (get-buffer deft-buffer))
           (list current-prefix-arg
-                (ivy-read "Zettel kasten: " ezeka-kaesten)
+                (completing-read "Zettel kasten: " ezeka-kaesten)
                 (or ezeka-number-of-frames
-                    (intern (ivy-read "Number of frames: " '(one two many))))))
+                    (intern (completing-read "Number of frames: " '(one two many))))))
          ((equal current-prefix-arg '(4))
           (list current-prefix-arg
-                (ivy-read "Zettel kasten: " ezeka-kaesten)
-                (intern (ivy-read "Number of frames: " '(one two many)))))
+                (completing-read "Zettel kasten: " ezeka-kaesten)
+                (intern (completing-read "Number of frames: " '(one two many)))))
          (t (list current-prefix-arg nil ezeka-number-of-frames))))
   (setq ezeka-number-of-frames number-of-frames)
   (cond ((equal arg '(16))
@@ -208,7 +208,7 @@ prefix argument."
   "Inserts a category into deft-filter if there is no category there or
 changes the existing one. With prefix argument, replaces the current
 `deft-filter-regexp'."
-  (interactive (list (ezeka-ivy-read-category nil nil #'>)
+  (interactive (list (ezeka-read-category nil nil #'>)
                      current-prefix-arg))
   (deft-filter (format "{%s}" category)
     (or arg (null deft-filter-regexp))))
@@ -277,7 +277,7 @@ in the minibuffer."
 prefix argument, confirm each move and ask about destination kasten."
   (interactive (list (region-beginning)
                      (region-end)
-                     (ivy-read "Which kasten to move to? " ezeka-kaesten)
+                     (completing-read "Which kasten to move to? " ezeka-kaesten)
                      current-prefix-arg))
   (save-excursion
     (save-restriction
@@ -294,7 +294,7 @@ prefix argument, confirm each move and ask about destination kasten."
                  (file (ezeka-link-file slug)))
             (when (or (not arg)
                       (setq kasten
-                        (ivy-read "Which kasten to move to? " ezeka-kaesten))
+                        (completing-read "Which kasten to move to? " ezeka-kaesten))
                       (y-or-n-p
                        (format "[%d/%d] Move %s [%s] to %s? "
                                j (length alist) slug title kasten)))

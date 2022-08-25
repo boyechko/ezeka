@@ -64,25 +64,6 @@ argument, on the key. Returns a cons cell consisting of the match from
               :require-match require-match)
     result))
 
-(defun ezeka-ivy-metadata-reverse-alist (files)
-  "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `ezeka-ivy-read-reverse-alist-action' as collection.
-Relies on Zettel metadata, so slower than `ezeka-ivy-titles-reverse-alist'."
-  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
-    (mapcar (lambda (file)
-              (let ((metadata (ezeka-file-metadata file))
-                    (buf (get-file-buffer file)))
-                (cons (format fmt
-                              (if (and buf (buffer-modified-p buf)) "*" " ")
-                              (alist-get :slug metadata)
-                              (alist-get :category metadata)
-                              (cl-subseq (alist-get :title metadata) 0
-                                         (min (length (alist-get :title metadata))
-                                              53))
-                              (or (alist-get :keywords metadata) ""))
-                      file)))
-            files)))
-
 (defun ezeka-ivy-select-link (&optional prompt require-match)
   "Interactively asks the user to select a link from the list of currently
 cached Zettel titles. PROMPT is the prompt to pass to `ivy-read'; if
@@ -98,6 +79,23 @@ REQUIRE-MATCH is non-nil, do not allow entering link manually."
            (car choice))
           (t
            (signal 'wrong-type-argument '("That is not a valid link"))))))
+
+;; TODO: Rewrite without ivy
+(defun ezeka-select-and-find-link (arg)
+  "Interactively asks the user to select a link from the list of currently
+cached Zettel titles. With universal prefix, finds the link in another
+buffer. With double universal prefix, asks the user to type the link
+instead."
+  (interactive "P")
+  (ezeka-find-file (if (equal arg '(16))
+                       (read-string "Zettel link to find: ")
+                     (let ((choice (ezeka-ivy-read-reverse-alist-action
+                                    "Select title: "
+                                    (ezeka-ivy-titles-reverse-alist)
+                                    #'identity)))
+                       (or (cdr choice)
+                           (ezeka-link-file (car choice)))))
+                   (not (equal arg '(4)))))
 
 (defun ezeka-ivy-insert-link (arg)
   "Inserts a link to another Zettel being currently visited or to those in
@@ -151,28 +149,5 @@ user from cached and visiting Zettel."
      (lambda (path)
        (setf (alist-get :parent metadata) (ezeka-file-link path))
        (ezeka-normalize-metadata buffer-file-name metadata)))))
-
-;; TODO: Also relies on Deft
-(defun ezeka-ivy-switch-to-buffer (arg)
-  "Quickly switch to other open Zettel buffers. With prefix argument, do so
-in another window."
-  (interactive "P")
-  (let ((choices
-         (mapcar (lambda (path)
-                   (if (not deft-hash-titles)
-                       (error "Deft hash table is not initialized")
-                     (when (null (deft-file-title path))
-                       (deft-cache-file path))
-                     (cons (format "%s%s"
-                                   (if (buffer-modified-p (get-file-buffer path))
-                                       "✒︎"
-                                     "")
-                                   (deft-file-title path))
-                           path)))
-                 (ezeka-visiting-buffer-list t))))
-    (ezeka-ivy-read-reverse-alist-action
-     (if choices "Visit live buffer: " "Visit cached: ")
-     (or choices (ezeka-ivy-titles-reverse-alist))
-     (if (not arg) 'find-file 'find-file-other-window))))
 
 (provide 'ezeka-ivy)
