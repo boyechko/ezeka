@@ -199,6 +199,23 @@ prefix argument, confirm each move and ask about destination kasten."
           (ezeka-zmove-to-another-kasten file kasten nil t)
           (cl-incf moved))))))
 
+;; TODO: Rewrite without ivy
+(defun ezeka-zk-set-parent ()
+  "Sets the parent metadata of the current Zettel to the Zettel chosen by the
+user from cached and visiting Zettel."
+  (interactive)
+  (let ((metadata (ezeka-file-metadata buffer-file-name)))
+    (ezeka-ivy-read-reverse-alist-action
+     "Set parent to: "
+     (delete-dups
+      (append (mapcar (lambda (path)
+                        (cons (deft-file-title path) path))
+                      (ezeka-visiting-buffer-list t))
+              (ezeka-completion-table __FILES__)))
+     (lambda (path)
+       (setf (alist-get :parent metadata) (ezeka-file-link path))
+       (ezeka-normalize-metadata buffer-file-name metadata)))))
+
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Call `zk-insert-link' after temporarily setting zk variables to be
 appropriate for the particular Zettelkasten."
