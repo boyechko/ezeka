@@ -527,10 +527,13 @@ of FILE. They keys are converted to keywords."
     (push (cons :kasten (ezeka-file-kasten file)) metadata)
     (push (cons :link (ezeka-file-link file)) metadata)))
 
-(defun ezeka-file-metadata (file)
+(defun ezeka-file-metadata (file &optional noerror)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
-  (ezeka-decode-metadata-section (ezeka-file-content file t t) file))
+  (if-let ((metadata-section (ezeka-file-content file t noerror)))
+      (ezeka-decode-metadata-section metadata-section file)
+    (unless noerror
+      (error "Cannot retrieve %s's metadata" file))))
 
 (defcustom ezeka-update-modification-date t
   "Determines whether `ezeka-update-metadata-date' updates the modification
