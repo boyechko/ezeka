@@ -146,7 +146,6 @@ Optionally use ORIG-ID for backlink."
     (if (eq 1 (length return))
         (car return)
       return)))
-(setq zk-parse-file-function #'ezeka-zk-parse-file)
 
 (defvar ezeka-zk-metadata-alist nil
   "An alist containing file metadata and mtime, cached by ID. Each item
@@ -172,10 +171,6 @@ has the form
   "See `zk-alist-function'."
   (or ezeka-zk-metadata-alist
       (ezeka-zk-cache-update-all)))
-(setq zk-alist-function #'ezeka-zk-alist)
-(setq zk-id-list-search-key
-  #'(lambda (item)
-      (or (alist-get :category (car (last item))) "")))
 
 (defun ezeka-zk-zmove-all-in-desktop (kasten arg)
   "Move all files listed in the active region of deft-browser to KASTEN. With
