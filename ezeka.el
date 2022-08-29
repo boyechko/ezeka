@@ -1594,14 +1594,15 @@ bookmark's filename property to the Zettel link."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defun ezeka-zmove-to-another-kasten (source-file &optional kasten target-link)
+(defun ezeka-zmove-to-another-kasten (source-file
+                                      &optional kasten target-link dont-find)
   "Generates a zmove shell command to move the current Zettel to another
 kasten. With prefix argument, asks for a target link instead. Opens the
 target link and returns it."
   (interactive (list (ezeka--grab-dwim-file-target)
                      (completing-read "Which kasten to move to? " ezeka-kaesten)))
   (let ((source-link (ezeka-file-link source-file)))
-    (if (not target-link)
+     (if (not target-link)
         (if (equal current-prefix-arg '(4))
             (read-string "Enter target link: ")
           (setq target-link
@@ -1618,11 +1619,15 @@ target link and returns it."
     (shell-command (format "zmove %s %s" source-link target-link))
     (cond ((string= source-file buffer-file-name)
            (kill-this-buffer)
-           (unless (eq (length (frame-list)) 1)
+           (unless (> (length (frame-list))
+                      (cl-case ezeka-number-of-frames
+                        (one 1)
+                        (two 2)))
              (delete-frame)))
           ((eq major-mode 'magit-status-mode)
            (magit-refresh)))
-    (ezeka-find-link target-link t)))
+    (unless dont-find
+      (ezeka-find-link target-link t))))
 
 (defun ezeka-generate-n-new-slugs (how-many type)
   "Generates a bunch of new slugs, making sure there are no dulicates."
