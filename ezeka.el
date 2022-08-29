@@ -256,7 +256,8 @@ of these conditions are met:
 
 (defun ezeka-link-p (string)
   "Returns non-NIL if the string could be a link to a Zettel."
-  (and (string-match (concat "^" ezeka-regexp-link "$") string)
+  (and (stringp string)
+       (string-match (concat "^" ezeka-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if (match-string-no-properties 1 string)
            (or (assoc (match-string-no-properties 1 string) ezeka-kaesten)
