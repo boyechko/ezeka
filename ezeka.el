@@ -1178,14 +1178,17 @@ prefix argument, allows the user to type in a custom category."
 (defun ezeka-insert-metadata-template (&optional link category title parent)
   "Inserts the metadata template into the current buffer, populating the
 metadata with the LINK, CATEGORY, TITLE, and PARENT."
-  (interactive (list (if buffer-file-name
-                         (ezeka-file-link buffer-file-name)
-                       ;; FIXME: Rewrite with completing-read
-                       (read-string "Link to this note: "))
-                     (ezeka-read-category)
-                     (read-string "Title: ")
-                     (read-string "Link to parent? "
-                                  (cdr (assoc link ezeka-note-parent-of-new-child)))))
+  (interactive
+   (list (if buffer-file-name
+             (ezeka-file-link buffer-file-name)
+           ;; FIXME: Rewrite with completing-read
+           (read-string "Link to this note: "))
+         (ezeka-read-category)
+         (read-string "Title: ")
+         (read-string "Link to parent? "
+                      (if-let ((link (ezeka-file-link buffer-file-name)))
+                          (cdr (assoc link ezeka-note-parent-of-new-child))
+                        nil))))
   (let ((file (ezeka-link-file link)))
     (when (zerop (buffer-size))
       (insert (format ezeka-combined-title-format
@@ -1197,7 +1200,7 @@ metadata with the LINK, CATEGORY, TITLE, and PARENT."
               (format-time-string
                "%Y-%m-%d %a %H:%M"
                (let ((today (format-time-string "%Y%m%d")))
-                 (if (and (eq :tempus (ezeka-type buffer-file-name))
+                 (if (and (eq :tempus (ezeka-type file))
                           (not (string-match-p (regexp-quote today) file))
                           (not
                            (when (called-interactively-p 'any)
@@ -1205,7 +1208,7 @@ metadata with the LINK, CATEGORY, TITLE, and PARENT."
                      (ezeka-encode-iso8601-datetime file)
                    nil)))
               "\n")                     ; i.e. current time
-      (when parent
+      (when (and parent (not (string-empty-p parent)))
         (insert "parent: " parent "\n"))
       (insert "\n"))))
 
