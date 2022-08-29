@@ -1138,10 +1138,14 @@ suitable for passing to `completing-read' as collection."
   "Quickly switch to other open Zettel buffers. With prefix argument, do so
 in another window."
   (interactive "P")
-  (let ((table (ezeka-completion-table (ezeka-visiting-buffer-list t))))
+  (let ((table (ezeka-completion-table
+                (ezeka-visiting-buffer-list t))))
     (funcall (if arg 'find-file-other-window 'find-file)
-             (cdr (assoc-string
-                   (completing-read "Visit buffer: " table nil t) table)))))
+             (if table
+                 (cdr (assoc-string
+                       (completing-read "Visit buffer: " table nil t) table))
+               (switch-to-buffer
+                (read-buffer-to-switch "No opened Zettel. Switch to regular buffer: "))))))
 
 ;;;=============================================================================
 ;;; Categories
