@@ -43,7 +43,7 @@
      (cl-progv '(zk-id-regexp
                  zk-id-time-string-format
                  zk-directory-subdir-function)
-         (cl-case (ezeka-kasten-slug-type ,kasten)
+         (cl-case (ezeka-kasten-id-type ,kasten)
            (:numerus
             '("[a-z]-[0-9]\\{4\\}"
               ,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
@@ -107,7 +107,7 @@ Optionally use ORIG-ID for backlink."
       (when (ezeka-note-p file)
         (let* ((metadata (ezeka-file-metadata file)))
           (push (format-spec zk-index-format
-                             `((?i . ,(ezeka-file-slug file))
+                             `((?i . ,(ezeka-file-id file))
                                (?t . ,(alist-get :title metadata))
                                (?c . ,(alist-get :category metadata))
                                (?k . ,(or (alist-get :citekey metadata) ""))))
@@ -140,7 +140,7 @@ Optionally use ORIG-ID for backlink."
           (mapcar
            (lambda (file)
              (if (equal target 'id)
-                 (ezeka-file-slug file)
+                 (ezeka-file-id file)
                (alist-get :title (ezeka-file-metadata file))))
            files)))
     (if (eq 1 (length return))
@@ -160,7 +160,7 @@ has the form
      (lambda (file)
        (when (ezeka-note-p file)
          (let ((metadata (ezeka-file-metadata file)))
-           (list (ezeka-file-slug file)
+           (list (ezeka-file-id file)
                  (alist-get :title metadata)
                  file
                  (file-attribute-modification-time (file-attributes file))

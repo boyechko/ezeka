@@ -119,7 +119,7 @@ optinal NUMBER-OF-FRAMES, set the `ezeka-number-of-frames' to that value."
 (defun ezeka-deft-new-unused-note ()
   "Create a new Zettel with unused numerus currens."
   (interactive)
-  (deft-new-file-named (ezeka-next-unused-slug)))
+  (deft-new-file-named (ezeka-next-unused-id)))
 
 (defun ezeka-deft-parse-title-function (line &optional show-missing)
   "Function for post-processing titles for display in Deft buffer, intended
@@ -128,8 +128,8 @@ the missing metadata is explicitly displayed."
   (when line
     (let* ((metadata (ezeka-decode-combined-title
                       (replace-regexp-in-string "^\\(title: +\\)" "" line)))
-           (slug (or (alist-get :slug metadata)
-                     (if show-missing "<slug>" "")))
+           (id (or (alist-get :id metadata)
+                     (if show-missing "<ID>" "")))
            (cat (or (alist-get :category metadata)
                     (if show-missing "<category>" "")))
            (key (or (alist-get :citekey metadata)
@@ -141,18 +141,18 @@ the missing metadata is explicitly displayed."
                       (if (not (zerop (length line)))
                           line
                         "<title>")))
-           (SLUG-LEN
+           (ID-LEN
             (length
-             (alist-get (or (ezeka-type (alist-get :slug metadata))
-                            (ezeka-kasten-slug-type ezeka-deft-active-kasten)
+             (alist-get (or (ezeka-type (alist-get :id metadata))
+                            (ezeka-kasten-id-type ezeka-deft-active-kasten)
                             :tempus)    ; assume longest
                         ezeka-type-example-alist)))
            (CAT-LEN 12)
            (KEY-LEN 10)
-           ;; SLUG---CATEGORY---CITEKEY---TITLE [where --- is tab]
-           (fmt (format "%%-%ds\t%%-%ds\t%%-%ds\t%%s" SLUG-LEN CAT-LEN KEY-LEN)))
+           ;; ID---CATEGORY---CITEKEY---TITLE [where --- is tab]
+           (fmt (format "%%-%ds\t%%-%ds\t%%-%ds\t%%s" ID-LEN CAT-LEN KEY-LEN)))
       (format fmt                       ; requires 4 arguments
-              slug
+              id
               (if (> (length cat) CAT-LEN)
                   (concat (cl-subseq cat 0 (- CAT-LEN 1)) "…")
                 cat)
@@ -162,8 +162,8 @@ the missing metadata is explicitly displayed."
               title))))
 (setq deft-parse-title-function 'ezeka-deft-parse-title-function)
 
-(defalias 'ezeka-deft-file-title-slug 'ezeka-file-slug
-  "Returns the slug part of `deft-file-title' of the given Zettel file.")
+(defalias 'ezeka-deft-file-title-id 'ezeka-file-id
+  "Returns the ID part of `deft-file-title' of the given Zettel file.")
 
 (defun ezeka-deft-file-title-category (file)
   "Returns the category part of `deft-file-title' of the given Zettel file."
@@ -289,16 +289,16 @@ prefix argument, confirm each move and ask about destination kasten."
                             lines))
              (j 1))
         (dolist (tup alist)
-          (let* ((slug (car tup))
+          (let* ((id (car tup))
                  (title (cdr tup))
-                 (file (ezeka-link-file slug)))
+                 (file (ezeka-link-file id)))
             (when (or (not arg)
                       (setq kasten
                         (completing-read "Which kasten to move to? " ezeka-kaesten))
                       (y-or-n-p
                        (format "[%d/%d] Move %s [%s] to %s? "
-                               j (length alist) slug title kasten)))
-              (message "[%d/%d] Moved %s to %s in %s" j (length alist) slug
+                               j (length alist) id title kasten)))
+              (message "[%d/%d] Moved %s to %s in %s" j (length alist) id
                        (ezeka-zmove-to-another-kasten file kasten)
                        kasten))
             (incf j)))
@@ -342,12 +342,12 @@ another window."
   ((and deft-hash-contents (deft-file-contents file))
    (deft-file-contents file)))
 
-(defun ezeka-deft--next-unused-slug ()
+(defun ezeka-deft--next-unused-id ()
   ((eq type active-kasten-type)
-   (message "Generating next unused slug of type %s" type)
-   (let ((used (mapcar #'ezeka-file-slug deft-all-files)))
-     (while (or (not slug) (member slug used))
-       (setq slug (ezeka-generate-new-slug type))))))
+   (message "Generating next unused ID of type %s" type)
+   (let ((used (mapcar #'ezeka-file-id deft-all-files)))
+     (while (or (not id) (member id used))
+       (setq id (ezeka-generate-new-id type))))))
 
 (defun ezeka-deft--kill-ring-save-link-title ()
   (when (and deft-hash-contents (deft-file-contents file))
@@ -364,14 +364,14 @@ another window."
 ;;; Internal
 ;;;=============================================================================
 
-(defun ezeka-deft--adv-deft-new-file-insert-metadata (orig-fun slug)
+(defun ezeka-deft--adv-deft-new-file-insert-metadata (orig-fun id)
   "Replaces deft's default behavior of putting the filter string
 on the first line with the Zettel title string."
   ;; `DEFT-NEW-FILE-NAMED' returns either a string (from MESSAGE) about an
   ;; error, or the result of (GOTO-CHAR (POINT-MAX)), which means an integer
   ;; buffer location.
-  (when (integerp (funcall orig-fun slug))
-    (let ((file (deft-absolute-filename slug)))
+  (when (integerp (funcall orig-fun id))
+    (let ((file (deft-absolute-filename id)))
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
         (call-interactively #'ezeka-insert-metadata-template)))))
@@ -418,9 +418,9 @@ that of FILE2. Case is ignored."
      ;; Use our own `ezeka-deft-sort-files-by-name' rather that respects
      ;; `ezeka-deft-sort-by-name-descending'.
      (defalias 'deft-sort-files-by-title 'ezeka-deft-sort-files-by-name)
-     ;; "Shadow" the built-in slug generator to generate timestamps by default,
+     ;; "Shadow" the built-in id generator to generate timestamps by default,
      ;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
-     (defalias 'deft-unused-slug 'ezeka-next-unused-slug)))
+     (defalias 'deft-unused-slug 'ezeka-next-unused-id)))
 
 ;; Having a visual indicator of the sort method is helpful
 (defun ezeka-deft-set-mode-name ()

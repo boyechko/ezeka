@@ -60,16 +60,16 @@ Groups 4-5 are hour, minute.")
   `((:bolus   . ,ezeka-regexp-bolus-currens) ; FIXME: temporary
     (:numerus . ,ezeka-regexp-numerus-currens)
     (:tempus  . ,ezeka-regexp-tempus-currens))
-  "An alist of type and its regular expressions for the various slug types.")
+  "An alist of type and its regular expressions for the various ID types.")
 
 (defvar ezeka-type-example-alist
   '((:bolus   . "123-abc") ; FIXME: temporary
     (:numerus . "a-1234")
     (:tempus  . "20210123T1234"))
-  "An alist of type and an example of what it looks like for the various slug
+  "An alist of type and an example of what it looks like for the various ID
 types.")
 
-(defvar ezeka-regexp-slug
+(DEFVAR ezeka-regexp-id
   ;; Strip the groups in the component regexps
   (concat "\\("
           (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-numerus-currens)
@@ -79,15 +79,15 @@ types.")
           "\\|"
           (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-bolus-currens)
           "\\)")
-  "A generalized regexp that matches any slug, whatever its slug type.")
+  "A generalized regexp that matches any ID, whatever its ID type.")
 
 (defvar ezeka-regexp-link
-  (concat "\\(?9:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-slug "\\)")
+  (concat "\\(?9:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-id "\\)")
   "The regular expression that matches Zettel links.
 Group 1 is the kasten, if specified.
-Group 2 is the slug.")
+Group 2 is the ID.")
 
-(defvar ezeka-regexp-iso8601-date
+(DEFVAR ezeka-regexp-iso8601-date
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
   "The regular expression that matches ISO 8601-like date.
 Groups 1-3 are year, month, day.")
@@ -122,7 +122,7 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   :group 'ezeka)
 
 (defcustom ezeka-kaesten
-  ;; name | directory | slug type | list-order
+  ;; name | directory | ID type | list-order
   `(("os"         :tempus  1)
     ("rumen"      :numerus 2)
     ("esophagus"  :bolus   3)
@@ -131,7 +131,7 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
     ("rectum"     :tempus  6)
     ("fabula"     :tempus  7)
     ("machina"    :tempus  8))
-  "An alist containing the names and slug types of kaesten."
+  "An alist containing the names and ID types of kaesten."
   :type 'alist
   :group 'ezeka)
 
@@ -142,12 +142,12 @@ the actual name followed by the alias."
   :group 'ezeka)
 
 (defcustom ezeka-default-kasten
-  ;; slug type | kasten name
+  ;; ID type | kasten name
   `((:numerus . "rumen")
     (:bolus . "esophagus")              ; FIXME: temporary
     (:tempus . "omasum"))
   "An alist of default Kasten (i.e. not requiring fully qualified link) for
-each slug type."
+each ID type."
   :type 'alist
   :group 'ezeka)
 
@@ -197,7 +197,7 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
 of these conditions are met:
 1) the file exists;
 2) its extension is `ezeka-file-extension';
-3) its filename matches `ezeka-regexp-slug'; and, if STRICT is non-NIL,
+3) its filename matches `ezeka-regexp-id'; and, if STRICT is non-NIL,
 4) the file is inside `ezeka-directory'."
   (interactive "f")
   (when file-or-buffer
@@ -209,7 +209,7 @@ of these conditions are met:
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
         (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match ezeka-regexp-slug (file-name-base file))
+             (string-match ezeka-regexp-id (file-name-base file))
              (if strict
                  (string-prefix-p ezeka-directory file)
                t))))))
@@ -231,8 +231,8 @@ of these conditions are met:
   (or (cdr (assoc kasten ezeka-kaesten-aliases))
       (car (assoc kasten ezeka-kaesten))))
 
-(defun ezeka-file-slug (file)
-  "Returns the slug part of the given Zettel file."
+(defun ezeka-file-id (file)
+  "Returns the ID part of the given Zettel file."
   (file-name-base file))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
@@ -251,8 +251,8 @@ of these conditions are met:
   (let ((kasten (ezeka-file-kasten file)))
     (if (string= kasten
                  (alist-get (ezeka-type file) ezeka-default-kasten))
-        (ezeka-file-slug file)
-      (concat kasten ":" (ezeka-file-slug file)))))
+        (ezeka-file-id file)
+      (concat kasten ":" (ezeka-file-id file)))))
 
 (defun ezeka-link-p (string)
   "Returns non-NIL if the string could be a link to a Zettel."
@@ -269,8 +269,8 @@ of these conditions are met:
 specified, asks the user to resolve the ambiguity."
   (when (string-match ezeka-regexp-link link)
     (let* ((kasten (match-string 1 link))
-           (slug (match-string 2 link))
-           (type (ezeka-type slug)))
+           (id (match-string 2 link))
+           (type (ezeka-type id)))
       (or kasten
           (if-let ((default (alist-get type ezeka-default-kasten)))
               default
@@ -278,7 +278,7 @@ specified, asks the user to resolve the ambiguity."
             (ezeka-link-kasten link))))))
 
 (defun ezeka-set-default-kasten (type kasten)
-  "Interactively set the default kasten for the given slug type. See
+  "Interactively set the default kasten for the given ID type. See
 `ezeka-default-kasten' for valid types."
   (interactive
    (list (intern (completing-read "Set default for which type of Zettel? "
@@ -289,64 +289,64 @@ specified, asks the user to resolve the ambiguity."
                      (error "No Zettelkästen defined")))))
   (setf (alist-get type ezeka-default-kasten) kasten))
 
-;; FIXME: Rename `ezeka-type' to `ezeka-slug-type'?
-(defun ezeka-kasten-slug-type (kasten)
-  "Returns the Zettel slug naming type for the given kasten based on
+;; FIXME: Rename `ezeka-type' to `ezeka-id-type'?
+(defun ezeka-kasten-id-type (kasten)
+  "Returns the Zettel ID naming type for the given kasten based on
 `ezeka-kaesten'."
   (cadr (assoc kasten ezeka-kaesten #'string=)))
 
-(defun ezeka-link-slug (link)
-  "Returns the slug part of the given LINK."
+(defun ezeka-link-id (link)
+  "Returns the ID part of the given LINK."
   (when (string-match ezeka-regexp-link link)
     (match-string 2 link)))
 
-(defun ezeka-make-link (kasten slug)
-  "Make a new proper link to SLUG in KASTEN."
-  (let ((slug-type (ezeka-kasten-slug-type kasten)))
-    (cond ((not slug-type)
+(defun ezeka-make-link (kasten id)
+  "Make a new proper link to ID in KASTEN."
+  (let ((id-type (ezeka-kasten-id-type kasten)))
+    (cond ((not id-type)
            (error "Unknown kasten: %s" kasten))
           ((not
-            (string-match-p (alist-get slug-type ezeka-type-regexp-alist) slug))
-           (error "Slug doesn't match the slug type for %s kasten" kasten))
+            (string-match-p (alist-get id-type ezeka-type-regexp-alist) id))
+           (error "ID doesn't match the ID type for %s kasten" kasten))
           ((rassoc kasten ezeka-default-kasten)
-           slug)
+           id)
           (t
-           (concat kasten ":" slug)))))
+           (concat kasten ":" id)))))
 
-(defun ezeka-subdirectory (slug)
-  "Returns the relative subdirectory for the given slug, a string."
-  (cl-case (ezeka-type slug)
-    (:numerus (file-name-as-directory (cl-subseq slug 0 1)))
-    (:tempus (file-name-as-directory (match-string 1 slug)))
+(defun ezeka-subdirectory (id)
+  "Returns the relative subdirectory for the given ID, a string."
+  (cl-case (ezeka-type id)
+    (:numerus (file-name-as-directory (cl-subseq id 0 1)))
+    (:tempus (file-name-as-directory (match-string 1 id)))
     (:bolus (file-name-as-directory
-             (format "%c00-%c99" (elt slug 0) (elt slug 0))))))
+             (format "%c00-%c99" (elt id 0) (elt id 0))))))
 
 (defun ezeka-link-file (link &optional noerror)
   "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
 don't signal an error if the link is invalid."
   (if (ezeka-link-p link)
       (let ((kasten (ezeka-link-kasten link))
-            (slug (ezeka-link-slug link)))
+            (id (ezeka-link-id link)))
         (expand-file-name
-         (concat slug "." ezeka-file-extension)
-         (expand-file-name (or (ezeka-subdirectory slug)
+         (concat id "." ezeka-file-extension)
+         (expand-file-name (or (ezeka-subdirectory id)
                                (unless noerror
                                  (error "Link not valid: %s" link)))
                            (ezeka-kasten-directory kasten))))
     (unless noerror
       (error "This is not a proper Zettel link: %s" link))))
 
-;; FIXME: Rename `ezeka-type' to `ezeka-slug-type'?
-(defun ezeka-type (slug-or-file)
-  "Returns the type of the given slug or file: :NUMERUS or :TEMPUS. Modifies
-match data after matching against the appropriate slug type regexp."
-  (let ((slug (file-name-base slug-or-file)))
-    (cond ((string-match ezeka-regexp-tempus-currens slug)
+;; FIXME: Rename `ezeka-type' to `ezeka-id-type'?
+(defun ezeka-type (id-or-file)
+  "Returns the type of the given ID or file: :NUMERUS or :TEMPUS. Modifies
+match data after matching against the appropriate ID type regexp."
+  (let ((id (file-name-base id-or-file)))
+    (cond ((string-match ezeka-regexp-tempus-currens id)
            :tempus)
-          ((string-match ezeka-regexp-numerus-currens slug)
+          ((string-match ezeka-regexp-numerus-currens id)
            :numerus)
           ;; FIXME: Temporary
-          ((string-match ezeka-regexp-bolus-currens slug)
+          ((string-match ezeka-regexp-bolus-currens id)
            :bolus)
           (t
            ;; Anything else is not a Zettel
@@ -418,7 +418,7 @@ category, and title in that order.")
           "\\(?9:\\.\\)* \\(?8:{\\(?3:[^}]+\\)}\\)*\\(?4:[^#@]+\\)*\\(?5:@\\S-+\\)*\\(?6:#.+\\)*")
   "Regular expression for a combined title string, used in `ezeka-file-metadata'.
 Group 1 is the kasten.
-Group 2 is the slug.
+Group 2 is the id.
 Group 3 is the category.
 Group 4 is the title itself.
 Group 5 is the citation key.
@@ -428,13 +428,13 @@ Group 6 is the keyword block.")
   "Returns an alist of metadata from a combined title. If cannot decode,
 returns NIL."
   (when (and combined (string-match ezeka-regexp-combined-title combined))
-    (let ((slug     (match-string 2 combined))
+    (let ((id       (match-string 2 combined))
           (category (match-string 3 combined))
           (title    (match-string 4 combined))
           (citekey  (match-string 5 combined))
           (keywords (match-string 6 combined)))
-      (list (cons :slug slug)
-            (cons :type (ezeka-type slug))
+      (list (cons :id id)
+            (cons :type (ezeka-type id))
             (cons :category category)
             (cons :title (if title (string-trim title) ""))
             (when citekey (cons :citekey (string-trim citekey)))
@@ -580,26 +580,26 @@ current buffer according to the value of `ezeka-update-modifaction-date'."
 ;;;=============================================================================
 
 (defun ezeka-make-numerus (number letters)
-  "Returns a new numerus currens slug composed of the NUMBER and LETTERS,
+  "Returns a new numerus currens ID composed of the NUMBER and LETTERS,
 both of which are strings."
   (concat number "-" letters))
 
-(defun ezeka-numerus-number (slug)
-  "Returns the number part of the SLUG as a string."
-  (when (string-match ezeka-regexp-numerus-currens slug)
-    (match-string 1 slug)))
+(defun ezeka-numerus-number (id)
+  "Returns the number part of the ID as a string."
+  (when (string-match ezeka-regexp-numerus-currens id)
+    (match-string 1 id)))
 
-(defun ezeka-numerus-letters (slug)
-  "Returns the letters part of the SLUG as a string."
-  (when (string-match ezeka-regexp-numerus-currens slug)
-    (match-string 3 slug)))
+(defun ezeka-numerus-letters (id)
+  "Returns the letters part of the ID as a string."
+  (when (string-match ezeka-regexp-numerus-currens id)
+    (match-string 3 id)))
 
-(defun ezeka-numerus-parts (slug)
-  "Returns NIL if the slug is not a numerus currens slug, and otherwise
-returns a list of two elements: the number and letters parts of the slug."
-  (when (and (stringp slug)
-             (string-match ezeka-regexp-numerus-currens slug))
-    (list (match-string 1 slug) (match-string 3 slug))))
+(defun ezeka-numerus-parts (id)
+  "Returns NIL if the ID is not a numerus currens id, and otherwise
+returns a list of two elements: the number and letters parts of the id."
+  (when (and (stringp id)
+             (string-match ezeka-regexp-numerus-currens id))
+    (list (match-string 1 id) (match-string 3 id))))
 
 (defun abase26-letter-to-decimal (letter)
   "Returns the decimal number corresponding to the given character-as-string.
@@ -639,8 +639,8 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defun ezeka-generate-new-slug (type)
-  "Generates a random new slug of the given type."
+(defun ezeka-generate-new-id (type)
+  "Generates a random new ID of the given type."
   (cl-case type
     (:tempus (format-time-string "%Y%m%dT%H%M"))
     (:bolus  (format "%03d-%s"
@@ -654,18 +654,18 @@ abase26 equivalent of 0, namely 'a'."
                       (abase26-encode (random 26))))
     (t        (error "Unknown Zettel type"))))
 
-(defun ezeka-next-unused-slug (kasten)
-  "Returns the next unused slug for the given KASTEN from `ezeka-kaesten'."
-  (let ((type (ezeka-kasten-slug-type kasten))
-        slug)
+(defun ezeka-next-unused-id (kasten)
+  "Returns the next unused ID for the given KASTEN from `ezeka-kaesten'."
+  (let ((type (ezeka-kasten-id-type kasten))
+        id)
     (cl-flet ((exists? ()
-                "Checks if SLUG is either NIL or exists."
-                (or (null slug)
+                "Checks if ID is either NIL or exists."
+                (or (null id)
                     (file-exists-p
-                     (ezeka-link-file (ezeka-make-link kasten slug))))))
+                     (ezeka-link-file (ezeka-make-link kasten id))))))
       (cond ((eq type :tempus)
              (while (exists?)
-               (setq slug (ezeka-generate-new-slug type))))
+               (setq id (ezeka-generate-new-id type))))
             ((and (eq type :numerus)
                   (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
              (unwind-protect
@@ -675,7 +675,7 @@ abase26 equivalent of 0, namely 'a'."
                    (let ((left (count-lines (point-min) (point-max))))
                      (unwind-protect
                          (while (and (> left 0) (exists?))
-                           (setq slug
+                           (setq id
                              (string-trim
                               (delete-and-extract-region
                                (point-min)
@@ -688,33 +688,33 @@ abase26 equivalent of 0, namely 'a'."
                               (if (= left 1) "us" "i"))))))
             (t
              (while (exists?)
-               (setq slug (ezeka-generate-new-slug type))))))
-    slug))
+               (setq id (ezeka-generate-new-id type))))))
+    id))
 
 ;;;=============================================================================
 ;;; Tempus Currens
 ;;;=============================================================================
 
 (defun ezeka-decode-time-into-tempus-currens (time)
-  "Returns a tempus currens slug based on the given Emacs time object."
+  "Returns a tempus currens ID based on the given Emacs time object."
   (format-time-string "%Y%m%dT%H%M" time))
 
-(defun ezeka-tempus-currens-slug-for (link)
-  "Returns a suitable tempus currens slug for the given Zettel link."
-  (if (eq (ezeka-kasten-slug-type (ezeka-link-kasten link)) :tempus)
-      ;; If already tempus currens, just return that slug
-      (ezeka-link-slug link)
-    ;; Otherwise come up with an appropriate slug based on the metadata
+(defun ezeka-tempus-currens-id-for (link)
+  "Returns a suitable tempus currens ID for the given Zettel link."
+  (if (eq (ezeka-kasten-id-type (ezeka-link-kasten link)) :tempus)
+      ;; If already tempus currens, just return that id
+      (ezeka-link-id link)
+    ;; Otherwise come up with an appropriate ID based on the metadata
     (let ((metadata (ezeka-file-metadata (ezeka-link-file link)))
           oldname)
       (cond ((setq oldname
                (cl-find-if
                 (lambda (l)
-                  (eq (ezeka-kasten-slug-type (ezeka-link-kasten l))
+                  (eq (ezeka-kasten-id-type (ezeka-link-kasten l))
                       :tempus))
                 (alist-get :oldnames metadata)))
              ;; One of the old names was a tempus currens; just use that
-             (ezeka-link-slug oldname))
+             (ezeka-link-id oldname))
             ((alist-get :created metadata)
              ;; Use the created metadata and make up the time of creation
              ;; FIXME: Any more elegant way to do this?
@@ -727,7 +727,7 @@ abase26 equivalent of 0, namely 'a'."
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
-                          (ezeka-next-unused-slug (ezeka-link-kasten link))))))))
+                          (ezeka-next-unused-id (ezeka-link-kasten link))))))))
 
 ;;;=============================================================================
 ;;; Zettel Links
@@ -847,7 +847,7 @@ confirmation before inserting metadata."
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
-  "Link `ezeka-insert-link' but attempts to get the link slug from OS
+  "Link `ezeka-insert-link' but attempts to get the link ID from OS
 clipboard, inserting it with metadata. With prefix argument, insert just the
 link itself."
   (interactive "P")
@@ -1020,7 +1020,7 @@ ancestor. With a universal argument, ask for confirmation before inserting."
   "Generates a new child of the given PARENT in the KASTEN."
   (let ((child-link (ezeka-make-link
                      kasten
-                     (ezeka-next-unused-slug kasten))))
+                     (ezeka-next-unused-id kasten))))
     (add-to-list 'ezeka-note-parent-of-new-child (cons child-link parent))
     child-link))
 
@@ -1107,14 +1107,14 @@ Zettelkasten work."
               (let ((metadata (ezeka-file-metadata buffer-file-name)))
                 (format "%s §%s@%s"
                         (alist-get :title metadata)
-                        (alist-get :slug metadata)
+                        (alist-get :id metadata)
                         (alist-get :kasten metadata)))
             "%b")))
 
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `completing-read' as collection."
-  ;;                  * SLUG  CATEGORY  TITLE  KEYWORDS
+  ;;                  * ID  CATEGORY  TITLE  KEYWORDS
   (let* ((sw 14) (cw 10) (kw 15)
          (tw (- (frame-width) (+ sw cw kw 5)))
          (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" sw cw tw kw)))
@@ -1124,7 +1124,7 @@ suitable for passing to `completing-read' as collection."
                      (buf (get-file-buffer file)))
                 (cons (format fmt
                               (if (and buf (buffer-modified-p buf)) "*" " ")
-                              (or (alist-get :slug metadata)
+                              (or (alist-get :id metadata)
                                   (file-name-base file))
                               (alist-get :category metadata)
                               (when title
@@ -1609,8 +1609,8 @@ target link and returns it."
             (ezeka-make-link
              kasten
              (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-               (:numerus (ezeka-next-unused-slug kasten))
-               (:tempus (ezeka-tempus-currens-slug-for source-link))
+               (:numerus (ezeka-next-unused-id kasten))
+               (:tempus (ezeka-tempus-currens-id-for source-link))
                (t
                 (error "Don't know how to handle this"))))))
       (error "Don't know where to move %s" source-link))
@@ -1629,19 +1629,19 @@ target link and returns it."
     (unless dont-find
       (ezeka-find-link target-link t))))
 
-(defun ezeka-generate-n-new-slugs (how-many type)
-  "Generates a bunch of new slugs, making sure there are no dulicates."
+(defun ezeka-generate-n-new-ids (how-many type)
+  "Generates a bunch of new IDs, making sure there are no dulicates."
   (interactive
    (list (read-number "How many? " 10)
          (intern (completing-read "Which type? "
                            (mapcar #'first ezeka-default-kasten)))))
   (goto-char (point-max))
-  (let (slugs)
+  (let (ids)
     (dotimes (n how-many)
-      (push (ezeka-generate-new-slug type) slugs))
+      (push (ezeka-generate-new-id type) ids))
     (mapc (lambda (s)
             (insert s "\n"))
-          (delete-dups slugs))
+          (delete-dups ids))
     (delete-duplicate-lines (point-min) (point-max))))
 
 ;; Based on https://stackoverflow.com/a/30328255
@@ -1661,7 +1661,7 @@ target link and returns it."
         (let ((metadata (ezeka-decode-combined-title
                          (car (split-string line "title: " t)))))
           (message "%s | %s"
-                   (alist-get :slug metadata) (alist-get :title metadata)))))))
+                   (alist-get :id metadata) (alist-get :title metadata)))))))
 
 ;;;=============================================================================
 ;;; Mode
