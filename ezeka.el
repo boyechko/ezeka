@@ -56,13 +56,13 @@ Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
 
 ;; FIXME: Is this or the individually-named variables redundant?
-(defvar ezeka-type-regexp-alist
+(defvar ezeka-id-type-regexp-alist
   `((:bolus   . ,ezeka-regexp-bolus-currens) ; FIXME: temporary
     (:numerus . ,ezeka-regexp-numerus-currens)
     (:tempus  . ,ezeka-regexp-tempus-currens))
   "An alist of type and its regular expressions for the various ID types.")
 
-(defvar ezeka-type-example-alist
+(defvar ezeka-id-type-example-alist
   '((:bolus   . "123-abc") ; FIXME: temporary
     (:numerus . "a-1234")
     (:tempus  . "20210123T1234"))
@@ -250,7 +250,7 @@ of these conditions are met:
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
   (let ((kasten (ezeka-file-kasten file)))
     (if (string= kasten
-                 (alist-get (ezeka-type file) ezeka-default-kasten))
+                 (alist-get (ezeka-id-type file) ezeka-default-kasten))
         (ezeka-file-id file)
       (concat kasten ":" (ezeka-file-id file)))))
 
@@ -270,7 +270,7 @@ specified, asks the user to resolve the ambiguity."
   (when (string-match ezeka-regexp-link link)
     (let* ((kasten (match-string 1 link))
            (id (match-string 2 link))
-           (type (ezeka-type id)))
+           (type (ezeka-id-type id)))
       (or kasten
           (if-let ((default (alist-get type ezeka-default-kasten)))
               default
@@ -289,7 +289,6 @@ specified, asks the user to resolve the ambiguity."
                      (error "No Zettelkästen defined")))))
   (setf (alist-get type ezeka-default-kasten) kasten))
 
-;; FIXME: Rename `ezeka-type' to `ezeka-id-type'?
 (defun ezeka-kasten-id-type (kasten)
   "Returns the Zettel ID naming type for the given kasten based on
 `ezeka-kaesten'."
@@ -306,7 +305,7 @@ specified, asks the user to resolve the ambiguity."
     (cond ((not id-type)
            (error "Unknown kasten: %s" kasten))
           ((not
-            (string-match-p (alist-get id-type ezeka-type-regexp-alist) id))
+            (string-match-p (alist-get id-type ezeka-id-type-regexp-alist) id))
            (error "ID doesn't match the ID type for %s kasten" kasten))
           ((rassoc kasten ezeka-default-kasten)
            id)
@@ -315,7 +314,7 @@ specified, asks the user to resolve the ambiguity."
 
 (defun ezeka-subdirectory (id)
   "Returns the relative subdirectory for the given ID, a string."
-  (cl-case (ezeka-type id)
+  (cl-case (ezeka-id-type id)
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
     (:tempus (file-name-as-directory (match-string 1 id)))
     (:bolus (file-name-as-directory
@@ -336,8 +335,7 @@ don't signal an error if the link is invalid."
     (unless noerror
       (error "This is not a proper Zettel link: %s" link))))
 
-;; FIXME: Rename `ezeka-type' to `ezeka-id-type'?
-(defun ezeka-type (id-or-file)
+(defun ezeka-id-type (id-or-file)
   "Returns the type of the given ID or file: :NUMERUS or :TEMPUS. Modifies
 match data after matching against the appropriate ID type regexp."
   (let ((id (file-name-base id-or-file)))
@@ -434,7 +432,7 @@ returns NIL."
           (citekey  (match-string 5 combined))
           (keywords (match-string 6 combined)))
       (list (cons :id id)
-            (cons :type (ezeka-type id))
+            (cons :type (ezeka-id-type id))
             (cons :category category)
             (cons :title (if title (string-trim title) ""))
             (when citekey (cons :citekey (string-trim citekey)))
@@ -1213,7 +1211,7 @@ metadata with the LINK, CATEGORY, TITLE, and PARENT."
               (format-time-string
                "%Y-%m-%d %a %H:%M"
                (let ((today (format-time-string "%Y%m%d")))
-                 (if (and (eq :tempus (ezeka-type file))
+                 (if (and (eq :tempus (ezeka-id-type file))
                           (not (string-match-p (regexp-quote today) file))
                           (not
                            (when (called-interactively-p 'any)

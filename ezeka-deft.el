@@ -143,10 +143,10 @@ the missing metadata is explicitly displayed."
                         "<title>")))
            (ID-LEN
             (length
-             (alist-get (or (ezeka-type (alist-get :id metadata))
+             (alist-get (or (ezeka-id-type (alist-get :id metadata))
                             (ezeka-kasten-id-type ezeka-deft-active-kasten)
                             :tempus)    ; assume longest
-                        ezeka-type-example-alist)))
+                        ezeka-id-type-example-alist)))
            (CAT-LEN 12)
            (KEY-LEN 10)
            ;; ID---CATEGORY---CITEKEY---TITLE [where --- is tab]

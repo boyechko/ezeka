@@ -30,7 +30,7 @@ class Zettelkasten
     raise "$ZETTEL_DIR is not set"
   end
 
-  # Kasten Name => Type
+  # Kasten Name => ID type
   @kaesten = { "os"        => :tempus,          # things get "ingested"
                "esophagus" => :bolus,           # regurgitated ingesta (needs processing) FIXME
                "rumen"     => :numerus,         # [default] others' ideas
@@ -43,7 +43,7 @@ class Zettelkasten
              }
 
   # The default kaesten can be referred to without specifying their kasten
-  # Type => Kasten
+  # ID type => Kasten
   @default_kasten = { :numerus => "rumen",
                       :tempus => "omasum",
                       :bolus => "esophagus" # FIXME: temporary
@@ -78,8 +78,8 @@ class Zettelkasten
     return topmost_dir if @kaesten[topmost_dir]
   end
 
-  # Returns the type of the zettel found at the given path
-  def self.zettel_type(path)
+  # Returns the ID type of the zettel found at the given path
+  def self.id_type_of(path)
     return @kaesten[kasten_of(path)]
   end
 
@@ -94,7 +94,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Zettel
-  attr_reader :type,            # Zettel type: :tempus, :numerus, or :bolus (FIXME)
+  attr_reader :id_type,         # Zettel ID type: :tempus, :numerus, or :bolus (FIXME)
               :kasten,          # Kasten, as string
               :id,              # id only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless default)
@@ -317,7 +317,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Numerus < Zettel
-  ZETTEL_TYPE = :numerus
+  ZETTEL_ID_TYPE = :numerus
 
   N_DIGITS = 4                  # number of digits
   SEPARATOR = "-"               # separator between digits and letters
@@ -358,15 +358,15 @@ class Numerus < Zettel
   # For self.class::Constant, see https://stackoverflow.com/a/13234497
   def init_link(link)
     if link =~ self.class::FQN_PATTERN
-      @type = self.class::ZETTEL_TYPE
-      @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_TYPE]
+      @id_type = self.class::ZETTEL_ID_TYPE
+      @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_ID_TYPE]
       @link = link
       @digits = Regexp.last_match.named_captures["digits"]
       @letters = Regexp.last_match.named_captures["letters"]
       reinit()
       read_file if @path.exist?
     else
-      raise "This does not look like a(n) #{ZETTEL_TYPE.to_s} currens Zettel: #{link}"
+      raise "This does not look like a(n) #{ZETTEL_ID_TYPE.to_s} currens Zettel: #{link}"
     end
   end
 
@@ -430,7 +430,7 @@ class Numerus < Zettel
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
     if File.basename(string, Zettelkasten.ext) =~ self::ID_PATTERN &&
-       Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_TYPE]
+       Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_ID_TYPE]
       return true
     else
       return false
@@ -484,7 +484,7 @@ class Tempus < Zettel
         @kasten = $2
       end
 
-      @type = :tempus
+      @id_type = :tempus
       @id = $3
       @link = self.link
       @time = Time.parse(@id)
@@ -501,7 +501,7 @@ class Tempus < Zettel
 
   # Returns the wiki link target
   def link()
-    if @kasten == Zettelkasten.default_kasten[@type] then return @id
+    if @kasten == Zettelkasten.default_kasten[@id_type] then return @id
     else return "#{@kasten}:#{@id}"
     end
   end
@@ -527,7 +527,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Bolus < Numerus
-  ZETTEL_TYPE = :bolus
+  ZETTEL_ID_TYPE = :bolus
 
   N_LETTERS = 3
   SEPARATOR = "-"
