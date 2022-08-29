@@ -125,7 +125,7 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   ;; name | directory | slug type | list-order
   `(("os"         :tempus  1)
     ("rumen"      :numerus 2)
-    ("esophagus"  :numerus 3)
+    ("esophagus"  :bolus   3)
     ("omasum"     :tempus  4)
     ("abomasum"   :tempus  5)
     ("rectum"     :tempus  6)
@@ -354,7 +354,7 @@ match data after matching against the appropriate slug type regexp."
 (defun ezeka-encode-iso8601-datetime (string)
   "Returns the internal encoded time given the ISO8601 date/time
 expression, with or without time."
-  (let ((cadr 0) (minute 0) (hour 0) day month year)
+  (let ((second 0) (minute 0) (hour 0) day month year)
     (when (string-match (concat "^" ezeka-regexp-iso8601-date) string)
       (setq year  (string-to-number (match-string 1 string))
             month (string-to-number (match-string 2 string))
