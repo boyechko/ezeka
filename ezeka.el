@@ -1114,17 +1114,22 @@ Zettelkasten work."
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `completing-read' as collection."
-  (let ((fmt (concat "%s%-12s %-10s %-53s %s")))
+  ;;                  * SLUG  CATEGORY  TITLE  KEYWORDS
+  (let* ((sw 14) (cw 10) (kw 15)
+         (tw (- (frame-width) (+ sw cw kw 5)))
+         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" sw cw tw kw)))
     (mapcar (lambda (file)
-              (let ((metadata (ezeka-file-metadata file))
-                    (buf (get-file-buffer file)))
+              (let* ((metadata (ezeka-file-metadata file t))
+                     (title (alist-get :title metadata))
+                     (buf (get-file-buffer file)))
                 (cons (format fmt
                               (if (and buf (buffer-modified-p buf)) "*" " ")
-                              (alist-get :slug metadata)
+                              (or (alist-get :slug metadata)
+                                  (file-name-base file))
                               (alist-get :category metadata)
-                              (cl-subseq (alist-get :title metadata) 0
-                                         (min (length (alist-get :title metadata))
-                                              53))
+                              (when title
+                                (cl-subseq title 0 (min (length title)
+                                                        tw)))
                               (or (alist-get :keywords metadata) ""))
                       file)))
             files)))
