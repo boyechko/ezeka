@@ -1682,6 +1682,7 @@ target link and returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
+          ;;       X X X   X           X X X X     X     X   X
           ;;------------------------------------------------------------------
           '(("C-c ^" . ezeka-find-ancestor)
             ("C-c _" . ezeka-find-descendant)
@@ -1691,38 +1692,32 @@ target link and returns it."
             ("C-c #" . ezeka-kill-ring-save-link)
             ("C-c $" . ezeka-kill-ring-save-link-at-point)
             ("C-c +" . ezeka-dwim-with-this-timestring)
-            ;; Shadows `org-agenda-file-to-front'
-            ("C-c [" . ezeka-update-title)
-            ;; Shadows prefix map for `orgtbl-ascii-plot' and `org-plit/gnuplot'
-            ("C-c \"" . ezeka-avy-link-search)
-            ;; Shadows `org-open-at-mouse', but allows opening in same window with C-u
+            ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
+            ("C-c [" . ezeka-update-title) ; `org-agenda-file-to-front'
+            ("C-c ="  . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
+            ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
             ;;
             ;; Unsafe: reserved for major modes
             ;;
-            ("C-c C-'" . ezeka-set-category)
             ;; Shadows `org-schedule'
-            ("C-c C-s" . ezeka-select-and-find-link)
-            ;; Shadows `org-deadline'
-            ("C-c C-d" . ezeka-kill-ring-save-link-title)
+            ;; ("C-c C-s" . ezeka-select-and-find-link)
             ;; Shadows `kill-sexp' in global-map
-            ("C-M-k" . ezeka-kill-link-or-sexp-at-point)
-            ;; Shadows `org-insert-link'
-            ("C-c C-M-l" . ezeka-insert-link-from-clipboard)
+            ;; ("C-M-k" . ezeka-kill-link-or-sexp-at-point)
             ;; Shadows `org-ctrl-c-tab'
-            ;;("C-c C-i" . 'ezeka-org-include-cached-file)
+            ;; ("C-c C-i" . 'ezeka-org-include-cached-file)
             ;; Shadows `org-set-property-and-value'
             ("C-c C-x F" . ezeka-org-set-todo-properties)
             ("C-c C-x z" . ezeka-zmove-to-another-kasten)
             ;; Shadows org-mode's `org-toggle-ordered-property'
             ("C-c C-x l" . ezeka-links-to)
-            )))
+            ))
 
-;; Treat : (colon) as part of the word, allowing forward/backward-word over full
-;; Zettel links.
-(add-hook 'ezeka-mode-hook
-  (lambda ()
-    (modify-syntax-entry ?: "w")))
+  ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
+  ;; Zettel links.
+  (add-hook 'ezeka-mode-hook
+    (lambda ()
+      (modify-syntax-entry ?: "w"))))
 
 ;; On save, update modificate date
 (add-hook 'ezeka-mode-hook
