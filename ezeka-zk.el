@@ -208,4 +208,11 @@ appropriate for the particular Zettelkasten."
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-insert-link)))
 
+(defun ezeka-rgrep-link-at-point (link)
+  "Executes recursive grep for the ezeka link at point."
+  (interactive
+   (list (when (ezeka-link-at-point-p t)
+           (ezeka-link-at-point))))
+  (consult-grep ezeka-directory link))
+
 (provide 'ezeka-zk)
