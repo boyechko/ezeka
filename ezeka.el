@@ -1645,6 +1645,10 @@ target link and returns it."
     (delete-duplicate-lines (point-min) (point-max))))
 
 ;; Based on https://stackoverflow.com/a/30328255
+;;
+;; Add the following to emacs config file:
+;;
+;; (add-hook 'post-command-hook 'magit-show-ezeka-title-in-minibuffer)
 (defun magit-show-ezeka-title-in-minibuffer ()
   "Displays Zettel title of the file under cursor in minibuffer."
   (while-no-input
@@ -1658,7 +1662,6 @@ target link and returns it."
                          (car (split-string line "title: " t)))))
           (message "%s | %s"
                    (alist-get :slug metadata) (alist-get :title metadata)))))))
-(add-hook 'post-command-hook 'magit-show-ezeka-title-in-minibuffer)
 
 ;;;=============================================================================
 ;;; Mode
@@ -1714,13 +1717,6 @@ target link and returns it."
             ;; Shadows org-mode's `org-toggle-ordered-property'
             ("C-c C-x l" . ezeka-links-to)
             )))
-
-;; Enable ezeka-mode for files that match the pattern
-(add-hook 'org-mode-hook
-  (lambda ()
-    (when (ezeka-note-p buffer-file-name)
-      (setq org-export-with-broken-links t)
-      (ezeka-mode 1))))
 
 ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
 ;; Zettel links.
