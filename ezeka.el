@@ -312,33 +312,13 @@ specified, asks the user to resolve the ambiguity."
           (t
            (concat kasten ":" slug)))))
 
-(defun ezeka-numerus-subdirectory (slug)
-  "Returns the right subdirectory for the given numerus currens slug."
-  (when (string-match ezeka-regexp-numerus-currens slug)
-    (file-name-as-directory (cl-subseq slug 0 1))))
-
-(defun ezeka-tempus-subdirectory (slug)
-  "Returns the right subdirectory for the given tempus currens slug."
-  (when (string-match ezeka-regexp-tempus-currens slug)
-    (file-name-as-directory (match-string 1 slug))))
-
-(defun ezeka-bolus-subdirectory (slug)
-  "Finds the right directory for the given bolus currens slug."
-  (when (stringp slug)
-    (let ((result
-           (cl-case (elt slug 0)
-             (?0 "000-099")
-             (?1 "100-199")
-             (?2 "200-299")
-             (?3 "300-399")
-             (?4 "400-499")
-             (?5 "500-599")
-             (?6 "600-699")
-             (?7 "700-799")
-             (?8 "800-899")
-             (?9 "900-999"))))
-      (when result
-        (file-name-as-directory result)))))
+(defun ezeka-subdirectory (slug)
+  "Returns the relative subdirectory for the given slug, a string."
+  (cl-case (ezeka-type slug)
+    (:numerus (file-name-as-directory (cl-subseq slug 0 1)))
+    (:tempus (file-name-as-directory (match-string 1 slug)))
+    (:bolus (file-name-as-directory
+             (format "%c00-%c99" (elt slug 0) (elt slug 0))))))
 
 (defun ezeka-link-file (link &optional noerror)
   "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
@@ -348,27 +328,24 @@ don't signal an error if the link is invalid."
             (slug (ezeka-link-slug link)))
         (expand-file-name
          (concat slug "." ezeka-file-extension)
-         (expand-file-name
-          (cl-case (ezeka-type slug)
-            (:numerus (ezeka-numerus-subdirectory slug))
-            (:tempus (ezeka-tempus-subdirectory slug))
-            (:bolus (ezeka-bolus-subdirectory slug)) ; FIXME: temporary
-            (t (unless noerror
-                 (error "This is not a proper Zettel link: %s" link))))
-          (ezeka-kasten-directory kasten))))
+         (expand-file-name (or (ezeka-subdirectory slug)
+                               (unless noerror
+                                 (error "Link not valid: %s" link)))
+                           (ezeka-kasten-directory kasten))))
     (unless noerror
       (error "This is not a proper Zettel link: %s" link))))
 
 ;; FIXME: Rename `ezeka-type' to `ezeka-slug-type'?
 (defun ezeka-type (slug-or-file)
-  "Returns the type of the given slug or file: :NUMERUS or :TEMPUS."
+  "Returns the type of the given slug or file: :NUMERUS or :TEMPUS. Modifies
+match data after matching against the appropriate slug type regexp."
   (let ((slug (file-name-base slug-or-file)))
-    (cond ((string-match-p ezeka-regexp-tempus-currens slug)
+    (cond ((string-match ezeka-regexp-tempus-currens slug)
            :tempus)
-          ((string-match-p ezeka-regexp-numerus-currens slug)
+          ((string-match ezeka-regexp-numerus-currens slug)
            :numerus)
           ;; FIXME: Temporary
-          ((string-match-p ezeka-regexp-bolus-currens slug)
+          ((string-match ezeka-regexp-bolus-currens slug)
            :bolus)
           (t
            ;; Anything else is not a Zettel
