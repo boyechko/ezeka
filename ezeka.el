@@ -1300,14 +1300,17 @@ else, try to make it into org-time-stamp."
           (t
            (signal 'wrong-type-argument (list text))))))
 
-(defun ezeka-org-export-as-new-ezeka ()
-  "Creates a new Zettel file in the current Zettelkasten based on the current
-org subtree."
-  (interactive)
+(defun ezeka-org-export-as-new-note (&optional kasten)
+  "Creates a new Zettel in the current Kasten (with prefix argument,
+ask for the Kasten) from the current org subtree."
+  (interactive (list (when current-prefix-arg
+                       (completing-read "Zettel kasten: " ezeka-kaesten))))
   (let ((parent-file buffer-file-name)
         (parent-link (ezeka-file-link buffer-file-name))
+        (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
         tempus-currens
         new-title
+        new-link
         new-file)
     (save-excursion
       (save-restriction
@@ -1325,8 +1328,12 @@ org subtree."
                    (org-timestamp-from-time (org-get-scheduled-time nil) t)))
                 (t
                  (error "Could not get the timestamp for new Zettel")))
-          (setq tempus-currens (org-timestamp-format timestamp "%Y%m%dT%H%M")
-                new-file (ezeka-link-file tempus-currens))
+          (setq tempus-currens (if (org-timestamp-has-time-p timestamp)
+                                   (org-timestamp-format timestamp "%Y%m%dT%H%M")
+                                 (concat (org-timestamp-format timestamp "%Y%m%dT")
+                                         (format-time-string "%H%M")))
+                new-link (ezeka-make-link kasten tempus-currens)
+                new-file (ezeka-link-file new-link))
           (let* ((content (org-get-entry)))
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
@@ -1340,20 +1347,21 @@ org subtree."
                                                                  "Memo")
                                                 new-title parent-link)
                 (insert "\n" content)
-                (save-buffer)))))))
-    ;; Back in original buffer
-    (with-current-buffer (get-file-buffer (file-truename parent-file))
-      (org-cut-subtree)
-      (insert (ezeka-org-format-link (ezeka-file-link new-file))
-              " "
-              (alist-get :title (ezeka-file-metadata new-file))))))
+                (save-buffer))
+              ;; Back in original buffer
+              (with-current-buffer (get-file-buffer (file-truename parent-file))
+                (org-cut-subtree)
+                (insert (ezeka-org-format-link new-link)
+                        " "
+                        (alist-get :title (ezeka-file-metadata new-file)))))))))))
 
 (defun ezeka-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link. With a
 prefix argument, ignore `ezeka-number-of-frames' and open the link in the
 same window."
   (interactive "P")
-  (when (ezeka-link-at-point-p t)
+  (when (or (ezeka-link-at-point-p)
+            (ezeka-link-at-point-p t))
     ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
     (ezeka-find-link (ezeka-link-at-point) (or arg current-prefix-arg))
     ;; This function is later added to `org-open-at-point-functions', so "must
