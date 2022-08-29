@@ -133,21 +133,4 @@ the cursor in already inside a link, replace it instead."
             (insert (ezeka-org-format-link link))))
       (user-error "No Deft cache or visited Zettel"))))
 
-;; TODO: Also relies on Deft
-(defun ezeka-ivy-set-parent ()
-  "Sets the parent metadata of the current Zettel to the Zettel chosen by the
-user from cached and visiting Zettel."
-  (interactive)
-  (let ((metadata (ezeka-file-metadata buffer-file-name)))
-    (ezeka-ivy-read-reverse-alist-action
-     "Set parent to: "
-     (delete-dups
-      (append (mapcar (lambda (path)
-                        (cons (deft-file-title path) path))
-                      (ezeka-visiting-buffer-list t))
-              (ezeka-ivy-titles-reverse-alist)))
-     (lambda (path)
-       (setf (alist-get :parent metadata) (ezeka-file-link path))
-       (ezeka-normalize-metadata buffer-file-name metadata)))))
-
 (provide 'ezeka-ivy)
