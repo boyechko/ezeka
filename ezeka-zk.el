@@ -31,6 +31,35 @@
 (require 'zk)
 (require 'zk-index)
 
+;; For these avariables to be treated as dynamic in `ezeka-zk-index-choose-kasten',
+;; need to declare them first here.
+(defvar zk-directory)
+(defvar zk-id-regexp)
+(defvar zk-id-format)
+
+(defmacro ezeka-zk-with-kasten (kasten &rest body)
+  (declare (indent 1))
+  `(let ((zk-directory (ezeka-kasten-directory ,kasten)))
+     (cl-progv '(zk-id-regexp
+                 zk-id-time-string-format
+                 zk-directory-subdir-function)
+         (cl-case (ezeka-kasten-slug-type ,kasten)
+           (:numerus
+            '("[a-z]-[0-9]\\{4\\}"
+              ,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
+                       "-%H%M")))
+           (:bolus
+            '("[0-9]\\{3\\}-[a-z]\\{3\\}"
+              ,(concat (downcase (format-time-string "%a")) "-%j")))
+           (t
+            '("[0-9]\\{8\\}T[0-9]\\{4\\}"
+              "%Y%m%dT%H%M")))
+       (message "DEBUG: zk-id-regexp = %s, special? %s, symbol-value = %s"
+                zk-id-regexp
+                (special-variable-p 'zk-id-regexp)
+                (symbol-value 'zk-id-regexp))
+       ,@body)))
+
 ;;;###autoload
 (defun ezeka-zk-index-choose-kasten (arg new-kasten)
   "If there is an existing `zk-index-buffer-name', switches to it, otherwise
@@ -41,33 +70,35 @@ status."
    (if (or (null (get-buffer zk-index-buffer-name))
            (equal current-prefix-arg '(4)))
        (list current-prefix-arg
-             (ivy-read "Zettel kasten: " ezeka-kaesten))
+             (completing-read "Zettel kasten: "
+                              (mapcar #'car ezeka-kaesten)))
      (list current-prefix-arg nil)))
   (if (not new-kasten)
       (pop-to-buffer zk-index-buffer-name)
-    (setq zk-directory (ezeka-kasten-directory new-kasten))
-    (cl-case (ezeka-kasten-slug-type new-kasten)
-      (:numerus
-       (setq zk-id-regexp "\\([a-z]-[0-9]\\{4\\}\\)"
-             zk-id-format
-             (concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
-                     "-%H%M")))
-      (:bolus
-       (setq zk-id-regexp "\\([0-9]\\{3\\}-[a-z]\\{3\\}\\)"
-             zk-id-format
-             (concat (downcase (format-time-string "%a-%j")))))
-      (t
-       (setq zk-id-regexp "\\([0-9T]\\{13\\}\\)"
-             zk-id-format "%Y%m%dT%H%M")))
-    (setq ezeka-zk-metadata-alist nil
-          zk-index-mode-name (format "Zk:%s" (capitalize new-kasten)))
-    (zk-index)
-    (zk-index-refresh)))
+    (if-let ((buffer (get-buffer zk-index-buffer-name)))
+        (kill-buffer buffer))
+    (custom-set-variables
+     `(zk-directory ,(ezeka-kasten-directory new-kasten))
+     '(zk-directory-subdir-function #'ezeka-subdirectory)
+     '(ezeka-zk-metadata-alist nil)
+     `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
+     `(global-mode-string (propertize
+                           (concat "Kasten:" (upcase new-kasten))
+                           'face 'bold-italic))
+     `(zk-header-title-line-regexp
+       "^\\(?9:# \\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
+       "Regexp of the line in a zk file's header that contains the title.
+Group 1 is the entire title.
+Group 2 is the category.
+Group 3 is the title without category."))
+    (ezeka-zk-with-kasten new-kasten
+      (zk-index)
+      (zk-index-refresh))))
 
 (defun ezeka-zk-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
 Optionally use ORIG-ID for backlink."
-  (ezeka-insert-metadata-template nil title orig-id))
+  (ezeka-insert-metadata-template new-id nil title orig-id))
 
 (defun ezeka-zk-format-function (files)
   "See `zk-new-note-header-function'."
@@ -145,5 +176,13 @@ has the form
 (setq zk-id-list-search-key
   #'(lambda (item)
       (or (alist-get :category (car (last item))) "")))
+(defun ezeka-zk-insert-link-to-kasten (&optional kasten)
+  "Call `zk-insert-link' after temporarily setting zk variables to be
+appropriate for the particular Zettelkasten."
+  (interactive (list (if current-prefix-arg
+                         (completing-read "Kasten: " ezeka-kaesten)
+                       "rumen")))
+  (ezeka-zk-with-kasten kasten
+    (call-interactively 'zk-insert-link)))
 
 (provide 'ezeka-zk)
