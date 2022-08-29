@@ -177,7 +177,7 @@ each slug type."
 LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((ezeka-link-at-point-p)
          (ezeka-link-file (ezeka-link-at-point) t))
-        ((and ezeka-mode (ezeka-note-p buffer-file-name t))
+        ((ezeka-note-p buffer-file-name t)
          buffer-file-name)
         ((eq major-mode 'magit-status-mode)
          (magit-file-at-point))
