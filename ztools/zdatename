@@ -6,7 +6,7 @@ require 'time'
 require_relative 'zettel'
 
 Clamp do
-  parameter "SLUG", "Slug of a Zettel for which to return the ISO 8601 date-name"
+  parameter "ID", "ID of a Zettel for which to return the ISO 8601 date-name"
 
   option ["-m", "--mtime"], :flag, "use last data modification time", :attribute_name => :use_mtime
   option ["-c", "--ctime"], :flag, "use last status change time", :attribute_name => :use_ctime
@@ -35,11 +35,11 @@ Clamp do
   end
 
   def execute
-    zettel = Zettel.new_from_link(slug)
+    zettel = Zettel.new_from_link(id)
     if zettel.exists?
       zettel.read_file
     else
-      STDERR.puts "Zettel file for #{slug} does not exist: #{zettel.path}"
+      STDERR.puts "Zettel file for #{id} does not exist: #{zettel.path}"
       exit(1)
     end
 

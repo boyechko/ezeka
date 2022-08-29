@@ -23,14 +23,14 @@ Clamp do
 
     files = files.split("\n").sort
     files.each do |file|
-      old_slug = File.basename(file, Zettelkasten.ext)
-      new_slug = old_slug.gsub(source, target)
+      old_id = File.basename(file, Zettelkasten.ext)
+      new_id = old_id.gsub(source, target)
 
-      puts "Moving #{old_slug} to #{new_slug}"
+      puts "Moving #{old_id} to #{new_id}"
       if interactive?
-        system("zmove", "--interactive", old_slug, new_slug)
+        system("zmove", "--interactive", old_id, new_id)
       else
-        system("zmove", old_slug, new_slug)
+        system("zmove", old_id, new_id)
       end
     end
   end
