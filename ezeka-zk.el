@@ -176,6 +176,29 @@ has the form
 (setq zk-id-list-search-key
   #'(lambda (item)
       (or (alist-get :category (car (last item))) "")))
+
+(defun ezeka-zk-zmove-all-in-desktop (kasten arg)
+  "Move all files listed in the active region of deft-browser to KASTEN. With
+prefix argument, confirm each move and ask about destination kasten."
+  (interactive (list (completing-read "Which kasten to move to? " ezeka-kaesten)
+                     current-prefix-arg))
+  (let ((lines (count-lines (point-min) (point-max)))
+        (moved 1)
+        (zk-alist (zk--alist (zk--directory-files))))
+    (goto-char (point-min))
+    (while (re-search-forward zk-id-regexp nil t)
+      (let* ((id (match-string-no-properties 1))
+             (title (buffer-substring-no-properties
+                     (point-at-bol) (match-beginning 0)))
+             (file (zk--parse-id 'file-path id zk-alist)))
+        (when (and file
+                   (or arg
+                       (y-or-n-p
+                        (format "[%d/%d] Move %s [%s] to %s? "
+                                moved lines id title kasten))))
+          (ezeka-zmove-to-another-kasten file kasten nil t)
+          (cl-incf moved))))))
+
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Call `zk-insert-link' after temporarily setting zk variables to be
 appropriate for the particular Zettelkasten."
