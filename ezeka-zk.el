@@ -54,11 +54,27 @@
            (t
             '("[0-9]\\{8\\}T[0-9]\\{4\\}"
               "%Y%m%dT%H%M")))
-       (message "DEBUG: zk-id-regexp = %s, special? %s, symbol-value = %s"
-                zk-id-regexp
-                (special-variable-p 'zk-id-regexp)
-                (symbol-value 'zk-id-regexp))
        ,@body)))
+
+(defun ezeka-zk-initialize-kasten (kasten)
+  "Set necessary variables for long-term work in KASTEN."
+  (custom-set-variables
+   `(zk-directory ,(ezeka-kasten-directory kasten))
+   `(global-mode-string ,(propertize (concat "Kasten:" (upcase kasten))
+                                     'face 'bold-italic)))
+  (cl-case (ezeka-kasten-id-type kasten)
+    (:numerus
+     (setq zk-id-regexp "\\([a-z]-[0-9]\\{4\\}\\)"
+           zk-id-time-string-format
+           (concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
+                   "-%H%M")))
+    (:bolus
+     (setq zk-id-regexp "\\([0-9]\\{3\\}-[a-z]\\{3\\}\\)"
+           zk-id-time-string-format
+           (concat (downcase (format-time-string "%a-%j")))))
+    (t
+     (setq zk-id-regexp "\\([0-9T]\\{13\\}\\)"
+           zk-id-time-string-format "%Y%m%dT%H%M"))))
 
 ;;;###autoload
 (defun ezeka-zk-index-choose-kasten (arg new-kasten)
@@ -78,22 +94,17 @@ status."
     (if-let ((buffer (get-buffer zk-index-buffer-name)))
         (kill-buffer buffer))
     (custom-set-variables
-     `(zk-directory ,(ezeka-kasten-directory new-kasten))
      '(zk-directory-subdir-function #'ezeka-subdirectory)
-     '(ezeka-zk-metadata-alist nil)
      `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
-     `(global-mode-string (propertize
-                           (concat "Kasten:" (upcase new-kasten))
-                           'face 'bold-italic))
      `(zk-header-title-line-regexp
-       "^\\(?9:# \\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
+       "^\\(?9:title: §\\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
        "Regexp of the line in a zk file's header that contains the title.
 Group 1 is the entire title.
 Group 2 is the category.
 Group 3 is the title without category."))
-    (ezeka-zk-with-kasten new-kasten
-      (zk-index)
-      (zk-index-refresh))))
+    (ezeka-zk-initialize-kasten new-kasten)
+    (zk-index)
+    (zk-index-refresh)))
 
 (defun ezeka-zk-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
