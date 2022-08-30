@@ -927,7 +927,10 @@ to current Zettel."
   (grep-compute-defaults)
   (rgrep string "*.txt" (f-slash ezeka-directory) nil))
 
-;; Show the beginning of Zettel title in mode-line
+;; To show the beginning of Zettel title in the mode-line,
+;; add the following to the user configuration:
+;;
+;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
 (defun ezeka-show-title-in-mode-line ()
   (interactive)
   (when (and (ezeka-note-p buffer-file-name)
@@ -948,7 +951,6 @@ to current Zettel."
                            "/" "" (mapconcat #'identity
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
-(add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
 
 (defun ezeka-update-link-prefix-title ()
   "Kills text from point to the next Zettel link, replacing it with that
@@ -1115,6 +1117,24 @@ Zettelkasten work."
                         (alist-get :id metadata)
                         (alist-get :kasten metadata)))
             "%b")))
+
+;; Add the following hook to enact:
+;;
+;; (add-hook 'post-command-hook 'ezeka-show-tooltip-with-link-title)
+(defun ezeka-show-tooltip-with-link-title ()
+  "If the cursor is at a Zettel link, show a tooltip with its title."
+  (while-no-input
+    (redisplay)
+    (when-let* ((link (and (ezeka-link-at-point-p)
+                           (ezeka-link-at-point)))
+                (position (window-absolute-pixel-position))
+                (metadata (ezeka-file-metadata (ezeka-link-file link t) t)))
+      ;; (set-mouse-absolute-pixel-position (car position)
+      ;;                                    (- (cdr position) 255))  ; FIXME: Hack
+      (tooltip-show
+       (format "%s%s%s" (alist-get :title metadata)
+               (if (alist-get :citekey metadata) " " "")
+               (or (alist-get :citekey metadata) ""))))))
 
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
