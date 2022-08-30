@@ -374,7 +374,7 @@ on the first line with the Zettel title string."
     (let ((file (deft-absolute-filename id)))
       (with-current-buffer (get-file-buffer file)
         (erase-buffer)
-        (call-interactively #'ezeka-insert-metadata-template)))))
+        (call-interactively #'ezeka-insert-header-template)))))
 (advice-add 'deft-new-file-named :around #'ezeka-deft--adv-deft-new-file-insert-metadata)
 
 (defun ezeka-deft--adv-deft-absolute-filename (orig-fun &rest args)

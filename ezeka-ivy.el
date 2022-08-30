@@ -121,7 +121,7 @@ the cursor in already inside a link, replace it instead."
                              (with-current-buffer
                                  (ezeka-link-file
                                   (ezeka-find-link new-child))
-                               (ezeka-insert-metadata-template
+                               (ezeka-insert-header-template
                                 nil (car choice))))
                            new-child))))
           (if (not (ezeka-link-at-point-p))

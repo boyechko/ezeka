@@ -98,7 +98,7 @@ Group 3 is the title without category."))
 (defun ezeka-zk-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
 Optionally use ORIG-ID for backlink."
-  (ezeka-insert-metadata-template new-id nil title orig-id))
+  (ezeka-insert-header-template new-id nil title orig-id))
 
 (defun ezeka-zk-format-function (files)
   "See `zk-new-note-header-function'."
@@ -209,7 +209,7 @@ user from cached and visiting Zettel."
               (ezeka-completion-table __FILES__)))
      (lambda (path)
        (setf (alist-get :parent metadata) (ezeka-file-link path))
-       (ezeka-normalize-metadata buffer-file-name metadata)))))
+       (ezeka-normalize-header buffer-file-name metadata)))))
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Call `zk-insert-link' after temporarily setting zk variables to be

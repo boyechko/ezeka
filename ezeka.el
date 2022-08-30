@@ -364,10 +364,10 @@ expression, with or without time."
               minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
-(defun ezeka-file-content (file &optional metadata-only noerror)
+(defun ezeka-file-content (file &optional header-only noerror)
   "Returns the content of the FILE, getting it either from an opened buffer
 or the file itself. If NOERROR is non-NIL, don't signal an error if cannot
-get the content. If METADATA-ONLY is non-nil, only get the metadata."
+get the content. If HEADER-ONLY is non-nil, only get the header."
   (cl-flet ((retrieve-content ()
               "Get the content from `current-buffer'."
               (widen)
@@ -376,13 +376,13 @@ get the content. If METADATA-ONLY is non-nil, only get the metadata."
                     (error "Buffer %s is empty" (current-buffer)))
                 (buffer-substring-no-properties
                  (point-min)
-                 (if (not metadata-only)
+                 (if (not header-only)
                      (point-max)
                    (goto-char (point-min))
                    (if (re-search-forward "\n\n" nil t)
                        (match-beginning 0)
                      (unless noerror
-                       (error "Cannot separate metadata in %s" file))))))))
+                       (error "Cannot separate header in %s" file))))))))
     (cond ((get-file-buffer file)
            (save-excursion
              (save-restriction
@@ -398,11 +398,17 @@ get the content. If METADATA-ONLY is non-nil, only get the metadata."
 
 ;;;=============================================================================
 ;;; Metadata
+;;
+;; Note on terminology:
+;;
+;; Metadata refers to the information about the Zettel note, like its created or
+;; midified time, and so on. Header, on the other hand, is the actual
+;; representation of that metadata inside the Zettel note.
 ;;;=============================================================================
 
-(defvar ezeka-regexp-metadata-line
+(defvar ezeka-regexp-header-line
   "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
-  "The regular expression that matches a YAML metadata line.
+  "The regular expression that matches a line of YAML metadata.
 Group 1 is the key.
 Group 2 is the value.")
 
@@ -452,12 +458,12 @@ the given METADATA, and 2) leftover metadata."
                            '((:link) (:category) (:title) (:type) (:citekey))
                            :key #'car)))
 
-(defun ezeka-metadata-yaml-key (keyword)
+(defun ezeka-header-yamlify-key (keyword)
   "Returns a YAML-formatted string that is the name of the KEY, a keyword
 symbol."
   (cl-subseq (symbol-name keyword) 1))
 
-(defun ezeka-metadata-yaml-value (value)
+(defun ezeka-header-yamlify-value (value)
   "Returns a YAML-formatted string for the given metadata VALUE."
   (cl-typecase value
     (string value)
@@ -465,9 +471,9 @@ symbol."
     (t
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun ezeka-normalize-metadata (file &optional metadata)
-  "Replaces the FILE's metadata section with either the given METADATA or
-by parsing the FILE's metadata."
+(defun ezeka-normalize-header (file &optional metadata)
+  "Replaces the FILE's header with one generated from the given METADATA or by
+parsing the FILE's existing header."
   (let ((metadata (or metadata (ezeka-file-metadata file)))
         (old-point (point)))
     (save-mark-and-excursion
@@ -482,8 +488,8 @@ by parsing the FILE's metadata."
             (insert "title: " title "\n")
             (mapc (lambda (cons)
                     (insert (format "%s: %s\n"
-                                    (ezeka-metadata-yaml-key (car cons))
-                                    (ezeka-metadata-yaml-value (cdr cons)))))
+                                    (ezeka-header-yamlify-key (car cons))
+                                    (ezeka-header-yamlify-value (cdr cons)))))
                   (let (ordered-metadata)
                     (dolist (key '(:subtitle :author
                                    :created :modified
@@ -497,14 +503,14 @@ by parsing the FILE's metadata."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-(defun ezeka-decode-metadata-section (yaml-section file)
-  "Returns an alist of metadata decoded from the given yaml metadata section
-of FILE. They keys are converted to keywords."
+(defun ezeka-decode-header (header file)
+  "Returns an alist of metadata decoded from the given YAML header of FILE.
+They keys are converted to keywords."
   (let* ((metadata
           (mapcar
            (lambda (line)
              (when (> (length line) 0)
-               (if (string-match ezeka-regexp-metadata-line line)
+               (if (string-match ezeka-regexp-header-line line)
                    (let ((key (intern (concat ":" (match-string 1 line))))
                          (value (string-trim (match-string 2 line) " " " ")))
                      (cons key
@@ -513,8 +519,8 @@ of FILE. They keys are converted to keywords."
                                (split-string (match-string 1 value)
                                              "," t "[[:space:]]+")
                              value)))
-                 (error "Malformed metadata line: '%s'" line))))
-           (split-string yaml-section "\n")))
+                 (error "Malformed header line: '%s'" line))))
+           (split-string header "\n")))
          (title (alist-get :title metadata))
          (decoded (ezeka-decode-combined-title title)))
     ;; When successfully decoded combined title, replace the original title with
@@ -528,19 +534,20 @@ of FILE. They keys are converted to keywords."
 (defun ezeka-file-metadata (file &optional noerror)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
-  (if-let ((metadata-section (ezeka-file-content file t noerror)))
-      (ezeka-decode-metadata-section metadata-section file)
-    (unless noerror
-      (error "Cannot retrieve %s's metadata" file))))
+  (when file
+   (if-let ((header (ezeka-file-content file t noerror)))
+       (ezeka-decode-header header file)
+     (unless noerror
+       (error "Cannot retrieve %s's metadata" file)))))
 
 (defcustom ezeka-update-modification-date t
-  "Determines whether `ezeka-update-metadata-date' updates the modification
+  "Determines whether `ezeka-update-header-date' updates the modification
 date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
   :type 'symbol)
 
-(defun ezeka-update-metadata-date ()
-  "Updates the modification time in the metadata section of the Zettel in the
-current buffer according to the value of `ezeka-update-modifaction-date'."
+(defun ezeka-update-header-date ()
+  "Updates the modification time in the header of the Zettel in the current
+buffer according to the value of `ezeka-update-modifaction-date'."
   (interactive)
   (when (ezeka-note-p buffer-file-name)
     (let* ((today (format-time-string "%Y-%m-%d"))
@@ -561,17 +568,17 @@ current buffer according to the value of `ezeka-update-modifaction-date'."
                                 (file-name-base buffer-file-name)
                                 last-modified))))
           (setf (alist-get :modified metadata) now)))
-      (ezeka-normalize-metadata buffer-file-name metadata))))
+      (ezeka-normalize-header buffer-file-name metadata))))
 
 (defun ezeka-update-title ()
-  "Interactively asks for a different title and updates the Zettel's metadata."
+  "Interactively asks for a different title and updates the Zettel's header."
   (interactive)
   (when (ezeka-note-p buffer-file-name)
     (let ((metadata (ezeka-file-metadata buffer-file-name)))
       (setf (alist-get :title metadata)
             (read-string "Change title to what? "
                          (alist-get :title metadata)))
-      (ezeka-normalize-metadata buffer-file-name metadata))))
+      (ezeka-normalize-header buffer-file-name metadata))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -771,7 +778,7 @@ same window. Returns T if the link is a Zettel link."
   (when (ezeka-link-p link)
     (ezeka-find-file (ezeka-link-file link) same-window)
     (when (zerop (buffer-size))
-      (call-interactively #'ezeka-insert-metadata-template))
+      (call-interactively #'ezeka-insert-header-template))
     ;; make sure to return T for `org-open-link-functions'
     t))
 
@@ -1186,9 +1193,9 @@ prefix argument, allows the user to type in a custom category."
 ;;; Populating Files
 ;;;=============================================================================
 
-(defun ezeka-insert-metadata-template (&optional link category title parent)
-  "Inserts the metadata template into the current buffer, populating the
-metadata with the LINK, CATEGORY, TITLE, and PARENT."
+(defun ezeka-insert-header-template (&optional link category title parent)
+  "Inserts the header template into the current buffer, populating the
+header with the LINK, CATEGORY, TITLE, and PARENT."
   (interactive
    (list (if buffer-file-name
              (ezeka-file-link buffer-file-name)
@@ -1202,7 +1209,7 @@ metadata with the LINK, CATEGORY, TITLE, and PARENT."
                         nil))))
   (let ((file (ezeka-link-file link)))
     (when (zerop (buffer-size))
-      (insert (format ezeka-combined-title-format
+      (insert (format ezeka-header-rubric-format
                       link
                       (or category "Unset")
                       (or title "Untitled")))
@@ -1337,13 +1344,13 @@ ask for the Kasten) from the current org subtree."
                 (message "Aborting, file already exists: %s" new-file)
               ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
-                (ezeka-insert-metadata-template new-link
-                                                (completing-read "Category: "
-                                                                 ezeka-categories
-                                                                 nil
-                                                                 nil
-                                                                 "Memo")
-                                                new-title parent-link)
+                (ezeka-insert-header-template new-link
+                                              (completing-read "Category: "
+                                                               ezeka-categories
+                                                               nil
+                                                               nil
+                                                               "Memo")
+                                              new-title parent-link)
                 (insert "\n" content)
                 (save-buffer))
               ;; Back in original buffer
@@ -1720,6 +1727,6 @@ target link and returns it."
 ;; On save, update modificate date
 (add-hook 'ezeka-mode-hook
   (lambda ()
-    (add-hook 'before-save-hook 'ezeka-update-metadata-date nil t)))
+    (add-hook 'before-save-hook 'ezeka-update-header-date nil t)))
 
 (provide 'ezeka)
