@@ -66,9 +66,9 @@ Clamp do
       system("mv -v #{source.relative_path} #{target.relative_path}")
     end
 
-    # Update slug, add oldname and save
+    # Update ID, add oldname and save
     target.read_file
-    unless target.slug == source.slug or not_under_vc
+    unless target.id == source.id or not_under_vc
       target.metadata[:oldnames] ||= []
       target.metadata[:oldnames] << source.link
     end

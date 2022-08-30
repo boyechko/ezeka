@@ -1,20 +1,20 @@
 #!/usr/bin/env ruby
-# Does a zlinksto for the slug, and deletes it after confirmation
+# Does a zlinksto for the ID, and deletes it after confirmation
 
 require 'clamp'
 require_relative 'zettel'
 
 Clamp do
-  parameter "SLUG", "slug to remove", :attribute_name => :slug
+  parameter "ID", "ID to remove", :attribute_name => :id
   option ["-v", "--verbose"], :flag, "verbose", :attribute_name => :verbose
   option ["-i", "--interactive"], :flag, "interactive", :attribute_name => :interactive
 
   def execute
-    zettel = Zettel.new_from_link(slug)
+    zettel = Zettel.new_from_link(id)
 
     puts "The following notes have links to #{zettel.link}:"
     Dir.chdir(Zettelkasten.root)
-    system("zlinksto #{slug}")
+    system("zlinksto #{id}")
 
     # Give user chance to interrupt
     puts "zremove: Press [Enter] to remove #{zettel.link}..."

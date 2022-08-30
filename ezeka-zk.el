@@ -43,7 +43,7 @@
      (cl-progv '(zk-id-regexp
                  zk-id-time-string-format
                  zk-directory-subdir-function)
-         (cl-case (ezeka-kasten-slug-type ,kasten)
+         (cl-case (ezeka-kasten-id-type ,kasten)
            (:numerus
             '("[a-z]-[0-9]\\{4\\}"
               ,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
@@ -54,12 +54,29 @@
            (t
             '("[0-9]\\{8\\}T[0-9]\\{4\\}"
               "%Y%m%dT%H%M")))
-       (message "DEBUG: zk-id-regexp = %s, special? %s, symbol-value = %s"
-                zk-id-regexp
-                (special-variable-p 'zk-id-regexp)
-                (symbol-value 'zk-id-regexp))
        ,@body)))
 
+(defun ezeka-zk-initialize-kasten (kasten)
+  "Set necessary variables for long-term work in KASTEN."
+  (custom-set-variables
+   `(zk-directory ,(ezeka-kasten-directory kasten))
+   `(global-mode-string ,(propertize (concat "Kasten:" (upcase kasten))
+                                     'face 'bold-italic)))
+  (cl-case (ezeka-kasten-id-type kasten)
+    (:numerus
+     (setq zk-id-regexp "\\([a-z]-[0-9]\\{4\\}\\)"
+           zk-id-time-string-format
+           (concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
+                   "-%H%M")))
+    (:bolus
+     (setq zk-id-regexp "\\([0-9]\\{3\\}-[a-z]\\{3\\}\\)"
+           zk-id-time-string-format
+           (concat (downcase (format-time-string "%a-%j")))))
+    (t
+     (setq zk-id-regexp "\\([0-9T]\\{13\\}\\)"
+           zk-id-time-string-format "%Y%m%dT%H%M"))))
+
+>>>>>>> slug-to-id
 ;;;###autoload
 (defun ezeka-zk-index-choose-kasten (arg new-kasten)
   "If there is an existing `zk-index-buffer-name', switches to it, otherwise
@@ -78,27 +95,22 @@ status."
     (if-let ((buffer (get-buffer zk-index-buffer-name)))
         (kill-buffer buffer))
     (custom-set-variables
-     `(zk-directory ,(ezeka-kasten-directory new-kasten))
      '(zk-directory-subdir-function #'ezeka-subdirectory)
-     '(ezeka-zk-metadata-alist nil)
      `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
-     `(global-mode-string (propertize
-                           (concat "Kasten:" (upcase new-kasten))
-                           'face 'bold-italic))
      `(zk-header-title-line-regexp
-       "^\\(?9:# \\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
+       "^\\(?9:title: §\\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
        "Regexp of the line in a zk file's header that contains the title.
 Group 1 is the entire title.
 Group 2 is the category.
 Group 3 is the title without category."))
-    (ezeka-zk-with-kasten new-kasten
-      (zk-index)
-      (zk-index-refresh))))
+    (ezeka-zk-initialize-kasten new-kasten)
+    (zk-index)
+    (zk-index-refresh)))
 
 (defun ezeka-zk-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
 Optionally use ORIG-ID for backlink."
-  (ezeka-insert-metadata-template new-id nil title orig-id))
+  (ezeka-insert-header-template new-id nil title orig-id))
 
 (defun ezeka-zk-format-function (files)
   "See `zk-new-note-header-function'."
@@ -107,7 +119,7 @@ Optionally use ORIG-ID for backlink."
       (when (ezeka-note-p file)
         (let* ((metadata (ezeka-file-metadata file)))
           (push (format-spec zk-index-format
-                             `((?i . ,(ezeka-file-slug file))
+                             `((?i . ,(ezeka-file-id file))
                                (?t . ,(alist-get :title metadata))
                                (?c . ,(alist-get :category metadata))
                                (?k . ,(or (alist-get :citekey metadata) ""))))
@@ -140,7 +152,7 @@ Optionally use ORIG-ID for backlink."
           (mapcar
            (lambda (file)
              (if (equal target 'id)
-                 (ezeka-file-slug file)
+                 (ezeka-file-id file)
                (alist-get :title (ezeka-file-metadata file))))
            files)))
     (if (eq 1 (length return))
@@ -160,7 +172,7 @@ has the form
      (lambda (file)
        (when (ezeka-note-p file)
          (let ((metadata (ezeka-file-metadata file)))
-           (list (ezeka-file-slug file)
+           (list (ezeka-file-id file)
                  (alist-get :title metadata)
                  file
                  (file-attribute-modification-time (file-attributes file))
@@ -209,7 +221,7 @@ user from cached and visiting Zettel."
               (ezeka-completion-table __FILES__)))
      (lambda (path)
        (setf (alist-get :parent metadata) (ezeka-file-link path))
-       (ezeka-normalize-metadata buffer-file-name metadata)))))
+       (ezeka-normalize-header buffer-file-name metadata)))))
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Call `zk-insert-link' after temporarily setting zk variables to be
@@ -219,6 +231,19 @@ appropriate for the particular Zettelkasten."
                        "rumen")))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-insert-link)))
+
+(defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
+  "Call `zk-find-file' after temporarily setting zk variables to be appropriate
+for the particular Zettelkasten. Defaults to the Kasten set in
+`zk-directory', if any. With prefix arg, ask to select Kasten."
+  (interactive (list current-prefix-arg
+                     (if-let ((kasten
+                               (and (not current-prefix-arg)
+                                    (ezeka-directory-kasten zk-directory))))
+                         kasten
+                       (completing-read "Kasten: " ezeka-kaesten))))
+  (ezeka-zk-with-kasten kasten
+    (call-interactively 'zk-find-file)))
 
 (defun ezeka-rgrep-link-at-point (link)
   "Executes recursive grep for the ezeka link at point."
