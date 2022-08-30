@@ -231,6 +231,19 @@ appropriate for the particular Zettelkasten."
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-insert-link)))
 
+(defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
+  "Call `zk-find-file' after temporarily setting zk variables to be appropriate
+for the particular Zettelkasten. Defaults to the Kasten set in
+`zk-directory', if any. With prefix arg, ask to select Kasten."
+  (interactive (list current-prefix-arg
+                     (if-let ((kasten
+                               (and (not current-prefix-arg)
+                                    (ezeka-directory-kasten zk-directory))))
+                         kasten
+                       (completing-read "Kasten: " ezeka-kaesten))))
+  (ezeka-zk-with-kasten kasten
+    (call-interactively 'zk-find-file)))
+
 (defun ezeka-rgrep-link-at-point (link)
   "Executes recursive grep for the ezeka link at point."
   (interactive
