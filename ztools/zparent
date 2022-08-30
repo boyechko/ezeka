@@ -5,8 +5,8 @@ require 'clamp'
 require_relative 'zettel'
 
 Clamp do
-  parameter "SLUG", "numerus currens to set the parent of",
-            :attribute_name => :slug
+  parameter "ID", "numerus currens to set the parent of",
+            :attribute_name => :id
 
   # Returns the parent of the given zettel, or null
   def parent_of(numerus)
@@ -20,16 +20,16 @@ Clamp do
   end
 
   def execute
-    numerus = Zettel.new_from_link(slug)
+    numerus = Zettel.new_from_link(id)
     numerus.read_file
 
     if not parent_of(numerus).empty?
       parent = Zettel.new_from_link(parent_of(numerus))
       numerus.metadata[:parent] = "[[#{parent.link}]]"
       numerus.write_file
-      puts "Parent set for #{slug}"
+      puts "Parent set for #{id}"
     else
-      puts "No parent for #{slug}"
+      puts "No parent for #{id}"
     end
   end
 end

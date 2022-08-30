@@ -30,7 +30,7 @@ class Zettelkasten
     raise "$ZETTEL_DIR is not set"
   end
 
-  # Kasten Name => Type
+  # Kasten Name => ID type
   @kaesten = { "os"        => :tempus,          # things get "ingested"
                "esophagus" => :bolus,           # regurgitated ingesta (needs processing) FIXME
                "rumen"     => :numerus,         # [default] others' ideas
@@ -43,7 +43,7 @@ class Zettelkasten
              }
 
   # The default kaesten can be referred to without specifying their kasten
-  # Type => Kasten
+  # ID type => Kasten
   @default_kasten = { :numerus => "rumen",
                       :tempus => "omasum",
                       :bolus => "esophagus" # FIXME: temporary
@@ -78,8 +78,8 @@ class Zettelkasten
     return topmost_dir if @kaesten[topmost_dir]
   end
 
-  # Returns the type of the zettel found at the given path
-  def self.zettel_type(path)
+  # Returns the ID type of the zettel found at the given path
+  def self.id_type_of(path)
     return @kaesten[kasten_of(path)]
   end
 
@@ -94,9 +94,9 @@ end
 #-------------------------------------------------------------------------------
 
 class Zettel
-  attr_reader :type,            # Zettel type: :tempus, :numerus, or :bolus (FIXME)
+  attr_reader :id_type,         # Zettel ID type: :tempus, :numerus, or :bolus (FIXME)
               :kasten,          # Kasten, as string
-              :slug,            # slug only (i.e. without Kasten)
+              :id,              # id only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless default)
               :path             # full path, as Pathname
   attr_accessor :metadata,      # hash of symbol -> value
@@ -136,7 +136,7 @@ class Zettel
 
   # More concise representation
   def inspect()
-    return "#<#{self.class} @slug=#{@slug}, @kasten=#{@kasten}, "\
+    return "#<#{self.class} @id=#{@id}, @kasten=#{@kasten}, "\
            "@path=#{@path.relative_path_from(Zettelkasten.root)}>"
   end
 
@@ -163,19 +163,16 @@ class Zettel
       @text = "" if @text.nil?
       return true
     else
-      raise "The file for Zettel '#{@slug}' is not readable: #{@path}"
+      raise "The file for Zettel '#{@id}' is not readable: #{@path}"
     end
   end
 
   # Writes to the Zettel file the content of metadata (in YAML) and @text.
   def write_file()
     if File.writable?(@path)
-      # Make sure the title has the correct slug
-      @metadata[:title].gsub!(/§[^.]+\./, "§#{@link}.")
-
       File.write(@path, yaml_metadata() + "\n" + @text)
     else
-      raise "The file for Zettel '#{@slug}' is not writable: #{@path}"
+      raise "The file for Zettel '#{@id}' is not writable: #{@path}"
     end
   end
 
@@ -184,7 +181,7 @@ class Zettel
     links = Array.new()
 
     Dir.chdir(Zettelkasten.root)
-    cmd = "grep --include=*#{Zettelkasten.ext} -lR -e '#{slug}\\]\\]' -e 'parent: #{slug}' *"
+    cmd = "grep --include=*#{Zettelkasten.ext} -lR -e '#{id}\\]\\]' -e 'parent: #{id}' *"
     Open3.popen3(cmd) do |stdin, stdout, stderr|
       while file = stdout.gets
         z = Zettel.new_from_path(Zettelkasten.root + file.chomp)
@@ -237,14 +234,23 @@ class Zettel
   TIME_PATTERN = /^\d{4}-\d{2}-\d{2}( [[:alpha:]]{3} \d{2}:\d{2})*$/
   METADATA_TIME_FORMAT = "%F %a %H:%M" # Org-mode timestamp format
 
+  # String that comes just before the id
+  ID_PREFIX = "§"
+  # String used to separate the id from the title
+  ID_TITLE_SEPARATOR = " "
+  # Regexp matching separation between the end of id and beginning of title
+  ID_REGEXP = /[^ ]+/
+
   # Returns a YAML block as a string, using inline sequence style.
   #
   # Can't use YAML::to_yaml() because it does not support inline style.
   def yaml_metadata()
     result = ""
 
-    @metadata[:summary] = "§%s. {%s} %s" %
-                          [@slug, @metadata[:category], @metadata[:title]]
+    # Make sure the title has the correct id
+    @metadata[:title].gsub!(/#{ID_PREFIX}#{ID_REGEXP}/,
+                            "#{ID_PREFIX}#{@link}")
+
     # Output the metadata in the order specified in METADATA_KEYS
     METADATA_KEYS.each { |key|
       result += "#{to_yaml_line(key)}\n" if @metadata[key]
@@ -311,16 +317,16 @@ end
 #-------------------------------------------------------------------------------
 
 class Numerus < Zettel
-  ZETTEL_TYPE = :numerus
+  ZETTEL_ID_TYPE = :numerus
 
   N_DIGITS = 4                  # number of digits
   SEPARATOR = "-"               # separator between digits and letters
   N_LETTERS = 1                 # number of letters
-  SLUG_PATTERN = /^(?<letters>[a-z]{#{N_LETTERS}})#{SEPARATOR}(?<digits>[0-9]{#{N_DIGITS}})$/
-  FQN_PATTERN = SLUG_PATTERN
+  ID_PATTERN = /^(?<letters>[a-z]{#{N_LETTERS}})#{SEPARATOR}(?<digits>[0-9]{#{N_DIGITS}})$/
+  FQN_PATTERN = ID_PATTERN
 
-  attr_reader :digits,          # the number portion of the slug
-              :letters,         # the letter portion of the slug
+  attr_reader :digits,          # the number portion of the id
+              :letters,         # the letter portion of the id
               :section          # the section of the numerus Kasten
 
   #
@@ -352,23 +358,23 @@ class Numerus < Zettel
   # For self.class::Constant, see https://stackoverflow.com/a/13234497
   def init_link(link)
     if link =~ self.class::FQN_PATTERN
-      @type = self.class::ZETTEL_TYPE
-      @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_TYPE]
+      @id_type = self.class::ZETTEL_ID_TYPE
+      @kasten = Zettelkasten.default_kasten[self.class::ZETTEL_ID_TYPE]
       @link = link
       @digits = Regexp.last_match.named_captures["digits"]
       @letters = Regexp.last_match.named_captures["letters"]
       reinit()
       read_file if @path.exist?
     else
-      raise "This does not look like a(n) #{ZETTEL_TYPE.to_s} currens Zettel: #{link}"
+      raise "This does not look like a(n) #{ZETTEL_ID_TYPE.to_s} currens Zettel: #{link}"
     end
   end
 
-  # Sets @slug, @section, and @path based on @digits and @letters
+  # Sets @id, @section, and @path based on @digits and @letters
   def reinit()
-    @slug = self.slug()
-    @section = self.class.section_of(@slug)
-    @path = Zettelkasten.dir(@kasten) + @section + (@slug + Zettelkasten.ext)
+    @id = self.id()
+    @section = self.class.section_of(@id)
+    @path = Zettelkasten.dir(@kasten) + @section + (@id + Zettelkasten.ext)
   end
 
   #
@@ -377,10 +383,10 @@ class Numerus < Zettel
 
   # Returns the wiki link target
   def link()
-    return @slug
+    return @id
   end
 
-  def slug()
+  def id()
     return @letters + self.class::SEPARATOR + @digits
   end
 
@@ -407,12 +413,12 @@ class Numerus < Zettel
   #
 
   # Returns the appropriate sub-directory in the numerus Kasten based on the
-  # Zettel slug.
-  def self.section_of(slug)
-    if slug =~ SLUG_PATTERN
-      return "#{slug[0]}"
+  # Zettel ID.
+  def self.section_of(id)
+    if id =~ ID_PATTERN
+      return "#{id[0]}"
     else
-      raise "Slug '#{slug}' is not a numerus currens #{SLUG_PATTERN}"
+      raise "ID '#{id}' is not a numerus currens #{ID_PATTERN}"
     end
   end
 
@@ -423,8 +429,8 @@ class Numerus < Zettel
 
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    if File.basename(string, Zettelkasten.ext) =~ self::SLUG_PATTERN &&
-       Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_TYPE]
+    if File.basename(string, Zettelkasten.ext) =~ self::ID_PATTERN &&
+       Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_ID_TYPE]
       return true
     else
       return false
@@ -438,7 +444,7 @@ end
 
 class Tempus < Zettel
   FQN_PATTERN = /^(([a-z]+):)*(\d{8}T\d{4})$/
-  SLUG_PATTERN = /^\d{8}T\d{4}$/
+  ID_PATTERN = /^\d{8}T\d{4}$/
 
   attr_reader :time             # the time of the Zettel as a Time object
 
@@ -478,11 +484,11 @@ class Tempus < Zettel
         @kasten = $2
       end
 
-      @type = :tempus
-      @slug = $3
+      @id_type = :tempus
+      @id = $3
       @link = self.link
-      @time = Time.parse(@slug)
-      @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@slug + Zettelkasten.ext)
+      @time = Time.parse(@id)
+      @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@id + Zettelkasten.ext)
       read_file if @path.exist?
     else
       raise "This does not look like a Tempus Zettel: #{link}"
@@ -495,8 +501,8 @@ class Tempus < Zettel
 
   # Returns the wiki link target
   def link()
-    if @kasten == Zettelkasten.default_kasten[@type] then return @slug
-    else return "#{@kasten}:#{@slug}"
+    if @kasten == Zettelkasten.default_kasten[@id_type] then return @id
+    else return "#{@kasten}:#{@id}"
     end
   end
 
@@ -511,7 +517,7 @@ class Tempus < Zettel
 
   # Returns true if this is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    return File.basename(string, Zettelkasten.ext) =~ SLUG_PATTERN &&
+    return File.basename(string, Zettelkasten.ext) =~ ID_PATTERN &&
            Zettelkasten.includes?(string) ? true : false
   end
 end
@@ -521,34 +527,34 @@ end
 #-------------------------------------------------------------------------------
 
 class Bolus < Numerus
-  ZETTEL_TYPE = :bolus
+  ZETTEL_ID_TYPE = :bolus
 
   N_LETTERS = 3
   SEPARATOR = "-"
   N_DIGITS = 3
-  SLUG_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
-  FQN_PATTERN = SLUG_PATTERN
+  ID_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
+  FQN_PATTERN = ID_PATTERN
 
-  # How to form slugs
-  def slug()
+  # How to form ids
+  def id()
     return @digits + self.class::SEPARATOR + @letters
   end
 
   # Returns the appropriate sub-directory in the bolus Kasten based on the
-  # Zettel slug.
-  def self.section_of(slug)
-    if slug =~ self::SLUG_PATTERN
+  # Zettel id.
+  def self.section_of(id)
+    if id =~ self::ID_PATTERN
       num = $1.to_i
       if num >= 0 and num <= 99
         return "000-099"
       elsif num >= 100 and num <= 999
-        return "#{slug[0]}00-#{slug[0]}99"
+        return "#{id[0]}00-#{id[0]}99"
       else
-        # Should never get here: SLUG_PATTERN limits the numerus to three digits
-        raise "Numerus currens '#{slug}' is out of bounds (0-999)"
+        # Should never get here: ID_PATTERN limits the numerus to three digits
+        raise "Numerus currens '#{id}' is out of bounds (0-999)"
       end
     else
-      raise "Slug '#{slug}' is not a bolus currens"
+      raise "ID '#{id}' is not a bolus currens"
     end
   end
 end

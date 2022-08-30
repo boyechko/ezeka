@@ -11,10 +11,10 @@ Clamp do
       ARGV.shift
     end
 
-    # Get the list of new slugs
-    new_slugs_file = "/Users/richard/Dropbox/Zettel/auto/new-slugs"
-    new_slugs = File.readlines(new_slugs_file).each {|line| line.chomp!}
-    used_slugs = Array.new
+    # Get the list of new IDs
+    new_ids_file = "/Users/richard/Dropbox/Zettel/auto/new-ids"
+    new_ids = File.readlines(new_ids_file).each {|line| line.chomp!}
+    used_ids = Array.new
 
     # Read list of files to replace the links in from STDIN
     ARGF.each_line do |line|
@@ -23,32 +23,32 @@ Clamp do
       if !line.empty?
         old = Zettel.new_from_link(line)
 
-        used_slugs.push("#{old.slug} => #{new_slugs.last}")
-        new = Zettel.new_from_link(new_slugs.pop)
+        used_ids.push("#{old.id} => #{new_ids.last}")
+        new = Zettel.new_from_link(new_ids.pop)
 
         while new.exists?
-          puts "Warning: Zettel #{new.slug} exists; skipping"
-          new = Zettel.new_from_link(new_slugs.pop)
+          puts "Warning: Zettel #{new.id} exists; skipping"
+          new = Zettel.new_from_link(new_ids.pop)
         end
 
         # Check that the file exists and is either a numerus currens or datetime
         if old
-          system("zmove", old.slug, new.slug)
+          system("zmove", old.id, new.id)
         else
           STDERR.puts "Error: File '#{line}' doesn't appear valid; skipping"
         end
       end
     end
 
-    puts "Writing remaining unused slugs back..."
-    File.open(new_slugs_file, "w") do |f|
-      f.puts(new_slugs)
+    puts "Writing remaining unused ids back..."
+    File.open(new_ids_file, "w") do |f|
+      f.puts(new_ids)
     end
 
-    puts "Saving used slugs..."
-    used_slugs_file = "/Users/richard/Dropbox/Zettel/auto/used-new-slugs"
-    File.open(used_slugs_file, "a") do |f|
-      f.puts(used_slugs)
+    puts "Saving used ids..."
+    used_ids_file = "/Users/richard/Dropbox/Zettel/auto/used-new-ids"
+    File.open(used_ids_file, "a") do |f|
+      f.puts(used_ids)
     end
   end
 end

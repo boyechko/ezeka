@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Returns the type of the given Zettel: either 'numerus' or 'tempus'
+# Returns the ID type of the given Zettel: either 'numerus' or 'tempus'
 
 require 'clamp'
 require_relative 'zettel'
@@ -9,6 +9,6 @@ Clamp do
             :attribute_name => :path
 
   def execute
-      puts Zettelkasten.zettel_type(path)
+      puts Zettelkasten.id_type_of(path)
   end
 end
