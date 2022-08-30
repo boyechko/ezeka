@@ -69,7 +69,7 @@ Groups 4-5 are hour, minute.")
   "An alist of type and an example of what it looks like for the various ID
 types.")
 
-(DEFVAR ezeka-regexp-id
+(defvar ezeka-regexp-id
   ;; Strip the groups in the component regexps
   (concat "\\("
           (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-numerus-currens)
@@ -87,7 +87,7 @@ types.")
 Group 1 is the kasten, if specified.
 Group 2 is the ID.")
 
-(DEFVAR ezeka-regexp-iso8601-date
+(defvar ezeka-regexp-iso8601-date
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
   "The regular expression that matches ISO 8601-like date.
 Groups 1-3 are year, month, day.")
@@ -1078,7 +1078,7 @@ new child link. Passes the prefix argument to `ezeka-insert-new-child'."
                       "")))
     (when text
       (kill-new (concat (org-trim text)
-                        (when citekey " @")
+                        (when citekey " ")
                         citekey)))
     (ezeka-insert-new-child arg)))
 
@@ -1119,8 +1119,8 @@ Zettelkasten work."
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `completing-read' as collection."
-  ;;                  * ID  CATEGORY  TITLE  KEYWORDS
-  (let* ((sw 14) (cw 10) (kw 15)
+  ;;                  * ID  CATEGORY  TITLE  CITEKEY
+  (let* ((sw 14) (cw 10) (kw 25)
          (tw (- (frame-width) (+ sw cw kw 5)))
          (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" sw cw tw kw)))
     (mapcar (lambda (file)
@@ -1135,7 +1135,7 @@ suitable for passing to `completing-read' as collection."
                               (when title
                                 (cl-subseq title 0 (min (length title)
                                                         tw)))
-                              (or (alist-get :keywords metadata) ""))
+                              (or (alist-get :citekey metadata) ""))
                       file)))
             files)))
 
