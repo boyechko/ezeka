@@ -1123,6 +1123,10 @@ Zettelkasten work."
 ;; Add the following hook to enact:
 ;;
 ;; (add-hook 'post-command-hook 'ezeka-show-tooltip-with-link-title)
+;;
+;; Set absolute values for tooltip location
+;; (add-to-list 'tooltip-frame-parameters '(top . 1015))
+;; (add-to-list 'tooltip-frame-parameters '(left . 560))
 (defun ezeka-show-tooltip-with-link-title ()
   "If the cursor is at a Zettel link, show a tooltip with its title."
   (while-no-input
@@ -1131,12 +1135,28 @@ Zettelkasten work."
                            (ezeka-link-at-point)))
                 (position (window-absolute-pixel-position))
                 (metadata (ezeka-file-metadata (ezeka-link-file link t) t)))
-      ;; (set-mouse-absolute-pixel-position (car position)
-      ;;                                    (- (cdr position) 255))  ; FIXME: Hack
       (tooltip-show
        (format "%s%s%s" (alist-get :title metadata)
                (if (alist-get :citekey metadata) " " "")
                (or (alist-get :citekey metadata) ""))))))
+
+;; Add the following hook to enact:
+;;
+;; (add-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
+(defun ezeka-show-link-title-in-mode-line ()
+  "If the cursor is at a Zettel link, show the title in the mode line."
+  (while-no-input
+    (redisplay)
+    (if-let* ((link (and (ezeka-link-at-point-p)
+                         (ezeka-link-at-point)))
+              (metadata (ezeka-file-metadata (ezeka-link-file link t) t)))
+      (setq mode-line-misc-info
+        (propertize
+         (format "%s%s%s" (alist-get :title metadata)
+                 (if (alist-get :citekey metadata) " " "")
+                 (or (alist-get :citekey metadata) ""))
+         'face '(:slant italic :height 0.9)))
+      (setq mode-line-misc-info zk-index-mode-line-orig))))
 
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
@@ -1172,7 +1192,8 @@ in another window."
                  (cdr (assoc-string
                        (completing-read "Visit buffer: " table nil t) table))
                (switch-to-buffer
-                (read-buffer-to-switch "No opened Zettel. Switch to regular buffer: "))))))
+                (read-buffer-to-switch
+                 "No opened Zettel. Switch to regular buffer: "))))))
 
 ;;;=============================================================================
 ;;; Categories
