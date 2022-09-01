@@ -13,7 +13,7 @@ excludefile=/tmp/all-zettel.$$.exclude
 # Exclude the metadata keywords and common section names
 cat > $excludefile <<EOF
 created
-title
+rubric
 modified
 oldname
 readings

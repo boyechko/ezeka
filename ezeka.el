@@ -412,31 +412,34 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
 Group 1 is the key.
 Group 2 is the value.")
 
-(defvar ezeka-combined-title-format "title: §%s {%s} %s"
+(defvar ezeka-header-rubric-key "rubric"
+  "The header metadata key for the rubric.")
+
+(defvar ezeka-header-rubric-format "§%s {%s} %s"
   "The format string, suitable for use in FORMAT with argments of link,
 category, and title in that order.")
 
-(defvar ezeka-regexp-combined-title
+(defvar ezeka-regexp-rubric
   (concat "§"
           ezeka-regexp-link             ; \1 and \2
           "\\(?9:\\.\\)* \\(?8:{\\(?3:[^}]+\\)}\\)*\\(?4:[^#@]+\\)*\\(?5:@\\S-+\\)*\\(?6:#.+\\)*")
-  "Regular expression for a combined title string, used in `ezeka-file-metadata'.
+  "Regular expression for the rubric string, used in `ezeka-file-metadata'.
 Group 1 is the kasten.
 Group 2 is the id.
 Group 3 is the category.
-Group 4 is the title itself.
+Group 4 is the title.
 Group 5 is the citation key.
 Group 6 is the keyword block.")
 
-(defun ezeka-decode-combined-title (combined)
-  "Returns an alist of metadata from a combined title. If cannot decode,
+(defun ezeka-decode-rubric (rubric)
+  "Returns an alist of metadata from a rubric. If cannot decode,
 returns NIL."
-  (when (and combined (string-match ezeka-regexp-combined-title combined))
-    (let ((id       (match-string 2 combined))
-          (category (match-string 3 combined))
-          (title    (match-string 4 combined))
-          (citekey  (match-string 5 combined))
-          (keywords (match-string 6 combined)))
+  (when (and rubric (string-match ezeka-regexp-rubric rubric))
+    (let ((id       (match-string 2 rubric))
+          (category (match-string 3 rubric))
+          (title    (match-string 4 rubric))
+          (citekey  (match-string 5 rubric))
+          (keywords (match-string 6 rubric)))
       (list (cons :id id)
             (cons :type (ezeka-id-type id))
             (cons :category category)
@@ -444,13 +447,13 @@ returns NIL."
             (when citekey (cons :citekey (string-trim citekey)))
             (when keywords (cons :keywords (list (string-trim keywords))))))))
 
-(defun ezeka-encode-combined-title (metadata)
-  "Returns a list of two elements: 1) string that encodes into the title line
-the given METADATA, and 2) leftover metadata."
-  (list (format "§%s {%s} %s%s"
-                (alist-get :link metadata)
-                (or (alist-get :category metadata) "Unset")
-                (alist-get :title metadata)
+(defun ezeka-encode-rubric (metadata)
+  "Returns a list of two elements: 1) string that encodes the given
+METADATA into the rubric, and 2) leftover metadata."
+  (list (concat (format ezeka-header-rubric-format
+                        (alist-get :link metadata)
+                        (or (alist-get :category metadata) "Unset")
+                        (alist-get :title metadata))
                 (if (alist-get :citekey metadata)
                     (concat " " (alist-get :citekey metadata))
                   ""))
@@ -483,21 +486,21 @@ parsing the FILE's existing header."
           (when (re-search-forward "^$" nil t 1)
             (narrow-to-region (point-min) (point)))
           (delete-region (point-min) (point-max))
-          (cl-multiple-value-bind (title remaining-metadata)
-              (ezeka-encode-combined-title metadata)
-            (insert "title: " title "\n")
+          (cl-multiple-value-bind (rubric processed-metadata)
+              (ezeka-encode-rubric metadata)
+            (push (cons :rubric rubric) processed-metadata)
             (mapc (lambda (cons)
                     (insert (format "%s: %s\n"
                                     (ezeka-header-yamlify-key (car cons))
                                     (ezeka-header-yamlify-value (cdr cons)))))
                   (let (ordered-metadata)
-                    (dolist (key '(:subtitle :author
+                    (dolist (key '(:rubric :subtitle :author
                                    :created :modified
                                    :parent :firstborn :oldnames
                                    :readings :keywords)
                                  (nreverse ordered-metadata))
-                      (when (alist-get key remaining-metadata)
-                        (push (cons key (alist-get key remaining-metadata))
+                      (when (alist-get key processed-metadata)
+                        (push (cons key (alist-get key processed-metadata))
                               ordered-metadata)))))))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
@@ -521,13 +524,12 @@ They keys are converted to keywords."
                              value)))
                  (error "Malformed header line: '%s'" line))))
            (split-string header "\n")))
-         (title (alist-get :title metadata))
-         (decoded (ezeka-decode-combined-title title)))
-    ;; When successfully decoded combined title, replace the original title with
-    ;; the decoded metadata.
+         (rubric (alist-get :rubric metadata))
+         (decoded (ezeka-decode-rubric rubric)))
+    ;; When successfully decoded rubric, remove rubric key.
     (when decoded
       (setq metadata
-        (append decoded (cl-remove :title metadata :key #'car))))
+        (append decoded (cl-remove :rubric metadata :key #'car))))
     (push (cons :kasten (ezeka-file-kasten file)) metadata)
     (push (cons :link (ezeka-file-link file)) metadata)))
 
@@ -870,13 +872,13 @@ link itself."
 (defun ezeka-kill-ring-save-link-title (arg)
   "Save the title to the kill ring and system clipboard of either the Zettel
 link at point or, if there is none, the current buffer. With prefix argument,
-saves the 'combinted title'."
+saves the rubric instead."
   (interactive "P")
   (let ((file (ezeka--grab-dwim-file-target t)))
     (when file
       (let* ((metadata (ezeka-file-metadata file))
              (title (if arg
-                        (car (ezeka-encode-combined-title metadata))
+                        (car (ezeka-encode-rubric metadata))
                       (alist-get :title metadata))))
         (kill-new title)
         (unless select-enable-clipboard
@@ -940,9 +942,9 @@ to current Zettel."
         (widen)
         (goto-char (point-min))
         (let ((metadata
-               (ezeka-decode-combined-title
+               (ezeka-decode-rubric
                 (buffer-substring-no-properties
-                 (or (re-search-forward "title: " nil t) (point-min))
+                 (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
                  (point-at-eol)))))
           (when metadata
             (let ((words (split-string (alist-get :title metadata))))
@@ -1198,7 +1200,7 @@ prefix argument, allows the user to type in a custom category."
     (save-excursion
       (with-current-buffer (find-file-noselect file)
         (goto-char (point-min))
-        (cond ((not (re-search-forward ezeka-regexp-combined-title nil t))
+        (cond ((not (re-search-forward ezeka-regexp-rubric nil t))
                (message "Not sure how to set the category here"))
               ((match-string 3)
                (replace-match category nil nil nil 3))
@@ -1683,8 +1685,8 @@ target link and returns it."
                  (setq file (magit-file-at-point))
                  (ezeka-note-p file)
                  (setq line (magit-file-line file)))
-        (let ((metadata (ezeka-decode-combined-title
-                         (car (split-string line "title: " t)))))
+        (let ((metadata (ezeka-decode-rubric
+                         (cadr (split-string line ": " t " ")))))
           (message "%s | %s"
                    (alist-get :id metadata) (alist-get :title metadata)))))))
 

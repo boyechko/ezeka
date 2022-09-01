@@ -224,7 +224,7 @@ class Zettel
 
   private
 
-  METADATA_KEYS = [:title, :subtitle, :author,
+  METADATA_KEYS = [:rubric, :subtitle, :author,
                    :created, :modified,
                    :parent, :firstborn, :oldnames,
                    :keywords, :readings]
@@ -247,8 +247,8 @@ class Zettel
   def yaml_metadata()
     result = ""
 
-    # Make sure the title has the correct id
-    @metadata[:title].gsub!(/#{ID_PREFIX}#{ID_REGEXP}/,
+    # Make sure the rubric has the correct id
+    @metadata[:rubric].gsub!(/#{ID_PREFIX}#{ID_REGEXP}/,
                             "#{ID_PREFIX}#{@link}")
 
     # Output the metadata in the order specified in METADATA_KEYS

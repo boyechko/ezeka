@@ -97,11 +97,12 @@ status."
      '(zk-directory-subdir-function #'ezeka-subdirectory)
      `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
      `(zk-header-title-line-regexp
-       "^\\(?9:title: §\\)*[^ ]+\\.* \\(?1:{\\(?2:[^ ]+\\)} \\(?3:.*\\)\\)$"
-       "Regexp of the line in a zk file's header that contains the title.
-Group 1 is the entire title.
-Group 2 is the category.
-Group 3 is the title without category."))
+       "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:{\\(?3:[^ ]+\\)} \\(?4:.*\\)\\)$"
+       "Regexp of the line in a zk file's header that contains the rubric.
+Group 1 is the id.
+Group 2 is the title with category.
+Group 3 is the category.
+Group 4 is the title without category."))
     (ezeka-zk-initialize-kasten new-kasten)
     (zk-index)
     (zk-index-refresh)))

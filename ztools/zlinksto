@@ -21,8 +21,8 @@ Clamp do
     zettel = Zettel.new_from_link(id)
     zettel.links_to.each do |z|
       if pretty_print?
-        just_title = z.metadata[:title].gsub(/§[^.]+\. /, "")
-        puts format_string % [z.id, z.kasten, just_title]
+        title = z.metadata[:rubric].gsub(/§[^.]+\. /, "")
+        puts format_string % [z.id, z.kasten, title]
       else
         puts z.link
       end

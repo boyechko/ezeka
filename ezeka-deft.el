@@ -53,7 +53,7 @@ otherwise ascending."
 ;;;=============================================================================
 
 ;; Adjust how Deft lists Zettel
-(setq deft-strip-title-regexp "^\\(title: +\\)"
+(setq deft-strip-title-regexp "^\\(rubric: +\\)"
       ;; Default: "\\(?:^%+\\|^[#* ]+\\|-\\*-[[:alpha:]]+-\\*-\\|#+$\\)"
       deft-strip-summary-regexp ".*"
       ;; Default: "\\([\n	]\\|^#\\+[[:upper:]_]+:.*$\\)"
@@ -126,8 +126,8 @@ optinal NUMBER-OF-FRAMES, set the `ezeka-number-of-frames' to that value."
 as the value for `deft-parse-title-function'. If SHOW-MISSING is non-NIL,
 the missing metadata is explicitly displayed."
   (when line
-    (let* ((metadata (ezeka-decode-combined-title
-                      (replace-regexp-in-string "^\\(title: +\\)" "" line)))
+    (let* ((metadata (ezeka-decode-rubric
+                      (replace-regexp-in-string "^\\(rubric: +\\)" "" line)))
            (id (or (alist-get :id metadata)
                      (if show-missing "<ID>" "")))
            (cat (or (alist-get :category metadata)
