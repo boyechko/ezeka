@@ -1830,7 +1830,7 @@ target link and returns it."
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
             ("C-c [" . ezeka-update-title) ; `org-agenda-file-to-front'
-            ("C-c ="  . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
+            ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
             ;;
