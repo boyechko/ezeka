@@ -164,6 +164,13 @@ each ID type."
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-genera nil
+  "An alist of genera used for numerus currens Zettel.
+Each element should be in the form
+(LATIN-LETTER GENUS DESCRIPTION)"
+  :type 'list
+  :group 'ezeka)
+
 (defcustom ezeka-number-of-frames nil
   "Try to use only this many frames. Nil means single frame."
   :type 'symbol
@@ -443,6 +450,9 @@ Group 4 is the title.
 Group 5 is the citation key.
 Group 6 is the keyword block.")
 
+(defvar ezeka-regexp-genus "[α-ω]"
+  "Regexp matching genus.")
+
 (defun ezeka-decode-rubric (rubric)
   "Returns an alist of metadata from a rubric. If cannot decode,
 returns NIL."
@@ -454,7 +464,9 @@ returns NIL."
           (keywords (match-string 6 rubric)))
       (list (cons :id id)
             (cons :type (ezeka-id-type id))
-            (cons :category category)
+            (if (string-match-p ezeka-regexp-genus category)
+                (cons :genus category)
+              (cons :category category))
             (cons :title (if title (string-trim title) ""))
             (when citekey (cons :citekey (string-trim citekey)))
             (when keywords (cons :keywords (list (string-trim keywords))))))))
@@ -464,7 +476,11 @@ returns NIL."
 METADATA into the rubric, and 2) leftover metadata."
   (list (concat (format ezeka-header-rubric-format
                         (alist-get :link metadata)
-                        (or (alist-get :category metadata) "Unset")
+                        (or (alist-get :category metadata)
+                            (alist-get :genus metadata)
+                            (cl-case (ezeka-id-type (alist-get :id metadata))
+                              (:numerus "χ")
+                              (t "Unset")))
                         (alist-get :title metadata))
                 (if (alist-get :citekey metadata)
                     (concat " " (alist-get :citekey metadata))
@@ -1224,6 +1240,42 @@ is given, use that to sort the list first."
         (read-string prompt)
       (completing-read prompt categories))))
 
+(defun ezeka-read-genus (arg &optional prompt)
+  "Read a genus, a single Latin character as defined in
+`ezeka-genera'. With prefix argument, show a list of choices with
+explantions. Returns a string containing the genus letter."
+  (interactive "P")
+  (let (item)
+    (while (null item)
+      (let ((result
+             (if arg
+                 (completing-read (or prompt "Genus: ") ezeka-genera nil t)
+               (read-char
+                (concat prompt
+                        "Genus (Latin character, or RETURN for \"x\"): ")))))
+        (cond ((and (characterp result) (eq result ?\C-m))
+               (setq result "x"))
+              ((characterp result)
+               (setq result (char-to-string result)))
+              ((stringp result))
+              (t (signal 'wrong-type-argument '(or character string))))
+        (unless (setq item (assoc-string result ezeka-genera))
+          (setq prompt "No such genus; try again. "))))
+    (cadr item)))
+
+(defun ezeka-set-genus (arg)
+  "Set the genus in the current Zettel note."
+  (interactive "P")
+  (if (ezeka-note-p buffer-file-name)
+      (save-excursion
+        (goto-char (point-min))
+        (if (not (re-search-forward (concat ezeka-header-rubric-key ":.*{")))
+            (error "Can't find a place to insert genus")
+          (goto-char (match-end 0))
+          (kill-word 1)
+          (insert (ezeka-read-genus arg))))
+    (error "Not a Zettel note")))
+
 (defun ezeka-set-category (file category)
   "Sets the category to the Zettel title based on `ezeka-categories'. With
 prefix argument, allows the user to type in a custom category."
@@ -1255,35 +1307,44 @@ header with the LINK, CATEGORY, TITLE, and PARENT."
    (list (if buffer-file-name
              (ezeka-file-link buffer-file-name)
            ;; FIXME: Rewrite with completing-read
-           (read-string "Link to this note: "))
-         (ezeka-read-category)
-         (read-string "Title: ")
+           (read-string "Insert template into note with this link: "))
+         nil                            ; need access to LINK first
+         nil                            ; position point later
          (read-string "Link to parent? "
                       (if-let ((link (ezeka-file-link buffer-file-name)))
                           (cdr (assoc link ezeka-note-parent-of-new-child))
                         nil))))
-  (let ((file (ezeka-link-file link)))
-    (when (zerop (buffer-size))
-      (insert (format ezeka-header-rubric-format
-                      link
-                      (or category "Unset")
-                      (or title "Untitled")))
-      (insert "\ncreated: "
-              ;; Insert creation time, making it match a tempus currens filename
-              (format-time-string
-               "%Y-%m-%d %a %H:%M"
-               (let ((today (format-time-string "%Y%m%d")))
-                 (if (and (eq :tempus (ezeka-id-type file))
-                          (not (string-match-p (regexp-quote today) file))
-                          (not
-                           (when (called-interactively-p 'any)
-                             (y-or-n-p "Past tempus currens; set created time to now? "))))
-                     (ezeka-encode-iso8601-datetime file)
-                   nil)))
-              "\n")                     ; i.e. current time
-      (when (and parent (not (string-empty-p parent)))
-        (insert "parent: " parent "\n"))
-      (insert "\n"))))
+  (let* ((file (ezeka-link-file link))
+         (category (if (eq :numerus (ezeka-id-type file))
+                    (ezeka-read-genus t "Genus for new note: ")
+                  (ezeka-read-category)))
+         title-point)
+    (goto-char (point-min))
+    (insert (format (concat ezeka-header-rubric-key ": "
+                            ezeka-header-rubric-format)
+                    link
+                    (or category "Unset")
+                    (or title "")))
+    (setq title-point (point))
+    (insert "\ncreated: "
+            ;; Insert creation time, making it match a tempus currens filename
+            (format-time-string
+             "%Y-%m-%d %a %H:%M"
+             (let ((today (format-time-string "%Y%m%d")))
+               (if (and (eq :tempus (ezeka-id-type file))
+                        (not (string-match-p (regexp-quote today) file))
+                        (not
+                         (when (called-interactively-p 'any)
+                           (y-or-n-p "Past tempus currens; set created time to now? "))))
+                   (ezeka-encode-iso8601-datetime file)
+                 nil)))
+            "\n")                     ; i.e. current time
+    (when (and parent (not (string-empty-p parent)))
+      (insert "parent: " parent "\n"))
+    (insert "\n")
+    (unless title
+      (push-mark)
+      (goto-char title-point))))
 
 (defun ezeka-incorporate-file (file kasten &optional arg)
   "Moves the file in the current buffer to the appropriate Zettelkasten. With
