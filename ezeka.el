@@ -1409,6 +1409,13 @@ else, try to make it into org-time-stamp."
          ((user-error "Region not active"))))
   (let ((text (buffer-substring-no-properties beg end))
         timestamp)
+    ;; if the region was surrounded by parentheses, remove those
+    (save-excursion
+      (goto-char (1- beg))
+      (when (re-search-forward (format "(%s)" text) (point-at-eol) t)
+        (replace-match text)
+        (setq beg (- beg 1)
+              end (- end 1))))
     (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
            (let ((parsed (iso8601-parse text)))
              (delete-region beg end)
