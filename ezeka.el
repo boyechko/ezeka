@@ -427,6 +427,9 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
 Group 1 is the key.
 Group 2 is the value.")
 
+(defvar ezeka-regexp-header-separator "^$"
+  "Regexp that matches the separator line between header and the note text.")
+
 (defvar ezeka-header-rubric-key "rubric"
   "The header metadata key for the rubric.")
 
@@ -511,7 +514,7 @@ parsing the FILE's existing header."
       (with-current-buffer (get-file-buffer file)
         (save-restriction
           (goto-char (point-min))
-          (when (re-search-forward "^$" nil t 1)
+          (when (re-search-forward ezeka-regexp-header-separator nil t 1)
             (narrow-to-region (point-min) (point)))
           (delete-region (point-min) (point-max))
           (cl-multiple-value-bind (rubric processed-metadata)
@@ -1779,8 +1782,10 @@ target link and returns it."
                  (setq file (magit-file-at-point))
                  (ezeka-note-p file)
                  (setq line (magit-file-line file)))
-        (let ((metadata (ezeka-decode-rubric
-                         (cadr (split-string line ": " t " ")))))
+        (let ((metadata
+               (ezeka-decode-rubric
+                (when (string-match ezeka-regexp-header-line line)
+                  (match-string 2 line)))))
           (message "%s | %s"
                    (alist-get :id metadata) (alist-get :title metadata)))))))
 
