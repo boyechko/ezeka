@@ -82,8 +82,16 @@ types.")
   "A generalized regexp that matches any ID, whatever its ID type.")
 
 (defvar ezeka-regexp-link
-  (concat "\\(?9:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-id "\\)")
+  (concat "\\(?89:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-id "\\)")
   "The regular expression that matches Zettel links.
+Group 1 is the kasten, if specified.
+Group 2 is the ID.")
+
+(defvar ezeka-regexp-link-simplified
+  (concat "\\(?89:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:[0-9a-zT-]+\\)")
+  "The regular expression that matches Zettel links but without matching
+`ezeka-regexp-id' precisely.
+
 Group 1 is the kasten, if specified.
 Group 2 is the ID.")
 
@@ -421,8 +429,12 @@ category, and title in that order.")
 
 (defvar ezeka-regexp-rubric
   (concat "§"
-          ezeka-regexp-link             ; \1 and \2
-          "\\(?9:\\.\\)* \\(?8:{\\(?3:[^}]+\\)}\\)*\\(?4:[^#@]+\\)*\\(?5:@\\S-+\\)*\\(?6:#.+\\)*")
+          ezeka-regexp-link-simplified                 ; \1 and \2
+          "\\(?99:\\.\\)* "                            ; optional period
+          "\\(?98:{\\(?3:[^}]+\\)}\\)*"                ; \3
+          "\\(?4:[^#@\n]+\\)*"                         ; \4
+          "\\(?5:@\\S-+\\)*"                           ; \5
+          "\\(?6:#[^\n]+\\)*")                         ; \6
   "Regular expression for the rubric string, used in `ezeka-file-metadata'.
 Group 1 is the kasten.
 Group 2 is the id.
