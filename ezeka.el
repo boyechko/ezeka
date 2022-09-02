@@ -1124,12 +1124,13 @@ new child link. Passes the prefix argument to `ezeka-insert-new-child'."
 (defun ezeka-visiting-buffer-list (&optional skip-current)
   "Returns a list of Zettel files that are currently being visited. If
 SKIP-CURRENT is T, remove the current buffer."
-  (mapcar #'buffer-file-name
-          (cl-remove-if-not (lambda (buf)
-                              (ezeka-note-p (buffer-file-name buf)))
-                            (remove (when skip-current
-                                      (current-buffer))
-                                    (buffer-list)))))
+  (nreverse
+   (mapcar #'buffer-file-name
+           (cl-remove-if-not (lambda (buf)
+                               (ezeka-note-p (buffer-file-name buf)))
+                             (remove (when skip-current
+                                       (current-buffer))
+                                     (buffer-list))))))
 
 (defun ezeka-kill-visiting-buffers ()
   "Kills all Zettel that are being currently visited."
