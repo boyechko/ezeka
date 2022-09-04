@@ -886,6 +886,18 @@ confirmation before inserting metadata."
               (ezeka-org-format-link link))
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
+(defun ezeka-insert-link-from-other-window (arg)
+  "Link `ezeka-insert-link' but adds the link to file in the other window,
+inserting it with metadata. With prefix argument, insert just the link
+itself."
+  (interactive "P")
+  (when-let* ((file (buffer-file-name
+                     (window-buffer (next-window))))
+              (link (ezeka-file-link file)))
+    (if arg
+        (ezeka-insert-link-with-metadata link)
+      (ezeka-insert-link-with-metadata link :title :before nil))))
+
 (defun ezeka-insert-link-from-clipboard (arg)
   "Link `ezeka-insert-link' but attempts to get the link ID from OS
 clipboard, inserting it with metadata. With prefix argument, insert just the
@@ -1831,6 +1843,7 @@ target link and returns it."
             ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
             ("C-c [" . ezeka-update-title) ; `org-agenda-file-to-front'
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
+            ("C-c '" . ezeka-insert-link-from-other-window) ; `org-edit-special'
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
             ;;
