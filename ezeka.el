@@ -899,7 +899,7 @@ itself."
       (ezeka-insert-link-with-metadata link :title :before nil))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
-  "Link `ezeka-insert-link' but attempts to get the link ID from OS
+  "Like `ezeka-insert-link' but attempts to get the link ID from OS
 clipboard, inserting it with metadata. With prefix argument, insert just the
 link itself."
   (interactive "P")
@@ -972,7 +972,8 @@ to current Zettel."
   "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
   (interactive "sSearch for what? ")
   (grep-compute-defaults)
-  (rgrep string "*.txt" (f-slash ezeka-directory) nil))
+  (rgrep (string-replace " " ".*" string)
+         "*.txt" (f-slash ezeka-directory) nil))
 
 ;; To show the beginning of Zettel title in the mode-line,
 ;; add the following to the user configuration:
