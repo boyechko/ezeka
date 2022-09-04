@@ -1,11 +1,10 @@
 #!/bin/bash
-
 # Change the file modification time based on either its timestamped filename or
 # based on the information inside the file.
 
-if [ $# -eq 1 ]; then
-    file=$1
-    filetop=$(head -4 $file)
+do_retouch () {
+    file="$1"
+    filetop=$(head -4 "$file")
 
     # Prefer modification date in the file followed by creation date in the
     # file.
@@ -29,12 +28,19 @@ if [ $# -eq 1 ]; then
     fi
 
     if [[ "$date" != "" ]]; then
-        touch -t "${date}${time}" $file;
+        touch -t "${date}${time}" "$file";
         if [ $? -ne 0 ]; then
             echo "Errored with this command: touch -t '${date}${time}' $file;"
         fi
     fi
-else
-    echo "Usage: $(basename $0) <filename>"
-    exit 2
-fi
+}
+
+for file in "$@";
+do
+    if [ -f "$file" ]; then
+        do_retouch "$file"
+    else
+        echo "Usage: $(basename $0) <filename(s)>"
+        exit 2
+    fi
+done
