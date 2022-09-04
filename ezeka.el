@@ -1285,13 +1285,22 @@ explantions. Returns a string containing the genus letter."
   "Set the genus in the current Zettel note."
   (interactive "P")
   (if (ezeka-note-p buffer-file-name)
-      (save-excursion
-        (goto-char (point-min))
-        (if (not (re-search-forward (concat ezeka-header-rubric-key ":.*{")))
-            (error "Can't find a place to insert genus")
-          (goto-char (match-end 0))
-          (kill-word 1)
-          (insert (ezeka-read-genus arg))))
+      (let ((ezeka-update-modification-date 'never)  ; FIXME: Hardcoded
+            (modified-p (buffer-modified-p)))
+        (save-excursion
+          (goto-char (point-min))
+          (if (not (re-search-forward (concat ezeka-header-rubric-key ":.*{")))
+              (error "Can't find a place to insert genus")
+            (goto-char (match-end 0))
+            (kill-word 1)
+            (insert (ezeka-read-genus arg)))
+          ;; Only try saving if the buffer wasn't already modified.
+          (when (and (not modified-p) (y-or-n-p "Save? "))
+            (let ((read-only buffer-read-only))
+              (read-only-mode -1)
+              (save-buffer)
+              (read-only-mode (if read-only 1 -1))))))
+    (error "Not a Zettel note")))
     (error "Not a Zettel note")))
 
 (defun ezeka-set-category (file category)
