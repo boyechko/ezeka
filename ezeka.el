@@ -1301,6 +1301,40 @@ explantions. Returns a string containing the genus letter."
               (save-buffer)
               (read-only-mode (if read-only 1 -1))))))
     (error "Not a Zettel note")))
+
+(defun ezeka-set-citekey-from-parent (arg)
+  "Set the citekey in the current Zettel note."
+  (interactive "P")
+  (if (ezeka-note-p buffer-file-name)
+      (let* ((ezeka-update-modification-date 'never) ; FIXME: Hardcoded
+             (read-only buffer-file-read-only)
+             (parent
+              (ezeka-link-file
+               (ezeka-trace-genealogy buffer-file-name
+                                      (if (integerp arg)
+                                          arg
+                                        1))))
+             (citekey (string-trim-left
+                       (if-let ((metadata (ezeka-file-metadata parent t)))
+                           (alist-get :citekey metadata)
+                         (read-string "Citekey: "))
+                       "@")))
+        (save-excursion
+          (read-only-mode -1)
+          (goto-char (point-min))
+          (cond ((not (re-search-forward ezeka-regexp-rubric))
+                 (error "Can't find a place to insert genus"))
+                ((stringp (match-string 5))
+                 (replace-match (concat "@" citekey) nil t nil 5))
+                (t
+                 (goto-char (match-end 0))
+                 (delete-horizontal-space)
+                 (insert " @" citekey)))
+          (when (and (not modified-p) (y-or-n-p "Save? "))
+            (let ((read-only buffer-read-only))
+              (read-only-mode -1)
+              (save-buffer)
+              (read-only-mode (if read-only 1 -1))))))
     (error "Not a Zettel note")))
 
 (defun ezeka-set-category (file category)
