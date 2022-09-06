@@ -1209,9 +1209,9 @@ Zettelkasten work."
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `completing-read' as collection."
   ;;                  * ID  CATEGORY  TITLE  CITEKEY
-  (let* ((sw 14) (cw 10) (kw 25)
-         (tw (- (frame-width) (+ sw cw kw 5)))
-         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" sw cw tw kw)))
+  (let* ((iw 14) (cw 10) (kw 25)
+         (tw (- (frame-width) (+ iw cw kw 5)))
+         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw cw tw kw)))
     (mapcar (lambda (file)
               (let* ((metadata (ezeka-file-metadata file t))
                      (title (alist-get :title metadata))
@@ -1220,7 +1220,8 @@ suitable for passing to `completing-read' as collection."
                               (if (and buf (buffer-modified-p buf)) "*" " ")
                               (or (alist-get :id metadata)
                                   (file-name-base file))
-                              (alist-get :category metadata)
+                              (or (alist-get :genus metadata)
+                                  (alist-get :category metadata))
                               (when title
                                 (cl-subseq title 0 (min (length title)
                                                         tw)))
