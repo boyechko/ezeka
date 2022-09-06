@@ -999,10 +999,10 @@ to current Zettel."
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
 
-(defun ezeka-update-link-prefix-title ()
+(defun ezeka-update-link-prefix-title (arg)
   "Kills text from point to the next Zettel link, replacing it with that
-Zettel's title."
-  (interactive)
+Zettel's title. With prefix argument, kill text from point to the next link."
+  (interactive "P")
   (save-excursion
     (let ((start (point)))
       (org-next-link)
@@ -1010,8 +1010,9 @@ Zettel's title."
         (let* ((file (ezeka-link-file (ezeka-link-at-point)))
                (title (alist-get :title (ezeka-file-metadata file))))
           (delete-region start (1- (point)))
-          (backward-char)
-          (insert title))))))
+          (unless arg
+            (backward-char)
+            (insert title)))))))
 
 ;;;=============================================================================
 ;;; Genealogical
