@@ -886,17 +886,16 @@ confirmation before inserting metadata."
               (ezeka-org-format-link link))
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
-(defun ezeka-insert-link-from-other-window (arg)
-  "Link `ezeka-insert-link' but adds the link to file in the other window,
-inserting it with metadata. With prefix argument, insert just the link
-itself."
+(defun ezeka-insert-link-to-other-window (arg)
+  "Link `ezeka-insert-link' but adds the link to file in the other window.
+ With prefix argument, insert it with metadata."
   (interactive "P")
   (when-let* ((file (buffer-file-name
-                     (window-buffer (next-window))))
+                     (window-buffer (other-window-for-scrolling))))
               (link (ezeka-file-link file)))
     (if arg
-        (ezeka-insert-link-with-metadata link)
-      (ezeka-insert-link-with-metadata link :title :before nil))))
+        (ezeka-insert-link-with-metadata link :title :before nil)
+      (ezeka-insert-link-with-metadata link))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
   "Like `ezeka-insert-link' but attempts to get the link ID from OS
