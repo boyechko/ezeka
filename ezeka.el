@@ -190,7 +190,7 @@ Each element should be in the form
 (defun ezeka--grab-dwim-file-target (&optional link-at-point)
   "Returns the do-what-I-mean Zettel file from a variety of modes. If
 LINK-AT-POINT is non-nil, prioritize such a link if exists."
-  (cond ((ezeka-link-at-point-p)
+  (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point) t))
         ((ezeka-note-p buffer-file-name t)
          buffer-file-name)
