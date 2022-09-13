@@ -10,6 +10,7 @@ require_relative 'zettel'
 
 ZETTEL_DIR = Zettelkasten.root
 EXT = Zettelkasten.ext
+LOGFILE = Pathname.new("auto/zmove.log")
 
 Clamp do
   parameter "SOURCE", "Zettel to move (link or filepath)",
@@ -95,5 +96,9 @@ Clamp do
     else
       puts "No links needed to be replaced; we're done\n" if verbose?
     end
+
+    # Write to log file
+    logline = "[#{Time.now}] Moved #{source.link} to #{target.link}"
+    File.open(LOGFILE, 'a') { |f| f.write(logline) }
   end
 end
