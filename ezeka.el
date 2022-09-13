@@ -1909,7 +1909,8 @@ target link and returns it."
             ("C-c $" . ezeka-kill-ring-save-link-at-point)
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
-            ("C-c [" . ezeka-update-title) ; `org-agenda-file-to-front'
+            ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
+            ("C-c ~" . ezeka-update-title) ; `org-table-create-with-table\.el'
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
             ("C-c '" . ezeka-insert-link-from-other-window) ; `org-edit-special'
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
