@@ -1314,61 +1314,52 @@ explantions. Returns a string containing the genus letter."
           (setq prompt "No such genus; try again. "))))
     (cadr item)))
 
-(defun ezeka-set-genus (arg)
-  "Set the genus in the current Zettel note."
-  (interactive "P")
-  (if (ezeka-note-p buffer-file-name)
-      (let ((ezeka-update-modification-date 'never)  ; FIXME: Hardcoded
-            (modified-p (buffer-modified-p)))
-        (save-excursion
-          (goto-char (point-min))
-          (if (not (re-search-forward (concat ezeka-header-rubric-key ":.*{")))
-              (error "Can't find a place to insert genus")
-            (goto-char (match-end 0))
-            (kill-word 1)
-            (insert (ezeka-read-genus arg)))
-          ;; Only try saving if the buffer wasn't already modified.
-          (when (and (not modified-p) (y-or-n-p "Save? "))
-            (let ((read-only buffer-read-only))
-              (read-only-mode -1)
-              (save-buffer)
-              (read-only-mode (if read-only 1 -1))))))
+(defun ezeka-set-genus (genus &optional confirm)
+  "Set the genus in the current Zettel note. If CONFIRM is non-nil,
+ask for confirmation before saving changes.
+NOTE: This command does not respect `read-only-mode'."
+  (interactive (list (ezeka-read-genus current-prefix-arg)))
+  (if (and genus (ezeka-note-p buffer-file-name))
+      (let ((already-modified (buffer-modified-p))
+            (inhibit-read-only t)
+            (metadata (ezeka-file-metadata buffer-file-name)))
+        (setf (alist-get :genus metadata) genus
+              (alist-get :category metadata) nil)
+        (ezeka-normalize-header buffer-file-name metadata)
+        (when (and (not already-modified)
+                   (if (eq ezeka-save-after-metadata-updates 'confirm)
+                       (y-or-n-p "Save? ")
+                     ezeka-save-after-metadata-updates))
+          (save-buffer)))
     (error "Not a Zettel note")))
 
 (defun ezeka-set-citekey-from-parent (arg)
-  "Set the citekey in the current Zettel note."
+  "Set the citekey in the current Zettel note. With numeric prefix argument,
+traces genealogy further than parent."
   (interactive "P")
-  (if (ezeka-note-p buffer-file-name)
-      (let* ((ezeka-update-modification-date 'never) ; FIXME: Hardcoded
-             (read-only buffer-file-read-only)
-             (parent
-              (ezeka-link-file
-               (ezeka-trace-genealogy buffer-file-name
-                                      (if (integerp arg)
-                                          arg
-                                        1))))
-             (citekey (string-trim-left
-                       (if-let ((metadata (ezeka-file-metadata parent t)))
-                           (alist-get :citekey metadata)
-                         (read-string "Citekey: "))
-                       "@")))
-        (save-excursion
-          (read-only-mode -1)
-          (goto-char (point-min))
-          (cond ((not (re-search-forward ezeka-regexp-rubric))
-                 (error "Can't find a place to insert genus"))
-                ((stringp (match-string 5))
-                 (replace-match (concat "@" citekey) nil t nil 5))
-                (t
-                 (goto-char (match-end 0))
-                 (delete-horizontal-space)
-                 (insert " @" citekey)))
-          (when (and (not modified-p) (y-or-n-p "Save? "))
-            (let ((read-only buffer-read-only))
-              (read-only-mode -1)
-              (save-buffer)
-              (read-only-mode (if read-only 1 -1))))))
-    (error "Not a Zettel note")))
+  (if (not (ezeka-note-p buffer-file-name))
+      (error "Not a Zettel note")
+    (let* ((inhibit-read-only t)
+           (already-modified (buffer-modified-p))
+           (parent (ezeka-link-file
+                    (ezeka-trace-genealogy buffer-file-name
+                                           (if (integerp arg)
+                                               arg
+                                             1))))
+           (citekey (when-let
+                        ((ck (or (and parent
+                                      (alist-get :citekey
+                                        (ezeka-file-metadata parent t)))
+                                 (read-string "Citekey: "))))
+                      (string-trim-left ck "@")))
+           (metadata (ezeka-file-metadata buffer-file-name)))
+      (setf (alist-get :citekey metadata) (concat "@" citekey))
+      (ezeka-normalize-header buffer-file-name metadata)
+      (when (and (not already-modified)
+                   (if (eq ezeka-save-after-metadata-updates 'confirm)
+                       (y-or-n-p "Save? ")
+                     ezeka-save-after-metadata-updates))
+          (save-buffer)))))
 
 (defun ezeka-set-category (file category)
   "Sets the category to the Zettel title based on `ezeka-categories'. With
@@ -1378,17 +1369,17 @@ prefix argument, allows the user to type in a custom category."
   (let ((orig-buffer (current-buffer)))
     (save-excursion
       (with-current-buffer (find-file-noselect file)
-        (goto-char (point-min))
-        (cond ((not (re-search-forward ezeka-regexp-rubric nil t))
-               (message "Not sure how to set the category here"))
-              ((match-string 3)
-               (replace-match category nil nil nil 3))
-              (t
-               (goto-char (match-beginning 4))
-               (insert "{" category "} ")))
-        ;; only save buffer if was not initially visiting it
-        (unless (eq orig-buffer (current-buffer))
-          (save-buffer))))))
+        (let ((already-modified (buffer-modified-p))
+              (inhibit-read-only t)
+              (metadata (ezeka-file-metadata buffer-file-name)))
+          (setf (alist-get :category metadata) category
+                (alist-get :genus metadata) nil)
+          (ezeka-normalize-header file metadata)
+          (when (and (not already-modified)
+                     (if (eq ezeka-save-after-metadata-updates 'confirm)
+                         (y-or-n-p "Save? ")
+                       ezeka-save-after-metadata-updates))
+            (save-buffer)))))))
 
 ;;;=============================================================================
 ;;; Populating Files
@@ -1906,11 +1897,12 @@ target link and returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;;       X X X   X           X X X X     X     X   X
+          ;;   X   X X X   X           X X X X     X   X X   X
           ;;------------------------------------------------------------------
           '(("C-c ^" . ezeka-find-ancestor)
             ("C-c _" . ezeka-find-descendant)
-            ("C-c @" . ezeka-insert-ancestor-link)
+            ("C-c \"" . ezeka-insert-ancestor-link)
+            ("C-c @" . ezeka-set-citekey-from-parent)
             ("C-c ," . ezeka-insert-new-child)
             ("C-c /" . ezeka-kill-ring-save-link-title)
             ("C-c #" . ezeka-kill-ring-save-link)
