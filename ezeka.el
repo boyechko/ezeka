@@ -177,6 +177,20 @@ Each element should be in the form
   :options '(one two many)
   :group 'ezeka)
 
+(defcustom ezeka-update-modification-date t
+  "Determines whether `ezeka-update-header-date' updates the modification
+date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
+  :type 'symbol
+  :group 'ezeka)
+
+(defcustom ezeka-save-after-metadata-updates 'confirm
+  "Determines whether `ezeka-set-genus', `ezeka-set-category', and
+`ezeka-set-citekey-from-parent' will automatically save the file after
+modification."
+  :type 'symbol
+  :options '(nil t confirm)
+  :group 'ezeka)
+
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
@@ -574,11 +588,6 @@ content of the FILE. They keys are converted to keywords."
        (ezeka-decode-header header file)
      (unless noerror
        (error "Cannot retrieve %s's metadata" file)))))
-
-(defcustom ezeka-update-modification-date t
-  "Determines whether `ezeka-update-header-date' updates the modification
-date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
-  :type 'symbol)
 
 (defun ezeka-update-header-date ()
   "Updates the modification time in the header of the Zettel in the current
