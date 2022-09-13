@@ -1808,7 +1808,7 @@ bookmark's filename property to the Zettel link."
 ;;;=============================================================================
 
 (defun ezeka-zmove-to-another-kasten (source-file
-                                      &optional kasten target-link dont-find)
+                                      &optional kasten target-link visit)
   "Generates a zmove shell command to move the current Zettel to another
 kasten. With prefix argument, asks for a target link instead. Opens the
 target link and returns it."
@@ -1829,7 +1829,7 @@ target link and returns it."
       (error "Don't know where to move %s" source-link))
     ;; Offer to save buffers, since zmove tries to update links
     (save-some-buffers nil (lambda () (ezeka-note-p buffer-file-name t)))
-    (shell-command (format "zmove %s %s" source-link target-link))
+    (call-process "zmove" nil (get-buffer-create "*Zmove*") nil source-link target-link)
     (cond ((string= source-file buffer-file-name)
            (kill-this-buffer)
            (unless (> (length (frame-list))
@@ -1839,7 +1839,7 @@ target link and returns it."
              (delete-frame)))
           ((eq major-mode 'magit-status-mode)
            (magit-refresh)))
-    (unless dont-find
+    (when visit
       (ezeka-find-link target-link t))))
 
 (defun ezeka-generate-n-new-ids (how-many type)
