@@ -895,6 +895,28 @@ confirmation before inserting metadata."
               (ezeka-org-format-link link))
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
+(defun ezeka-insert-link-to-visiting (arg)
+  "Inserts a link to another Zettel being currently visited.
+ With prefix argument, offers a few options for including Zettel metadata. If
+the user selects a Zettel that does not exist in the list, just insert the
+link to what was selected. If the cursor in already inside a link, replace it
+instead."
+  (interactive "P")
+  (let* ((table (ezeka-completion-table
+                 (ezeka-visiting-buffer-list t)))
+         (link (when table
+                 (cdr (assoc-string
+                       (completing-read "Visit buffer: " table nil t) table)))))
+    (if link
+        (if (not (ezeka-link-at-point-p))
+            (if arg
+                (funcall-interactively #'ezeka-insert-link-with-metadata link)
+              (ezeka-insert-link-with-metadata link :title :before t))
+          ;; When replacing, don't including anything
+          (delete-region (match-beginning 0) (match-end 0))
+          (insert (ezeka-org-format-link link)))
+      (message "No visiting Zettel"))))
+
 (defun ezeka-insert-link-to-other-window (arg)
   "Link `ezeka-insert-link' but adds the link to file in the other window.
  With prefix argument, insert it with metadata."
