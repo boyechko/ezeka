@@ -547,11 +547,13 @@ symbol."
     (t
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun ezeka-normalize-header (file &optional metadata)
+(defun ezeka-normalize-header (file &optional metadata inhibit-read-only)
   "Replaces the FILE's header with one generated from the given METADATA or by
-parsing the FILE's existing header."
+parsing the FILE's existing header. If INHIBIT-READ-ONLY is non-nil, write
+new header even if the buffer is read only"
   (let ((metadata (or metadata (ezeka-file-metadata file)))
-        (old-point (point)))
+        (old-point (point))
+        (inhibit-read-only inhibit-read-only))
     (save-mark-and-excursion
       (with-current-buffer (get-file-buffer file)
         (save-restriction
