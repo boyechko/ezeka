@@ -1293,8 +1293,8 @@ is given, use that to sort the list first."
 
 (defun ezeka-read-genus (arg &optional prompt)
   "Read a genus, a single Latin character as defined in
-`ezeka-genera'. With prefix argument, show a list of choices with
-explantions. Returns a string containing the genus letter."
+`ezeka-genera'. With \\[universal-argument] show a list of choices
+with explantions. Returns a string containing the genus letter."
   (interactive "P")
   (let (item)
     (while (null item)
@@ -1314,23 +1314,28 @@ explantions. Returns a string containing the genus letter."
           (setq prompt "No such genus; try again. "))))
     (cadr item)))
 
-(defun ezeka-set-genus (genus &optional confirm)
-  "Set the genus in the current Zettel note. If CONFIRM is non-nil,
-ask for confirmation before saving changes.
+(defun ezeka-set-genus (filename genus &optional confirm)
+  "Set the genus in the Zettel note with given FILENAME (defaults to
+`buffer-file-name'). If CONFIRM is non-nil, ask for confirmation
+before saving changes.
+
 NOTE: This command does not respect `read-only-mode'."
-  (interactive (list (ezeka-read-genus current-prefix-arg)))
-  (if (and genus (ezeka-note-p buffer-file-name))
-      (let ((already-modified (buffer-modified-p))
-            (inhibit-read-only t)
-            (metadata (ezeka-file-metadata buffer-file-name)))
-        (setf (alist-get :genus metadata) genus
-              (alist-get :category metadata) nil)
-        (ezeka-normalize-header buffer-file-name metadata)
-        (when (and (not already-modified)
-                   (if (eq ezeka-save-after-metadata-updates 'confirm)
-                       (y-or-n-p "Save? ")
-                     ezeka-save-after-metadata-updates))
-          (save-buffer)))
+  (interactive (list (buffer-file-name)
+                     (ezeka-read-genus current-prefix-arg)))
+  (if (and genus (ezeka-note-p filename))
+      (save-excursion
+        (with-current-buffer (find-file-noselect filename)
+          (let ((already-modified (buffer-modified-p))
+                (inhibit-read-only t)
+                (metadata (ezeka-file-metadata filename)))
+            (setf (alist-get :genus metadata) genus
+                  (alist-get :category metadata) nil)
+            (ezeka-normalize-header filename metadata)
+            (when (and (not already-modified)
+                       (if (eq ezeka-save-after-metadata-updates 'confirm)
+                           (y-or-n-p "Save? ")
+                         ezeka-save-after-metadata-updates))
+              (save-buffer)))))
     (error "Not a Zettel note")))
 
 (defun ezeka-set-citekey-from-parent (arg)
