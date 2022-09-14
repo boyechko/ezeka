@@ -376,17 +376,19 @@ specified, asks the user to resolve the ambiguity."
 (defun ezeka-link-file (link &optional noerror)
   "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
 don't signal an error if the link is invalid."
-  (if (ezeka-link-p link)
-      (let ((kasten (ezeka-link-kasten link))
-            (id (ezeka-link-id link)))
-        (expand-file-name
-         (concat id "." ezeka-file-extension)
-         (expand-file-name (or (ezeka-subdirectory id)
-                               (unless noerror
-                                 (error "Link not valid: %s" link)))
-                           (ezeka-kasten-directory kasten))))
-    (unless noerror
-      (error "This is not a proper Zettel link: %s" link))))
+  (or (catch 'invalid
+        (when (ezeka-link-p link)
+          (let ((kasten (ezeka-link-kasten link))
+                (id (ezeka-link-id link)))
+            (car
+             (file-expand-wildcards
+              (expand-file-name
+               (format "%s*.%s" id ezeka-file-extension)
+               (file-name-concat (ezeka-kasten-directory kasten)
+                                 (or (ezeka-subdirectory id)
+                                     (throw 'invalid nil)))))))))
+      (unless noerror
+        (error "Link not valid: %s" link))))
 
 (defun ezeka-id-type (id-or-file)
   "Returns the type of the given ID or file: :NUMERUS or :TEMPUS. Modifies
