@@ -1342,29 +1342,35 @@ with explantions. Returns a string containing the genus letter."
           (setq prompt "No such genus; try again. "))))
     (cadr item)))
 
-(defun ezeka-set-genus (filename genus &optional confirm)
-  "Set the genus in the Zettel note with given FILENAME (defaults to
-`buffer-file-name'). If CONFIRM is non-nil, ask for confirmation
-before saving changes.
+(defun ezeka--update-metadata-values (filename &rest args)
+  "Update FILENAME's header, replacing metadata values with new ones.
+Ignores read only status.
 
-NOTE: This command does not respect `read-only-mode'."
+\(fn KEY VAL KEY VAL ...)"
+  (when (/= (logand (length args) 1) 0)
+    (signal 'wrong-number-of-arguments (list 'setf (length args))))
+  (save-excursion
+    (with-current-buffer (find-file-noselect filename)
+      (let ((already-modified (buffer-modified-p))
+            (metadata (ezeka-file-metadata filename))
+            sets)
+        (while args
+          (setf (alist-get (pop args) metadata) (pop args)))
+        (ezeka-normalize-header filename metadata t)
+        (when (and (not already-modified)
+                   (if (eq ezeka-save-after-metadata-updates 'confirm)
+                       (y-or-n-p "Save? ")
+                     ezeka-save-after-metadata-updates))
+          (save-buffer))))))
+
+(defun ezeka-set-genus (filename genus)
+  "Set the genus in the Zettel note with given FILENAME (defaults to
+`buffer-file-name')."
   (interactive (list (buffer-file-name)
                      (ezeka-read-genus current-prefix-arg)))
-  (if (and genus (ezeka-note-p filename))
-      (save-excursion
-        (with-current-buffer (find-file-noselect filename)
-          (let ((already-modified (buffer-modified-p))
-                (inhibit-read-only t)
-                (metadata (ezeka-file-metadata filename)))
-            (setf (alist-get :genus metadata) genus
-                  (alist-get :category metadata) nil)
-            (ezeka-normalize-header filename metadata)
-            (when (and (not already-modified)
-                       (if (eq ezeka-save-after-metadata-updates 'confirm)
-                           (y-or-n-p "Save? ")
-                         ezeka-save-after-metadata-updates))
-              (save-buffer)))))
-    (error "Not a Zettel note")))
+  (if (not (and genus (ezeka-note-p filename)))
+      (error "Not a Zettel note")
+    (ezeka--update-metadata-values filename :genus genus :category nil)))
 
 (defun ezeka-set-citekey-from-parent (arg)
   "Set the citekey in the current Zettel note. With numeric prefix argument,
