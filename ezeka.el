@@ -1372,33 +1372,22 @@ Ignores read only status.
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename :genus genus :category nil)))
 
-(defun ezeka-set-citekey-from-parent (arg)
+(defun ezeka-set-citekey-from-parent (filename citekey &optional arg)
   "Set the citekey in the current Zettel note. With numeric prefix argument,
 traces genealogy further than parent."
-  (interactive "P")
-  (if (not (ezeka-note-p buffer-file-name))
+  (interactive (list (buffer-file-name) nil current-prefix-arg))
+  (if (not (ezeka-note-p filename))
       (error "Not a Zettel note")
-    (let* ((inhibit-read-only t)
-           (already-modified (buffer-modified-p))
-           (parent (ezeka-link-file
-                    (ezeka-trace-genealogy buffer-file-name
-                                           (if (integerp arg)
-                                               arg
-                                             1))))
-           (citekey (when-let
-                        ((ck (or (and parent
-                                      (alist-get :citekey
-                                        (ezeka-file-metadata parent t)))
-                                 (read-string "Citekey: "))))
-                      (string-trim-left ck "@")))
-           (metadata (ezeka-file-metadata buffer-file-name)))
-      (setf (alist-get :citekey metadata) (concat "@" citekey))
-      (ezeka-normalize-header buffer-file-name metadata)
-      (when (and (not already-modified)
-                   (if (eq ezeka-save-after-metadata-updates 'confirm)
-                       (y-or-n-p "Save? ")
-                     ezeka-save-after-metadata-updates))
-          (save-buffer)))))
+    (let* ((parent (ezeka-trace-genealogy filename (if (integerp arg) arg 1)))
+           (citekey (or (and parent
+                             (alist-get :citekey
+                               (ezeka-file-metadata (ezeka-link-file parent) t)))
+                        (read-string "New citekey: ")))
+           (citekey (when (and citekey (not (string-empty-p citekey)))
+                      (string-trim-left citekey "@"))))
+      (ezeka--update-metadata-values filename
+                                     :citekey (when citekey
+                                                (concat "@" citekey))))))
 
 (defun ezeka-set-category (file category)
   "Sets the category to the Zettel title based on `ezeka-categories'. With
