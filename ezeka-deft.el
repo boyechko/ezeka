@@ -162,7 +162,7 @@ the missing metadata is explicitly displayed."
               title))))
 (setq deft-parse-title-function 'ezeka-deft-parse-title-function)
 
-(defalias 'ezeka-deft-file-title-id 'ezeka-file-id
+(defalias 'ezeka-deft-file-title-id 'ezeka-file-name-id
   "Returns the ID part of `deft-file-title' of the given Zettel file.")
 
 (defun ezeka-deft-file-title-category (file)
@@ -345,7 +345,7 @@ another window."
 (defun ezeka-deft--next-unused-id ()
   ((eq type active-kasten-type)
    (message "Generating next unused ID of type %s" type)
-   (let ((used (mapcar #'ezeka-file-id deft-all-files)))
+   (let ((used (mapcar #'ezeka-file-name-id deft-all-files)))
      (while (or (not id) (member id used))
        (setq id (ezeka-generate-new-id type))))))
 

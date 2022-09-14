@@ -119,7 +119,7 @@ Optionally use ORIG-ID for backlink."
       (when (ezeka-note-p file)
         (let* ((metadata (ezeka-file-metadata file)))
           (push (format-spec zk-index-format
-                             `((?i . ,(ezeka-file-id file))
+                             `((?i . ,(ezeka-file-name-id file))
                                (?t . ,(alist-get :title metadata))
                                (?c . ,(alist-get :category metadata))
                                (?k . ,(or (alist-get :citekey metadata) ""))))
@@ -152,7 +152,7 @@ Optionally use ORIG-ID for backlink."
           (mapcar
            (lambda (file)
              (if (equal target 'id)
-                 (ezeka-file-id file)
+                 (ezeka-file-name-id file)
                (alist-get :title (ezeka-file-metadata file))))
            files)))
     (if (eq 1 (length return))
@@ -172,7 +172,7 @@ has the form
      (lambda (file)
        (when (ezeka-note-p file)
          (let ((metadata (ezeka-file-metadata file)))
-           (list (ezeka-file-id file)
+           (list (ezeka-file-name-id file)
                  (alist-get :title metadata)
                  file
                  (file-attribute-modification-time (file-attributes file))

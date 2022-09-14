@@ -39,6 +39,16 @@
 the Zettel directory."
   (expand-file-name (or relative-path "") ezeka-directory))
 
+(defmacro ezeka-file-name-regexp ()
+  "Returns an expression to dynamically generate file name regexp that
+takes into account the current value of `ezeka-file-name-separator'.
+
+Group 1 is the ID.
+Group 2 is the title."
+  '(concat "^\\(?1:[^" ezeka-file-name-separator "]+\\)"
+           "\\(?9:" ezeka-file-name-separator "\\(?2:.*\\)" ; optional title
+           "\\)*"))
+
 ;; FIXME: temporary
 (defvar ezeka-regexp-bolus-currens
   "\\([0-9]\\{3\\}\\)-\\([a-z]\\{3\\}\\)"
@@ -126,6 +136,12 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
 
 (defcustom ezeka-file-extension "txt"
   "Default extension for Zettel files."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-file-name-separator " "
+  "Character(s), as a string, to separate ID and title in the
+filename."
   :type 'string
   :group 'ezeka)
 
@@ -260,9 +276,17 @@ of these conditions are met:
   (or (cdr (assoc kasten ezeka-kaesten-aliases))
       (car (assoc kasten ezeka-kaesten))))
 
-(defun ezeka-file-id (file)
-  "Returns the ID part of the given Zettel file."
-  (file-name-base file))
+(defun ezeka-file-name-id (file)
+  "Returns the ID part of the given Zettel FILE."
+  (let ((base (file-name-base file)))
+    (when (string-match (ezeka-file-name-regexp) base)
+      (match-string 1 base))))
+
+(defun ezeka-file-name-title (file)
+  "Returns the description part of the given Zettel FILE."
+  (let ((base (file-name-base file)))
+    (when (string-match (ezeka-file-name-regexp) base)
+      (match-string 2 base))))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun ezeka-file-kasten (file)
@@ -280,8 +304,8 @@ of these conditions are met:
   (let ((kasten (ezeka-file-kasten file)))
     (if (string= kasten
                  (alist-get (ezeka-id-type file) ezeka-default-kasten))
-        (ezeka-file-id file)
-      (concat kasten ":" (ezeka-file-id file)))))
+        (ezeka-file-name-id file)
+      (concat kasten ":" (ezeka-file-name-id file)))))
 
 (defun ezeka-link-p (string)
   "Returns non-NIL if the string could be a link to a Zettel."
@@ -608,8 +632,8 @@ buffer according to the value of `ezeka-update-modifaction-date'."
                   ;; Automatic updating conditions not met; need to confirm
                   (and (member ezeka-update-modification-date '(sameday confirm t))
                        (y-or-n-p
-                        (format "%s last modified at %s. Update to now? "
-                                (file-name-base buffer-file-name)
+                        (format "%s was last modified at %s. Update to now? "
+                                (ezeka-file-name-id buffer-file-name)
                                 last-modified))))
           (setf (alist-get :modified metadata) now)))
       (ezeka-normalize-header buffer-file-name metadata))))
