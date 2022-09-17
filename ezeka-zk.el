@@ -96,8 +96,8 @@ status."
     (custom-set-variables
      '(zk-directory-subdir-function #'ezeka-subdirectory)
      `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
-     `(zk-header-title-line-regexp
-       "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:{\\(?3:[^ ]+\\)} \\(?4:.*\\)\\)$"
+     '(zk-header-title-line-regexp
+       "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:\\(?:{\\(?3:[^ ]+\\)} \\)*\\(?4:.*\\)\\)$"
        "Regexp of the line in a zk file's header that contains the rubric.
 Group 1 is the id.
 Group 2 is the title with category.
