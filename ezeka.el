@@ -890,11 +890,9 @@ brackets. Otherwise, call `kill-sex'."
 
 (defun ezeka-org-format-link (target &optional description)
   "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
-  (let* ((file (or (if (file-name-absolute-p target)
-                       target
-                     (ezeka-link-file target))
-                   (error "Link target doesn't exist; make sure it's saved")))
-         (link (ezeka-file-link file)))
+  (let* ((link (if (file-name-absolute-p target)
+                   (ezeka-file-link target)
+                 target)))
     (format "[[%s]%s]"
             link
             (if description
