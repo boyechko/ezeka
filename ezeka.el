@@ -1328,10 +1328,11 @@ is given, use that to sort the list first."
         (read-string prompt)
       (completing-read prompt categories))))
 
-(defun ezeka-read-genus (arg &optional prompt)
+(defun ezeka-read-genus (arg &optional prompt default)
   "Read a genus, a single Latin character as defined in
 `ezeka-genera'. With \\[universal-argument] show a list of choices
-with explantions. Returns a string containing the genus letter."
+with explantions. Returns a string containing the genus letter.
+DEFAULT is the genus used if user just presses [return]."
   (interactive "P")
   (let (item)
     (while (null item)
@@ -1339,10 +1340,13 @@ with explantions. Returns a string containing the genus letter."
              (if arg
                  (completing-read (or prompt "Genus: ") ezeka-genera nil t)
                (read-char
-                (concat prompt
-                        "Genus (Latin character, or RETURN for \"x\"): ")))))
+                (concat (or prompt "Genus")
+                        " (Latin character, or RETURN for \"" (or default "x")
+                        "\"): ")))))
         (cond ((and (characterp result) (eq result ?\C-m))
-               (setq result "x"))
+               (setq result (car
+                             (cl-rassoc default ezeka-genera
+                                        :key #'car :test #'string=))))
               ((characterp result)
                (setq result (char-to-string result)))
               ((stringp result))
