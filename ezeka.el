@@ -624,10 +624,12 @@ content of the FILE. They keys are converted to keywords."
      (unless noerror
        (error "Cannot retrieve %s's metadata" file)))))
 
-(defun ezeka-update-header-date ()
-  "Updates the modification time in the header of the Zettel in the current
-buffer according to the value of `ezeka-update-modifaction-date'."
-  (interactive)
+(defun ezeka-update-header-date (&optional arg)
+  "Updates the modification time in the header of the current Zettel
+according to the value of `ezeka-update-modifaction-date'. With
+\\[universal-argument], forece the update no matter the value of that
+variable."
+  (interactive "P")
   (when (ezeka-note-p buffer-file-name)
     (let* ((today (format-time-string "%Y-%m-%d"))
            (now (format-time-string "%Y-%m-%d %a %H:%M"))
