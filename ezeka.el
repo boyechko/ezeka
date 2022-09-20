@@ -1939,9 +1939,9 @@ target link and returns it."
 ;;
 ;; Add the following to emacs config file:
 ;;
-;; (add-hook 'post-command-hook 'magit-show-ezeka-title-in-minibuffer)
-(defun magit-show-ezeka-title-in-minibuffer ()
-  "Displays Zettel title of the file under cursor in minibuffer."
+;; (add-hook 'post-command-hook 'magit-show-ezeka-title-in-mode-line)
+(defun magit-show-ezeka-title-in-mode-line ()
+  "Displays Zettel title of the file under cursor in the mode line."
   (while-no-input
     (redisplay)
     (let (file line)
@@ -1953,8 +1953,9 @@ target link and returns it."
                (ezeka-decode-rubric
                 (when (string-match ezeka-regexp-header-line line)
                   (match-string 2 line)))))
-          (message "%s | %s"
-                   (alist-get :id metadata) (alist-get :title metadata)))))))
+          (setq mode-line-misc-info
+            (format "%s: %s"
+                    (alist-get :id metadata) (alist-get :title metadata))))))))
 
 ;;;=============================================================================
 ;;; Mode
