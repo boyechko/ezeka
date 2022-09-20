@@ -98,7 +98,7 @@ Clamp do
     end
 
     # Write to log file
-    logline = "[#{Time.now}] Moved #{source.link} to #{target.link}"
+    logline = "(\"#{source.link}\" \"#{target.link}\" \"#{Time.now}\")\n"
     File.open(LOGFILE, 'a') { |f| f.write(logline) }
   end
 end
