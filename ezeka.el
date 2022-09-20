@@ -962,15 +962,17 @@ instead."
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-to-other-window (arg)
-  "Link `ezeka-insert-link' but adds the link to file in the other window.
- With prefix argument, insert it with metadata."
+  "Link `ezeka-insert-link' but adds the link to file in the other
+window. With \\[universal-argument], insert just the link."
   (interactive "P")
-  (when-let* ((file (buffer-file-name
-                     (window-buffer (other-window-for-scrolling))))
-              (link (ezeka-file-link file)))
-    (if arg
-        (ezeka-insert-link-with-metadata link :title :before nil)
-      (ezeka-insert-link-with-metadata link))))
+  (let ((other-buf (window-buffer (other-window-for-scrolling))))
+    (when-let* ((file (or (buffer-file-name other-buf)
+                          (with-current-buffer other-buf
+                            (ezeka--grab-dwim-file-target))))
+                (link (ezeka-file-link file)))
+      (if arg
+          (ezeka-insert-link-with-metadata link)
+        (ezeka-insert-link-with-metadata link :title :before t)))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
   "Like `ezeka-insert-link' but attempts to get the link ID from OS
