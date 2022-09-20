@@ -102,7 +102,18 @@ status."
 Group 1 is the id.
 Group 2 is the title with category.
 Group 3 is the category.
-Group 4 is the title without category."))
+Group 4 is the title without category.")
+     `(ezeka-update-header-modified
+       `,(intern
+          (completing-read "Update modification dates? "
+                           '("sameday" "never" "confirm")
+                           nil
+                           t
+                           "confirm")))
+     `(zk-file-name-id-only ,id-only)
+     `(zk-parse-file-function (if ,id-only
+                                  #'zk-parse-file-header
+                                #'zk-parse-file-name)))
     (ezeka-zk-initialize-kasten new-kasten)
     (zk-index)
     (zk-index-refresh)))

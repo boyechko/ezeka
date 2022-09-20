@@ -193,7 +193,7 @@ Each element should be in the form
   :options '(one two many)
   :group 'ezeka)
 
-(defcustom ezeka-update-modification-date t
+(defcustom ezeka-update-header-modified t
   "Determines whether `ezeka-update-header-date' updates the modification
 date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
   :type 'symbol
@@ -630,11 +630,12 @@ buffer according to the value of `ezeka-update-modifaction-date'."
       (unless (string-equal (or last-modified "") now)
         ;; FIXME: Probably better to convert modification times to Emacs's encoded
         ;; time rather than doing it with strings.
-        (when (or (equal ezeka-update-modification-date 'always)
-                  (and (equal ezeka-update-modification-date 'sameday)
+        (when (or arg
+                  (equal ezeka-update-header-modified 'always)
+                  (and (equal ezeka-update-header-modified 'sameday)
                        (string= (cl-subseq last-modified 0 (length today)) today))
                   ;; Automatic updating conditions not met; need to confirm
-                  (and (member ezeka-update-modification-date '(sameday confirm t))
+                  (and (member ezeka-update-header-modified '(sameday confirm t))
                        (y-or-n-p
                         (format "%s was last modified at %s. Update to now? "
                                 (ezeka-file-name-id buffer-file-name)
