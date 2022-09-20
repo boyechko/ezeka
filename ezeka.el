@@ -187,6 +187,12 @@ Each element should be in the form
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-keywords nil
+  "A list of frequently-used keywords. Each element should be a string
+beginning with #."
+  :type 'list
+  :group 'ezeka)
+
 (defcustom ezeka-number-of-frames nil
   "Try to use only this many frames. Nil means single frame."
   :type 'symbol
@@ -641,16 +647,6 @@ buffer according to the value of `ezeka-update-modifaction-date'."
                                 (ezeka-file-name-id buffer-file-name)
                                 last-modified))))
           (setf (alist-get :modified metadata) now)))
-      (ezeka-normalize-header buffer-file-name metadata))))
-
-(defun ezeka-update-title ()
-  "Interactively asks for a different title and updates the Zettel's header."
-  (interactive)
-  (when (ezeka-note-p buffer-file-name)
-    (let ((metadata (ezeka-file-metadata buffer-file-name)))
-      (setf (alist-get :title metadata)
-            (read-string "Change title to what? "
-                         (alist-get :title metadata)))
       (ezeka-normalize-header buffer-file-name metadata))))
 
 ;;;=============================================================================
@@ -1343,72 +1339,112 @@ with explantions. Returns a string containing the genus letter."
           (setq prompt "No such genus; try again. "))))
     (cadr item)))
 
-(defun ezeka--update-metadata-values (filename &rest args)
-  "Update FILENAME's header, replacing metadata values with new ones.
-Ignores read only status.
+(defun ezeka--update-metadata-values (filename metadata &rest args)
+  "Update FILENAME's header, replacing metadata values with new ones,
+and saves the file while ignoring its read only status. If METADATA is
+not given, read it from file first.
 
-\(fn KEY VAL KEY VAL ...)"
+\(fn FILENAME METADATA &REST KEY VAL KEY VAL ...)"
   (when (/= (logand (length args) 1) 0)
     (signal 'wrong-number-of-arguments (list 'setf (length args))))
-  (save-excursion
-    (with-current-buffer (find-file-noselect filename)
-      (let ((already-modified (buffer-modified-p))
-            (metadata (ezeka-file-metadata filename))
-            sets)
-        (while args
-          (setf (alist-get (pop args) metadata) (pop args)))
-        (ezeka-normalize-header filename metadata t)
-        (when (and (not already-modified)
-                   (if (eq ezeka-save-after-metadata-updates 'confirm)
-                       (y-or-n-p "Save? ")
-                     ezeka-save-after-metadata-updates))
-          (save-buffer))))))
+  (let ((already-open (get-file-buffer filename)))
+    (save-excursion
+      (unwind-protect
+          (with-current-buffer (or already-open (find-file-noselect filename))
+            (let ((already-modified (buffer-modified-p))
+                  (metadata (or metadata (ezeka-file-metadata filename)))
+                  sets)
+              (while args
+                (setf (alist-get (pop args) metadata) (pop args)))
+              (ezeka-normalize-header filename metadata t)
+              (when (and (not already-modified)
+                         (if (eq ezeka-save-after-metadata-updates 'confirm)
+                             (y-or-n-p "Save? ")
+                           ezeka-save-after-metadata-updates))
+                (save-buffer))))
+        (let ((buf (get-file-buffer filename)))
+          (unless already-open
+            (kill-buffer-if-not-modified buf)))))))
+
+;; TODO: Also ask about updating the filename
+(defun ezeka-set-title (&optional filename new-title)
+  "Updates the title in FILENAME's header to NEW-TITLE."
+  (interactive)
+  (let ((filename (or filename (buffer-file-name))))
+    (when (ezeka-note-p filename)
+      (let ((metadata (ezeka-file-metadata filename)))
+        (setf (alist-get :title metadata)
+              (read-string "Change title to what? "
+                           (alist-get :title metadata)))
+        (ezeka--update-metadata-values filename metadata)))))
 
 (defun ezeka-set-genus (filename genus)
   "Set the genus in the Zettel note with given FILENAME (defaults to
 `buffer-file-name')."
-  (interactive (list (buffer-file-name)
+  (interactive (list (ezeka--grab-dwim-file-target)
                      (ezeka-read-genus current-prefix-arg)))
   (if (not (and genus (ezeka-note-p filename)))
       (error "Not a Zettel note")
-    (ezeka--update-metadata-values filename :genus genus :category nil)))
+    (ezeka--update-metadata-values filename nil :genus genus :category nil)))
 
-(defun ezeka-set-citekey-from-parent (filename citekey &optional arg)
-  "Set the citekey in the current Zettel note. With numeric prefix argument,
+(defun ezeka-set-category (filename category)
+  "Sets the category to the Zettel title based on `ezeka-categories'. With
+\\[universal-argument], allows the user to type in a custom category."
+  (interactive (list (ezeka--grab-dwim-file-target)
+                     (ezeka-read-category)))
+  (if (not (and category (ezeka-note-p filename)))
+      (error "Not a Zettel note")
+    (ezeka--update-metadata-values filename nil :genus nil :category category)
+    (cl-pushnew category ezeka-categories)))
+
+(defun ezeka-set-genus-or-category (arg)
+  "Set the genus for the DWIM target. With \\[universal-argument],
+sets category instead."
+  (interactive "P")
+  (call-interactively (if arg
+                          #'ezeka-set-category
+                        #'ezeka-set-genus)))
+
+(defun ezeka-set-citekey (filename &optional citekey degree)
+  "Set the CITEKEY in the Zettel note in FILENAME. If CITEKEY is not
+given, get it from the parent unless it's \\[universal-argument], in
+which case let the user enter the citekey no matter what. With DEGREE,
 traces genealogy further than parent."
-  (interactive (list (buffer-file-name) nil current-prefix-arg))
+  (interactive (list (buffer-file-name)
+                     current-prefix-arg
+                     (if (integerp current-prefix-arg)
+                         current-prefix-arg
+                       1)))
   (if (not (ezeka-note-p filename))
       (error "Not a Zettel note")
-    (let* ((parent (ezeka-trace-genealogy filename (if (integerp arg) arg 1)))
-           (citekey (or (and parent
+    (let* ((ancestor (ezeka-trace-genealogy filename degree))
+           (citekey (or (and (equal citekey '(4))
+                             (read-string "New citekey: "))
+                        (and ancestor
                              (alist-get :citekey
-                               (ezeka-file-metadata (ezeka-link-file parent) t)))
+                               (ezeka-file-metadata (ezeka-link-file ancestor) t)))
                         (read-string "New citekey: ")))
            (citekey (when (and citekey (not (string-empty-p citekey)))
                       (string-trim-left citekey "@"))))
-      (ezeka--update-metadata-values filename
+      (ezeka--update-metadata-values filename nil
                                      :citekey (when citekey
                                                 (concat "@" citekey))))))
 
-(defun ezeka-set-category (file category)
-  "Sets the category to the Zettel title based on `ezeka-categories'. With
-prefix argument, allows the user to type in a custom category."
+(defun ezeka-add-keyword (filename keyword &optional arg)
+  "Adds the given KEYWORD to the Zettel note in FILE. With
+\\[universal-argument], clear keywords first."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     (ezeka-read-category nil nil #'>)))
-  (let ((orig-buffer (current-buffer)))
-    (save-excursion
-      (with-current-buffer (find-file-noselect file)
-        (let ((already-modified (buffer-modified-p))
-              (inhibit-read-only t)
-              (metadata (ezeka-file-metadata buffer-file-name)))
-          (setf (alist-get :category metadata) category
-                (alist-get :genus metadata) nil)
-          (ezeka-normalize-header file metadata)
-          (when (and (not already-modified)
-                     (if (eq ezeka-save-after-metadata-updates 'confirm)
-                         (y-or-n-p "Save? ")
-                       ezeka-save-after-metadata-updates))
-            (save-buffer)))))))
+                     (completing-read "Add keyword: " (cons "#" ezeka-keywords) nil nil "#")
+                     current-prefix-arg))
+  (if (not (ezeka-note-p filename))
+      (error "Not a Zettel note")
+    (let* ((metadata (ezeka-file-metadata filename))
+           (keywords (unless (equal arg '(4))
+                       (alist-get :keywords metadata))))
+      (unless (or (string-empty-p keyword)
+                  (string= keyword "#"))
+        (add-to-list 'keywords keyword t))
+      (ezeka--update-metadata-values filename metadata :keywords keywords))))
 
 ;;;=============================================================================
 ;;; Populating Files
