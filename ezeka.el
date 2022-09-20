@@ -1978,22 +1978,35 @@ target link and returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;;   X   X X X   X           X X X X     X   X X   X
+          ;; X X   X X X X X           X   X X X   X X X X X X X
           ;;------------------------------------------------------------------
-          '(("C-c ^" . ezeka-find-ancestor)
-            ("C-c _" . ezeka-find-descendant)
-            ("C-c \"" . ezeka-insert-ancestor-link)
-            ("C-c @" . ezeka-set-citekey-from-parent)
-            ("C-c ," . ezeka-insert-new-child)
-            ("C-c /" . ezeka-kill-ring-save-link-title)
-            ("C-c #" . ezeka-kill-ring-save-link)
-            ("C-c $" . ezeka-kill-ring-save-link-at-point)
-            ("C-c +" . ezeka-dwim-with-this-timestring)
+          '(
             ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
+            ("C-c ~" . ezeka-set-title) ; `org-table-create-with-table\.el'
+            ;; ("C-c !" . ) ; `org-time-stamp-inactive'
+            ("C-c @" . ezeka-set-citekey)
+            ("C-c #" . ezeka-add-keyword)
+            ("C-c $" . ezeka-kill-ring-save-link-at-point)
+            ("C-c %" . ezeka-kill-ring-save-link)
+            ("C-c ^" . ezeka-find-ancestor)
+            ;; ("C-c &" . ) ; yasnippet
+            ;; ("C-c *" . ) ; `org-ctrl-c-star'
+            ;; ("C-c (" . ) ;
+            ;; ("C-c )" . ) ;
+            ;; ("C-c -" . ) ;
+            ("C-c _" . ezeka-find-descendant)
+            ("C-c =" . ezeka-update-header-date)       ; `org-table-eval-formula'
+            ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
-            ("C-c ~" . ezeka-update-title) ; `org-table-create-with-table\.el'
+            ("C-c ]" . ezeka-set-title) ;
+            ;; ("C-c |" . ) ;
+            ("C-c '" . ezeka-set-genus) ; `org-edit-special'
+            ("C-c \"" . ezeka-insert-ancestor-link)
+            ("C-c ," . ezeka-insert-new-child)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
-            ("C-c '" . ezeka-insert-link-from-other-window) ; `org-edit-special'
+            ("C-c /" . ezeka-kill-ring-save-link-title)
+            ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
+
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
             ;;
@@ -2008,8 +2021,6 @@ target link and returns it."
             ;; Shadows `org-set-property-and-value'
             ("C-c C-x F" . ezeka-org-set-todo-properties)
             ("C-c C-x z" . ezeka-zmove-to-another-kasten)
-            ;; Shadows org-mode's `org-toggle-ordered-property'
-            ("C-c C-x l" . ezeka-links-to)
             ))
 
   ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
