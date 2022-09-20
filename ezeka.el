@@ -1154,23 +1154,23 @@ ancestor. With a universal argument, ask for confirmation before inserting."
         (ezeka-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
-(defvar ezeka-note-parent-of-new-child nil
-  "An alist of new children and their respective parents.")
+(defvar ezeka--new-child-details nil
+  "An alist of new children, their respective parents, and titles.")
 
 (defun ezeka-generate-new-child (parent kasten)
   "Generates a new child of the given PARENT in the KASTEN."
   (let ((child-link (ezeka-make-link
                      kasten
                      (ezeka-next-unused-id kasten))))
-    (add-to-list 'ezeka-note-parent-of-new-child (cons child-link parent))
+    (add-to-list 'ezeka--new-child-details (list child-link parent))
     child-link))
 
 (defun ezeka-insert-new-child (&optional arg)
-  "Inserts a link to a new Zettel in the same Kasten as the current Zettel,
-saves the current Zettel as its parent, and sets the `ezeka-link-backlink'
-to current Zettel. With prefix argument, allows the user to select a
-different Kasten. With double prefix argument, asks for the full link.
-Returns link the new child."
+  "Inserts a link to a new Zettel in the same Kasten as the current
+Zettel, saves the current Zettel as its parent, and sets the
+`ezeka-link-backlink' to current Zettel. With prefix argument, allows
+the user to select a different Kasten. With double prefix argument,
+asks for the full link. Returns link to the new child."
   (interactive "P")
   (when (ezeka-note-p buffer-file-name t)
     (let ((parent-link (ezeka-file-link buffer-file-name))
@@ -1191,27 +1191,35 @@ Returns link the new child."
       (insert (ezeka-org-format-link child-link))
       child-link)))
 
-(defun ezeka-insert-new-child-from-org-item (&optional arg)
-  "Wrapper around `ezeka-insert-new-child' that, if the point is in a list
-item, first saves the text of the item in the kill ring before inserting the
-new child link. Passes the prefix argument to `ezeka-insert-new-child'."
-  (interactive "P")
-  (let* ((start (or (org-in-item-p) (point)))
-         (text (cond ((region-active-p)
-                      (buffer-substring-no-properties
-                       (region-beginning) (region-end)))
-                     ((org-in-item-p)
-                      (buffer-substring-no-properties (1+ start) (point)))
-                     (t (save-excursion
-                          (beginning-of-line)
-                          ;; FIXME: Might be good to have some limit to prevent
-                          ;; killing whole paragraphs worth of text with soft
-                          ;; newlines.
-                          (buffer-substring-no-properties
-                           (point) (1- start))))))
-         (citekey (or (alist-get :citekey
-                        (ezeka-file-metadata buffer-file-name))
-                      "")))
+(defun ezeka--possible-new-note-title ()
+  "Returns a possible title for a new Zettel note based on context."
+  (interactive)
+  (let ((start (or (org-in-item-p) (point))))
+    (cond ((region-active-p)
+           (buffer-substring-no-properties
+            (region-beginning) (region-end)))
+          ((org-in-item-p)
+           (buffer-substring-no-properties (1+ start) (point)))
+          (t (save-excursion
+               (beginning-of-line)
+               ;; FIXME: Might be good to have some limit to prevent
+               ;; killing whole paragraphs worth of text with soft
+               ;; newlines.
+               (buffer-substring-no-properties
+                (point) (1- start)))))))
+
+(defun ezeka-insert-new-child-with-title (arg title)
+  "Wrapper around `ezeka-insert-new-child' that creates a new child
+with given TITLE (defaults to text before point). Passes the prefix
+argument to `ezeka-insert-new-child'."
+  (interactive (list current-prefix-arg
+                     (org-trim
+                      (read-from-minibuffer "Title for the child: "
+                                            (ezeka--possible-new-note-title)))))
+  (let ((text (ezeka--possible-new-note-title))
+        (citekey (or (alist-get :citekey
+                       (ezeka-file-metadata buffer-file-name))
+                     "")))
     (when text
       (kill-new (concat (org-trim text)
                         (when citekey " ")
@@ -1488,28 +1496,26 @@ traces genealogy further than parent."
   "Inserts the header template into the current buffer, populating the
 header with the LINK, CATEGORY, TITLE, and PARENT."
   (interactive
-   (list (if buffer-file-name
-             (ezeka-file-link buffer-file-name)
-           ;; FIXME: Rewrite with completing-read
-           (read-string "Insert template into note with this link: "))
-         nil                            ; need access to LINK first
-         nil                            ; position point later
-         (read-string "Link to parent? "
-                      (if-let ((link (ezeka-file-link buffer-file-name)))
-                          (cdr (assoc link ezeka-note-parent-of-new-child))
-                        nil))))
-  (let* ((file (ezeka-link-file link))
-         (category (if (eq :numerus (ezeka-id-type file))
-                    (ezeka-read-genus t "Genus for new note: ")
-                  (ezeka-read-category)))
-         title-point)
+   (let ((link (if buffer-file-name
+                   (ezeka-file-link buffer-file-name)
+                 ;; FIXME: Rewrite with completing-read
+                 (read-string "Insert template into note with this link: "))))
+     (list
+      link
+      (if (eq :numerus (ezeka-id-type link))
+          (ezeka-read-genus t "Genus for new note: ")
+        (ezeka-read-category))
+      (read-string "Title: "
+                   (cadr (assoc link ezeka--new-child-details)))
+      (read-string "Link to parent? "
+                   (caddr (assoc link ezeka--new-child-details))))))
+  (let* ((file (ezeka-link-file link)))
     (goto-char (point-min))
     (insert (format (concat ezeka-header-rubric-key ": "
                             ezeka-header-rubric-format)
                     link
                     (or category "Unset")
                     (or title "")))
-    (setq title-point (point))
     (insert "\ncreated: "
             ;; Insert creation time, making it match a tempus currens filename
             (format-time-string
@@ -1525,10 +1531,7 @@ header with the LINK, CATEGORY, TITLE, and PARENT."
             "\n")                     ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " parent "\n"))
-    (insert "\n")
-    (unless title
-      (push-mark)
-      (goto-char title-point))))
+    (insert "\n")))
 
 (defun ezeka-incorporate-file (file kasten &optional arg)
   "Moves the file in the current buffer to the appropriate Zettelkasten. With
