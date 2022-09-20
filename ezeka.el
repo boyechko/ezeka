@@ -388,20 +388,36 @@ specified, asks the user to resolve the ambiguity."
     (:bolus (file-name-as-directory
              (format "%c00-%c99" (elt id 0) (elt id 0))))))
 
-(defun ezeka-link-file (link &optional noerror)
-  "Return a full file path to the Zettel LINK. If NOERROR is non-NIL,
-don't signal an error if the link is invalid."
+;; TODO: Update docstring
+(defun ezeka-link-file (link &optional noerror title)
+  "Return a full file path to the Zettel LINK. If TITLE is nil (so return a
+file name consisting just the LINK), 'wild (find existing file beginning with
+LINK), or a string (returns a filename consisting of LINK and TITLE). If
+NOERROR is non-NIL, don't signal an error if the link is invalid."
   (or (catch 'invalid
         (when (ezeka-link-p link)
-          (let ((kasten (ezeka-link-kasten link))
-                (id (ezeka-link-id link)))
-            (car
-             (file-expand-wildcards
-              (expand-file-name
-               (format "%s*.%s" id ezeka-file-extension)
-               (file-name-concat (ezeka-kasten-directory kasten)
-                                 (or (ezeka-subdirectory id)
-                                     (throw 'invalid nil)))))))))
+          (let* ((kasten (ezeka-link-kasten link))
+                 (id (ezeka-link-id link))
+                 (filename
+                  (expand-file-name
+                   (format "%s%s.%s"
+                           id
+                           (cond ((null title) "*")
+                                 ((eq title 'wild) "*")
+                                 ((stringp title)
+                                  (concat ezeka-file-name-separator
+                                          title))
+                                 (t
+                                  (signal 'wrong-type-argument
+                                          '(title (or nil 'wild stringp)))))
+                           ezeka-file-extension)
+                   (file-name-concat (ezeka-kasten-directory kasten)
+                                     (or (ezeka-subdirectory id)
+                                         (throw 'invalid nil))))))
+            (if (eq title 'wild)
+                (car (file-expand-wildcards filename))
+              (or (car (file-expand-wildcards filename))
+                  (string-replace "*" "" filename)))))) ; FIXME: Hackish
       (unless noerror
         (error "Link not valid: %s" link))))
 
