@@ -5,7 +5,7 @@ require 'clamp'
 require 'time'
 require_relative 'zettel'
 
-EXT = Zettelkasten.ext
+EXT = Zettel.ext
 
 Clamp do
   parameter "FILE", "zettel file for which to fix the timestamp",

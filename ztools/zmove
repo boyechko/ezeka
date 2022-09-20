@@ -9,7 +9,7 @@ require 'clamp'
 require_relative 'zettel'
 
 ZETTEL_DIR = Zettelkasten.root
-EXT = Zettelkasten.ext
+EXT = Zettel.ext
 LOGFILE = Pathname.new("auto/zmove.log")
 
 Clamp do

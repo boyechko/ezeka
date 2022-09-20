@@ -23,7 +23,7 @@ Clamp do
 
     files = files.split("\n").sort
     files.each do |file|
-      old_id = File.basename(file, Zettelkasten.ext)
+      old_id = File.basename(file, Zettel.ext)
       new_id = old_id.gsub(source, target)
 
       puts "Moving #{old_id} to #{new_id}"

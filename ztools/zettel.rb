@@ -17,11 +17,7 @@ require 'open3'
 
 class Zettelkasten
   class << self; attr_accessor :root end
-  class << self; attr_accessor :ext end
   class << self; attr_reader :default_kasten end
-
-  # Default extension for Zettelkasten files
-  @ext = ".txt"
 
   # Abort if $ZETTEL_DIR is not set
   if File.exists?(Pathname(ENV['ZETTEL_DIR']))
@@ -102,6 +98,10 @@ class Zettel
   attr_accessor :metadata,      # hash of symbol -> value
                 :text           # the text of the Zettel
 
+  # Default extension for Zettelkasten files
+  @ext = ".txt"
+  class << self; attr_accessor :ext end
+
   #
   # Custom Constructors
   #
@@ -181,7 +181,7 @@ class Zettel
     links = Array.new()
 
     Dir.chdir(Zettelkasten.root)
-    cmd = "grep --include=*#{Zettelkasten.ext} -lR -e '#{id}\\]\\]' -e 'parent: #{id}' *"
+    cmd = "grep --include=*#{Zettel.ext} -lR -e '#{link}\\]\\]' -e 'parent: #{link}' *"
     Open3.popen3(cmd) do |stdin, stdout, stderr|
       while file = stdout.gets
         z = Zettel.new_from_path(Zettelkasten.root + file.chomp)
@@ -349,7 +349,7 @@ class Numerus < Zettel
   #
   def init_path(path)
     if Zettelkasten.includes?(path)
-      init_link(Pathname(path).basename(Zettelkasten.ext).to_s)
+      init_link(Pathname(path).basename(Zettel.ext).to_s)
     else
       raise "The path is not part of the Zettelkasten: #{path}"
     end
@@ -374,7 +374,7 @@ class Numerus < Zettel
   def reinit()
     @id = self.id()
     @section = self.class.section_of(@id)
-    @path = Zettelkasten.dir(@kasten) + @section + (@id + Zettelkasten.ext)
+    @path = Zettelkasten.dir(@kasten) + @section + (@id + Zettel.ext)
   end
 
   #
@@ -429,7 +429,7 @@ class Numerus < Zettel
 
   # Returns true if the string is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    if File.basename(string, Zettelkasten.ext) =~ self::ID_PATTERN &&
+    if File.basename(string, Zettel.ext) =~ self::ID_PATTERN &&
        Zettelkasten.kasten_of(string) == Zettelkasten.default_kasten[self::ZETTEL_ID_TYPE]
       return true
     else
@@ -470,7 +470,7 @@ class Tempus < Zettel
     if Zettelkasten.includes?(path)
       init_link(Zettelkasten.kasten_of(path) +
                 ":" +
-                Pathname(path).basename(Zettelkasten.ext).to_s)
+                Pathname(path).basename(Zettel.ext).to_s)
     else
       raise "The path is not part of the Zettelkasten: #{path}"
     end
@@ -488,7 +488,7 @@ class Tempus < Zettel
       @id = $3
       @link = self.link
       @time = Time.parse(@id)
-      @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@id + Zettelkasten.ext)
+      @path = Zettelkasten.dir(@kasten) + @time.year.to_s + (@id + Zettel.ext)
       read_file if @path.exist?
     else
       raise "This does not look like a Tempus Zettel: #{link}"
@@ -517,7 +517,7 @@ class Tempus < Zettel
 
   # Returns true if this is a valid path a to numerus currens zettel
   def self.valid_path?(string)
-    return File.basename(string, Zettelkasten.ext) =~ ID_PATTERN &&
+    return File.basename(string, Zettel.ext) =~ ID_PATTERN &&
            Zettelkasten.includes?(string) ? true : false
   end
 end
