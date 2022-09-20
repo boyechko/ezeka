@@ -581,4 +581,28 @@ class Bolus < Numerus
       raise "ID '#{id}' is not a bolus currens"
     end
   end
+
+  #
+  # Instance Methods
+  #
+
+  # Returns the wiki link target
+  def link()
+    return @id
+  end
+
+  #
+  # Class Methods
+  #
+
+  # Returns true if the link (a string) is a valid link to Tempus Zettel
+  def self.valid_link?(string)
+    return string =~ FQN_PATTERN ? true : false
+  end
+
+  # Returns true if this is a valid path a to numerus currens zettel
+  def self.valid_path?(string)
+    return File.basename(string, Zettel.ext) =~ ID_PATTERN &&
+           Zettelkasten.includes?(string) ? true : false
+  end
 end
