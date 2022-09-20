@@ -252,7 +252,7 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
 of these conditions are met:
 1) the file exists;
 2) its extension is `ezeka-file-extension';
-3) its filename matches `ezeka-regexp-id'; and, if STRICT is non-NIL,
+3) its filename matches `ezeka-file-name-regexp'; and, if STRICT is non-NIL,
 4) the file is inside `ezeka-directory'."
   (interactive "f")
   (when file-or-buffer
@@ -264,7 +264,7 @@ of these conditions are met:
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
         (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match ezeka-regexp-id (file-name-base file))
+             (string-match (ezeka-file-name-regexp) (file-name-base file))
              (if strict
                  (string-prefix-p ezeka-directory file)
                t))))))
@@ -286,15 +286,20 @@ of these conditions are met:
   (or (cdr (assoc kasten ezeka-kaesten-aliases))
       (car (assoc kasten ezeka-kaesten))))
 
-(defun ezeka-file-name-id (file)
-  "Returns the ID part of the given Zettel FILE."
-  (let ((base (file-name-base file)))
+(defun ezeka-file-name-valid-p (filename)
+  "Returns non-nil if the given FILENAME is a valid Zettel filename."
+  (save-match-data
+   (string-match (ezeka-file-name-regexp) (file-name-base filename))))
+
+(defun ezeka-file-name-id (filename)
+  "Returns the ID part of the given Zettel FILENAME."
+  (let ((base (file-name-base filename)))
     (when (string-match (ezeka-file-name-regexp) base)
       (match-string 1 base))))
 
-(defun ezeka-file-name-title (file)
-  "Returns the description part of the given Zettel FILE."
-  (let ((base (file-name-base file)))
+(defun ezeka-file-name-title (filename)
+  "Returns the description part of the given Zettel FILENAME."
+  (let ((base (file-name-base filename)))
     (when (string-match (ezeka-file-name-regexp) base)
       (match-string 2 base))))
 
