@@ -134,6 +134,20 @@ class Zettel
     end
   end
 
+  # Returns the ID part of the filename
+  def self.file_id(path)
+    if path =~ FILE_NAME_PATTERN
+      return Regexp.last_match.named_captures["id"]
+    end
+  end
+
+  # Returns the title part of the filename
+  def self.file_id(path)
+    if path =~ FILE_NAME_PATTERN
+      return Regexp.last_match.named_captures["title"]
+    end
+  end
+
   # More concise representation
   def inspect()
     return "#<#{self.class} @id=#{@id}, @kasten=#{@kasten}, "\
@@ -241,10 +255,15 @@ class Zettel
 
   # String that comes just before the id
   ID_PREFIX = "§"
-  # String used to separate the id from the title
+  # String used to separate the ID from the title
   ID_TITLE_SEPARATOR = " "
-  # Regexp matching separation between the end of id and beginning of title
-  ID_REGEXP = /[^ ]+/
+  # Regexp matching any Zettel ID
+  ID_PATTERN = /[a-z0-9-]+/
+  # Fully qualified pattern (i.e. with kasten)
+  FQN_PATTERN = /((?<kasten>[a-z]+):)*(?<id>#{ID_PATTERN})/
+
+  # Pattern for the Zettel file names
+  FILE_NAME_PATTERN = /^(?<id>[a-z0-9]+)#{ID_TITLE_SEPARATOR}(?<title>.*)*\.(?<ext>#{self.ext})/
 
   # Returns a YAML block as a string, using inline sequence style.
   #
@@ -253,7 +272,7 @@ class Zettel
     result = ""
 
     # Make sure the rubric has the correct id
-    @metadata[:rubric].gsub!(/#{ID_PREFIX}#{ID_REGEXP}/,
+    @metadata[:rubric].gsub!(/#{ID_PREFIX}#{FQN_PATTERN}/,
                             "#{ID_PREFIX}#{@link}")
 
     # Output the metadata in the order specified in METADATA_KEYS
