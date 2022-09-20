@@ -79,18 +79,21 @@
            zk-index-format "%t [[%i]]"))))
 
 ;;;###autoload
-(defun ezeka-zk-index-choose-kasten (arg new-kasten)
-  "If there is an existing `zk-index-buffer-name', switches to it, otherwise
- interactively selects the deft directory from among `ezeka-kaesten'. With a
-prefix argument, selects new Zk directory regardless of Zk-Index buffer
-status."
+(defun ezeka-zk-index-choose-kasten (arg new-kasten id-only)
+  "If there is an existing `zk-index-buffer-name', switches to it,
+otherwise interactively selects the deft directory from among
+`ezeka-kaesten'. With a \\[universal-argument] selects new Zk
+directory regardless of Zk-Index buffer status."
   (interactive
    (if (or (null (get-buffer zk-index-buffer-name))
            (equal current-prefix-arg '(4)))
        (list current-prefix-arg
              (completing-read "Zettel kasten: "
-                              (mapcar #'car ezeka-kaesten)))
-     (list current-prefix-arg nil)))
+                              (mapcar #'car ezeka-kaesten))
+             (not (y-or-n-p "File names include titles? ")))
+     (list current-prefix-arg
+           nil
+           nil)))
   (if (not new-kasten)
       (pop-to-buffer zk-index-buffer-name)
     (if-let ((buffer (get-buffer zk-index-buffer-name)))
