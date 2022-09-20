@@ -230,14 +230,18 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
          (ezeka-link-file (ezeka-link-at-point) t))
         ((ezeka-note-p buffer-file-name t)
          buffer-file-name)
-        ((eq major-mode 'magit-status-mode)
+        ((eq major-mode 'magit-status-mode) ; FIXME: magit
          (magit-file-at-point))
-        ((eq major-mode 'deft-mode)     ; TODO Factor out
-         (--if-let (button-at (point))
-             (button-get it 'tag)
-           (ezeka-ivy-select-link)))    ; TODO Factor out
+        ((eq major-mode 'zk-index-mode) ; FIXME: zk-index
+         (if-let ((button (button-at (point))))
+             (zk--triplet-file (button-get button 'zk-triplet))
+           (zk--select-file)))
+        ((eq major-mode 'deft-mode)     ; FIXME: deft
+         (if-let ((button (button-at (point))))
+             (button-get button 'tag)
+           (ezeka-ivy-select-link)))
         (t
-         (ezeka-ivy-select-link))))     ; TODO Factor out
+         (zk--select-file))))           ; FIXME: zk
 
 ;;;=============================================================================
 ;;; Fundamental Functions
