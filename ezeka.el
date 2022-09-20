@@ -793,14 +793,11 @@ abase26 equivalent of 0, namely 'a'."
              ;; One of the old names was a tempus currens; just use that
              (ezeka-link-id oldname))
             ((alist-get :created metadata)
-             ;; Use the created metadata and make up the time of creation
-             ;; FIXME: Any more elegant way to do this?
-             (ezeka-decode-time-into-tempus-currens
-              ;; TODO: This needs to handle org-mode timestamps in metadata
-              (ezeka-encode-iso8601-datetime
-               (concat (alist-get :created metadata)
-                       "T"
-                       (format-time-string "%H:%M")))))
+             (string-replace "T0000"    ; FIXME: A bit hacky?
+                             (format-time-string "T%H%M")
+                             (ezeka-decode-time-into-tempus-currens
+                              (ezeka-encode-iso8601-datetime
+                               (alist-get :created metadata)))))
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
