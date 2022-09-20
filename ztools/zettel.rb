@@ -215,9 +215,14 @@ class Zettel
   # Removes the links to BEFORE in the @text, returning number of links removed
   def remove_links(before)
     counter = 0
-    @text = @text.gsub(/#{before}\]\]/) do |match|
+    if @metadata[:parent] && @metadata[:parent] =~ /#{before}/
+      @metadata[:parent] = nil
       counter += 1
-      "REMOVED_#{before}]]"
+    else
+      @text = @text.gsub(/\[\[#{before}\]\]/) do |match|
+        counter += 1
+        "{{#{before}}}"
+      end
     end
     return counter
   end

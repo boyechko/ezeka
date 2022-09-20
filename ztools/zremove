@@ -20,7 +20,7 @@ Clamp do
     puts "zremove: Press [Enter] to remove #{zettel.link}..."
     STDIN.gets
 
-    # Replace links with REMOVED, parent with grandparent
+    # Replace links to note with those to its parent
     grandparent = zettel.metadata[:parent]
     zettel.links_to().each do |z|
       if /#{zettel.link}/ =~ z.metadata[:parent]
@@ -28,8 +28,13 @@ Clamp do
         z.metadata[:parent] = grandparent
       end
 
-      removed = z.remove_links(zettel.link)
-      STDERR.puts "Removed #{removed} links in #{z.link}"
+      if grandparent
+        z.replace_links(zettel.link, grandparent)
+      else
+        removed = z.remove_links(zettel.link)
+        STDERR.puts "Removed #{removed} links in #{z.link}"
+      end
+
       z.write_file
     end
 
