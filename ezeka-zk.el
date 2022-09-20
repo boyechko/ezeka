@@ -59,9 +59,10 @@
 (defun ezeka-zk-initialize-kasten (kasten)
   "Set necessary variables for long-term work in KASTEN."
   (custom-set-variables
-   `(zk-directory ,(ezeka-kasten-directory kasten))
-   `(global-mode-string ,(propertize (concat "Kasten:" (upcase kasten))
-                                     'face 'bold-italic)))
+   `(zk-directory ,(ezeka-kasten-directory kasten)))
+  (add-to-list 'global-mode-string
+    (propertize (concat "Kasten:" (upcase kasten))
+                'face 'bold-italic))
   (cl-case (ezeka-kasten-id-type kasten)
     (:numerus
      (setq zk-id-regexp "\\([a-z]-[0-9]\\{4\\}\\)"
@@ -74,7 +75,8 @@
            (concat (downcase (format-time-string "%a-%j")))))
     (t
      (setq zk-id-regexp "\\([0-9T]\\{13\\}\\)"
-           zk-id-time-string-format "%Y%m%dT%H%M"))))
+           zk-id-time-string-format "%Y%m%dT%H%M"
+           zk-index-format "%t [[%i]]"))))
 
 ;;;###autoload
 (defun ezeka-zk-index-choose-kasten (arg new-kasten)
