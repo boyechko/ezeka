@@ -1059,10 +1059,19 @@ to current Zettel."
                                     " "))))))))))
 
 (defun ezeka-update-link-prefix-title (arg)
-  "Kills text from point to the next Zettel link, replacing it with that
-Zettel's title. With prefix argument, kill text from point to the next link."
+  "Kills text from point to the next Zettel link, replacing it with
+that Zettel's title. With \\[universal-argument] kill text from point
+to the next link."
   (interactive "P")
   (save-excursion
+    ;; if already inside a link, go to the start
+    (when (string= "link" (car (org-thing-at-point)))
+      (re-search-backward "\\[\\["))
+    ;; if char under cursor is start of link, back up to BOF
+    (while (or (char-equal (following-char) ?\[)
+               (= (preceding-char) 0))  ; BOF
+      (backward-char))
+    (unless (char-equal (preceding-char) ? ) (insert " "))
     (let ((start (point)))
       (org-next-link)
       (when (ezeka-link-at-point-p)
