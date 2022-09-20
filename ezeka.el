@@ -490,18 +490,17 @@ category, and title in that order.")
 (defvar ezeka-regexp-rubric
   (concat "§"
           ezeka-regexp-link-simplified                 ; \1 and \2
-          "\\(?:\\.\\)* "                              ; optional period
-          "\\(?:{\\(?3:[^}]+\\)}\\)*"                  ; \3
-          "\\(?4:[^#@\n]+?\\)*"                          ; \4
-          "\\(?5:@\\S-+\\)*"                           ; \5
-          "\\(?6:#[^\n]+\\)*")                         ; \6
+          "\\(?:\\.\\)*"                               ; optional period
+          "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
+          "\\(?4:.+?\\)"                               ; \4
+          "\\(?: \\(?5:@\\S-+\\)\\)*$"                 ; \5
+          )
   "Regular expression for the rubric string, used in `ezeka-file-metadata'.
 Group 1 is the kasten.
 Group 2 is the id.
 Group 3 is the category.
 Group 4 is the title.
-Group 5 is the citation key.
-Group 6 is the keyword block.")
+Group 5 is the citation key.")
 
 (defvar ezeka-regexp-genus "[α-ω]"
   "Regexp matching genus.")
@@ -513,8 +512,7 @@ returns NIL."
     (let ((id       (match-string 2 rubric))
           (category (match-string 3 rubric))
           (title    (match-string 4 rubric))
-          (citekey  (match-string 5 rubric))
-          (keywords (match-string 6 rubric)))
+          (citekey  (match-string 5 rubric)))
       (list (cons :id id)
             (cons :type (ezeka-id-type id))
             (cond ((null category) nil)
@@ -523,8 +521,7 @@ returns NIL."
                   (t
                    (cons :category category)))
             (cons :title (if title (string-trim title) ""))
-            (when citekey (cons :citekey (string-trim citekey)))
-            (when keywords (cons :keywords (list (string-trim keywords))))))))
+            (when citekey (cons :citekey (string-trim citekey)))))))
 
 (defun ezeka-encode-rubric (metadata)
   "Returns a list of two elements: 1) string that encodes the given
