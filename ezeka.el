@@ -1320,7 +1320,7 @@ is given, use that to sort the list first."
         (categories (if (not (functionp sort-fn))
                         ezeka-categories
                       (let ((cats-copy (cl-copy-list ezeka-categories)))
-                        (cl-sort cats-copy sort-fn :key #'cdr)))))
+                        (cl-sort cats-copy sort-fn)))))
     (if current-prefix-arg
         (read-string prompt)
       (completing-read prompt categories))))
