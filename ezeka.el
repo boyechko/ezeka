@@ -39,16 +39,6 @@
 the Zettel directory."
   (expand-file-name (or relative-path "") ezeka-directory))
 
-(defmacro ezeka-file-name-regexp ()
-  "Returns an expression to dynamically generate file name regexp that
-takes into account the current value of `ezeka-file-name-separator'.
-
-Group 1 is the ID.
-Group 2 is the title."
-  '(concat "^\\(?1:[^" ezeka-file-name-separator "]+\\)"
-           "\\(?:" ezeka-file-name-separator "\\(?2:.*\\)" ; optional title
-           "\\)*"))
-
 ;; FIXME: temporary
 (defvar ezeka-regexp-bolus-currens
   "\\([0-9]\\{3\\}\\)-\\([a-z]\\{3\\}\\)"
@@ -140,10 +130,30 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   :group 'ezeka)
 
 (defcustom ezeka-file-name-separator " "
-  "Character(s), as a string, to separate ID and title in the
+  "Character(s), as a string, to separate ID and caption in the
 filename."
   :type 'string
   :group 'ezeka)
+
+(defcustom ezeka-file-name-format "%i {%l} %t %k"
+  "Format of a proper Zettel note file name.
+
+%t -- title, cleaned up
+%i -- ID
+%l -- label (category or genus)
+%k -- citation key, if available
+
+This should match `ezeka-file-name-regexp'.")
+
+(defcustom ezeka-file-name-regexp
+  "\\(?1:[^ ]+\\)\\(?: {\\(?2:[^}+]\\)} \\(?3:.+\\)\\)*"
+  "A regular expression matching `ezeka-file-name-format'.
+
+Group 1 is the ID.
+Group 2 is the label (genus or category).
+Group 3 is the caption.
+
+Only the ID is strictly necessary.")
 
 (defcustom ezeka-kaesten
   ;; name | directory | ID type | list-order
@@ -263,8 +273,9 @@ of these conditions are met:
                    (signal 'type-error
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
-        (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match (ezeka-file-name-regexp) (file-name-base file))
+        (and (file-exists-p file)
+             (string-equal (file-name-extension file) ezeka-file-extension)
+             (string-match ezeka-file-name-regexp (file-name-base file))
              (if strict
                  (string-prefix-p ezeka-directory file)
                t))))))
@@ -289,19 +300,21 @@ of these conditions are met:
 (defun ezeka-file-name-valid-p (filename)
   "Returns non-nil if the given FILENAME is a valid Zettel filename."
   (save-match-data
-   (string-match (ezeka-file-name-regexp) (file-name-base filename))))
+   (string-match ezeka-file-name-regexp (file-name-base filename))))
 
 (defun ezeka-file-name-id (filename)
   "Returns the ID part of the given Zettel FILENAME."
   (let ((base (file-name-base filename)))
-    (when (string-match (ezeka-file-name-regexp) base)
-      (match-string 1 base))))
+    (save-match-data
+      (when (string-match ezeka-file-name-regexp base)
+        (match-string 1 base)))))
 
-(defun ezeka-file-name-title (filename)
-  "Returns the description part of the given Zettel FILENAME."
+(defun ezeka-file-name-caption (filename)
+  "Returns the caption part of the given Zettel FILENAME."
   (let ((base (file-name-base filename)))
-    (when (string-match (ezeka-file-name-regexp) base)
-      (match-string 2 base))))
+    (save-match-data
+      (when (string-match ezeka-file-name-regexp base)
+        (match-string 3 base)))))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun ezeka-file-kasten (file)
@@ -388,12 +401,12 @@ specified, asks the user to resolve the ambiguity."
     (:bolus (file-name-as-directory
              (format "%c00-%c99" (elt id 0) (elt id 0))))))
 
-;; TODO: Update docstring
-(defun ezeka-link-file (link &optional noerror title)
-  "Return a full file path to the Zettel LINK. If TITLE is nil (so return a
-file name consisting just the LINK), 'wild (find existing file beginning with
-LINK), or a string (returns a filename consisting of LINK and TITLE). If
-NOERROR is non-NIL, don't signal an error if the link is invalid."
+(defun ezeka-link-file (link &optional noerror caption)
+  "Return a full file path to the Zettel LINK. If CAPTION is nil (so
+return a file name consisting just the LINK), 'wild (find existing
+file beginning with LINK), or a string (returns a filename consisting
+of LINK, `ezeka-file-name-separator', and CAPTION). If NOERROR is
+non-NIL, don't signal an error if the link is invalid."
   (or (catch 'invalid
         (when (ezeka-link-p link)
           (let* ((kasten (ezeka-link-kasten link))
@@ -402,19 +415,18 @@ NOERROR is non-NIL, don't signal an error if the link is invalid."
                   (expand-file-name
                    (format "%s%s.%s"
                            id
-                           (cond ((null title) "*")
-                                 ((eq title 'wild) "*")
-                                 ((stringp title)
-                                  (concat ezeka-file-name-separator
-                                          title))
+                           (cond ((null caption) "*")
+                                 ((eq caption 'wild) "*")
+                                 ((stringp caption)
+                                  (concat ezeka-file-name-separator caption))
                                  (t
                                   (signal 'wrong-type-argument
-                                          '(title (or nil 'wild stringp)))))
+                                          '(caption (or nil 'wild stringp)))))
                            ezeka-file-extension)
                    (file-name-concat (ezeka-kasten-directory kasten)
                                      (or (ezeka-subdirectory id)
                                          (throw 'invalid nil))))))
-            (if (eq title 'wild)
+            (if (eq caption 'wild)
                 (car (file-expand-wildcards filename))
               (or (car (file-expand-wildcards filename))
                   (string-replace "*" "" filename)))))) ; FIXME: Hackish
@@ -609,6 +621,92 @@ new header even if the buffer is read only"
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
+(defun ezeka--replace-pairs-in-string (replacements string)
+  "Replace pairs in the REPLACEMENTS alist in STRING. Each item in
+REPLACEMENTS should have the form
+
+(FROM TO REGEXP)
+
+If REGEXP is non-nil, FROM should be a regexp string."
+  (save-match-data
+    (dolist (recipe replacements string)
+      (setq string
+       (funcall (if (caddr recipe)
+                    #'replace-regexp-in-string
+                  #'string-replace)
+                (car recipe)
+                (cadr recipe)
+                string)))))
+
+;; See https://help.dropbox.com/organize/file-names
+(defun ezeka--normalize-title-into-caption (title)
+  "Returns TITLE after shortening it and stripping or replacing
+troublesome characters for it to be used safely as file caption."
+  (interactive (list (file-name-base buffer-file-name)))
+  (let ((replacements
+         '(("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1\\3\\)"
+            "{β} \\2 \\4" t)
+           ("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1.*\\)"
+            "{β} \\2 (\\3) \\4" t)
+           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\))\\(?: [@&]\\1[0-9]+\\)"
+            "{π} \\2 &\\1\\3" t)
+           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) \\(?:(\\(?3:[0-9]\\{4\\}\\))\\)*\\(?: [@&]\\1[0-9]+\\)*"
+            "{π} \\2 &\\1\\3" t)
+           ("\"\\([^\"]+\\)\"" "'\\1'" t)
+           ("/\\([^/]+\\)/" "_\\1_" t)
+           ("(\\(ß.+\\))" "[\\1]" t)
+           ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" t)
+           ("/" "-")
+           ("\\" "-")
+           ("<" "[")
+           (">" "]")
+           (":" ",")
+           ("\"" "")
+           ("|" "-")
+           ("?" "+")
+           ("*" "+"))))
+    (ezeka--replace-pairs-in-string replacements title)))
+
+(defmacro ezeka--strip-citekey-from-caption (caption)
+  "Returns CAPTION after stripping any citation keys at the tail end."
+  `(replace-regexp-in-string " [@&]\\w+$" "" ,caption))
+
+(defun ezeka--normalize-file-name (&optional file metadata)
+  "Ensure that FILE's captioned name is not missing anything from the
+METADATA."
+  (interactive (list buffer-file-name))
+  (let ((filename (or file buffer-file-name)))
+    (when (eq :numerus (ezeka-kasten-id-type (ezeka-file-kasten filename)))
+      (let* ((existing (file-name-base filename))
+             (mdata (or metadata (ezeka-file-metadata filename)))
+             (new (org-trim
+                   (format-spec ezeka-file-name-format
+                                `((?i . ,(alist-get :id mdata))
+                                  (?k . ,(or (alist-get :citekey mdata)
+                                             ""))
+                                  (?l . ,(or (alist-get :genus mdata)
+                                             (alist-get :category mdata)
+                                             (error "No genus or category set")))
+                                  (?t . ,(or (ezeka--normalize-title-into-caption
+                                              (alist-get :title mdata))
+                                             (error "No title set"))))))))
+        (unless (or (string= existing new)
+                    (not (y-or-n-p (format "Try renaming %s? " existing))))
+          (let* ((confirmed (read-string
+                             (format "Current: %s\nRename to: " existing)
+                             new nil new))
+                 (newname (file-name-with-extension
+                           (org-trim confirmed)
+                           ezeka-file-extension)))
+            (if (not (and filename (file-exists-p filename)))
+                (set-visited-file-name newname)
+              (cond
+               ((vc-backend filename)
+                (vc-rename-file filename newname))
+               (t
+                (rename-file filename newname t)
+                (set-visited-file-name newname t t))))))))))
+
 (defun ezeka-decode-header (header file)
   "Returns an alist of metadata decoded from the given YAML header of FILE.
 They keys are converted to keywords."
@@ -639,11 +737,11 @@ They keys are converted to keywords."
 (defun ezeka-file-metadata (file &optional noerror)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
-  (when file
-   (if-let ((header (ezeka-file-content file t noerror)))
-       (ezeka-decode-header header file)
-     (unless noerror
-       (error "Cannot retrieve %s's metadata" file)))))
+  (if-let ((header (ezeka-file-content file t noerror)))
+      (cons (cons :caption (ezeka-file-name-caption file))
+            (ezeka-decode-header header file))
+    (unless noerror
+      (error "Cannot retrieve %s's metadata" file))))
 
 (defun ezeka-update-header-date (&optional arg)
   "Updates the modification time in the header of the current Zettel
@@ -845,9 +943,9 @@ links that are not enclosed in square brackets."
   (match-string-no-properties 1))
 
 (defun ezeka-find-file (file &optional same-window)
-  "Edit the given file based on the value of `ezeka-number-of-frames'. If
-SAME-WINDOW is non-NIL, opens the buffer visiting the file in the same
-window."
+  "Edit the given file based on the value of `ezeka-number-of-frames'.
+If SAME-WINDOW is non-NIL, opens the buffer visiting the file in the
+same window."
   (if same-window
       (find-file file)
     (cl-case ezeka-number-of-frames
@@ -2091,9 +2189,10 @@ returns it."
     (lambda ()
       (modify-syntax-entry ?: "w"))))
 
-;; On save, update modificate date
+;; On save, update modificate date and normalize file name
 (add-hook 'ezeka-mode-hook
   (lambda ()
-    (add-hook 'before-save-hook 'ezeka-update-header-date nil t)))
+    (add-hook 'before-save-hook 'ezeka-update-header-date nil t)
+    (add-hook 'after-save-hook 'ezeka--normalize-file-name nil t)))
 
 (provide 'ezeka)
