@@ -1159,6 +1159,8 @@ to current Zettel."
 ;;
 ;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
 (defun ezeka-show-title-in-mode-line ()
+  "Change `mode-line-misc-info' to show the Zettel note's title from
+metadata."
   (interactive)
   (when (and (ezeka-note-p buffer-file-name)
              (not (zerop (buffer-size))))
@@ -1385,6 +1387,7 @@ Zettelkasten work."
 ;; Add the following hook to enact:
 ;;
 ;; (add-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
+;; (remove-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
 (defun ezeka-show-link-title-in-mode-line ()
   "If the cursor is at a Zettel link, show the title in the mode line."
   (while-no-input
@@ -2103,23 +2106,37 @@ returns it."
 ;;
 ;; Add the following to emacs config file:
 ;;
-;; (add-hook 'post-command-hook 'magit-show-ezeka-title-in-mode-line)
-(defun magit-show-ezeka-title-in-mode-line ()
+;; (add-hook 'post-command-hook 'ezeka--magit-show-title-in-mode-line)
+;; (add-hook 'magit-mode-hook
+;;   (lambda ()
+;;     (setq ezeka--original-mode-line mode-line-misc-info)
+;;     (add-hook 'post-command-hook 'ezeka--magit-show-title-in-mode-line nil t)))
+
+(defvar ezeka--original-mode-line nil
+  "Value of `mode-line-misc-info' before we override it.")
+
+(defun ezeka--magit-show-title-in-mode-line ()
   "Displays Zettel title of the file under cursor in the mode line."
   (while-no-input
     (redisplay)
-    (let (file line)
-      (when (and (eq major-mode 'magit-status-mode)
-                 (setq file (magit-file-at-point))
-                 (ezeka-note-p file)
-                 (setq line (magit-file-line file)))
-        (let ((metadata
-               (ezeka-decode-rubric
-                (when (string-match ezeka-regexp-header-line line)
-                  (match-string 2 line)))))
-          (setq mode-line-misc-info
-            (format "%s: %s"
-                    (alist-get :id metadata) (alist-get :title metadata))))))))
+    (when-let* ((file
+                 (cl-case major-mode
+                   (magit-status-mode (magit-file-at-point))
+                   (dired-mode (dired-file-name-at-point))
+                   (wdired-mode (dired-file-name-at-point))
+                   (t (setq mode-line-misc-info ezeka--original-mode-line)
+                      nil)))
+                (line (magit-file-line file))
+                (mdata
+                 (ezeka-decode-rubric
+                  (when (string-match ezeka-regexp-header-line line)
+                    (match-string 2 line)))))
+      (setq mode-line-misc-info
+        (format "%s: %s"
+                (propertize (alist-get :id mdata)
+                            'face '(:weight bold))
+                (propertize (alist-get :title mdata)
+                            'face '(:slant italic)))))))
 
 ;;;=============================================================================
 ;;; Mode
