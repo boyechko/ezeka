@@ -1432,7 +1432,10 @@ suitable for passing to `completing-read' as collection."
 in another window."
   (interactive "P")
   (let ((table (ezeka-completion-table
-                (ezeka-visiting-buffer-list t))))
+                (nreverse (ezeka-visiting-buffer-list t))))
+        ;; Disabling sorting preserves the same order as with `switch-to-buffer'
+        ;; FIXME: How to do this without relying on vertico?
+        (vertico-sort-function nil))
     (funcall (if arg 'find-file-other-window 'find-file)
              (if table
                  (cdr (assoc-string
