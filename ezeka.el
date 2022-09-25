@@ -961,14 +961,19 @@ same window."
 
 (defun ezeka-find-link (link &optional same-window)
   "Attempts to find the given Zettel link based on the value of
-`ezeka-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in the
-same window. Returns T if the link is a Zettel link."
+`ezeka-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in
+the same window. Returns T if the link is a Zettel link."
   (when (ezeka-link-p link)
-    (ezeka-find-file (ezeka-link-file link) same-window)
-    (when (zerop (buffer-size))
-      (call-interactively #'ezeka-insert-header-template))
-    ;; make sure to return T for `org-open-link-functions'
-    t))
+    (let ((existing-file (ezeka-link-file link t 'wild)))
+        (cond ((ezeka-note-p existing-file)
+               (ezeka-find-file existing-file same-window))
+              ((y-or-n-p "Link doesn't exist. Create? ")
+               (let ((caption (plist-get (assoc-string link ezeka--new-child-plist)
+                                         :caption)))
+                 (ezeka-find-file (ezeka-link-file link t caption) same-window)
+                 (call-interactively #'ezeka-insert-header-template)))
+              (t
+               (message "Link to non-existant note"))))))
 
 (defun ezeka-kill-link-or-sexp-at-point (&optional arg)
   "If there is a Zettel link at point, kill it, including the square
@@ -1252,16 +1257,9 @@ ancestor. With a universal argument, ask for confirmation before inserting."
         (ezeka-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
-(defvar ezeka--new-child-details nil
-  "An alist of new children, their respective parents, and titles.")
-
-(defun ezeka-generate-new-child (parent kasten)
-  "Generates a new child of the given PARENT in the KASTEN."
-  (let ((child-link (ezeka-make-link
-                     kasten
-                     (ezeka-next-unused-id kasten))))
-    (add-to-list 'ezeka--new-child-details (list child-link parent))
-    child-link))
+(defvar ezeka--new-child-plist nil
+  "An alist of new children and a plist of their details (:parent,
+:title, :genus, etc.).")
 
 (defun ezeka-insert-new-child (&optional arg)
   "Inserts a link to a new Zettel in the same Kasten as the current
@@ -1285,7 +1283,10 @@ asks for the full link. Returns link to the new child."
                                (mapcar #'car ezeka-kaesten)
                              (error "No `ezeka-kaesten' defined")))
                         (ezeka-link-kasten parent-link))))
-          (setq child-link (ezeka-generate-new-child parent-link kasten))))
+          (setq child-link
+            (ezeka-make-link kasten (ezeka-next-unused-id kasten)))
+          (add-to-list 'ezeka--new-child-plist
+            (list child-link :parent parent-link))))
       (insert (ezeka-org-format-link child-link))
       child-link)))
 
@@ -1311,18 +1312,20 @@ asks for the full link. Returns link to the new child."
 with given TITLE (defaults to text before point). Passes the prefix
 argument to `ezeka-insert-new-child'."
   (interactive (list current-prefix-arg
-                     (org-trim
-                      (read-from-minibuffer "Title for the child: "
-                                            (ezeka--possible-new-note-title)))))
-  (let ((text (ezeka--possible-new-note-title))
-        (citekey (or (alist-get :citekey
-                       (ezeka-file-metadata buffer-file-name))
-                     "")))
-    (when text
-      (kill-new (concat (org-trim text)
+                     (read-from-minibuffer "Title for the child: "
+                                           (ezeka--possible-new-note-title))))
+  (let* ((parent-link (ezeka-file-link buffer-file-name))
+         (citekey (or (alist-get :citekey
+                        (ezeka-file-metadata buffer-file-name))
+                      ""))
+         (title (concat (org-trim (or title
+                                      (ezeka--possible-new-note-title)))
                         (when citekey " ")
-                        citekey)))
-    (ezeka-insert-new-child arg)))
+                        citekey))
+         (child-link (ezeka-insert-new-child arg))
+         (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
+    (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
+          (plist-put plist :title title))))
 
 ;;;=============================================================================
 ;;; Buffers and Frames
@@ -1594,19 +1597,18 @@ traces genealogy further than parent."
   "Inserts the header template into the current buffer, populating the
 header with the LINK, CATEGORY, TITLE, and PARENT."
   (interactive
-   (let ((link (if buffer-file-name
-                   (ezeka-file-link buffer-file-name)
-                 ;; FIXME: Rewrite with completing-read
-                 (read-string "Insert template into note with this link: "))))
+   (let* ((link (if buffer-file-name
+                    (ezeka-file-link buffer-file-name)
+                  ;; FIXME: Rewrite with completing-read
+                  (read-string "Insert template into note with this link: ")))
+          (plist (cdr (assoc link ezeka--new-child-plist))))
      (list
       link
       (if (eq :numerus (ezeka-id-type link))
           (ezeka-read-genus t "Genus for new note: ")
         (ezeka-read-category))
-      (read-string "Title: "
-                   (cadr (assoc link ezeka--new-child-details)))
-      (read-string "Link to parent? "
-                   (caddr (assoc link ezeka--new-child-details))))))
+      (read-string "Title: " (plist-get plist :title))
+      (read-string "Parent? " (plist-get plist :parent)))))
   (let* ((file (ezeka-link-file link)))
     (goto-char (point-min))
     (insert (format (concat ezeka-header-rubric-key ": "
