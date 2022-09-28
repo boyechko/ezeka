@@ -373,6 +373,13 @@ for the particular Zettelkasten. Defaults to the Kasten set in
            (ezeka-link-at-point))))
   (consult-grep ezeka-directory link))
 
+(defun ezeka-zk-grep-in-zettelkasten (string)
+  "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
+  (interactive "sSearch for what? ")
+  (grep-compute-defaults)
+  (let ((zk-directory ezeka-directory))
+    (zk-index-search (string-replace " " ".*" string))))
+
 (defun ezeka-zk-replace-links (before after &optional directory)
   "Replace BEFORE links to AFTER links in all Zettel files in
 DIRECTORY (defaults to `ezeka-directory'). If AFTER is nil, replace
@@ -438,6 +445,13 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
       (delete-file file)
       (kill-buffer-ask (get-file-buffer file)))))
 
+(defun ezeka-zk-insert-link-to-index ()
+  "Insert link in the current buffer for the button ID at point in
+`zk-index-buffer-name'"
+  (interactive)
+  (let ((id (with-current-buffer zk-index-buffer-name
+              (zk-index--button-at-point))))
+    (ezeka-insert-link-with-metadata id :title :before t)))
 
 ;;;=============================================================================
 ;;; Entitle
