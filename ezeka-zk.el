@@ -326,6 +326,20 @@ asking.")
         (ezeka--update-metadata-values file metadata)))
   "Set the entire rubric line for all notes in the active region and save the
 files without asking.")
+
+(define-zk-index-mapper ezeka-zk-index-entitle
+    (lambda (file n out-of)
+      (ezeka-entitle-file-name file
+                               current-prefix-arg
+                               (format "[%d/%d] New file name: " n out-of)))
+  "Entitle all files in the currently active region of Zk-Index
+buffer. With \\[universal-argument], don't bother editing each new
+name."
+  (when (ezeka-note-p (current-buffer))
+    (ezeka-entitle-file-name (buffer-file-name) current-prefix-arg)
+    (save-buffer)
+    (user-error "Use `ezeka-entitle-file-name' for singe files.")))
+
 ;;;=============================================================================
 ;;; Other
 ;;;=============================================================================
@@ -358,5 +372,76 @@ for the particular Zettelkasten. Defaults to the Kasten set in
    (list (when (ezeka-link-at-point-p t)
            (ezeka-link-at-point))))
   (consult-grep ezeka-directory link))
+
+
+;;;=============================================================================
+;;; Entitle
+;;;=============================================================================
+
+;; FIXME: This duplicates some functionality of `ezeka-find-link'
+(defun ezeka-link-entitled-file (link title)
+  "Return a full file path to the Zettel LINK with the given TITLE."
+  (if (ezeka-link-p link)
+      (let ((kasten (ezeka-link-kasten link))
+            (id (ezeka-link-id link)))
+        (expand-file-name
+         (ezeka--normalize-title-into-caption
+          (format "%s%s%s.%s"
+                  id
+                  ezeka-file-name-separator
+                  title
+                  ezeka-file-extension))
+         (expand-file-name (or (ezeka-subdirectory id)
+                               (unless noerror
+                                 (error "Link not valid: %s" link)))
+                           (ezeka-kasten-directory kasten))))
+    (unless noerror
+      (error "This is not a proper Zettel link: %s" link))))
+
+;; FIXME: Temporary
+(defun your-read-lines (file n)
+  "Return first N lines of FILE."
+  (with-temp-buffer
+    (insert-file-contents-literally file)
+    (cl-loop repeat n
+             unless (eobp)
+             collect (prog1 (buffer-substring-no-properties
+                             (line-beginning-position)
+                             (line-end-position))
+                       (forward-line 1)))))
+
+(defun ezeka-entitle-file-name (file &optional arg prompt)
+  "Rename the given FILE to include rubric in the file name. *Without*
+\\[universal-argument], edit the resulting file name before renaming."
+  (interactive (list buffer-file-name
+                     current-prefix-arg))
+  (let* ((link (ezeka-file-link file))
+         (metadata (ezeka-file-metadata file))
+         (rubric (car (ezeka-encode-rubric metadata)))
+         (title (cl-subseq rubric
+                           (1+
+                            (cl-position (string-to-char ezeka-file-name-separator)
+                                         rubric))))
+         (entitled (ezeka-link-entitled-file link title)))
+    (let ((buf (find-file file))
+          (newname (if arg
+                       (file-name-base entitled)
+                     (read-string (or prompt "New file name: ")
+                                  (if (ezeka-file-name-title file)
+                                      (file-name-base file)
+                                    (file-name-base entitled))
+                                  (file-name-base entitled)))))
+      (cond ((string-empty-p newname)
+             (message "Empty name; not renaming"))
+            ((not (ezeka-file-name-valid-p newname))
+             (user-error "New file name is not valid: %s" newname))
+            (t
+             (rename-file-and-buffer    ; FIXME: Defined in init-utilities.el
+              file
+              (expand-file-name
+               (file-name-with-extension newname (file-name-extension entitled))
+               (file-name-directory entitled)))))
+      (when arg
+        (kill-buffer-if-not-modified buf)))))
 
 (provide 'ezeka-zk)
