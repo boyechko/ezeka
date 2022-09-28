@@ -42,18 +42,21 @@
   `(let ((zk-directory (ezeka-kasten-directory ,kasten)))
      (cl-progv '(zk-id-regexp
                  zk-id-time-string-format
-                 zk-directory-subdir-function)
+                 zk-file-name-id-only)
          (cl-case (ezeka-kasten-id-type ,kasten)
            (:numerus
             '("[a-z]-[0-9]\\{4\\}"
               ,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
-                       "-%H%M")))
+                       "-%H%M")
+              nil))
            (:bolus
             '("[0-9]\\{3\\}-[a-z]\\{3\\}"
-              ,(concat (downcase (format-time-string "%a")) "-%j")))
+              ,(concat (downcase (format-time-string "%a")) "-%j")
+              t))
            (t
             '("[0-9]\\{8\\}T[0-9]\\{4\\}"
-              "%Y%m%dT%H%M")))
+              "%Y%m%dT%H%M"
+              t)))
        ,@body)))
 
 (defun ezeka-zk-initialize-kasten (kasten)
