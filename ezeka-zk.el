@@ -140,23 +140,19 @@ Optionally use ORIG-ID for backlink."
                                (?k . ,(or (alist-get :citekey metadata) ""))))
                 output))))))
 
-(defun ezeka-zk-index-print-header ()
-  "See `zk-index-print-header-function'."
-  (let ((format-string
-         (replace-regexp-in-string "%\\([^[:alpha:]]*\\)[[:alpha:]]"
-                                   "%\\1s"
-                                   zk-index-format)))
-    (insert
-     (format (concat format-string "\n\n")
-             "ID" "Category" "Citekey" "Title"))))
-
-(defun ezeka-zk-index-print-header ()
-  "See `zk-index-print-header-function'."
-  (let ((kasten (upcase (f-base zk-directory))))
-    (insert (concat (propertize kasten
-                                'face 'warning
-                                'justification 'center)))
-    (insert "\n\n")))
+(defun ezeka-zk-format-link-and-title (id title)
+  "See `zk-format-link-and-title-function'."
+  (let ((file (ezeka-link-file id)))
+    (when (ezeka-note-p file)
+      (let* ((mdata (ezeka-file-metadata file)))
+        (format-spec "%a%t [[%i]]"
+                     `((?a . ,(if (alist-get :citekey mdata)
+                                  (format "%s's "
+                                          (substring
+                                           (alist-get :citekey mdata) 1))
+                                ""))
+                       (?i . ,(ezeka-file-name-id file))
+                       (?t . ,(alist-get :title mdata))))))))
 
 (defun ezeka-zk-parse-file (target files)
   "See `zk-parse-file-function'."
