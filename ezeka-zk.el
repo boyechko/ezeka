@@ -373,6 +373,71 @@ for the particular Zettelkasten. Defaults to the Kasten set in
            (ezeka-link-at-point))))
   (consult-grep ezeka-directory link))
 
+(defun ezeka-zk-replace-links (before after &optional directory)
+  "Replace BEFORE links to AFTER links in all Zettel files in
+DIRECTORY (defaults to `ezeka-directory'). If AFTER is nil, replace
+the link with {{BEFORE}}. Returns a tuple of number of links replaced
+in number of files."
+  (interactive "sReplace links to: \ns... with links to: ")
+  (let ((with-links
+         (let ((zk-directory (or directory ezeka-directory)))
+           (zk--grep-file-list
+            (format "(parent: %s$|%s\\]\\])" before before) t)))
+        (count 0))
+    (if (not with-links)
+        (progn (message "No links to %s found" before) nil)
+      (dolist (f with-links count)
+        (let ((open-buffer (get-file-buffer f)))
+          (save-excursion
+            (with-current-buffer (or open-buffer
+                                     (find-file-noselect f))
+              (let ((f-mdata (ezeka-file-metadata f)))
+                (when (string= (alist-get :parent f-mdata) before)
+                  (setf (alist-get :parent f-mdata) after)
+                  (ezeka-normalize-header f f-mdata)
+                  (cl-incf count))
+                (goto-char (point-min))
+                (while (re-search-forward
+                        (regexp-quote (ezeka-org-format-link before)) nil t)
+                  (replace-match (save-match-data
+                                   (if after
+                                       (ezeka-org-format-link after)
+                                     (format "{{%s}}" before))))
+                  (cl-incf count)))
+              (save-buffer)
+              (unless open-buffer
+                (kill-buffer (current-buffer)))))))
+      (message "Replaced %d link(s) in %d files" count (length with-links))
+      (cons count (length with-links)))))
+
+(defun ezeka-zk-delete-note (link-or-file &optional change-to)
+  "Delete the Zettel note with the given LINK-OR-FILE, updating any existing
+links with CHANGE-TO, if given, or with the parent, if one is set."
+  (interactive (list (ezeka--grab-dwim-file-target)))
+  (let* ((file (if (ezeka-link-p link-or-file)
+                   (ezeka-link-file link-or-file)
+                 link-or-file))
+         (link (if (ezeka-link-p link-or-file)
+                   link-or-file
+                 (ezeka-file-link link-or-file)))
+         (mdata (ezeka-file-metadata file))
+         (with-links (let ((zk-directory ezeka-directory))
+                       (zk--grep-file-list
+                        (format "(parent: %s|%s\\]\\])" link link) t)))
+         (change-to (or change-to
+                        (when-let* ((parent (alist-get :parent mdata)))
+                          (if (file-exists-p (ezeka-link-file parent))
+                              parent
+                            (message "%s's parent doesn't exist: %s"
+                                     (ezeka-file-link file)
+                                     parent)))))
+         (count 0))
+    (ezeka-zk-replace-links link change-to)
+    (when (y-or-n-p (format "Really delete %s %s? "
+                            link (alist-get :title mdata)))
+      (delete-file file)
+      (kill-buffer-ask (get-file-buffer file)))))
+
 
 ;;;=============================================================================
 ;;; Entitle
