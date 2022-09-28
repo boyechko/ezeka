@@ -225,6 +225,111 @@ NEW-PARENT is NIL, let user choose the the Zettel."
     (ezeka--update-metadata-values filename
                                    :parent (ezeka-file-link new-parent))))
 
+;;;=============================================================================
+;;; Mapping Across Zk-Index Buttons
+;;;=============================================================================
+
+(defun ezeka-zk-map-buttons (func &optional buffer beg end)
+  "Like `widget-map-buttons' but for zk-index buttons."
+  (mapc func (zk-index--current-button-list buffer beg end)))
+
+(defun ezeka-zk-map-button-files (func &optional buffer beg end)
+  "Like `widget-map-buttons' but for zk-index buttons. FUNC should be
+a function accepting arguments FILE, COUNTER, TOTAL-FILES. Returns
+list of files mapped across."
+  (let* ((buttons (zk-index--current-button-list buffer beg end))
+         (total (length buttons))
+         (n 0)
+         results)
+    (dolist (button buttons (nreverse results))
+      (let ((file (zk--triplet-file (button-get button 'zk-triplet))))
+        (funcall func file n total)
+        (push file results)
+        (cl-incf n)))))
+
+(defmacro define-zk-index-mapper (name func &optional docstring &rest body)
+  "Define an interactive function to map a function across the files
+in the active region of the current ZK-Index buffer. FUNC is the
+function to map with, taking filename as the only argument. BODY is
+the body of the index mapper command.
+
+\fn(NAME (ARG) &OPTIONAL DOCSTRING &BODY BODY)"
+  (declare (indent 2))
+  (let ((arg (gensym "arg"))
+        (beg (gensym "beg"))
+        (end (gensym "end"))
+        (file (gensym "file"))
+        (files (gensym "files")))
+    `(defun ,name (,arg ,beg ,end)
+       ,docstring
+       (interactive (if (region-active-p)
+                        (list current-prefix-arg
+                              (region-beginning) (region-end))
+                      (list current-prefix-arg
+                            (point-at-bol) (point-at-eol))))
+       (let ((ezeka-save-after-metadata-updates t)
+             (ezeka-update-modification-date 'never)
+             (inhibit-read-only t))
+         ,@body
+         (let ((,files (nreverse (ezeka-zk-map-button-files ,func nil ,beg ,end))))
+           (delete-region ,beg ,end)
+           (dolist (,file ,files ,files)
+             (zk-index--insert-button ,file)
+             ;;(insert "\n")
+             ))))))
+
+(defvar ezeka-zk--last-genus nil
+  "Used by `ezeka-zk-index-set-genus' to hold the last set genus.")
+
+(defun ezeka-zk-index-set-genus (file)
+  "Set the genus for the Zettel at point of the current Zk-Index buffer, saving
+the file without asking."
+  (interactive (list (ezeka--grab-dwim-file-target)))
+  (let ((ezeka-save-after-metadata-updates t)
+        (ezeka-update-modification-date 'never)
+        (inhibit-read-only t)
+        (genus (ezeka-read-genus nil nil ezeka-zk--last-genus)))
+    (ezeka-set-genus file genus)
+    (setq ezeka-zk--last-genus genus)
+    (when zk-index-view-mode
+      (with-current-buffer zk-index-buffer-name
+        (when (file-equal-p (ezeka--grab-dwim-file-target) file)
+          (delete-region (point-at-bol) (point-at-eol))
+          (zk-index--insert-button file))))
+    (zk-index-next-line)))
+
+(define-zk-index-mapper ezeka-zk-index-mass-set-genus
+    (lambda (file &rest args) (ezeka-set-genus file ezeka-zk--last-genus))
+  "Set the genus for all notes in the active region and save the
+files without asking."
+  (setq ezeka-zk--last-genus
+    (ezeka-read-genus nil "Mass-set what genus? " ezeka-zk--last-genus)))
+
+(define-zk-index-mapper ezeka-zk-index-set-citekey
+    (lambda (file &rest args) (ezeka-set-citekey file nil current-prefix-arg))
+  "Set the citekey for all notes in the active region and save the
+files without asking.")
+
+(define-zk-index-mapper ezeka-zk-index-set-title
+    (lambda (file &rest args) (ezeka-set-title file))
+  "Set the title for all notes in the active region and save the files without
+asking.")
+
+(define-zk-index-mapper ezeka-zk-index-set-rubric
+    (lambda (file &rest args)
+      (let* ((metadata (ezeka-file-metadata file))
+             (updated (ezeka-decode-rubric
+                       (read-string "Change rubric to what? "
+                                    (car (ezeka-encode-rubric metadata))))))
+        (while updated
+          (setf (alist-get (pop updated) metadata) (pop updated)))
+        (ezeka--update-metadata-values file metadata)))
+  "Set the entire rubric line for all notes in the active region and save the
+files without asking.")
+;;;=============================================================================
+;;; Other
+;;;=============================================================================
+
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Call `zk-insert-link' after temporarily setting zk variables to be
 appropriate for the particular Zettelkasten."
