@@ -29,6 +29,7 @@
 ;; relying on Org, Deft (now moved to ezeka-deft.el) that began on 2015-06-31.
 
 (require 'org)
+(require 'format-spec)
 
 ;;;=============================================================================
 ;;; Internal Variables
@@ -88,12 +89,12 @@ Group 1 is the kasten, if specified.
 Group 2 is the ID.")
 
 (defvar ezeka-regexp-link-simplified
-  (concat "\\(?:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:[0-9a-zT-]+\\)")
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:[0-9a-zT-]+\\)")
   "The regular expression that matches Zettel links but without matching
 `ezeka-regexp-id' precisely.
 
-Group 1 is the kasten, if specified.
-Group 2 is the ID.")
+Group 1 is the ID.
+Group 2 is the kasten, if specified.")
 
 (defvar ezeka-regexp-iso8601-date
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
@@ -128,32 +129,6 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   "Default extension for Zettel files."
   :type 'string
   :group 'ezeka)
-
-(defcustom ezeka-file-name-separator " "
-  "Character(s), as a string, to separate ID and caption in the
-filename."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-file-name-format "%i {%l} %t %k"
-  "Format of a proper Zettel note file name.
-
-%t -- title, cleaned up
-%i -- ID
-%l -- label (category or genus)
-%k -- citation key, if available
-
-This should match `ezeka-file-name-regexp'.")
-
-(defcustom ezeka-file-name-regexp
-  "\\(?1:[^ ]+\\)\\(?: {\\(?2:[^}+]\\)} \\(?3:.+\\)\\)*"
-  "A regular expression matching `ezeka-file-name-format'.
-
-Group 1 is the ID.
-Group 2 is the label (genus or category).
-Group 3 is the caption.
-
-Only the ID is strictly necessary.")
 
 (defcustom ezeka-kaesten
   ;; name | directory | ID type | list-order
@@ -216,8 +191,8 @@ date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
   :group 'ezeka)
 
 (defcustom ezeka-save-after-metadata-updates 'confirm
-  "Determines whether `ezeka-set-genus', `ezeka-set-category', and
-`ezeka-set-citekey-from-parent' will automatically save the file after
+  "Determines whether `ezeka-set-label', `ezeka-set-title', and
+`ezeka-set-citekey' will automatically save the file after
 modification."
   :type 'symbol
   :options '(nil t confirm)
@@ -260,9 +235,9 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
 (defun ezeka-note-p (file-or-buffer &optional strict)
   "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
 of these conditions are met:
-1) the file exists;
-2) its extension is `ezeka-file-extension';
-3) its filename matches `ezeka-file-name-regexp'; and, if STRICT is non-NIL,
+1) its extension is `ezeka-file-extension';
+2) its filename matches `ezeka-file-name-regexp'; and, if STRICT is non-NIL,
+3) the file exists;
 4) the file is inside `ezeka-directory'."
   (interactive "f")
   (when file-or-buffer
@@ -273,11 +248,11 @@ of these conditions are met:
                    (signal 'type-error
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
-        (and (file-exists-p file)
-             (string-equal (file-name-extension file) ezeka-file-extension)
+        (and (string-equal (file-name-extension file) ezeka-file-extension)
              (string-match ezeka-file-name-regexp (file-name-base file))
              (if strict
-                 (string-prefix-p ezeka-directory file)
+                 (and (file-exists-p file)
+                      (string-prefix-p ezeka-directory file)) ; FIXME: Hack
                t))))))
 
 (defun ezeka-kasten-directory (kasten)
@@ -302,19 +277,31 @@ of these conditions are met:
   (save-match-data
    (string-match ezeka-file-name-regexp (file-name-base filename))))
 
-(defun ezeka-file-name-id (filename)
-  "Returns the ID part of the given Zettel FILENAME."
+(defun ezeka--file-name-part (filename part)
+  "Returns the given PART (:id, :label, :caption, or :citekey) of the
+FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
       (when (string-match ezeka-file-name-regexp base)
-        (match-string 1 base)))))
+        (match-string (cl-case part
+                        (:id      1)
+                        (:label   3)
+                        (:caption 4)
+                        (:citekey 5))
+                      base)))))
 
-(defun ezeka-file-name-caption (filename)
+(defmacro ezeka-file-name-id (filename)
+  "Returns the ID part of the given Zettel FILENAME."
+  `(ezeka--file-name-part ,filename :id))
+(defmacro ezeka-file-name-label (filename)
+  "Returns the label part of the given Zettel FILENAME."
+  `(ezeka--file-name-part ,filename :label))
+(defmacro ezeka-file-name-caption (filename)
   "Returns the caption part of the given Zettel FILENAME."
-  (let ((base (file-name-base filename)))
-    (save-match-data
-      (when (string-match ezeka-file-name-regexp base)
-        (match-string 3 base)))))
+  `(ezeka--file-name-part ,filename :caption))
+(defmacro ezeka-file-name-citekey (filename)
+  "Returns the citekey part of the given Zettel FILENAME."
+  `(ezeka--file-name-part ,filename :citekey))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun ezeka-file-kasten (file)
@@ -401,11 +388,11 @@ specified, asks the user to resolve the ambiguity."
     (:bolus (file-name-as-directory
              (format "%c00-%c99" (elt id 0) (elt id 0))))))
 
-(defun ezeka-link-file (link &optional noerror caption)
-  "Return a full file path to the Zettel LINK. If CAPTION is nil (so
+(defun ezeka-link-file (link &optional noerror rubric)
+  "Return a full file path to the Zettel LINK. If RUBRIC is nil (so
 return a file name consisting just the LINK), 'wild (find existing
 file beginning with LINK), or a string (returns a filename consisting
-of LINK, `ezeka-file-name-separator', and CAPTION). If NOERROR is
+of LINK, `ezeka-file-name-separator', and RUBRIC). If NOERROR is
 non-NIL, don't signal an error if the link is invalid."
   (or (catch 'invalid
         (when (ezeka-link-p link)
@@ -415,18 +402,18 @@ non-NIL, don't signal an error if the link is invalid."
                   (expand-file-name
                    (format "%s%s.%s"
                            id
-                           (cond ((null caption) "*")
-                                 ((eq caption 'wild) "*")
-                                 ((stringp caption)
-                                  (concat ezeka-file-name-separator caption))
+                           (cond ((null rubric) "*")
+                                 ((eq rubric 'wild) "*")
+                                 ((stringp rubric)
+                                  (concat ezeka-file-name-separator rubric))
                                  (t
                                   (signal 'wrong-type-argument
-                                          '(caption (or nil 'wild stringp)))))
+                                          '(rubric (or nil 'wild stringp)))))
                            ezeka-file-extension)
                    (file-name-concat (ezeka-kasten-directory kasten)
                                      (or (ezeka-subdirectory id)
                                          (throw 'invalid nil))))))
-            (if (eq caption 'wild)
+            (if (eq rubric 'wild)
                 (car (file-expand-wildcards filename))
               (or (car (file-expand-wildcards filename))
                   (string-replace "*" "" filename)))))) ; FIXME: Hackish
@@ -502,6 +489,10 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
 ;; Metadata refers to the information about the Zettel note, like its created or
 ;; midified time, and so on. Header, on the other hand, is the actual
 ;; representation of that metadata inside the Zettel note.
+;;
+;; Rubric is the compressed metadata information that is added to the file name
+;; in numerus currens notes. Caption is the shortened title that is included in
+;; the rubric.
 ;;;=============================================================================
 
 (defvar ezeka-regexp-header-line
@@ -510,30 +501,56 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
 Group 1 is the key.
 Group 2 is the value.")
 
-(defvar ezeka-regexp-header-separator "^$"
-  "Regexp that matches the separator line between header and the note text.")
+(defcustom ezeka-regexp-header-separator "^$"
+  "Regexp that matches the separator line between header and the note text."
+  :type 'string
+  :group 'ezeka)
 
-(defvar ezeka-header-rubric-key "rubric"
-  "The header metadata key for the rubric.")
+(defcustom ezeka-header-rubric-key "rubric"
+  "The header metadata key for the rubric."
+  :type 'string
+  :group 'ezeka)
 
-(defvar ezeka-header-rubric-format "§%s {%s} %s"
-  "The format string, suitable for use in FORMAT with argments of link,
-category, and title in that order.")
+(defcustom ezeka-header-rubric-prefix "§"
+  "The prefix before the value of rubric in the header."
+  :type 'string
+  :group 'ezeka)
 
-(defvar ezeka-regexp-rubric
-  (concat "§"
-          ezeka-regexp-link-simplified                 ; \1 and \2
-          "\\(?:\\.\\)*"                               ; optional period
+(defcustom ezeka-rubric-format "%i {%l} %c %k"
+  "The format-spec string for generating the note's rubric to be used
+in the header as well as the file name.
+
+%i means ID or link.
+%l means label (genus or category).
+%c means caption (i.e. short title).
+%k means citation key.
+
+This should match `ezeka-regexp-rubric'."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-regexp-rubric
+  (concat ezeka-regexp-link-simplified                 ; \1 and \2
+          "\\(?:"                       ; everything else is optional
+          "\\(?:\\.\\)*"                               ; FIXME: optional historic period
           "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
           "\\(?4:.+?\\)"                               ; \4
-          "\\(?: \\(?5:@\\S-+\\)\\)*$"                 ; \5
+          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$"              ; \5
+          "\\)*"                        ; end of everything else
           )
-  "Regular expression for the rubric string, used in `ezeka-file-metadata'.
-Group 1 is the kasten.
-Group 2 is the id.
-Group 3 is the category.
-Group 4 is the title.
-Group 5 is the citation key.")
+  "Regular expression for the rubric string as found in the file name
+and the rubric.
+
+Group 1 is the ID.
+Group 2 is the kasten.
+Group 3 is the label (genus or category).
+Group 4 is the caption (i.e. short title).
+Group 5 is the citation key."
+  :type 'regexp
+  :group 'ezeka)
+
+(defvaralias 'ezeka-file-name-regexp 'ezeka-regexp-rubric
+  "Regexp matching Zettel note file names.")
 
 (defvar ezeka-regexp-genus "[α-ω]"
   "Regexp matching genus.")
@@ -542,37 +559,28 @@ Group 5 is the citation key.")
   "Returns an alist of metadata from a rubric. If cannot decode,
 returns NIL."
   (when (and rubric (string-match ezeka-regexp-rubric rubric))
-    (let ((id       (match-string 2 rubric))
-          (category (match-string 3 rubric))
-          (title    (match-string 4 rubric))
-          (citekey  (match-string 5 rubric)))
+    (let ((id          (match-string 1 rubric))
+          (label       (match-string 3 rubric))
+          (caption     (match-string 4 rubric))
+          (citekey     (match-string 5 rubric)))
       (list (cons :id id)
             (cons :type (ezeka-id-type id))
-            (cond ((null category) nil)
-                  ((string-match-p ezeka-regexp-genus category)
-                   (cons :genus category))
-                  (t
-                   (cons :category category)))
-            (cons :title (if title (string-trim title) ""))
+            (cons :label label)
+            (cons :caption (string-trim caption))
             (when citekey (cons :citekey (string-trim citekey)))))))
 
 (defun ezeka-encode-rubric (metadata)
-  "Returns a list of two elements: 1) string that encodes the given
-METADATA into the rubric, and 2) leftover metadata."
-  (list (concat (format ezeka-header-rubric-format
-                        (alist-get :link metadata)
-                        (or (alist-get :category metadata)
-                            (alist-get :genus metadata)
-                            (cl-case (ezeka-id-type (alist-get :id metadata))
-                              (:numerus "χ")
-                              (t "Unset")))
-                        (alist-get :title metadata))
-                (if (alist-get :citekey metadata)
-                    (concat " " (alist-get :citekey metadata))
-                  ""))
-        (cl-set-difference metadata
-                           '((:link) (:category) (:title) (:type) (:citekey))
-                           :key #'car)))
+  "Returns a string that encodes the given METADATA into the rubric
+according to `ezeka-rubric-format'."
+  (let* ((label (alist-get :label metadata))
+         (caption (alist-get :caption metadata))
+         (citekey (or (alist-get :citekey metadata) "")))
+    (string-trim
+     (format-spec ezeka-rubric-format
+                  `((?i . ,(alist-get :link metadata))
+                    (?l . ,label)
+                    (?c . ,caption)
+                    (?k . ,citekey))))))
 
 (defun ezeka-header-yamlify-key (keyword)
   "Returns a YAML-formatted string that is the name of the KEY, a keyword
@@ -601,22 +609,20 @@ new header even if the buffer is read only"
           (when (re-search-forward ezeka-regexp-header-separator nil t 1)
             (narrow-to-region (point-min) (point)))
           (delete-region (point-min) (point-max))
-          (cl-multiple-value-bind (rubric processed-metadata)
-              (ezeka-encode-rubric metadata)
-            (push (cons :rubric rubric) processed-metadata)
-            (mapc (lambda (cons)
-                    (insert (format "%s: %s\n"
-                                    (ezeka-header-yamlify-key (car cons))
-                                    (ezeka-header-yamlify-value (cdr cons)))))
-                  (let (ordered-metadata)
-                    (dolist (key '(:rubric :subtitle :author
-                                   :created :modified
-                                   :parent :firstborn :oldnames
-                                   :readings :keywords)
-                                 (nreverse ordered-metadata))
-                      (when (alist-get key processed-metadata)
-                        (push (cons key (alist-get key processed-metadata))
-                              ordered-metadata)))))))))
+          (push (cons :rubric (ezeka-encode-rubric metadata)) metadata)
+          (mapc (lambda (cons)
+                  (insert (format "%s: %s\n"
+                                  (ezeka-header-yamlify-key (car cons))
+                                  (ezeka-header-yamlify-value (cdr cons)))))
+                (let (ordered)
+                  (dolist (key '(:rubric
+                                 :title :subtitle :author
+                                 :created :modified
+                                 :parent :firstborn :oldnames
+                                 :readings :keywords)
+                               (nreverse ordered))
+                    (when (alist-get key metadata)
+                      (push (cons key (alist-get key metadata)) ordered))))))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
@@ -667,34 +673,22 @@ troublesome characters for it to be used safely as file caption."
            ("*" "+"))))
     (ezeka--replace-pairs-in-string replacements title)))
 
-(defmacro ezeka--strip-citekey-from-caption (caption)
-  "Returns CAPTION after stripping any citation keys at the tail end."
-  `(replace-regexp-in-string " [@&]\\w+$" "" ,caption))
-
-(defun ezeka--normalize-file-name (&optional file metadata)
-  "Ensure that FILE's captioned name is not missing anything from the
-METADATA."
-  (interactive (list buffer-file-name))
-  (let ((filename (or file buffer-file-name)))
-    (when (eq :numerus (ezeka-kasten-id-type (ezeka-file-kasten filename)))
-      (let* ((existing (file-name-base filename))
+(defun ezeka--normalize-file-name (&optional filename metadata)
+  "Ensure that FILENAME's captioned name matches the METADATA."
+  (let ((filename (or filename buffer-file-name)))
+    (when (eq :numerus (or (alist-get :type metadata)
+                           (ezeka-kasten-id-type (ezeka-file-kasten filename))))
+      (let* ((base (file-name-base filename))
              (mdata (or metadata (ezeka-file-metadata filename)))
-             (new (org-trim
-                   (format-spec ezeka-file-name-format
-                                `((?i . ,(alist-get :id mdata))
-                                  (?k . ,(or (alist-get :citekey mdata)
-                                             ""))
-                                  (?l . ,(or (alist-get :genus mdata)
-                                             (alist-get :category mdata)
-                                             (error "No genus or category set")))
-                                  (?t . ,(or (ezeka--normalize-title-into-caption
-                                              (alist-get :title mdata))
-                                             (error "No title set"))))))))
-        (unless (or (string= existing new)
-                    (not (y-or-n-p (format "Try renaming %s? " existing))))
+             (rubric (alist-get :rubric mdata)))
+        (unless (or (string= rubric base)
+                    ;; TODO: This needs to offer a choice to replace rubric from
+                    ;; filename, or filename from rubric.
+                    (not (format "File %s doesn't match its metadata. Rename? "
+                                 base)))
           (let* ((confirmed (read-string
-                             (format "Current: %s\nRename to: " existing)
-                             new nil new))
+                             (format "Current:   %s\nRename to: " base)
+                             rubric nil rubric))
                  (newname (file-name-with-extension
                            (org-trim confirmed)
                            ezeka-file-extension)))
@@ -725,12 +719,15 @@ They keys are converted to keywords."
                              value)))
                  (error "Malformed header line: '%s'" line))))
            (split-string header "\n")))
-         (rubric (alist-get :rubric metadata))
-         (decoded (ezeka-decode-rubric rubric)))
-    ;; When successfully decoded rubric, remove rubric key.
-    (when decoded
-      (setq metadata
-        (append decoded (cl-remove :rubric metadata :key #'car))))
+         (header-rubric (alist-get :rubric metadata))
+         (decoded (ezeka-decode-rubric header-rubric)))
+    (setq metadata (append decoded metadata))
+    ;; TODO: This exists to transition from v0.1 to v0.2 of header.
+    ;; If :title is missing, use :caption instead.
+    (unless (alist-get :title metadata)
+      (setf (alist-get :title metadata) (alist-get :caption decoded)))
+    (unless (alist-get :caption metadata)
+      (setf (alist-get :caption metadata) (ezeka-file-name-caption file)))
     (push (cons :kasten (ezeka-file-kasten file)) metadata)
     (push (cons :link (ezeka-file-link file)) metadata)))
 
@@ -738,8 +735,7 @@ They keys are converted to keywords."
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
   (if-let ((header (ezeka-file-content file t noerror)))
-      (cons (cons :caption (ezeka-file-name-caption file))
-            (ezeka-decode-header header file))
+      (ezeka-decode-header header file)
     (unless noerror
       (error "Cannot retrieve %s's metadata" file))))
 
@@ -1012,7 +1008,7 @@ confirmation before inserting metadata."
                       (intern-soft
                        (completing-read
                         "Which metadata field? "
-                        '(":none" ":title" ":citekey" ":category"))))))
+                        '(":none" ":title" ":citekey" ":label"))))))
          (value (alist-get field metadata))
          (where (or where
                     (when field
@@ -1261,7 +1257,7 @@ ancestor. With a universal argument, ask for confirmation before inserting."
 
 (defvar ezeka--new-child-plist nil
   "An alist of new children and a plist of their details (:parent,
-:title, :genus, etc.).")
+:title, :label, etc.).")
 
 (defun ezeka-insert-new-child (&optional arg)
   "Inserts a link to a new Zettel in the same Kasten as the current
@@ -1406,10 +1402,10 @@ Zettelkasten work."
 (defun ezeka-completion-table (files)
   "Given a list of Zettel files, returns a nicely formatted list of choices
 suitable for passing to `completing-read' as collection."
-  ;;                  * ID  CATEGORY  TITLE  CITEKEY
-  (let* ((iw 14) (cw 10) (kw 25)
-         (tw (- (frame-width) (+ iw cw kw 5)))
-         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw cw tw kw)))
+  ;;                  * ID  LABEL  TITLE  CITEKEY
+  (let* ((iw 14) (lw 10) (kw 25)
+         (tw (- (frame-width) (+ iw lw kw 5)))
+         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw lw tw kw)))
     (mapcar (lambda (file)
               (let* ((metadata (ezeka-file-metadata file t))
                      (title (alist-get :title metadata))
@@ -1418,8 +1414,7 @@ suitable for passing to `completing-read' as collection."
                               (if (and buf (buffer-modified-p buf)) "*" " ")
                               (or (alist-get :id metadata)
                                   (file-name-base file))
-                              (or (alist-get :genus metadata)
-                                  (alist-get :category metadata))
+                              (alist-get :label metadata)
                               (when title
                                 (cl-subseq title 0 (min (length title)
                                                         tw)))
@@ -1445,32 +1440,36 @@ in another window."
                  "No opened Zettel. Switch to regular buffer: "))))))
 
 ;;;=============================================================================
-;;; Categories
+;;; Labels
+;;
+;; A label is either a genus (for numerus currens notes) or category (for tempus
+;; currens notes). By default, it is the value shown between curly brackets
+;; {...} in the note's rubric.
 ;;;=============================================================================
 
-(defun ezeka-read-category (&optional arg prompt sort-fn)
-  "Uses `completing-read' to select a category from `ezeka-categories'. With
-prefix argument, asks the user to type in the category directly. If SORT-FN
-is given, use that to sort the list first."
+(defun ezeka--read-category (&optional prompt custom sort-fn)
+  "Uses `completing-read' to select a category from
+`ezeka-categories'. If CUSTOM is non-nil, asks the user to type in the
+category directly. If SORT-FN is given, use that to sort the list
+first."
   (let ((prompt (or prompt "Category: "))
         (categories (if (not (functionp sort-fn))
                         ezeka-categories
                       (let ((cats-copy (cl-copy-list ezeka-categories)))
                         (cl-sort cats-copy sort-fn)))))
-    (if current-prefix-arg
+    (if custom
         (read-string prompt)
       (completing-read prompt categories))))
 
-(defun ezeka-read-genus (arg &optional prompt default)
+(defun ezeka--read-genus (&optional prompt verbose default)
   "Read a genus, a single Latin character as defined in
-`ezeka-genera'. With \\[universal-argument] show a list of choices
-with explantions. Returns a string containing the genus letter.
-DEFAULT is the genus used if user just presses [return]."
-  (interactive "P")
+`ezeka-genera'. Returns a string containing the genus letter. If
+VERBOSE is non-nil, show a list of choices with explantions. DEFAULT
+is the genus used if user just presses [return]."
   (let (item)
     (while (null item)
       (let ((result
-             (if arg
+             (if verbose
                  (completing-read (or prompt "Genus: ") ezeka-genera nil t)
                (read-char
                 (concat (or prompt "Genus")
@@ -1487,6 +1486,13 @@ DEFAULT is the genus used if user just presses [return]."
         (unless (setq item (assoc-string result ezeka-genera))
           (setq prompt "No such genus; try again. "))))
     (cadr item)))
+
+(defun ezeka--read-label (file-or-link &optional arg prompt default)
+  "Interactively read the label for the given FILE-OR-LINK. Passes ARG
+to the appropriate function."
+  (if (eq :numerus (ezeka-id-type file-or-link))
+      (ezeka--read-genus prompt arg default)
+    (ezeka--read-category prompt arg)))
 
 (defun ezeka--update-metadata-values (filename metadata &rest args)
   "Update FILENAME's header, replacing metadata values with new ones,
@@ -1527,32 +1533,20 @@ not given, read it from file first.
                            (alist-get :title metadata)))
         (ezeka--update-metadata-values filename metadata)))))
 
-(defun ezeka-set-genus (filename genus)
-  "Set the genus in the Zettel note with given FILENAME (defaults to
-`buffer-file-name')."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (ezeka-read-genus current-prefix-arg)))
-  (if (not (and genus (ezeka-note-p filename)))
+(defun ezeka-set-label (filename label arg)
+  "Set the appropriate label (genus or category) in the Zettel note
+with given FILENAME (defaults to `buffer-file-name'). With
+\\[universal-argument], either show genera verbosely or type custom
+category."
+  (interactive
+   (let ((target (ezeka--grab-dwim-file-target)))
+     (list target
+           (ezeka--read-label target current-prefix-arg))))
+  (if (not (ezeka-note-p filename))
       (error "Not a Zettel note")
-    (ezeka--update-metadata-values filename nil :genus genus :category nil)))
-
-(defun ezeka-set-category (filename category)
-  "Sets the category to the Zettel title based on `ezeka-categories'. With
-\\[universal-argument], allows the user to type in a custom category."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (ezeka-read-category)))
-  (if (not (and category (ezeka-note-p filename)))
-      (error "Not a Zettel note")
-    (ezeka--update-metadata-values filename nil :genus nil :category category)
-    (cl-pushnew category ezeka-categories)))
-
-(defun ezeka-set-genus-or-category (arg)
-  "Set the genus for the DWIM target. With \\[universal-argument],
-sets category instead."
-  (interactive "P")
-  (call-interactively (if arg
-                          #'ezeka-set-category
-                        #'ezeka-set-genus)))
+    (ezeka--update-metadata-values filename nil :label label)
+    (when (eq :tempus (ezeka-id-type filename))
+      (cl-pushnew label ezeka-categories))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set the CITEKEY in the Zettel note in FILENAME. If CITEKEY is not
@@ -1599,9 +1593,9 @@ traces genealogy further than parent."
 ;;; Populating Files
 ;;;=============================================================================
 
-(defun ezeka-insert-header-template (&optional link category title parent)
+(defun ezeka-insert-header-template (&optional link label title parent)
   "Inserts the header template into the current buffer, populating the
-header with the LINK, CATEGORY, TITLE, and PARENT."
+header with the LINK, LABEL, TITLE, and PARENT."
   (interactive
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
@@ -1610,18 +1604,19 @@ header with the LINK, CATEGORY, TITLE, and PARENT."
           (plist (cdr (assoc link ezeka--new-child-plist))))
      (list
       link
-      (if (eq :numerus (ezeka-id-type link))
-          (ezeka-read-genus t "Genus for new note: ")
-        (ezeka-read-category))
+      (ezeka--read-label link)
       (read-string "Title: " (plist-get plist :title))
       (read-string "Parent? " (plist-get plist :parent)))))
-  (let* ((file (ezeka-link-file link)))
+  (let* ((file (ezeka-link-file link))
+         (caption (ezeka--normalize-title-into-caption title)))
     (goto-char (point-min))
-    (insert (format (concat ezeka-header-rubric-key ": "
-                            ezeka-header-rubric-format)
-                    link
-                    (or category "Unset")
-                    (or title "")))
+    (insert
+     (concat ezeka-header-rubric-key
+             ": "
+             (ezeka-encode-rubric `((:link . ,link)
+                                    (:caption . ,caption)
+                                    (:label . ,label)))))
+    (insert "\ntitle: " title)
     (insert "\ncreated: "
             ;; Insert creation time, making it match a tempus currens filename
             (format-time-string
@@ -1761,11 +1756,7 @@ ask for the Kasten) from the current org subtree."
               ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
                 (ezeka-insert-header-template new-link
-                                              (completing-read "Category: "
-                                                               ezeka-categories
-                                                               nil
-                                                               nil
-                                                               "Memo")
+                                              (ezeka--read-label new-file)
                                               new-title parent-link)
                 (insert "\n" content)
                 (save-buffer))
@@ -2160,10 +2151,10 @@ returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;; X X   X X X X X           X   X X X   X X X X X X X
+          ;;   X   X X X X X           X   X X X   X X X X X X X
           ;;------------------------------------------------------------------
           '(
-            ("C-c `" . ezeka-set-category) ; `org-table-edit-field'
+            ;; ("C-c `" . ) ; `org-table-edit-field'
             ("C-c ~" . ezeka-set-title) ; `org-table-create-with-table\.el'
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
@@ -2182,7 +2173,7 @@ returns it."
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-set-title) ;
             ;; ("C-c |" . ) ;
-            ("C-c '" . ezeka-set-genus) ; `org-edit-special'
+            ("C-c '" . ezeka-set-label) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
