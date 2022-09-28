@@ -79,7 +79,7 @@
            zk-index-format "%t [[%i]]"))))
 
 ;;;###autoload
-(defun ezeka-zk-index-choose-kasten (arg new-kasten id-only)
+(defun ezeka-zk-index-choose-kasten (arg new-kasten update-modified)
   "If there is an existing `zk-index-buffer-name', switches to it,
 otherwise interactively selects the deft directory from among
 `ezeka-kaesten'. With a \\[universal-argument] selects new Zk
@@ -90,35 +90,34 @@ directory regardless of Zk-Index buffer status."
        (list current-prefix-arg
              (completing-read "Zettel kasten: "
                               (mapcar #'car ezeka-kaesten))
-             (not (y-or-n-p "File names include titles? ")))
+             (intern
+              (completing-read "Update modification dates? "
+                               '("sameday" "never" "confirm")
+                               nil
+                               t)))
      (list current-prefix-arg
            nil
-           nil)))
+           t)))
   (if (not new-kasten)
       (pop-to-buffer zk-index-buffer-name)
     (if-let ((buffer (get-buffer zk-index-buffer-name)))
         (kill-buffer buffer))
-    (custom-set-variables
-     '(zk-directory-subdir-function #'ezeka-subdirectory)
-     `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
-     '(zk-header-title-line-regexp
-       "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:\\(?:{\\(?3:[^ ]+\\)} \\)*\\(?4:.*\\)\\)$"
-       "Regexp of the line in a zk file's header that contains the rubric.
+    (let ((with-captions (eq (ezeka-kasten-id-type new-kasten) :numerus)))
+      (custom-set-variables
+       '(zk-directory-subdir-function #'ezeka-subdirectory)
+       `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
+       '(zk-header-title-line-regexp
+         "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:\\(?:{\\(?3:[^ ]+\\)} \\)*\\(?4:.*\\)\\)$"
+         "Regexp of the line in a zk file's header that contains the rubric.
 Group 1 is the id.
 Group 2 is the title with category.
 Group 3 is the category.
 Group 4 is the title without category.")
-     `(ezeka-update-header-modified
-       `,(intern
-          (completing-read "Update modification dates? "
-                           '("sameday" "never" "confirm")
-                           nil
-                           t
-                           "confirm")))
-     `(zk-file-name-id-only ,id-only)
-     `(zk-parse-file-function (if ,id-only
-                                  #'zk-parse-file-header
-                                #'zk-parse-file-name)))
+       `(ezeka-update-header-modified ',update-modified)
+       `(zk-file-name-id-only ,(not with-captions))
+       `(zk-parse-file-function (if ,with-captions
+                                    #'zk-parse-file-name
+                                  #'zk-parse-file-header))))
     (ezeka-zk-initialize-kasten new-kasten)
     (zk-index)
     (zk-index-refresh)))
