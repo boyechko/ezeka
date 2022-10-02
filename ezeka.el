@@ -596,9 +596,10 @@ symbol."
      (error "Not implemented for type %s" (type-of value)))))
 
 (defun ezeka-normalize-header (file &optional metadata inhibit-read-only)
-  "Replaces the FILE's header with one generated from the given METADATA or by
-parsing the FILE's existing header. If INHIBIT-READ-ONLY is non-nil, write
-new header even if the buffer is read only"
+  "Replaces the FILE's header with one generated from the given
+METADATA or by parsing the FILE's existing header. If
+INHIBIT-READ-ONLY is non-nil, write new header even if the buffer is
+read only."
   (let ((metadata (or metadata (ezeka-file-metadata file)))
         (old-point (point))
         (inhibit-read-only inhibit-read-only))
@@ -608,8 +609,34 @@ new header even if the buffer is read only"
           (goto-char (point-min))
           (when (re-search-forward ezeka-regexp-header-separator nil t 1)
             (narrow-to-region (point-min) (point)))
-          (delete-region (point-min) (point-max))
+          (let ((title (or (alist-get :title metadata) ""))
+                (caption (or (alist-get :caption metadata) "")))
+            (when (not (string= title caption))
+              (let ((choice
+                     (read-char-choice
+                      (format (concat
+                               "  [T]itle: %s\n"
+                               "[C]aption: %s\n"
+                               "Press [c] to use caption for title "
+                               "[C] to enter new caption, \n"
+                               "      [t] to use title for caption, "
+                               "[T] to enter new title,\n"
+                               "      [n] or [q] to do noting: ")
+                              ;; (file-name-base file)
+                              (propertize title 'face 'italic)
+                              (propertize caption 'face 'bold))
+                      '(?t ?T ?c ?C ?n ?q))))
+                (cl-case choice
+                  (?T (setf (alist-get :title metadata)
+                            (read-string "New title: ")))
+                  (?C (setf (alist-get :caption metadata)
+                            (read-string "New caption: ")))
+                  (?t (setf (alist-get :caption metadata) title))
+                  (?c (setf (alist-get :title metadata) caption))
+                  (t ; NOP
+                   )))))
           (push (cons :rubric (ezeka-encode-rubric metadata)) metadata)
+          (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
                                   (ezeka-header-yamlify-key (car cons))
@@ -625,7 +652,8 @@ new header even if the buffer is read only"
                       (push (cons key (alist-get key metadata)) ordered))))))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
-    (goto-char old-point)))
+    (goto-char old-point)
+    (save-buffer)))
 
 (defun ezeka--replace-pairs-in-string (replacements string)
   "Replace pairs in the REPLACEMENTS alist in STRING. Each item in
