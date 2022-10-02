@@ -2095,7 +2095,7 @@ bookmark's filename property to the Zettel link."
 
 (defun ezeka--add-to-move-log (link1 link2)
   "Log the move from LINK1 to LINK2 in `ezeka--move-log-file'."
-  (write-region (format "%S" (list link1 link2 (format-time-string "%FT%T")))
+  (write-region (format "\n%S" (list link1 link2 (format-time-string "%FT%T")))
                 nil
                 (expand-file-name ezeka--move-log-file ezeka-directory)
                 t))
@@ -2115,8 +2115,9 @@ move."
         ;; add to log
         (ezeka--add-to-move-log link1 link2)
         ;; put original name in oldnames, update rubric
-        (setf (alist-get :oldnames mdata)
-              (cons link1 oldnames))
+        (unless (string= (ezeka-link-id link1) (ezeka-link-id link2))
+          (setf (alist-get :oldnames mdata)
+                (cons link1 oldnames)))
         (ezeka-normalize-header path2 mdata t)
         (when-let ((buf (get-file-buffer path2)))
           (with-current-buffer buf
@@ -2127,42 +2128,45 @@ move."
                    link1 link2
                    (or (car replaced) 0) (or (cdr replaced) 0)))))))
 
-(defun ezeka-zmove-to-another-kasten (source-file
-                                      &optional kasten target-link noselect)
-  "Generates a zmove shell command to move the current Zettel to
-another kasten. With \\[universal-argument], asks for a target link
-instead. Opens --- unless NOSELECT is non-nil --- the target link and
-returns it."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (completing-read "Which kasten to move to? " ezeka-kaesten)))
-  (let ((source-link (ezeka-file-link source-file)))
-     (if (not target-link)
-        (if (equal current-prefix-arg '(4))
-            (read-string "Enter target link: ")
-          (setq target-link
-            (ezeka-make-link
-             kasten
-             (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-               (:numerus (ezeka-next-unused-id kasten))
-               (:tempus (ezeka-tempus-currens-id-for source-link))
-               (t
-                (error "Don't know how to handle this"))))))
-      (error "Don't know where to move %s" source-link))
-    ;; Offer to save buffers, since zmove tries to update links
-    (save-some-buffers nil (lambda () (ezeka-note-p buffer-file-name t)))
-    (ezeka--move-note source-link target-link)
-    ;; (call-process "zmove" nil (get-buffer-create "*Zmove*") nil source-link target-link)
-    (cond ((string= source-file buffer-file-name)
-           (kill-this-buffer)
-           (unless (> (length (frame-list))
-                      (cl-case ezeka-number-of-frames
-                        (one 1)
-                        (two 2)))
-             (delete-frame)))
-          ((eq major-mode 'magit-status-mode)
-           (magit-refresh)))
-    (unless noselect
-      (ezeka-find-link target-link t))))
+(defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
+  "Moves the current Zettel to another KASTEN. With
+\\[universal-argument], asks for a target link instead. Opens (unless
+NOSELECT is non-nil) the target link and returns it."
+  (interactive
+   (let ((target (when (equal current-prefix-arg '(4))
+                   (read-string "Enter target link: "))))
+     (list (ezeka--grab-dwim-file-target)
+           (if target
+               (ezeka-link-kasten target)
+            (completing-read "Which kasten to move to? " ezeka-kaesten))
+           target)))
+  (let* ((source-link (ezeka-file-link source-file))
+         (kasten (or kasten
+                     ))
+         (target-link (or target-link
+                          (ezeka-make-link
+                           kasten
+                           (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
+                             (:numerus (ezeka-next-unused-id kasten))
+                             (:tempus (ezeka-tempus-currens-id-for source-link))
+                             (t
+                              (error "Don't know how to handle this")))))))
+    (if (not target-link)
+        (error "Don't know where to move %s" source-link)
+      ;; Offer to save buffers, since zmove tries to update links
+      (save-some-buffers nil (lambda () (ezeka-note-p buffer-file-name t)))
+      (ezeka--move-note source-link target-link)
+      (cond ((string= source-file buffer-file-name)
+             (kill-this-buffer)
+             (unless (> (length (frame-list))
+                        (cl-case ezeka-number-of-frames
+                          (one 1)
+                          (two 2)))
+               (delete-frame)))
+            ((eq major-mode 'magit-status-mode)
+             (magit-refresh)))
+      (unless noselect
+        (ezeka-find-link target-link t)))))
 
 (defun ezeka-generate-n-new-ids (how-many type)
   "Generates a bunch of new IDs, making sure there are no dulicates."
@@ -2277,7 +2281,7 @@ returns it."
             ;; ("C-c C-i" . 'ezeka-org-include-cached-file)
             ;; Shadows `org-set-property-and-value'
             ("C-c C-x F" . ezeka-org-set-todo-properties)
-            ("C-c C-x z" . ezeka-zmove-to-another-kasten)
+            ("C-c C-x z" . ezeka-move-to-another-kasten)
             ))
 
   ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
