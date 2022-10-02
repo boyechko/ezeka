@@ -1336,34 +1336,40 @@ ancestor. With a universal argument, ask for confirmation before inserting."
   "An alist of new children and a plist of their details (:parent,
 :title, :label, etc.).")
 
-(defun ezeka-insert-new-child (&optional arg)
-  "Inserts a link to a new Zettel in the same Kasten as the current
-Zettel, saves the current Zettel as its parent, and sets the
-`ezeka-link-backlink' to current Zettel. With prefix argument, allows
-the user to select a different Kasten. With double prefix argument,
+(defun ezeka-insert-new-child (parent &optional arg)
+  "Inserts a link to a new Zettel in the same Kasten as the PARENT,
+which can be a file or a link. With \\[universal-argument] allows the
+user to select a different Kasten. With double \\[universal-argument]
 asks for the full link. Returns link to the new child."
-  (interactive "P")
-  (when (ezeka-note-p buffer-file-name t)
-    (let ((parent-link (ezeka-file-link buffer-file-name))
-          child-link)
-      (if (equal arg '(16))
-          (while (not child-link)
-            (setq child-link (read-string "Enter link for new child: "))
-            (when (file-exists-p (ezeka-link-file child-link))
-              (message "This Zettel already exists; try again")))
-        (let ((kasten (if (equal arg '(4))
-                          (completing-read
-                           "Kasten: "
-                           (if (listp ezeka-kaesten)
-                               (mapcar #'car ezeka-kaesten)
-                             (error "No `ezeka-kaesten' defined")))
-                        (ezeka-link-kasten parent-link))))
-          (setq child-link
-            (ezeka-make-link kasten (ezeka-next-unused-id kasten)))
+  (interactive
+   (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
+         current-prefix-arg))
+  (let ((parent-link (if (or (null parent)
+                             (ezeka-link-p parent))
+                         parent
+                       (ezeka-file-link parent)))
+        child-link)
+    (if (equal arg '(16))
+        (while (not child-link)
+          (setq child-link (read-string "Enter link for new child: "))
+          (when (file-exists-p (ezeka-link-file child-link))
+            (message "This Zettel already exists; try again")))
+      (let ((kasten (if (or (equal arg '(4))
+                            (null parent-link))
+                        (completing-read
+                         "Kasten: "
+                         (if (listp ezeka-kaesten)
+                             (mapcar #'car ezeka-kaesten)
+                           (error "No `ezeka-kaesten' defined")))
+                      (ezeka-link-kasten parent-link))))
+        (setq child-link
+          (ezeka-make-link kasten (ezeka-next-unused-id kasten)))
+        (when parent-link
           (add-to-list 'ezeka--new-child-plist
-            (list child-link :parent parent-link))))
-      (insert (ezeka-org-format-link child-link))
-      child-link)))
+            (list child-link :parent parent-link)))))
+    (insert (ezeka-org-format-link child-link))
+    (ezeka-find-link child-link)
+    child-link))
 
 (defun ezeka--possible-new-note-title ()
   "Returns a possible title for a new Zettel note based on context."
@@ -1397,7 +1403,7 @@ argument to `ezeka-insert-new-child'."
                                       (ezeka--possible-new-note-title)))
                         (when citekey " ")
                         citekey))
-         (child-link (ezeka-insert-new-child arg))
+         (child-link (ezeka-insert-new-child parent-link arg))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put plist :title title))))
