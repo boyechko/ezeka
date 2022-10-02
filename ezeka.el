@@ -83,10 +83,11 @@ types.")
   "A generalized regexp that matches any ID, whatever its ID type.")
 
 (defvar ezeka-regexp-link
-  (concat "\\(?:\\(?1:[[:alpha:]]+\\):\\)*\\(?2:" ezeka-regexp-id "\\)")
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" ezeka-regexp-id "\\)")
   "The regular expression that matches Zettel links.
-Group 1 is the kasten, if specified.
-Group 2 is the ID.")
+
+Group 1 is the ID.
+Group 2 is the kasten, if specified.")
 
 (defvar ezeka-regexp-link-simplified
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:[0-9a-zT-]+\\)")
@@ -245,6 +246,10 @@ If REGEXP is non-nil, FROM should be a regexp string."
                 (cadr recipe)
                 string)))))
 
+(defun ezeka--regexp-strip-named-groups (regexp)
+  "Strip the named groups in the given REGEXP."
+  (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -300,12 +305,14 @@ FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
       (when (string-match ezeka-file-name-regexp base)
-        (match-string (cl-case part
-                        (:id      1)
-                        (:label   3)
-                        (:caption 4)
-                        (:citekey 5))
-                      base)))))
+        (let ((match (match-string (cl-case part
+                                     (:id      1)
+                                     (:label   3)
+                                     (:caption 4)
+                                     (:citekey 5))
+                                   base)))
+          (when match
+            (string-trim match)))))))
 
 (defmacro ezeka-file-name-id (filename)
   "Returns the ID part of the given Zettel FILENAME."
@@ -344,17 +351,17 @@ FILENAME."
   (and (stringp string)
        (string-match (concat "^" ezeka-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
-       (if (match-string-no-properties 1 string)
-           (or (assoc (match-string-no-properties 1 string) ezeka-kaesten)
-               (assoc (match-string-no-properties 1 string) ezeka-kaesten-aliases))
+       (if (match-string-no-properties 2 string)
+           (or (assoc (match-string-no-properties 2 string) ezeka-kaesten)
+               (assoc (match-string-no-properties 2 string) ezeka-kaesten-aliases))
          t)))
 
 (defun ezeka-link-kasten (link)
   "Returns the kasten part of the given LINK. If no kasten is explicitly
 specified, asks the user to resolve the ambiguity."
   (when (string-match ezeka-regexp-link link)
-    (let* ((kasten (match-string 1 link))
-           (id (match-string 2 link))
+    (let* ((kasten (match-string 2 link))
+           (id (match-string 1 link))
            (type (ezeka-id-type id)))
       (or kasten
           (if-let ((default (alist-get type ezeka-default-kasten)))
@@ -382,7 +389,7 @@ specified, asks the user to resolve the ambiguity."
 (defun ezeka-link-id (link)
   "Returns the ID part of the given LINK."
   (when (string-match ezeka-regexp-link link)
-    (match-string 2 link)))
+    (match-string 1 link)))
 
 (defun ezeka-make-link (kasten id)
   "Make a new proper link to ID in KASTEN."
@@ -547,7 +554,7 @@ This should match `ezeka-regexp-rubric'."
   :group 'ezeka)
 
 (defcustom ezeka-regexp-rubric
-  (concat ezeka-regexp-link-simplified                 ; \1 and \2
+  (concat ezeka-regexp-link
           "\\(?:"                       ; everything else is optional
           "\\(?:\\.\\)*"                               ; FIXME: optional historic period
           "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
@@ -995,11 +1002,10 @@ abase26 equivalent of 0, namely 'a'."
 first group is the link target. If FREEFORM is non-nil, also consider Zettel
 links that are not enclosed in square brackets."
   (thing-at-point-looking-at
-   (replace-regexp-in-string
-    "(\\?[0-9]:" "("
-    (if freeform
-        (concat "\\(?1:" ezeka-regexp-link "\\)")
-      (concat "\\[\\[\\(?1:" ezeka-regexp-link "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
+   (let ((regexp (ezeka--regexp-strip-named-groups ezeka-regexp-link)))
+     (if freeform
+         (concat "\\(?1:" regexp "\\)")
+       (concat "\\[\\[\\(?1:" regexp "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
 
 (defun ezeka-link-at-point ()
   "Return the Zettel link at point. Needs to be called after
