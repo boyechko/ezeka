@@ -701,33 +701,53 @@ troublesome characters for it to be used safely as file caption."
            ("*" "+"))))
     (ezeka--replace-pairs-in-string replacements title)))
 
-(defun ezeka--normalize-file-name (&optional filename metadata)
+(defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
-  (let ((filename (or filename buffer-file-name)))
-    (when (eq :numerus (or (alist-get :type metadata)
-                           (ezeka-kasten-id-type (ezeka-file-kasten filename))))
-      (let* ((base (file-name-base filename))
-             (mdata (or metadata (ezeka-file-metadata filename)))
-             (rubric (alist-get :rubric mdata)))
-        (unless (or (string= rubric base)
-                    ;; TODO: This needs to offer a choice to replace rubric from
-                    ;; filename, or filename from rubric.
-                    (not (format "File %s doesn't match its metadata. Rename? "
-                                 base)))
-          (let* ((confirmed (read-string
-                             (format "Current:   %s\nRename to: " base)
-                             rubric nil rubric))
-                 (newname (file-name-with-extension
-                           (org-trim confirmed)
-                           ezeka-file-extension)))
-            (if (not (and filename (file-exists-p filename)))
-                (set-visited-file-name newname)
-              (cond
-               ((vc-backend filename)
-                (vc-rename-file filename newname))
-               (t
-                (rename-file filename newname t)
-                (set-visited-file-name newname t t))))))))))
+  (interactive (list buffer-file-name))
+  (when (eq :numerus (or (alist-get :type metadata)
+                         (ezeka-kasten-id-type (ezeka-file-kasten filename))))
+    (let* ((base (file-name-base filename))
+           (mdata (or mdata (ezeka-file-metadata filename)))
+           (rubric (alist-get :rubric mdata))
+           (keep-which
+            (unless (string= rubric base)
+              (downcase
+               (read-char-choice
+                (format (concat "Caption in filename and metadata differ:\n"
+                                "[F]ilename: %s\n"
+                                "[M]etadata: %s\n"
+                                "Press [f] to set metadata from filename,\n"
+                                "      [m] to set filename from metadata, or\n"
+                                "      [n] or [q] to do noting: ")
+                        (propertize base 'face 'bold)
+                        (propertize rubric 'face 'bold-italic))
+                '(?f ?F ?m ?M ?n ?N ?q ?Q))))))
+      (cond ((or (string= rubric base)
+                 (member keep-which '(?n ?q)))
+             ;; do nothing
+             )
+            ((= keep-which ?f)
+             (setf (alist-get :label mdata) (ezeka-file-name-label base)
+                   (alist-get :caption mdata) (ezeka-file-name-caption base)
+                   (alist-get :citekey mdata) (ezeka-file-name-citekey base))
+             (ezeka-normalize-header filename mdata))
+            ((= keep-which ?m)
+             (let* ((confirmed (read-string
+                                (format "Current:   %s\nRename to: " base)
+                                rubric nil rubric))
+                    (newname (expand-file-name
+                              (file-name-with-extension
+                               (org-trim confirmed)
+                               ezeka-file-extension)
+                              (file-name-directory filename))))
+               (if (not (and filename (file-exists-p filename)))
+                   (set-visited-file-name newname)
+                 (cond
+                  ((vc-backend filename)
+                   (vc-rename-file filename newname))
+                  (t
+                   (rename-file filename newname t)
+                   (set-visited-file-name newname t t))))))))))
 
 (defun ezeka-decode-header (header file)
   "Returns an alist of metadata decoded from the given YAML header of FILE.
