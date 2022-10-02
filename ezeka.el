@@ -1065,27 +1065,42 @@ brackets. Otherwise, call `kill-sex'."
             (if description
                 (format "[%s]" description) ""))))
 
+(defun ezeka--link-with-metadata (link &optional field where)
+  "Returns a string containing the metadata FIELD (:title by default)
+at place WHERE (:before by default) in relation to the LINK."
+  (let* ((file (ezeka-link-file link))
+         (mdata (ezeka-file-metadata file))
+         (field (or field :title))
+         (where (or where :before))
+         (value (alist-get field mdata)))
+    (concat (if (eq where :before)
+                (concat value " ")
+              "")
+            (ezeka-org-format-link
+             link
+             (when (eq where :description)
+               value))
+            (if (eq where :after)
+                (concat " " value)
+              ""))))
+
 (defun ezeka-insert-link-with-metadata (link &optional field where confirm)
   "Inserts the Zettel link, optionally adding a metadata FIELD put
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL, ask for
 confirmation before inserting metadata."
-  (let* ((file (ezeka-link-file link))
-         (metadata (ezeka-file-metadata file))
-         (field (or field
+  (let* ((field (or field
                     (when (called-interactively-p 'any)
                       (intern-soft
                        (completing-read
                         "Which metadata field? "
                         '(":none" ":title" ":citekey" ":label"))))))
-         (value (alist-get field metadata))
          (where (or where
                     (when field
                       (intern-soft
                        (completing-read "Where? "
-                                 '(":before" ":after" ":description")))))))
+                                        '(":before" ":after" ":description")))))))
     (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
-            (if (or (null value)
-                    (not confirm)
+            (if (or (not confirm)
                     (progn
                       ;; Pressing return just defaults to NO rather than quit
                       (define-key query-replace-map [return] 'act)
@@ -1093,16 +1108,7 @@ confirmation before inserting metadata."
                                             "Insert %s in the link %s? "
                                           "Insert %s %s the link? ")
                                         field where))))
-                (concat (if (eq where :before)
-                            (concat value " ")
-                          "")
-                        (ezeka-org-format-link
-                         link
-                         (when (eq where :description)
-                           value))
-                        (if (eq where :after)
-                            (concat " " value)
-                          ""))
+                (ezeka--link-with-metadata link field where)
               (ezeka-org-format-link link))
             (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
 
@@ -1158,16 +1164,18 @@ link itself."
         (message "Backlink to %s copied to clipboard" backlink)))))
 
 (defun ezeka-kill-ring-save-link-title (arg)
-  "Save the title to the kill ring and system clipboard of either the Zettel
-link at point or, if there is none, the current buffer. With prefix argument,
-saves the rubric instead."
+  "Save the title to the kill ring and system clipboard of either the
+Zettel link at point or, if there is none, the current buffer. With
+\\[universal-argument], also includes the link."
   (interactive "P")
-  (let ((file (ezeka--grab-dwim-file-target t)))
+  (let* ((file (ezeka--grab-dwim-file-target t))
+         (link (ezeka-file-link file)))
     (when file
-      (let* ((metadata (ezeka-file-metadata file))
+      (let* ((mdata (ezeka-file-metadata file))
              (title (if arg
-                        (car (ezeka-encode-rubric metadata))
-                      (alist-get :title metadata))))
+                        (ezeka--link-with-metadata link :title :before)
+                      (ezeka-encode-rubric mdata)
+                      (alist-get :title mdata))))
         (kill-new title)
         (unless select-enable-clipboard
           (gui-set-selection 'CLIPBOARD title))
