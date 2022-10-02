@@ -328,15 +328,17 @@ FILENAME."
   `(ezeka--file-name-part ,filename :citekey))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
-(defun ezeka-file-kasten (file)
-  "Returns the kasten of the given Zettel file."
+(defun ezeka-file-kasten (file &optional noerror)
+  "Returns the Kasten of the given Zettel file. If NOERROR is non-nil,
+simply returns nil if cannot figure out the Kasten."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
     (cond ((assoc (car dirs) ezeka-kaesten)
            (ezeka-kasten-truename (car dirs)))
           ((assoc (cadr dirs) ezeka-kaesten)
            (ezeka-kasten-truename (cadr dirs)))
           (t
-           (error "Can't figure out kasten for %s" file)))))
+           (unless noerror
+             (error "Can't figure out kasten for %s" file))))))
 
 (defun ezeka-file-link (file)
   "Given the path to a Zettel FILE, returns a fully qualified link to it."
