@@ -63,9 +63,6 @@
   "Set necessary variables for long-term work in KASTEN."
   (custom-set-variables
    `(zk-directory ,(ezeka-kasten-directory kasten)))
-  (add-to-list 'global-mode-string
-    (propertize (concat "Kasten:" (upcase kasten))
-                'face 'bold-italic))
   (cl-case (ezeka-kasten-id-type kasten)
     (:numerus
      (setq zk-id-regexp "\\([a-z]-[0-9]\\{4\\}\\)"
@@ -80,6 +77,40 @@
      (setq zk-id-regexp "\\([0-9T]\\{13\\}\\)"
            zk-id-time-string-format "%Y%m%dT%H%M"
            zk-index-format "%t [[%i]]"))))
+
+(defvar ezeka-zk--active-indexes nil
+  "An alist of (KASTEN . BUFFER) tuples of active Zk-Indexes.")
+
+(defun ezeka-zk-index-switch-to-kasten (kasten &optional update-modified)
+  "Creates or switches to the the Zk-Index buffer listing notes for
+the given KASTEN, a string."
+  (interactive
+   (list
+    (completing-read "Switch to Kasten: "
+                     (mapcar (lambda (kdef)
+                               (let ((k (car kdef)))
+                                 (if (assoc-string k ezeka-zk--active-indexes)
+                                     (propertize k 'face 'bold-italic)
+                                   k)))
+                             ezeka-kaesten))
+    (unless current-prefix-arg
+      (intern
+       (completing-read "When to update modification dates: "
+                        '("sameday" "never" "confirm")
+                        nil
+                        t)))))
+  (let ((with-captions (eq (ezeka-kasten-id-type kasten) :numerus)))
+    (custom-set-variables
+     '(zk-directory-subdir-function #'ezeka-subdirectory)
+     `(zk-index-buffer-name ,(format "*Zk-Index: %s*" (capitalize kasten)))
+     `(ezeka-update-header-modified ',update-modified)
+     `(zk-file-name-id-only ,(not with-captions))
+     `(zk-parse-file-function (if ,with-captions
+                                  #'zk-parse-file-name
+                                #'zk-parse-file-header)))
+    (ezeka-zk-initialize-kasten kasten)
+    (cl-pushnew (cons kasten (zk-index))
+                ezeka-zk--active-indexes)))
 
 ;;;###autoload
 (defun ezeka-zk-index-choose-kasten (arg new-kasten update-modified)
@@ -102,13 +133,11 @@ directory regardless of Zk-Index buffer status."
            nil
            t)))
   (if (not new-kasten)
-      (pop-to-buffer zk-index-buffer-name)
-    (if-let ((buffer (get-buffer zk-index-buffer-name)))
-        (kill-buffer buffer))
+      (pop-to-buffer zk-index-buffer-name nil)
     (let ((with-captions (eq (ezeka-kasten-id-type new-kasten) :numerus)))
       (custom-set-variables
        '(zk-directory-subdir-function #'ezeka-subdirectory)
-       `(zk-index-mode-name ,(format "Zk:%s" (capitalize new-kasten)))
+       `(zk-index-buffer-name ,(format "*Zk-Index: %s*" (capitalize new-kasten)))
        '(zk-header-title-line-regexp
          "^rubric: §?\\(?1:[^ ]+\\)\\.? \\(?2:\\(?:{\\(?3:[^ ]+\\)} \\)*\\(?4:.*\\)\\)$"
          "Regexp of the line in a zk file's header that contains the rubric.
@@ -120,10 +149,10 @@ Group 4 is the title without category.")
        `(zk-file-name-id-only ,(not with-captions))
        `(zk-parse-file-function (if ,with-captions
                                     #'zk-parse-file-name
-                                  #'zk-parse-file-header))))
-    (ezeka-zk-initialize-kasten new-kasten)
-    (zk-index)
-    (zk-index-refresh)))
+                                  #'zk-parse-file-header)))
+      (ezeka-zk-initialize-kasten new-kasten)
+      (cl-pushnew (cons new-kasten (zk-index))
+                  ezeka-zk--active-indexes))))
 
 (defun ezeka-zk-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
