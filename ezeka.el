@@ -2042,8 +2042,12 @@ current buffer."
 
 (defun ezeka-org-footnote-action-maybe-local (&optional arg)
   "This is a wrapper around `org-footnote-action' to be used in the
-transcluded snippets, making sure that the footnotes are placed locally
-rather in whatever `org-footnote-section' is set to."
+transcluded snippets, making sure that the footnotes are placed
+locally rather in whatever `org-footnote-section' is set to. Footnotes
+are placed locally if the current heading matches
+`ezeka-snippet-heading' or if the command was called with
+\\[universal-argument]. With double \\[universal-argument], offer
+additional options."
   (interactive "P")
   (let (snippet?)
     (save-excursion
@@ -2051,20 +2055,20 @@ rather in whatever `org-footnote-section' is set to."
       (setq snippet?
         (and (org-context)
              (string-equal (nth 4 (org-heading-components)) ezeka-snippet-heading))))
-    (if (not snippet?)
-        (org-footnote-action arg)
-      (let ((org-footnote-section nil)
-            (context (org-context)))
-        (org-element-cache-reset)
-        ;; taken from `org-footnote-action'
-        (if (not (and context (> (point)
-	                             (save-excursion
-		                           (goto-char (org-element-property :end context))
-		                           (skip-chars-backward " \t")
-		                           (point)))))
-            (org-footnote-action arg)
-          (kill-new (format-time-string "%H%M"))
-          (org-footnote-new))))))
+    (if (or snippet? arg)
+        (let ((org-footnote-section nil)
+              (context (org-context)))
+          (org-element-cache-reset)
+          ;; taken from `org-footnote-action'
+          (if (not (and context (> (point)
+	                               (save-excursion
+		                             (goto-char (org-element-property :end context))
+		                             (skip-chars-backward " \t")
+		                             (point)))))
+              (org-footnote-action (equal arg '(16)))
+            (kill-new (format-time-string "%H%M"))
+            (org-footnote-new)))
+      (org-footnote-action (equal arg '(16))))))
 
 ;;;=============================================================================
 ;;; Bookmark Integration
