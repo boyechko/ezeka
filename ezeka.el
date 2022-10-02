@@ -1634,7 +1634,8 @@ category."
   (interactive
    (let ((target (ezeka--grab-dwim-file-target)))
      (list target
-           (ezeka--read-label target current-prefix-arg))))
+           (ezeka--read-label target current-prefix-arg)
+           current-prefix-arg)))
   (if (not (ezeka-note-p filename))
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :label label)
@@ -1852,7 +1853,7 @@ ask for the Kasten) from the current org subtree."
                                               (ezeka--read-label new-file)
                                               new-title parent-link)
                 (insert "\n" content)
-                (save-buffer))
+                (basic-save-buffer))
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 (org-cut-subtree)
