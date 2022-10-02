@@ -731,6 +731,34 @@ returning the new metadata."
         (setf (alist-get :modified metadata) now)))
     metadata))
 
+(defun ezeka--reconcile-title-and-caption (filename metadata)
+  "Interactively reconcile the FILENAME's title and caption METADATA.
+Returns modifed metadata."
+  (let ((title (or (alist-get :title metadata) ""))
+        (caption (or (alist-get :caption metadata) "")))
+    (when (not (string= title caption))
+      (let ((choice
+             (read-char-choice
+              (format (concat
+                       "  [T]itle: %s\n"
+                       "[C]aption: %s\n"
+                       "Press [c] to use caption for title "
+                       "[C] to enter new caption, \n"
+                       "      [t] to use title for caption, "
+                       "[T] to enter new title,\n"
+                       "      [n] or [q] to do noting: ")
+                      (propertize title 'face 'italic)
+                      (propertize caption 'face 'bold))
+              '(?t ?T ?c ?C ?n ?q))))
+        (cl-case choice
+          (?T (setf (alist-get :title metadata)
+                    (read-string "New title: ")))
+          (?C (setf (alist-get :caption metadata)
+                    (read-string "New caption: ")))
+          (?t (setf (alist-get :caption metadata) title))
+          (?c (setf (alist-get :title metadata) caption)))))
+    metadata))
+
 (defun ezeka-normalize-header (&optional filename metadata inhibit-read-only)
   "Replaces the FILENAME's header with one generated from the given
 METADATA or by parsing the FILENAME's existing header. If
@@ -747,34 +775,11 @@ read only."
           (goto-char (point-min))
           (when (re-search-forward ezeka-regexp-header-separator nil t 1)
             (narrow-to-region (point-min) (point)))
-          (let ((title (or (alist-get :title metadata) ""))
-                (caption (or (alist-get :caption metadata) "")))
-            (when (not (string= title caption))
-              (let ((choice
-                     (read-char-choice
-                      (format (concat
-                               "  [T]itle: %s\n"
-                               "[C]aption: %s\n"
-                               "Press [c] to use caption for title "
-                               "[C] to enter new caption, \n"
-                               "      [t] to use title for caption, "
-                               "[T] to enter new title,\n"
-                               "      [n] or [q] to do noting: ")
-                              (propertize title 'face 'italic)
-                              (propertize caption 'face 'bold))
-                      '(?t ?T ?c ?C ?n ?q))))
-                (cl-case choice
-                  (?T (setf (alist-get :title metadata)
-                            (read-string "New title: ")))
-                  (?C (setf (alist-get :caption metadata)
-                            (read-string "New caption: ")))
-                  (?t (setf (alist-get :caption metadata) title))
-                  (?c (setf (alist-get :title metadata) caption))
-                  (t
-                   ;; do nothing
-                   )))))
+          (setq metadata
+            (ezeka--update-modifed
+             filename (ezeka--reconcile-title-and-caption
+                       filename metadata)))
           (push (cons :rubric (ezeka-encode-rubric metadata)) metadata)
-          (setq metadata (ezeka--update-modifed filename metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
