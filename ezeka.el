@@ -608,12 +608,12 @@ according to `ezeka-rubric-format'."
                     (?c . ,caption)
                     (?k . ,citekey))))))
 
-(defun ezeka-header-yamlify-key (keyword)
+(defun ezeka--header-yamlify-key (keyword)
   "Returns a YAML-formatted string that is the name of the KEY, a keyword
 symbol."
   (cl-subseq (symbol-name keyword) 1))
 
-(defun ezeka-header-yamlify-value (value)
+(defun ezeka-header--yamlify-value (value)
   "Returns a YAML-formatted string for the given metadata VALUE."
   (cl-typecase value
     (string value)
