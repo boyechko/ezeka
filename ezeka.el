@@ -228,6 +228,23 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
         (t
          (zk--select-file))))           ; FIXME: zk
 
+(defun ezeka--replace-pairs-in-string (replacements string)
+  "Replace pairs in the REPLACEMENTS alist in STRING. Each item in
+REPLACEMENTS should have the form
+
+(FROM TO REGEXP)
+
+If REGEXP is non-nil, FROM should be a regexp string."
+  (save-match-data
+    (dolist (recipe replacements string)
+      (setq string
+       (funcall (if (caddr recipe)
+                    #'replace-regexp-in-string
+                  #'string-replace)
+                (car recipe)
+                (cadr recipe)
+                string)))))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -482,7 +499,7 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
              (error "Cannot get content for %s" file))))))
 
 ;;;=============================================================================
-;;; Metadata
+;;; Metadata: Internal
 ;;
 ;; Note on terminology:
 ;;
@@ -555,14 +572,16 @@ Group 5 is the citation key."
 (defvar ezeka-regexp-genus "[α-ω]"
   "Regexp matching genus.")
 
-(defun ezeka-decode-rubric (rubric)
-  "Returns an alist of metadata from a rubric. If cannot decode,
-returns NIL."
+(defun ezeka-decode-rubric (rubric file)
+  "Returns an alist of metadata from the RUBRIC in FILE. If cannot
+decode, returns NIL."
   (when (and rubric (string-match ezeka-regexp-rubric rubric))
     (let ((id          (match-string 1 rubric))
           (label       (match-string 3 rubric))
           (caption     (match-string 4 rubric))
           (citekey     (match-string 5 rubric)))
+      (if (null id)
+          (error "ID missing in file %s" file))
       (list (cons :id id)
             (cons :type (ezeka-id-type id))
             (cons :label label)
@@ -594,6 +613,119 @@ symbol."
     (list (concat "[ " (mapconcat #'identity value ", ") " ]"))
     (t
      (error "Not implemented for type %s" (type-of value)))))
+
+(defun ezeka--decode-header (header file)
+  "Returns an alist of metadata decoded from the given YAML header of FILE.
+They keys are converted to keywords."
+  (let* ((metadata
+          (mapcar
+           (lambda (line)
+             (when (> (length line) 0)
+               (if (string-match ezeka-regexp-header-line line)
+                   (let ((key (intern (concat ":" (match-string 1 line))))
+                         (value (string-trim (match-string 2 line) " " " ")))
+                     (cons key
+                           ;; Handle lists properly
+                           (if (string-match "^\\[\\(.*\\)\\]$" value)
+                               (split-string (match-string 1 value)
+                                             "," t "[[:space:]]+")
+                             value)))
+                 (error "Malformed header line: '%s'" line))))
+           (split-string header "\n")))
+         (decoded (ezeka-decode-rubric (alist-get :rubric metadata) file)))
+    (setq metadata (append decoded metadata))
+    ;; TODO: This exists to transition from v0.1 to v0.2 of header.
+    ;; If :title is missing, use :caption instead.
+    (unless (alist-get :title metadata)
+      (setf (alist-get :title metadata) (alist-get :caption decoded)))
+    ;; If caption is missing, set caption to match the file name
+    (unless (alist-get :caption metadata)
+      (setf (alist-get :caption metadata)
+            (ezeka-file-name-caption file)))
+    (when-let ((kasten (ezeka-file-kasten file t)))
+      (push (cons :kasten kasten) metadata)
+      (push (cons :link (ezeka-file-link file)) metadata))
+    metadata))
+
+(defun ezeka-file-metadata (file &optional noerror)
+  "Returns an alist of metadata for the given FILE based on the most current
+content of the FILE. They keys are converted to keywords."
+  (if-let ((header (ezeka-file-content file t noerror)))
+      (let ((mdata (ezeka--decode-header header file)))
+        mdata)
+    (unless noerror
+      (error "Cannot retrieve %s's metadata" file))))
+
+;;;=============================================================================
+;;; Metadata Commands
+;;;=============================================================================
+
+;; See https://help.dropbox.com/organize/file-names
+(defun ezeka--normalize-title-into-caption (title)
+  "Returns TITLE after shortening it and stripping or replacing
+troublesome characters for it to be used safely as file caption."
+  (interactive (list (file-name-base buffer-file-name)))
+  (let ((replacements
+         '(("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1\\3\\)"
+            "{β} \\2 \\4" t)
+           ("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1.*\\)"
+            "{β} \\2 (\\3) \\4" t)
+           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\))\\(?: [@&]\\1[0-9]+\\)"
+            "{π} \\2 &\\1\\3" t)
+           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) \\(?:(\\(?3:[0-9]\\{4\\}\\))\\)*\\(?: [@&]\\1[0-9]+\\)*"
+            "{π} \\2 &\\1\\3" t)
+           ("\"\\([^\"]+\\)\"" "'\\1'" t)
+           ("/\\([^/]+\\)/" "_\\1_" t)
+           ("(\\(ß.+\\))" "[\\1]" t)
+           ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" t)
+           ("/" "-")
+           ("\\" "-")
+           ("<" "[")
+           (">" "]")
+           (":" ",")
+           ("\"" "")
+           ("|" "-")
+           ("?" "+")
+           ("*" "+"))))
+    (ezeka--replace-pairs-in-string replacements title)))
+
+;; TODO: Unfinished
+(defun ezeka--set-time-of-creation (file metadata)
+  ""
+  (if (and (eq (alist-get :type metadata) :tempus)
+           (string-match ezeka-regexp-iso8601-datetime
+                         (alist-get :id metadata)))
+      (when )
+    (setf (alist-get :created metadata)
+          )))
+
+(defun ezeka-update-header-date (&optional arg)
+  "Updates the modification time in the header of the current Zettel
+according to the value of `ezeka-update-modifaction-date'. With
+\\[universal-argument], forece the update no matter the value of that
+variable."
+  (interactive "P")
+  (when (ezeka-note-p buffer-file-name)
+    (let* ((today (format-time-string "%Y-%m-%d"))
+           (now (format-time-string "%Y-%m-%d %a %H:%M"))
+           (metadata (ezeka-file-metadata buffer-file-name))
+           (last-modified (or (alist-get :modified metadata)
+                              (alist-get :created metadata))))
+      (unless (string-equal (or last-modified "") now)
+        ;; FIXME: Probably better to convert modification times to Emacs's encoded
+        ;; time rather than doing it with strings.
+        (when (or arg
+                  (equal ezeka-update-header-modified 'always)
+                  (and (equal ezeka-update-header-modified 'sameday)
+                       (string= (cl-subseq last-modified 0 (length today)) today))
+                  ;; Automatic updating conditions not met; need to confirm
+                  (and (member ezeka-update-header-modified '(sameday confirm t))
+                       (y-or-n-p
+                        (format "%s was last modified at %s. Update to now? "
+                                (ezeka-file-name-id buffer-file-name)
+                                last-modified))))
+          (setf (alist-get :modified metadata) now)))
+      (ezeka-normalize-header buffer-file-name metadata))))
 
 (defun ezeka-normalize-header (file &optional metadata inhibit-read-only)
   "Replaces the FILE's header with one generated from the given
@@ -639,8 +771,8 @@ read only."
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
-                                  (ezeka-header-yamlify-key (car cons))
-                                  (ezeka-header-yamlify-value (cdr cons)))))
+                                  (ezeka--header-yamlify-key (car cons))
+                                  (ezeka-header--yamlify-value (cdr cons)))))
                 (let (ordered)
                   (dolist (key '(:rubric
                                  :title :subtitle :author
@@ -654,52 +786,6 @@ read only."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)
     (save-buffer)))
-
-(defun ezeka--replace-pairs-in-string (replacements string)
-  "Replace pairs in the REPLACEMENTS alist in STRING. Each item in
-REPLACEMENTS should have the form
-
-(FROM TO REGEXP)
-
-If REGEXP is non-nil, FROM should be a regexp string."
-  (save-match-data
-    (dolist (recipe replacements string)
-      (setq string
-       (funcall (if (caddr recipe)
-                    #'replace-regexp-in-string
-                  #'string-replace)
-                (car recipe)
-                (cadr recipe)
-                string)))))
-
-;; See https://help.dropbox.com/organize/file-names
-(defun ezeka--normalize-title-into-caption (title)
-  "Returns TITLE after shortening it and stripping or replacing
-troublesome characters for it to be used safely as file caption."
-  (interactive (list (file-name-base buffer-file-name)))
-  (let ((replacements
-         '(("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1\\3\\)"
-            "{β} \\2 \\4" t)
-           ("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1.*\\)"
-            "{β} \\2 (\\3) \\4" t)
-           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\))\\(?: [@&]\\1[0-9]+\\)"
-            "{π} \\2 &\\1\\3" t)
-           ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) \\(?:(\\(?3:[0-9]\\{4\\}\\))\\)*\\(?: [@&]\\1[0-9]+\\)*"
-            "{π} \\2 &\\1\\3" t)
-           ("\"\\([^\"]+\\)\"" "'\\1'" t)
-           ("/\\([^/]+\\)/" "_\\1_" t)
-           ("(\\(ß.+\\))" "[\\1]" t)
-           ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" t)
-           ("/" "-")
-           ("\\" "-")
-           ("<" "[")
-           (">" "]")
-           (":" ",")
-           ("\"" "")
-           ("|" "-")
-           ("?" "+")
-           ("*" "+"))))
-    (ezeka--replace-pairs-in-string replacements title)))
 
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
@@ -748,72 +834,6 @@ troublesome characters for it to be used safely as file caption."
                   (t
                    (rename-file filename newname t)
                    (set-visited-file-name newname t t))))))))))
-
-(defun ezeka-decode-header (header file)
-  "Returns an alist of metadata decoded from the given YAML header of FILE.
-They keys are converted to keywords."
-  (let* ((metadata
-          (mapcar
-           (lambda (line)
-             (when (> (length line) 0)
-               (if (string-match ezeka-regexp-header-line line)
-                   (let ((key (intern (concat ":" (match-string 1 line))))
-                         (value (string-trim (match-string 2 line) " " " ")))
-                     (cons key
-                           ;; Handle lists properly
-                           (if (string-match "^\\[\\(.*\\)\\]$" value)
-                               (split-string (match-string 1 value)
-                                             "," t "[[:space:]]+")
-                             value)))
-                 (error "Malformed header line: '%s'" line))))
-           (split-string header "\n")))
-         (header-rubric (alist-get :rubric metadata))
-         (decoded (ezeka-decode-rubric header-rubric)))
-    (setq metadata (append decoded metadata))
-    ;; TODO: This exists to transition from v0.1 to v0.2 of header.
-    ;; If :title is missing, use :caption instead.
-    (unless (alist-get :title metadata)
-      (setf (alist-get :title metadata) (alist-get :caption decoded)))
-    (unless (alist-get :caption metadata)
-      (setf (alist-get :caption metadata) (ezeka-file-name-caption file)))
-    (push (cons :kasten (ezeka-file-kasten file)) metadata)
-    (push (cons :link (ezeka-file-link file)) metadata)))
-
-(defun ezeka-file-metadata (file &optional noerror)
-  "Returns an alist of metadata for the given FILE based on the most current
-content of the FILE. They keys are converted to keywords."
-  (if-let ((header (ezeka-file-content file t noerror)))
-      (ezeka-decode-header header file)
-    (unless noerror
-      (error "Cannot retrieve %s's metadata" file))))
-
-(defun ezeka-update-header-date (&optional arg)
-  "Updates the modification time in the header of the current Zettel
-according to the value of `ezeka-update-modifaction-date'. With
-\\[universal-argument], forece the update no matter the value of that
-variable."
-  (interactive "P")
-  (when (ezeka-note-p buffer-file-name)
-    (let* ((today (format-time-string "%Y-%m-%d"))
-           (now (format-time-string "%Y-%m-%d %a %H:%M"))
-           (metadata (ezeka-file-metadata buffer-file-name))
-           (last-modified (or (alist-get :modified metadata)
-                              (alist-get :created metadata))))
-      (unless (string-equal (or last-modified "") now)
-        ;; FIXME: Probably better to convert modification times to Emacs's encoded
-        ;; time rather than doing it with strings.
-        (when (or arg
-                  (equal ezeka-update-header-modified 'always)
-                  (and (equal ezeka-update-header-modified 'sameday)
-                       (string= (cl-subseq last-modified 0 (length today)) today))
-                  ;; Automatic updating conditions not met; need to confirm
-                  (and (member ezeka-update-header-modified '(sameday confirm t))
-                       (y-or-n-p
-                        (format "%s was last modified at %s. Update to now? "
-                                (ezeka-file-name-id buffer-file-name)
-                                last-modified))))
-          (setf (alist-get :modified metadata) now)))
-      (ezeka-normalize-header buffer-file-name metadata))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -1216,7 +1236,8 @@ metadata."
                (ezeka-decode-rubric
                 (buffer-substring-no-properties
                  (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
-                 (point-at-eol)))))
+                 (point-at-eol))
+                buffer-file-name)))
           (when metadata
             (let ((words (split-string (alist-get :title metadata))))
               (setq-local mode-line-misc-info
@@ -2172,7 +2193,8 @@ returns it."
                 (mdata
                  (ezeka-decode-rubric
                   (when (string-match ezeka-regexp-header-line line)
-                    (match-string 2 line)))))
+                    (match-string 2 line))
+                  file)))
       (setq mode-line-misc-info
         (format "%s: %s"
                 (propertize (alist-get :id mdata)
