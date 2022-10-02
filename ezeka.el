@@ -1122,8 +1122,9 @@ instead."
   (let* ((table (ezeka-completion-table
                  (ezeka-visiting-buffer-list t)))
          (link (when table
-                 (cdr (assoc-string
-                       (completing-read "Visit buffer: " table nil t) table)))))
+                 (ezeka-file-link
+                  (cdr (assoc-string
+                        (completing-read "Visit buffer: " table nil t) table))))))
     (if link
         (if (not (ezeka-link-at-point-p))
             (if arg
@@ -1490,19 +1491,20 @@ suitable for passing to `completing-read' as collection."
          (tw (- (frame-width) (+ iw lw kw 5)))
          (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw lw tw kw)))
     (mapcar (lambda (file)
-              (let* ((metadata (ezeka-file-metadata file t))
-                     (title (alist-get :title metadata))
-                     (buf (get-file-buffer file)))
-                (cons (format fmt
-                              (if (and buf (buffer-modified-p buf)) "*" " ")
-                              (or (alist-get :id metadata)
-                                  (file-name-base file))
-                              (alist-get :label metadata)
-                              (when title
-                                (cl-subseq title 0 (min (length title)
-                                                        tw)))
-                              (or (alist-get :citekey metadata) ""))
-                      file)))
+              (when (ezeka-note-p file)
+                (let* ((metadata (ezeka-file-metadata file t))
+                       (title (alist-get :title metadata))
+                       (buf (get-file-buffer file)))
+                  (cons (format fmt
+                                (if (and buf (buffer-modified-p buf)) "*" " ")
+                                (or (alist-get :id metadata)
+                                    (file-name-base file))
+                                (alist-get :label metadata)
+                                (when title
+                                  (cl-subseq title 0 (min (length title)
+                                                          tw)))
+                                (or (alist-get :citekey metadata) ""))
+                        file))))
             files)))
 
 (defun ezeka-switch-to-buffer (arg)
