@@ -186,8 +186,9 @@ beginning with #."
   :group 'ezeka)
 
 (defcustom ezeka-update-header-modified t
-  "Determines whether `ezeka-update-header-date' updates the modification
-date. Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (or T)."
+  "Determines whether `ezeka-normalize-header' updates the
+modification date. Possible choices are ALWAYS, SAMEDAY, NEVER, or
+CONFIRM (same as T)."
   :type 'symbol
   :group 'ezeka)
 
@@ -708,44 +709,40 @@ troublesome characters for it to be used safely as file caption."
     (setf (alist-get :created metadata)
           )))
 
-(defun ezeka-update-header-date (&optional arg)
-  "Updates the modification time in the header of the current Zettel
-according to the value of `ezeka-update-modifaction-date'. With
-\\[universal-argument], forece the update no matter the value of that
-variable."
-  (interactive "P")
-  (when (ezeka-note-p buffer-file-name)
-    (let* ((today (format-time-string "%Y-%m-%d"))
-           (now (format-time-string "%Y-%m-%d %a %H:%M"))
-           (metadata (ezeka-file-metadata buffer-file-name))
-           (last-modified (or (alist-get :modified metadata)
-                              (alist-get :created metadata))))
-      (unless (string-equal (or last-modified "") now)
-        ;; FIXME: Probably better to convert modification times to Emacs's encoded
-        ;; time rather than doing it with strings.
-        (when (or arg
-                  (equal ezeka-update-header-modified 'always)
-                  (and (equal ezeka-update-header-modified 'sameday)
-                       (string= (cl-subseq last-modified 0 (length today)) today))
-                  ;; Automatic updating conditions not met; need to confirm
-                  (and (member ezeka-update-header-modified '(sameday confirm t))
-                       (y-or-n-p
-                        (format "%s was last modified at %s. Update to now? "
-                                (ezeka-file-name-id buffer-file-name)
-                                last-modified))))
-          (setf (alist-get :modified metadata) now)))
-      (ezeka-normalize-header buffer-file-name metadata))))
+(defun ezeka--update-modifed (filename metadata)
+  "Updates the modification time in the METADATA of the given Zettel
+note FILENAME according to the value of `ezeka-update-modifaction-date',
+returning the new metadata."
+  (let* ((today (format-time-string "%Y-%m-%d"))
+         (now (format-time-string "%Y-%m-%d %a %H:%M"))
+         (last-modified (or (alist-get :modified metadata)
+                            (alist-get :created metadata))))
+    (unless (string-equal (or last-modified "") now)
+      ;; FIXME: Probably better to convert modification times to Emacs's encoded
+      ;; time rather than doing it with strings.
+      (when (or (equal ezeka-update-header-modified 'always)
+                (and (equal ezeka-update-header-modified 'sameday)
+                     (string= (cl-subseq last-modified 0 (length today)) today))
+                ;; Automatic updating conditions not met; need to confirm
+                (and (member ezeka-update-header-modified '(sameday confirm t))
+                     (y-or-n-p
+                      (format "%s was last modified at %s. Update to now? "
+                              (ezeka-file-name-id filename) last-modified))))
+        (setf (alist-get :modified metadata) now)))
+    metadata))
 
-(defun ezeka-normalize-header (file &optional metadata inhibit-read-only)
-  "Replaces the FILE's header with one generated from the given
-METADATA or by parsing the FILE's existing header. If
+(defun ezeka-normalize-header (&optional filename metadata inhibit-read-only)
+  "Replaces the FILENAME's header with one generated from the given
+METADATA or by parsing the FILENAME's existing header. If
 INHIBIT-READ-ONLY is non-nil, write new header even if the buffer is
 read only."
-  (let ((metadata (or metadata (ezeka-file-metadata file)))
-        (old-point (point))
-        (inhibit-read-only inhibit-read-only))
+  (interactive (list buffer-file-name))
+  (let* ((filename (or filename buffer-file-name))
+         (metadata (or metadata (ezeka-file-metadata filename)))
+         (old-point (point))
+         (inhibit-read-only inhibit-read-only))
     (save-mark-and-excursion
-      (with-current-buffer (get-file-buffer file)
+      (with-current-buffer (get-file-buffer filename)
         (save-restriction
           (goto-char (point-min))
           (when (re-search-forward ezeka-regexp-header-separator nil t 1)
@@ -763,7 +760,6 @@ read only."
                                "      [t] to use title for caption, "
                                "[T] to enter new title,\n"
                                "      [n] or [q] to do noting: ")
-                              ;; (file-name-base file)
                               (propertize title 'face 'italic)
                               (propertize caption 'face 'bold))
                       '(?t ?T ?c ?C ?n ?q))))
@@ -774,9 +770,11 @@ read only."
                             (read-string "New caption: ")))
                   (?t (setf (alist-get :caption metadata) title))
                   (?c (setf (alist-get :title metadata) caption))
-                  (t ; NOP
+                  (t
+                   ;; do nothing
                    )))))
           (push (cons :rubric (ezeka-encode-rubric metadata)) metadata)
+          (setq metadata (ezeka--update-modifed filename metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
@@ -794,7 +792,8 @@ read only."
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)
-    (save-buffer)))
+    ;; Clear the minibuffer
+    (message "\n")))
 
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
@@ -2271,7 +2270,7 @@ NOSELECT is non-nil) the target link and returns it."
             ;; ("C-c )" . ) ;
             ;; ("C-c -" . ) ;
             ("C-c _" . ezeka-find-descendant)
-            ("C-c =" . ezeka-update-header-date)       ; `org-table-eval-formula'
+            ("C-c =" . ezeka-normalize-header) ; `org-table-eval-formula'
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-set-title) ;
@@ -2308,7 +2307,7 @@ NOSELECT is non-nil) the target link and returns it."
 ;; On save, update modificate date and normalize file name
 (add-hook 'ezeka-mode-hook
   (lambda ()
-    (add-hook 'before-save-hook 'ezeka-update-header-date nil t)
-    (add-hook 'after-save-hook 'ezeka--normalize-file-name nil t)))
+    (add-hook 'before-save-hook 'ezeka-normalize-header nil t)
+    (add-hook 'after-save-hook 'ezeka-normalize-file-name nil t)))
 
 (provide 'ezeka)
