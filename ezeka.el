@@ -631,8 +631,8 @@ symbol."
      (error "Not implemented for type %s" (type-of value)))))
 
 (defun ezeka--decode-header (header file)
-  "Returns an alist of metadata decoded from the given YAML header of FILE.
-They keys are converted to keywords."
+  "Returns an alist of metadata decoded from the given YAML header of
+FILE. They keys are converted to keywords."
   (let* ((metadata
           (mapcar
            (lambda (line)
@@ -649,28 +649,35 @@ They keys are converted to keywords."
                  (error "Malformed header line: '%s'" line))))
            (split-string header "\n")))
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata) file)))
-    (setq metadata (append decoded metadata))
-    ;; TODO: This exists to transition from v0.1 to v0.2 of header.
-    ;; If :title is missing, use :caption instead.
-    (unless (alist-get :title metadata)
-      (setf (alist-get :title metadata) (alist-get :caption decoded)))
-    ;; If caption is missing, set caption to match the file name
-    (unless (alist-get :caption metadata)
-      (setf (alist-get :caption metadata)
-            (ezeka-file-name-caption file)))
-    (when-let ((kasten (ezeka-file-kasten file t)))
-      (push (cons :kasten kasten) metadata)
-      (push (cons :link (ezeka-file-link file)) metadata))
-    metadata))
+    (append decoded metadata)))
 
 (defun ezeka-file-metadata (file &optional noerror)
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
   (if-let ((header (ezeka-file-content file t noerror)))
-      (let ((mdata (ezeka--decode-header header file)))
+      (let* ((mdata  (ezeka--decode-header header file))
+             ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
+             (id     (or (alist-get :id mdata)
+                         (file-name-base file)))
+             (type   (or (alist-get :type mdata)
+                         (ezeka-id-type file)))
+             (kasten (or (alist-get :kasten mdata)
+                         (alist-get type ezeka-default-kasten)))
+             (link   (or (ezeka-file-link file noerror)
+                         (ezeka-make-link kasten id)))
+             ;; TODO: Remove after full transition from v0.1 to v0.2
+             (title   (or (alist-get :title mdata)
+                          (alist-get :caption mdata)))
+             (caption (or (alist-get :caption mdata)
+                          (ezeka-file-name-caption file)
+                          title)))
+        (cl-mapc (lambda (key val)
+                   (setf (alist-get key mdata) val))
+                 '(:id :type :kasten :link :title :caption)
+                 `(,id ,type ,kasten ,link ,title ,caption))
         mdata)
     (unless noerror
-      (error "Cannot retrieve %s's metadata" file))))
+      (error "Cannot retrieve %s's header" file))))
 
 ;;;=============================================================================
 ;;; Metadata Commands
