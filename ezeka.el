@@ -215,7 +215,8 @@ modification."
 LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point) t))
-        ((ezeka-note-p buffer-file-name t)
+        ((and buffer-file-name
+              (or ezeka-mode (ezeka-note-p buffer-file-name t)))
          buffer-file-name)
         ((eq major-mode 'magit-status-mode) ; FIXME: magit
          (magit-file-at-point))
