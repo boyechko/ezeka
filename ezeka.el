@@ -341,13 +341,18 @@ simply returns nil if cannot figure out the Kasten."
            (unless noerror
              (error "Can't figure out kasten for %s" file))))))
 
-(defun ezeka-file-link (file)
-  "Given the path to a Zettel FILE, returns a fully qualified link to it."
-  (let ((kasten (ezeka-file-kasten file)))
-    (if (string= kasten
-                 (alist-get (ezeka-id-type file) ezeka-default-kasten))
-        (ezeka-file-name-id file)
-      (concat kasten ":" (ezeka-file-name-id file)))))
+(defun ezeka-file-link (file &optional noerror)
+  "Given the path to a Zettel FILE, returns a fully qualified link to
+it. If NOERROR is non-nil, do not signal an error if cannot figiure
+out a proper link, just return nil."
+  (let ((kasten (ezeka-file-kasten file noerror)))
+    (cond ((equal kasten
+                  (alist-get (ezeka-id-type file) ezeka-default-kasten))
+           (ezeka-file-name-id file))
+          (kasten
+           (concat kasten ":" (ezeka-file-name-id file)))
+          ((not noerror)
+           (error "Can't get kasten for file %s" (file-name-base file))))))
 
 (defun ezeka-link-p (string)
   "Returns non-NIL if the string could be a link to a Zettel."
