@@ -771,27 +771,29 @@ returning the new metadata."
 Returns modifed metadata."
   (let ((title (or (alist-get :title metadata) ""))
         (caption (or (alist-get :caption metadata) "")))
-    (when (not (string= title caption))
+    (when (and (not (string= title caption))
+               (not (alist-get :caption-stable metadata)))
       (let ((choice
              (read-char-choice
               (format (concat
-                       "  [T]itle: %s\n"
-                       "[C]aption: %s\n"
-                       "Press [c] to use caption for title "
-                       "[C] to enter new caption, \n"
-                       "      [t] to use title for caption, "
-                       "[T] to enter new title,\n"
+                       "Caption: %s\n"
+                       "  Title: %s\n"
+                       "Press [c] or [u] to use caption for title "
+                       "[C] or [U] to enter new caption, \n"
+                       "      [t] or [l] to use title for caption, "
+                       "[T] or [L] to enter new title,\n"
                        "      [n] or [q] to do noting: ")
-                      (propertize title 'face 'italic)
-                      (propertize caption 'face 'bold))
-              '(?t ?T ?c ?C ?n ?q))))
-        (cl-case choice
-          (?T (setf (alist-get :title metadata)
-                    (read-string "New title: ")))
-          (?C (setf (alist-get :caption metadata)
-                    (read-string "New caption: ")))
-          (?t (setf (alist-get :caption metadata) title))
-          (?c (setf (alist-get :title metadata) caption)))))
+                      (propertize caption 'face 'bold)
+                      (propertize title 'face 'italic))
+              '(?c ?C ?u ?U ?t ?T ?l ?L ?n ?q))))
+        (pcase choice
+          ((or ?c ?u) (setf (alist-get :title metadata) caption))
+          ((or ?t ?l) (setf (alist-get :caption metadata) title))
+          ((or ?C ?U) (setf (alist-get :caption metadata)
+                            (read-string "New caption: ")))
+          ((or ?T ?L) (setf (alist-get :title metadata)
+                            (read-string "New title: "))))
+        (setf (alist-get :caption-stable metadata) t)))
     metadata))
 
 (defun ezeka-normalize-header (&optional filename metadata inhibit-read-only)
@@ -841,36 +843,38 @@ read only."
   (interactive (list buffer-file-name))
   (let ((filename (or filename buffer-file-name)))
     (when (eq :numerus (or (alist-get :type metadata)
-                           (ezeka-kasten-id-type (ezeka-file-kasten filename))))
+                           (and (ezeka-file-kasten filename t)
+                                (ezeka-kasten-id-type
+                                 (ezeka-file-kasten filename)))))
       (let* ((base (file-name-base filename))
              (mdata (or metadata (ezeka-file-metadata filename)))
              (mname (ezeka-format-metadata ezeka-file-name-format mdata))
              (keep-which
-              (unless (string= rubric base)
+              (unless (string= mname base)
                 (downcase
                  (read-char-choice
                   (format (concat "Caption in filename and metadata differ:\n"
                                   "[F]ilename: %s\n"
                                   "[M]etadata: %s\n"
-                                  "Press [f] to set metadata from filename,\n"
-                                  "      [m] to set filename from metadata, or\n"
+                                  "Press [f/u] to set metadata from filename,\n"
+                                  "      [m/l] to set filename from metadata, or\n"
                                   "      [n] or [q] to do noting: ")
                           (propertize base 'face 'bold)
-                          (propertize rubric 'face 'bold-italic))
-                  '(?f ?F ?m ?M ?n ?N ?q ?Q))))))
-        (cond ((or (string= rubric base)
+                          (propertize mname 'face 'bold-italic))
+                  '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q))))))
+        (cond ((or (string= mname base)
                    (member keep-which '(?n ?q)))
                ;; do nothing
                )
-              ((= keep-which ?f)
+              ((member keep-which '(?f ?u))
                (setf (alist-get :label mdata) (ezeka-file-name-label base)
                      (alist-get :caption mdata) (ezeka-file-name-caption base)
                      (alist-get :citekey mdata) (ezeka-file-name-citekey base))
                (ezeka-normalize-header filename mdata))
-              ((= keep-which ?m)
+              ((member keep-which '(?m ?l))
                (let* ((confirmed (read-string
                                   (format "Current:   %s\nRename to: " base)
-                                  rubric nil rubric))
+                                  mname nil mname))
                       (newname (expand-file-name
                                 (file-name-with-extension
                                  (org-trim confirmed)
