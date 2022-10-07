@@ -544,26 +544,30 @@ Group 2 is the value.")
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-header-rubric-prefix "§"
-  "The prefix before the value of rubric in the header."
+(defcustom ezeka-header-stable-caption-mark "§"
+  "A mark used in the rubric value to signify that any differences
+between caption and title values should be ignored as long as filename
+and header match."
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-rubric-format "%i {%l} %c %k"
+(defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
   "The format-spec string for generating the note's rubric to be used
-in the header as well as the file name.
-
-%i means ID or link.
-%l means label (genus or category).
-%c means caption (i.e. short title).
-%k means citation key.
-
-This should match `ezeka-regexp-rubric'."
+in the note's header.
+See `ezeka-format-metadata' for details.
+This should match `ezeka-regexp-header-rubric'."
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-regexp-rubric
-  (concat ezeka-regexp-link
+(defcustom ezeka-file-name-format "%i {%l} %c %k"
+  "The format-spec string for generating a numerus currens note's file name.
+See `ezeka-format-metadata' for details.
+This should match `ezeka-file-name-regexp'."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-file-name-regexp
+  (concat ezeka-regexp-link             ; \1 and \2
           "\\(?:"                       ; everything else is optional
           "\\(?:\\.\\)*"                               ; FIXME: optional historic period
           "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
@@ -571,51 +575,69 @@ This should match `ezeka-regexp-rubric'."
           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$"              ; \5
           "\\)*"                        ; end of everything else
           )
-  "Regular expression for the rubric string as found in the file name
-and the rubric.
+  "Regexp matching numerus currens note file names.
 
 Group 1 is the ID.
 Group 2 is the kasten.
 Group 3 is the label (genus or category).
 Group 4 is the caption (i.e. short title).
-Group 5 is the citation key."
+Group 5 is the citation key.
+Group 6 is the stable caption mark.")
+
+(defcustom ezeka-regexp-header-rubric
+  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
+          ezeka-file-name-regexp)
+  "Regular expression for the rubric string as found in the header.
+
+Groups 1-5 see `ezeka-file-name-regexp'.
+Group 6 is the stable caption mark."
   :type 'regexp
   :group 'ezeka)
-
-(defvaralias 'ezeka-file-name-regexp 'ezeka-regexp-rubric
-  "Regexp matching Zettel note file names.")
 
 (defvar ezeka-regexp-genus "[α-ω]"
   "Regexp matching genus.")
 
+(defun ezeka-format-metadata (format-string metadata)
+  "Format a string out of format-string and METADATA.
+The format control string may contain the following %-sequences:
+
+%i means ID or link.
+%l means label (genus or category).
+%c means caption (i.e. short title).
+%k means citation key.
+%s means stable mark (see `ezeka-header-stable-caption-mark')."
+  (string-trim
+   (format-spec format-string
+                `((?i . ,(alist-get :link metadata))
+                  (?l . ,(alist-get :label metadata))
+                  (?c . ,(alist-get :caption metadata))
+                  (?k . ,(or (alist-get :citekey metadata) ""))
+                  (?s . ,(if (alist-get :caption-stable metadata)
+                             ezeka-header-stable-caption-mark
+                           ""))))))
+
 (defun ezeka-decode-rubric (rubric file)
   "Returns an alist of metadata from the RUBRIC in FILE. If cannot
 decode, returns NIL."
-  (when (and rubric (string-match ezeka-regexp-rubric rubric))
+  (when (and rubric (string-match ezeka-regexp-header-rubric rubric))
     (let ((id          (match-string 1 rubric))
+          (kasten      (match-string 2 rubric))
           (label       (match-string 3 rubric))
           (caption     (match-string 4 rubric))
+          (stable      (when (match-string 6 rubric) t))
           (citekey     (match-string 5 rubric)))
-      (if (null id)
-          (error "ID missing in file %s" file))
       (list (cons :id id)
+            (when kasten (cons :kasten (string-trim kasten)))
             (cons :type (ezeka-id-type id))
             (cons :label label)
             (cons :caption (string-trim caption))
+            (cons :caption-stable stable)
             (when citekey (cons :citekey (string-trim citekey)))))))
 
-(defun ezeka-encode-rubric (metadata)
+(defmacro ezeka-encode-rubric (metadata)
   "Returns a string that encodes the given METADATA into the rubric
-according to `ezeka-rubric-format'."
-  (let* ((label (alist-get :label metadata))
-         (caption (alist-get :caption metadata))
-         (citekey (or (alist-get :citekey metadata) "")))
-    (string-trim
-     (format-spec ezeka-rubric-format
-                  `((?i . ,(alist-get :link metadata))
-                    (?l . ,label)
-                    (?c . ,caption)
-                    (?k . ,citekey))))))
+according to `ezeka-header-rubric-format'."
+  (ezeka-format-metadata ezeka-header-rubric-format metadata))
 
 (defun ezeka--header-yamlify-key (keyword)
   "Returns a YAML-formatted string that is the name of the KEY, a keyword
@@ -792,7 +814,8 @@ read only."
             (ezeka--update-modifed
              filename (ezeka--reconcile-title-and-caption
                        filename metadata)))
-          (push (cons :rubric (ezeka-encode-rubric metadata)) metadata)
+          (setf (alist-get :rubric metadata)
+                (ezeka-format-metadata ezeka-header-rubric-format metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
@@ -821,7 +844,7 @@ read only."
                            (ezeka-kasten-id-type (ezeka-file-kasten filename))))
       (let* ((base (file-name-base filename))
              (mdata (or metadata (ezeka-file-metadata filename)))
-             (rubric (alist-get :rubric mdata))
+             (mname (ezeka-format-metadata ezeka-file-name-format mdata))
              (keep-which
               (unless (string= rubric base)
                 (downcase
@@ -1124,29 +1147,30 @@ confirmation before inserting metadata."
                     (when field
                       (intern-soft
                        (completing-read "Where? "
-                                        '(":before" ":after" ":description")))))))
-    (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
-            (if (or (not confirm)
-                    (progn
-                      ;; Pressing return just defaults to NO rather than quit
-                      (define-key query-replace-map [return] 'act)
-                      (y-or-n-p (format (if (eq where :description)
-                                            "Insert %s in the link %s? "
-                                          "Insert %s %s the link? ")
-                                        field where))))
-                (ezeka--link-with-metadata link field where)
-              (ezeka-org-format-link link))
-            (if (or (eolp) (space-or-punct-p (char-after))) "" " "))))
+                                        '(":before" ":after")))))))
+    (let ((mdata (ezeka-file-metadata (ezeka-link-file link))))
+      (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
+              (if (or (not confirm)
+                      (progn
+                        ;; Pressing return just defaults to NO rather than quit
+                        (define-key query-replace-map [return] 'act)
+                        (y-or-n-p (format (if (eq where :description)
+                                              "Insert [%s] in the link %s? "
+                                            "Insert [%s] %s the link? ")
+                                          (alist-get field mdata) where))))
+                  (ezeka--link-with-metadata link field where mdata)
+                (ezeka-org-format-link link))
+              (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
 
 (defun ezeka-insert-link-to-visiting (arg)
-  "Inserts a link to another Zettel being currently visited.
- With prefix argument, offers a few options for including Zettel metadata. If
-the user selects a Zettel that does not exist in the list, just insert the
-link to what was selected. If the cursor in already inside a link, replace it
-instead."
+  "Inserts a link to another Zettel being currently visited. With
+\\[universal-argument] offers a few options for including Zettel
+metadata. If the user selects a Zettel that does not exist in the
+list, just insert the link to what was selected. If the cursor in
+already inside a link, replace it instead."
   (interactive "P")
   (let* ((table (ezeka-completion-table
-                 (ezeka-visiting-buffer-list t)))
+                 (ezeka-visiting-buffer-list t arg)))
          (link (when table
                  (ezeka-file-link
                   (cdr (assoc-string
@@ -1195,13 +1219,13 @@ link itself."
 Zettel link at point or, if there is none, the current buffer. With
 \\[universal-argument], also includes the link."
   (interactive "P")
-  (let* ((file (ezeka--grab-dwim-file-target t))
+  (let* ((file (ezeka--grab-dwim-file-target))
          (link (ezeka-file-link file)))
     (when file
       (let* ((mdata (ezeka-file-metadata file))
              (title (if arg
                         (ezeka--link-with-metadata link :title :before)
-                      (ezeka-encode-rubric mdata)
+                      (ezeka-format-metadata ezeka-header-rubric-format mdata)
                       (alist-get :title mdata))))
         (kill-new title)
         (unless select-enable-clipboard
@@ -1725,9 +1749,10 @@ header with the LINK, LABEL, TITLE, and PARENT."
     (insert
      (concat ezeka-header-rubric-key
              ": "
-             (ezeka-encode-rubric `((:link . ,link)
                                     (:caption . ,caption)
                                     (:label . ,label)))))
+             (ezeka-format-metadata ezeka-header-rubric-format
+                                    `((:link . ,link)
     (insert "\ntitle: " title)
     (insert "\ncreated: "
             ;; Insert creation time, making it match a tempus currens filename
