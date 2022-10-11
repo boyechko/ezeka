@@ -1421,11 +1421,12 @@ ancestor. With a universal argument, ask for confirmation before inserting."
   "An alist of new children and a plist of their details (:parent,
 :title, :label, etc.).")
 
-(defun ezeka-insert-new-child (parent &optional arg)
+(defun ezeka-insert-new-child (parent &optional arg noselect)
   "Inserts a link to a new Zettel in the same Kasten as the PARENT,
 which can be a file or a link. With \\[universal-argument] allows the
 user to select a different Kasten. With double \\[universal-argument]
-asks for the full link. Returns link to the new child."
+asks for the full link. If NOSELECT is non-nil, don't visit the
+created child. Returns link to the new child."
   (interactive
    (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
          current-prefix-arg))
@@ -1452,8 +1453,11 @@ asks for the full link. Returns link to the new child."
         (when parent-link
           (add-to-list 'ezeka--new-child-plist
             (list child-link :parent parent-link)))))
-    (insert (ezeka-org-format-link child-link))
-    (ezeka-find-link child-link)
+    ;; Don't worry if insert fails
+    (ignore-errors
+      (insert (ezeka-org-format-link child-link)))
+    (unless noselect
+      (ezeka-find-link child-link))
     child-link))
 
 (defun ezeka--possible-new-note-title ()
@@ -1488,7 +1492,7 @@ argument to `ezeka-insert-new-child'."
                                       (ezeka--possible-new-note-title)))
                         (when citekey " ")
                         citekey))
-         (child-link (ezeka-insert-new-child parent-link arg))
+         (child-link (ezeka-insert-new-child parent-link arg t))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put plist :title title))))
