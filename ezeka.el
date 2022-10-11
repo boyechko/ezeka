@@ -1483,17 +1483,15 @@ argument to `ezeka-insert-new-child'."
                      (read-from-minibuffer "Title for the child: "
                                            (ezeka--possible-new-note-title))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
-         (citekey (or (alist-get :citekey
-                        (ezeka-file-metadata buffer-file-name))
-                      ""))
-         (title (concat (org-trim (or title
-                                      (ezeka--possible-new-note-title)))
-                        (when citekey " ")
-                        citekey))
+         (citekey (alist-get :citekey
+                    (ezeka-file-metadata buffer-file-name)))
+         (title (org-trim (or title (ezeka--possible-new-note-title))))
          (child-link (ezeka-insert-new-child parent-link arg t))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
-          (plist-put plist :title title))))
+          (plist-put (plist-put plist :citekey citekey)
+                     :title title))
+    (ezeka-find-link child-link)))
 
 ;;;=============================================================================
 ;;; Buffers and Frames
@@ -1765,9 +1763,9 @@ traces genealogy further than parent."
 ;;; Populating Files
 ;;;=============================================================================
 
-(defun ezeka-insert-header-template (&optional link label title parent)
+(defun ezeka-insert-header-template (&optional link label title parent citekey)
   "Inserts the header template into the current buffer, populating the
-header with the LINK, LABEL, TITLE, and PARENT."
+header with the LINK, LABEL, TITLE, PARENT, and CITEKEY."
   (interactive
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
@@ -1778,17 +1776,19 @@ header with the LINK, LABEL, TITLE, and PARENT."
       link
       (ezeka--read-label link)
       (read-string "Title: " (plist-get plist :title))
-      (read-string "Parent? " (plist-get plist :parent)))))
+      (read-string "Parent? " (plist-get plist :parent))
+      (read-string "Citekey? " (plist-get plist :citekey)))))
   (let* ((file (ezeka-link-file link))
          (caption (ezeka--normalize-title-into-caption title)))
     (goto-char (point-min))
     (insert
      (concat ezeka-header-rubric-key
              ": "
-                                    (:caption . ,caption)
-                                    (:label . ,label)))))
              (ezeka-format-metadata ezeka-header-rubric-format
                                     `((:link . ,link)
+                                      (:caption . ,caption)
+                                      (:label . ,label)
+                                      (:citekey . ,citekey)))))
     (insert "\ntitle: " title)
     (insert "\ncreated: "
             ;; Insert creation time, making it match a tempus currens filename
