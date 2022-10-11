@@ -1120,11 +1120,10 @@ brackets. Otherwise, call `kill-sex'."
             (if description
                 (format "[%s]" description) ""))))
 
-(defun ezeka--link-with-metadata (link &optional field where)
+(defun ezeka--link-with-metadata (link &optional field where metadata)
   "Returns a string containing the metadata FIELD (:title by default)
 at place WHERE (:before by default) in relation to the LINK."
-  (let* ((file (ezeka-link-file link))
-         (mdata (ezeka-file-metadata file))
+  (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
          (field (or field :title))
          (where (or where :before))
          (value (alist-get field mdata)))
@@ -1141,8 +1140,8 @@ at place WHERE (:before by default) in relation to the LINK."
 
 (defun ezeka-insert-link-with-metadata (link &optional field where confirm)
   "Inserts the Zettel link, optionally adding a metadata FIELD put
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL, ask for
-confirmation before inserting metadata."
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL,
+ask for confirmation before inserting metadata."
   (let* ((field (or field
                     (when (called-interactively-p 'any)
                       (intern-soft
@@ -1230,7 +1229,7 @@ Zettel link at point or, if there is none, the current buffer. With
     (when file
       (let* ((mdata (ezeka-file-metadata file))
              (title (if arg
-                        (ezeka--link-with-metadata link :title :before)
+                        (ezeka--link-with-metadata link :title :before mdata)
                       (ezeka-format-metadata ezeka-header-rubric-format mdata)
                       (alist-get :title mdata))))
         (kill-new title)
