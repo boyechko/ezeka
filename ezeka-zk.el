@@ -93,7 +93,7 @@ the given KASTEN, a string."
                                      (propertize k 'face 'bold-italic)
                                    k)))
                              ezeka-kaesten))
-    (unless current-prefix-arg
+    (when current-prefix-arg
       (intern
        (completing-read "When to update modification dates: "
                         '("sameday" "never" "confirm")
@@ -103,7 +103,8 @@ the given KASTEN, a string."
     (custom-set-variables
      '(zk-directory-subdir-function #'ezeka-subdirectory)
      `(zk-index-buffer-name ,(format "*Zk-Index: %s*" (capitalize kasten)))
-     `(ezeka-update-header-modified ',update-modified)
+     `(ezeka-update-header-modified ',(or update-modified
+                                          ezeka-update-header-modified))
      `(zk-file-name-id-only ,(not with-captions))
      `(zk-parse-file-function (if ,with-captions
                                   #'zk-parse-file-name
