@@ -1061,6 +1061,7 @@ links that are not enclosed in square brackets."
 `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
 
+;; FIXME: Relies on ace-window
 (defun ezeka-find-file (file &optional same-window)
   "Edit the given file based on the value of `ezeka-number-of-frames'.
 If SAME-WINDOW is non-NIL, opens the buffer visiting the file in the
@@ -2158,22 +2159,23 @@ are placed locally if the current heading matches
 \\[universal-argument]. With double \\[universal-argument], offer
 additional options."
   (interactive "P")
-  (let (snippet?)
-    (save-excursion
-      (org-back-to-heading-or-point-min t)
-      (setq snippet?
-        (and (org-context)
-             (string-equal (nth 4 (org-heading-components)) ezeka-snippet-heading))))
+  (let ((snippet? (string= ezeka-snippet-heading
+                          (save-excursion
+                            (org-back-to-heading-or-point-min t)
+                            (and (org-context)
+                                 (nth 4 (org-heading-components)))))))
     (if (or snippet? arg)
         (let ((org-footnote-section nil)
               (context (org-context)))
           (org-element-cache-reset)
           ;; taken from `org-footnote-action'
-          (if (not (and context (> (point)
-	                               (save-excursion
-		                             (goto-char (org-element-property :end context))
-		                             (skip-chars-backward " \t")
-		                             (point)))))
+          (if (not (and context
+                        (> (point)
+	                       (save-excursion
+                             ;; FIXME: Broken, since :END property is nil?
+		                     (goto-char (org-element-property :end context))
+		                     (skip-chars-backward " \t")
+		                     (point)))))
               (org-footnote-action (equal arg '(16)))
             (kill-new (format-time-string "%H%M"))
             (org-footnote-new)))
