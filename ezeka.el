@@ -1716,7 +1716,9 @@ not given, read it from file first.
       (let ((metadata (ezeka-file-metadata filename)))
         (setf (alist-get :title metadata)
               (read-string "Change title to what? "
-                           (alist-get :title metadata)))
+                           (alist-get :title metadata))
+              (alist-get :caption-stable metadata)
+              nil)
         (ezeka--update-metadata-values filename metadata)))))
 
 (defun ezeka-set-label (filename label arg)
