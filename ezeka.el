@@ -735,20 +735,21 @@ troublesome characters for it to be used safely as file caption."
            ("*" "+"))))
     (ezeka--replace-pairs-in-string replacements title)))
 
-;; TODO: Unfinished
-(defun ezeka--set-time-of-creation (file metadata)
-  ""
-  (if (and (eq (alist-get :type metadata) :tempus)
-           (string-match ezeka-regexp-iso8601-datetime
-                         (alist-get :id metadata)))
-      (when )
-    (setf (alist-get :created metadata)
-          )))
+;; TODO: Extend to check for any tempus currens oldnames
+(defun ezeka--set-time-of-creation (metadata)
+  "Update the time of creation in the METADATA based on the time
+encoded in tempus currens ID."
+  (if (eq (alist-get :type metadata) :tempus)
+      (let ((id (alist-get :id metadata)))
+        (setf (alist-get :created metadata)
+              (format-time-string "%Y-%m-%d %a %H:%M"
+                                  (encode-time (iso8601-parse id))))
+        metadata)
+    metadata))
 
-(defun ezeka--update-modifed (filename metadata)
-  "Updates the modification time in the METADATA of the given Zettel
-note FILENAME according to the value of `ezeka-update-modifaction-date',
-returning the new metadata."
+(defun ezeka--update-modifed (metadata)
+  "Updates the modification time in the METADATA according to the
+value of `ezeka-update-modifaction-date', returning the new metadata."
   (let* ((today (format-time-string "%Y-%m-%d"))
          (now (format-time-string "%Y-%m-%d %a %H:%M"))
          (last-modified (or (alist-get :modified metadata)
@@ -763,13 +764,13 @@ returning the new metadata."
                 (and (member ezeka-update-header-modified '(sameday confirm t))
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
-                              (ezeka-file-name-id filename) last-modified))))
+                              (alist-get :id metadata) last-modified))))
         (setf (alist-get :modified metadata) now)))
     metadata))
 
-(defun ezeka--reconcile-title-and-caption (filename metadata)
-  "Interactively reconcile the FILENAME's title and caption METADATA.
-Returns modifed metadata."
+(defun ezeka--reconcile-title-and-caption (metadata)
+  "Interactively reconcile the title and caption in the given
+METADATA. Returns modifed metadata."
   (let ((title (or (alist-get :title metadata) ""))
         (caption (or (alist-get :caption metadata) "")))
     (when (and (not (string= title caption))
@@ -814,9 +815,9 @@ read only."
           (when (re-search-forward ezeka-regexp-header-separator nil t 1)
             (narrow-to-region (point-min) (point)))
           (setq metadata
-            (ezeka--update-modifed
-             filename (ezeka--reconcile-title-and-caption
-                       filename metadata)))
+            (ezeka--set-time-of-creation
+             (ezeka--update-modifed
+              (ezeka--reconcile-title-and-caption metadata))))
           (setf (alist-get :rubric metadata)
                 (ezeka-format-metadata ezeka-header-rubric-format metadata))
           (delete-region (point-min) (point-max))
