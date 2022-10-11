@@ -173,16 +173,31 @@ Optionally use ORIG-ID for backlink."
                                (?k . ,(or (alist-get :citekey metadata) ""))))
                 output))))))
 
+(defun ezeka--citaton-key-authors (key)
+  "Given a citation KEY, returns a human-readable list of authors."
+  (let ((case-fold-search nil))
+    (when (string-match (concat "^[@&]*\\(?1:[A-Z][a-z]+\\)"
+                                "\\(?:\\(?2:[A-Z][a-z]+\\)"
+                                "\\(?3:EtAl\\)*\\)*\\(?4:[0-9-]+\\)*$") key)
+      (let ((author1 (match-string 1 key))
+            (author2 (match-string 2 key))
+            (etal (match-string 3 key))
+            (date (match-string 4 key)))
+        (cond (etal
+               (format "%s, %s, et al." author1 author2))
+              (author2
+               (format "%s and %s" author1 author2))
+              (t
+               author1))))))
+
 (defun ezeka-zk-format-link-and-title (id title)
   "See `zk-format-link-and-title-function'."
   (let ((file (ezeka-link-file id)))
     (when (ezeka-note-p file)
       (let* ((mdata (ezeka-file-metadata file)))
         (format-spec "%a%t [[%i]]"
-                     `((?a . ,(if (alist-get :citekey mdata)
-                                  (format "%s's "
-                                          (substring
-                                           (alist-get :citekey mdata) 1))
+                     `((?a . ,(if-let ((ck (alist-get :citekey mdata)))
+                                  (format "%s's " (ezeka--citaton-key-authors ck))
                                 ""))
                        (?i . ,(ezeka-file-name-id file))
                        (?t . ,(alist-get :title mdata))))))))
