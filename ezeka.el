@@ -1497,13 +1497,16 @@ argument to `ezeka-insert-new-child'."
 ;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun ezeka-visiting-buffer-list (&optional skip-current)
+(defun ezeka-visiting-buffer-list (&optional skip-current modified-only)
   "Returns a list of Zettel files that are currently being visited. If
-SKIP-CURRENT is T, remove the current buffer."
+SKIP-CURRENT is non-nil, remove the current buffer. If MODIFIED-ONLY
+is non-nil, only list modified buffers."
   (nreverse
    (mapcar #'buffer-file-name
            (cl-remove-if-not (lambda (buf)
-                               (ezeka-note-p (buffer-file-name buf)))
+                               (and (ezeka-note-p (buffer-file-name buf))
+                                    (or (not modified-only)
+                                        (buffer-modified-p buf))))
                              (remove (when skip-current
                                        (current-buffer))
                                      (buffer-list))))))
@@ -1592,15 +1595,16 @@ suitable for passing to `completing-read' as collection."
             files)))
 
 (defun ezeka-switch-to-buffer (arg)
-  "Quickly switch to other open Zettel buffers. With prefix argument, do so
-in another window."
+  "Quickly switch to other open Zettel buffers. With
+\\[universal-argument], show only modified buffers. With double
+\\[universal-argument], open buffer in other window."
   (interactive "P")
   (let ((table (ezeka-completion-table
-                (nreverse (ezeka-visiting-buffer-list t))))
+                (nreverse (ezeka-visiting-buffer-list t (equal arg '(4))))))
         ;; Disabling sorting preserves the same order as with `switch-to-buffer'
         ;; FIXME: How to do this without relying on vertico?
         (vertico-sort-function nil))
-    (funcall (if arg 'find-file-other-window 'find-file)
+    (funcall (if (equal arg '(16)) 'find-file-other-window 'find-file)
              (if table
                  (cdr (assoc-string
                        (completing-read "Visit buffer: " table nil t) table))
