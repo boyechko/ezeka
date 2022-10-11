@@ -652,7 +652,7 @@ symbol."
     (t
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun ezeka--decode-header (header file)
+(defun ezeka--decode-header (header file &optional noerror)
   "Returns an alist of metadata decoded from the given YAML header of
 FILE. They keys are converted to keywords."
   (let* ((metadata
@@ -668,7 +668,8 @@ FILE. They keys are converted to keywords."
                                (split-string (match-string 1 value)
                                              "," t "[[:space:]]+")
                              value)))
-                 (error "Malformed header line: '%s'" line))))
+                 (unless noerror
+                   (error "Malformed header line: '%s'" line)))))
            (split-string header "\n")))
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata) file)))
     (append decoded metadata)))
@@ -677,7 +678,7 @@ FILE. They keys are converted to keywords."
   "Returns an alist of metadata for the given FILE based on the most current
 content of the FILE. They keys are converted to keywords."
   (if-let ((header (ezeka-file-content file t noerror)))
-      (let* ((mdata  (ezeka--decode-header header file))
+      (let* ((mdata  (ezeka--decode-header header file noerror))
              ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
              (id     (or (alist-get :id mdata)
                          (file-name-base file)))
