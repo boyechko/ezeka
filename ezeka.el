@@ -1179,7 +1179,7 @@ already inside a link, replace it instead."
          (link (when table
                  (ezeka-file-link
                   (cdr (assoc-string
-                        (completing-read "Visit buffer: " table nil t) table))))))
+                        (completing-read "Insert link to: " table nil t) table))))))
     (if link
         (if (not (ezeka-link-at-point-p))
             (if arg
@@ -1191,7 +1191,7 @@ already inside a link, replace it instead."
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-to-other-window (arg)
-  "Link `ezeka-insert-link' but adds the link to file in the other
+  "Like `ezeka-insert-link' but adds the link to file in the other
 window. With \\[universal-argument], insert just the link."
   (interactive "P")
   (let ((other-buf (window-buffer (other-window-for-scrolling))))
@@ -1202,6 +1202,35 @@ window. With \\[universal-argument], insert just the link."
       (if arg
           (ezeka-insert-link-with-metadata link)
         (ezeka-insert-link-with-metadata link :title :before t)))))
+
+(defun ezeka-insert-link-to-bookmark (arg)
+  "Inserts a link to a bookmark. With \\[universal-argument] offers a
+few options for including Zettel metadata. If the user selects a
+Zettel that does not exist in the list, just insert the link to what
+was selected. If the cursor in already inside a link, replace it
+instead."
+  (interactive "P")
+  (let* ((table (mapcar (lambda (item)
+                              (let ((link (cdr (cl-find 'filename
+                                                        (cdr item)
+                                                        :key #'car))))
+                                (when (ezeka-link-p link)
+                                  (cons (car item)
+                                        (ezeka-link-file link)))))
+                            bookmark-alist))
+         (link (when table
+                 (ezeka-file-link
+                  (cdr (assoc-string
+                        (completing-read "Insert link to: " table nil t) table))))))
+    (if link
+        (if (not (ezeka-link-at-point-p))
+            (if arg
+                (funcall-interactively #'ezeka-insert-link-with-metadata link)
+              (ezeka-insert-link-with-metadata link :title :before t))
+          ;; When replacing, don't including anything
+          (delete-region (match-beginning 0) (match-end 0))
+          (insert (ezeka-org-format-link link)))
+      (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
   "Like `ezeka-insert-link' but attempts to get the link ID from OS
