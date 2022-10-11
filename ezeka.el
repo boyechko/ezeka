@@ -1463,19 +1463,17 @@ created child. Returns link to the new child."
 (defun ezeka--possible-new-note-title ()
   "Returns a possible title for a new Zettel note based on context."
   (interactive)
-  (let ((start (or (org-in-item-p) (point))))
-    (cond ((region-active-p)
-           (buffer-substring-no-properties
-            (region-beginning) (region-end)))
-          ((org-in-item-p)
-           (buffer-substring-no-properties (1+ start) (point)))
-          (t (save-excursion
-               (beginning-of-line)
-               ;; FIXME: Might be good to have some limit to prevent
-               ;; killing whole paragraphs worth of text with soft
-               ;; newlines.
-               (buffer-substring-no-properties
-                (point) (1- start)))))))
+  (if (region-active-p)
+      (buffer-substring-no-properties (region-beginning) (region-end))
+    (let ((start (point)))
+     (save-excursion
+       (beginning-of-line)
+       ;; FIXME: Might be good to have some limit to prevent
+       ;; killing whole paragraphs worth of text with soft
+       ;; newlines.
+       (string-trim-left
+        (buffer-substring-no-properties (point) (max (point-min) (1- start)))
+        "[ +*-]*")))))
 
 (defun ezeka-insert-new-child-with-title (arg title)
   "Wrapper around `ezeka-insert-new-child' that creates a new child
