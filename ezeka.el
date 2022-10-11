@@ -1511,12 +1511,25 @@ is non-nil, only list modified buffers."
                                        (current-buffer))
                                      (buffer-list))))))
 
-(defun ezeka-kill-visiting-buffers ()
-  "Kills all Zettel that are being currently visited."
-  (interactive)
-  (mapc (lambda (file)
-          (kill-buffer (get-file-buffer file)))
-        (ezeka-visiting-buffer-list t)))
+(defun ezeka-kill-visiting-buffers (arg)
+  "Allows the user to easily kill Zettel that are being currently
+visited. With \\[universal-argument], kill all visiting Zettel."
+  (interactive "P")
+  (let (;; Disabling sorting preserves the same order as with `switch-to-buffer'
+        ;; FIXME: How to do this without relying on vertico?
+        (vertico-sort-function nil))
+    (if arg
+        (mapc (lambda (file)
+                (kill-buffer (get-file-buffer file)))
+              (ezeka-visiting-buffer-list t))
+      (while t
+        (let ((table
+               (ezeka-completion-table
+                (ezeka-visiting-buffer-list t))))
+          (kill-buffer
+           (get-file-buffer
+            (cdr (assoc-string (completing-read "Visit buffer: " table nil t)
+                               table)))))))))
 
 (defun ezeka-formatted-frame-title ()
   "Returns a string suitable for `frame-title-format' as a way to
