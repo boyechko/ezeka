@@ -823,6 +823,7 @@ METADATA. Returns modifed metadata."
           ((or ?T ?L) (setf (alist-get :title metadata)
                             (read-string "New title: "))))
         (setf (alist-get :caption-stable metadata) t)))
+    (funcall clear-message-function)
     metadata))
 
 (defun ezeka-normalize-header (&optional filename metadata inhibit-read-only)
@@ -863,9 +864,7 @@ read only."
                       (push (cons key (alist-get key metadata)) ordered))))))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
-    (goto-char old-point)
-    ;; Clear the minibuffer
-    (message "\n")))
+    (goto-char old-point)))
 
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
