@@ -866,14 +866,23 @@ read only."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
+;; TODO: This feels like a kludge that "smells"
+(defvar ezeka--currently-normalizing nil
+  "List of files that are currently undergoing file name
+normalization.")
+
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
   (interactive (list buffer-file-name))
   (let ((filename (or filename buffer-file-name)))
-    (when (eq :numerus (or (alist-get :type metadata)
-                           (and (ezeka-file-kasten filename t)
-                                (ezeka-kasten-id-type
-                                 (ezeka-file-kasten filename)))))
+    (when (and (not (cl-member filename
+                               ezeka--currently-normalizing
+                               :test #'string=))
+               (eq :numerus (or (alist-get :type metadata)
+                                (and (ezeka-file-kasten filename t)
+                                     (ezeka-kasten-id-type
+                                      (ezeka-file-kasten filename))))))
+      (cl-pushnew filename ezeka--currently-normalizing)
       (let* ((base (file-name-base filename))
              (mdata (or metadata (ezeka-file-metadata filename)))
              (mname (ezeka-format-metadata ezeka-file-name-format mdata))
@@ -890,6 +899,7 @@ read only."
                           (propertize base 'face 'bold)
                           (propertize mname 'face 'bold-italic))
                   '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q))))))
+        (ezeka-normalize-header filename mdata)
         (cond ((or (string= mname base)
                    (member keep-which '(?n ?q)))
                ;; do nothing
@@ -908,6 +918,7 @@ read only."
                                  (org-trim confirmed)
                                  ezeka-file-extension)
                                 (file-name-directory filename))))
+                 (ezeka-normalize-header filename mdata)
                  (if (not (and filename (file-exists-p filename)))
                      (set-visited-file-name newname)
                    (cond
@@ -915,7 +926,8 @@ read only."
                      (vc-rename-file filename newname))
                     (t
                      (rename-file filename newname t)
-                     (set-visited-file-name newname t t)))))))))))
+                     (set-visited-file-name newname t t)))))))
+        (cl-remove filename ezeka--currently-normalizing :test #'string=)))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
