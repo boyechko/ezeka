@@ -644,7 +644,7 @@ according to `ezeka-header-rubric-format'."
 symbol."
   (cl-subseq (symbol-name keyword) 1))
 
-(defun ezeka-header--yamlify-value (value)
+(defun ezeka--header-yamlify-value (value)
   "Returns a YAML-formatted string for the given metadata VALUE."
   (cl-typecase value
     (string value)
@@ -852,7 +852,7 @@ read only."
           (mapc (lambda (cons)
                   (insert (format "%s: %s\n"
                                   (ezeka--header-yamlify-key (car cons))
-                                  (ezeka-header--yamlify-value (cdr cons)))))
+                                  (ezeka--header-yamlify-value (cdr cons)))))
                 (let (ordered)
                   (dolist (key '(:rubric
                                  :title :subtitle :author
