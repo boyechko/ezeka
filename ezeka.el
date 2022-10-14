@@ -652,6 +652,30 @@ symbol."
     (t
      (error "Not implemented for type %s" (type-of value)))))
 
+(defun ezeka--header-deyamlify-value (value)
+  "Returns an elisp version of the given YAML-formatted VALUE."
+  (pcase value
+    ((rx bol "[" (let inside (1+ anychar)) "]" eol)
+     (split-string inside "," t "[[:space:]]+"))
+    (_
+     (string-trim value))))
+
+(defun ezeka--header-normalize-readings (readings)
+  "Normalize the value of READINGS list, returning the normalized list."
+  (mapcar (lambda (instance)
+            (if (string-match org-ts-regexp3 instance)
+                (org-timestamp-format
+                 (org-timestamp-from-string instance) "%F")
+              instance))
+          readings))
+
+(defun ezeka--decode-header-make-tuple (key value)
+  "Decodes the given KEY and VALUE as strings, returning a tuple."
+  (cons key
+        (if (eq key :readings)
+            (ezeka--header-normalize-readings value)
+          value)))
+
 (defun ezeka--decode-header (header file &optional noerror)
   "Returns an alist of metadata decoded from the given YAML header of
 FILE. They keys are converted to keywords."
@@ -660,14 +684,9 @@ FILE. They keys are converted to keywords."
            (lambda (line)
              (when (> (length line) 0)
                (if (string-match ezeka-regexp-header-line line)
-                   (let ((key (intern (concat ":" (match-string 1 line))))
-                         (value (string-trim (match-string 2 line) " " " ")))
-                     (cons key
-                           ;; Handle lists properly
-                           (if (string-match "^\\[\\(.*\\)\\]$" value)
-                               (split-string (match-string 1 value)
-                                             "," t "[[:space:]]+")
-                             value)))
+                   (ezeka--decode-header-make-tuple
+                    (intern (concat ":" (match-string 1 line)))
+                    (ezeka--header-deyamlify-value (match-string 2 line)))
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
            (split-string header "\n")))
