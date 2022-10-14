@@ -747,7 +747,27 @@ encoded in tempus currens ID."
         metadata)
     metadata))
 
-(defun ezeka--update-modifed (metadata)
+(defun ezeka-toggle-update-header-modified (arg)
+  "Toggle between different value of `ezeka-update-header-modified'.
+With \\[universal-argument], show a list of options instead."
+  (interactive "P")
+  (let ((new-value
+         (if arg
+             (intern (completing-read
+                      "When to update modification dates: "
+                      '("sameday" "never" "confirm")
+                      nil
+                      t))
+           (if-let ((result (member ezeka-update-header-modified
+                                    '(#1=sameday never confirm #1#))))
+               (cadr result)
+             (error "Invalid current `ezeka-update-header-modified': %s"
+                    ezeka-update-header-modified)))))
+    (setq ezeka-update-header-modified new-value)
+    (unless arg
+      (message "Set `ezeka-update-header-modified' to %s" new-value))))
+
+(defun ezeka--maybe-update-modifed (metadata)
   "Updates the modification time in the METADATA according to the
 value of `ezeka-update-modifaction-date', returning the new metadata."
   (let* ((today (format-time-string "%Y-%m-%d"))
@@ -767,6 +787,13 @@ value of `ezeka-update-modifaction-date', returning the new metadata."
                               (alist-get :id metadata) last-modified))))
         (setf (alist-get :modified metadata) now)))
     metadata))
+
+(defun ezeka-update-modified (file)
+  "Update the modification time in the current Zettel file's header,
+ignoring the value of `ezeka-update-header-modified'."
+  (interactive (list buffer-file-name))
+  (let ((ezeka-update-header-modified 'always))
+    (ezeka-normalize-header file)))
 
 (defun ezeka--reconcile-title-and-caption (metadata)
   "Interactively reconcile the title and caption in the given
@@ -816,7 +843,7 @@ read only."
             (narrow-to-region (point-min) (point)))
           (setq metadata
             (ezeka--set-time-of-creation
-             (ezeka--update-modifed
+             (ezeka--maybe-update-modifed
               (ezeka--reconcile-title-and-caption metadata))))
           (setf (alist-get :rubric metadata)
                 (ezeka-format-metadata ezeka-header-rubric-format metadata))
@@ -2354,7 +2381,7 @@ NOSELECT is non-nil) the target link and returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;;   X   X X X X X           X   X X X   X X X X X X X
+          ;;   X   X X X X X           X X X X X X X X X X X X X
           ;;------------------------------------------------------------------
           '(
             ;; ("C-c `" . ) ; `org-table-edit-field'
@@ -2375,7 +2402,7 @@ NOSELECT is non-nil) the target link and returns it."
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-set-title) ;
-            ;; ("C-c |" . ) ;
+            ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
             ("C-c '" . ezeka-set-label) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child)
