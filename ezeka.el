@@ -946,7 +946,8 @@ normalization.")
                     (t
                      (rename-file filename newname t)
                      (set-visited-file-name newname t t)))))))
-        (cl-remove filename ezeka--currently-normalizing :test #'string=)))))
+        (setq ezeka--currently-normalizing
+          (cl-remove filename ezeka--currently-normalizing :test #'string=))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
