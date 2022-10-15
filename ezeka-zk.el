@@ -243,28 +243,6 @@ has the form
   (or ezeka-zk-metadata-alist
       (ezeka-zk-cache-update-all)))
 
-(defun ezeka-zk-zmove-all-in-desktop (kasten arg)
-  "Move all files listed in the active region of deft-browser to KASTEN. With
-prefix argument, confirm each move and ask about destination kasten."
-  (interactive (list (completing-read "Which kasten to move to? " ezeka-kaesten)
-                     current-prefix-arg))
-  (let ((lines (count-lines (point-min) (point-max)))
-        (moved 1)
-        (zk-alist (zk--alist (zk--directory-files))))
-    (goto-char (point-min))
-    (while (re-search-forward zk-id-regexp nil t)
-      (let* ((id (match-string-no-properties 1))
-             (title (buffer-substring-no-properties
-                     (point-at-bol) (match-beginning 0)))
-             (file (zk--parse-id 'file-path id zk-alist)))
-        (when (and file
-                   (or arg
-                       (y-or-n-p
-                        (format "[%d/%d] Move %s [%s] to %s? "
-                                moved lines id title kasten))))
-          (ezeka-zmove-to-another-kasten file kasten nil t)
-          (cl-incf moved))))))
-
 (defun ezeka-zk-set-parent (filename &optional new-parent)
   "Sets the parent metadata of the FILENAME to NEW-PARENT. If
 NEW-PARENT is NIL, let user choose the the Zettel."
@@ -387,6 +365,32 @@ name."
     (ezeka-entitle-file-name (buffer-file-name) current-prefix-arg)
     (save-buffer)
     (user-error "Use `ezeka-entitle-file-name' for singe files.")))
+
+(defun ezeka-zk-move-all-in-region (start end kasten arg)
+  "Move all files listed in the active region of zk index to KASTEN. With
+prefix argument, confirm each move and ask about destination kasten."
+  (interactive
+   (append (if (region-active-p)
+               (list (region-beginning) (region-end))
+             (list (point-min) (point-max)))
+           (list (completing-read "Which kasten to move to? " ezeka-kaesten)
+                 current-prefix-arg)))
+  (let ((lines (count-lines start end))
+        (moved 1)
+        (zk-alist (zk--alist (zk--directory-files))))
+    (goto-char start)
+    (while (re-search-forward zk-id-regexp end t)
+      (let* ((id (match-string-no-properties 1))
+             (title (buffer-substring-no-properties
+                     (point-at-bol) (match-beginning 0)))
+             (file (zk--parse-id 'file-path id zk-alist)))
+        (when (and file
+                   (or arg
+                       (y-or-n-p
+                        (format "[%d/%d] Move %s [%s] to %s? "
+                                moved lines id title kasten))))
+          (ezeka-move-to-another-kasten file kasten nil t)
+          (cl-incf moved))))))
 
 ;;;=============================================================================
 ;;; Other
