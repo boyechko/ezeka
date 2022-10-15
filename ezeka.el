@@ -252,6 +252,31 @@ If REGEXP is non-nil, FROM should be a regexp string."
   "Strip the named groups in the given REGEXP."
   (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
 
+(defun ezeka--read-parallel-change (old-string new-string)
+  "Use `read-string' to change OLD-STRING to NEW-STRING, showing them
+in parallel."
+  (read-string
+   (concat "Change: " (propertize old-string 'face 'italic) "\n"
+           "    to: ")
+   new-string nil new-string))
+
+(defun ezeka--rename-file (filename newname)
+  "Rename the given FILENAME to NEWNAME. If NEWNAME is relative, fill
+missing values from FILENAME."
+  (let ((newname (if (file-name-absolute-p newname)
+                     newname
+                   (expand-file-name
+                    (file-name-with-extension
+                     newname (file-name-extension filename))
+                    (file-name-directory filename)))))
+    (cond ((not (and filename (file-exists-p filename)))
+           (set-visited-file-name newname))
+          ((vc-backend filename)
+           (vc-rename-file filename newname))
+          (t
+           (rename-file filename newname t)
+           (set-visited-file-name newname t t)))))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -929,24 +954,8 @@ normalization.")
                      (alist-get :citekey mdata) (ezeka-file-name-citekey base))
                (ezeka--update-file-header filename mdata)
               ((member keep-which '(?m ?l))
-               (let* ((confirmed (read-string
-                                  (format "Current:   %s\nRename to: " base)
-                                  mname nil mname))
-                      (newname (expand-file-name
-                                (file-name-with-extension
-                                 (org-trim confirmed)
-                                 ezeka-file-extension)
-                                (file-name-directory filename))))
-                 (if (not (and filename (file-exists-p filename)))
-                     (set-visited-file-name newname)
-                   (cond
-                    ((vc-backend filename)
-                     (vc-rename-file filename newname))
-                    (t
-                     (rename-file filename newname t)
-                     (set-visited-file-name newname t t)))))))
-        (setq ezeka--currently-normalizing
-          (cl-remove filename ezeka--currently-normalizing :test #'string=))))))
+               (ezeka--rename-file
+                filename (ezeka--read-parallel-change base mname))))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
