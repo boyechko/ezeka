@@ -2332,9 +2332,8 @@ NOSELECT is non-nil) the target link and returns it."
                (ezeka-link-kasten target)
             (completing-read "Which kasten to move to? " ezeka-kaesten))
            target)))
-  (let* ((source-link (ezeka-file-link source-file))
-         (kasten (or kasten
-                     ))
+  (let* ((ezeka-update-header-modified 'never) ; FIXME: Hardcoded
+         (source-link (ezeka-file-link source-file))
          (target-link (or target-link
                           (ezeka-make-link
                            kasten
