@@ -260,6 +260,16 @@ in parallel."
            "    to: ")
    new-string nil new-string))
 
+;; See https://stackoverflow.com/a/65685019
+(defun ezeka--save-buffer-read-only (buffer)
+  "Save the given BUFFER after enabling `read-only-mode'
+and therefore preventing hooks from running."
+  (if buffer-read-only
+      (save-buffer)
+    (read-only-mode 1)
+    (save-buffer)
+    (read-only-mode 0)))
+
 (defun ezeka--rename-file (filename newname)
   "Rename the given FILENAME to NEWNAME. If NEWNAME is relative, fill
 missing values from FILENAME."
@@ -953,6 +963,7 @@ normalization.")
                      (alist-get :caption mdata) (ezeka-file-name-caption base)
                      (alist-get :citekey mdata) (ezeka-file-name-citekey base))
                (ezeka--update-file-header filename mdata)
+               (ezeka--save-buffer-read-only filename))
               ((member keep-which '(?m ?l))
                (ezeka--rename-file
                 filename (ezeka--read-parallel-change base mname))))))))
