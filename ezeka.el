@@ -186,7 +186,7 @@ beginning with #."
   :group 'ezeka)
 
 (defcustom ezeka-update-header-modified t
-  "Determines whether `ezeka-normalize-header' updates the
+  "Determines whether `ezeka--update-file-header' updates the
 modification date. Possible choices are ALWAYS, SAMEDAY, NEVER, or
 CONFIRM (same as T)."
   :type 'symbol
@@ -812,7 +812,7 @@ value of `ezeka-update-modifaction-date', returning the new metadata."
 ignoring the value of `ezeka-update-header-modified'."
   (interactive (list buffer-file-name))
   (let ((ezeka-update-header-modified 'always))
-    (ezeka-normalize-header file)))
+    (ezeka--update-file-header file)))
 
 (defun ezeka--reconcile-title-and-caption (metadata)
   "Interactively reconcile the title and caption in the given
@@ -845,14 +845,14 @@ METADATA. Returns modifed metadata."
     (funcall clear-message-function)
     metadata))
 
-(defun ezeka-normalize-header (&optional filename metadata inhibit-read-only)
+(defun ezeka--update-file-header (&optional filename metadata inhibit-read-only)
   "Replaces the FILENAME's header with one generated from the given
 METADATA or by parsing the FILENAME's existing header. If
 INHIBIT-READ-ONLY is non-nil, write new header even if the buffer is
 read only."
   (interactive (list buffer-file-name))
   (let* ((filename (or filename buffer-file-name))
-         (metadata (or metadata (ezeka-file-metadata filename)))
+         (metadata (or metadata (ezeka-file-metadata filename t)))
          (old-point (point))
          (inhibit-read-only inhibit-read-only))
     (save-mark-and-excursion
@@ -918,7 +918,7 @@ normalization.")
                           (propertize base 'face 'bold)
                           (propertize mname 'face 'bold-italic))
                   '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q))))))
-        (ezeka-normalize-header filename mdata)
+        (funcall clear-message-function)
         (cond ((or (string= mname base)
                    (member keep-which '(?n ?q)))
                ;; do nothing
@@ -927,7 +927,7 @@ normalization.")
                (setf (alist-get :label mdata) (ezeka-file-name-label base)
                      (alist-get :caption mdata) (ezeka-file-name-caption base)
                      (alist-get :citekey mdata) (ezeka-file-name-citekey base))
-               (ezeka-normalize-header filename mdata))
+               (ezeka--update-file-header filename mdata)
               ((member keep-which '(?m ?l))
                (let* ((confirmed (read-string
                                   (format "Current:   %s\nRename to: " base)
@@ -937,7 +937,6 @@ normalization.")
                                  (org-trim confirmed)
                                  ezeka-file-extension)
                                 (file-name-directory filename))))
-                 (ezeka-normalize-header filename mdata)
                  (if (not (and filename (file-exists-p filename)))
                      (set-visited-file-name newname)
                    (cond
@@ -1756,7 +1755,7 @@ not given, read it from file first.
                   sets)
               (while args
                 (setf (alist-get (pop args) metadata) (pop args)))
-              (ezeka-normalize-header filename metadata t)
+              (ezeka--update-file-header filename metadata t)
               (when (and (not already-modified)
                          (if (eq ezeka-save-after-metadata-updates 'confirm)
                              (y-or-n-p "Save? ")
@@ -2291,7 +2290,7 @@ move."
         (unless (string= (ezeka-link-id link1) (ezeka-link-id link2))
           (setf (alist-get :oldnames mdata)
                 (cons link1 oldnames)))
-        (ezeka-normalize-header path2 mdata t)
+        (ezeka--update-file-header path2 mdata t)
         (when-let ((buf (get-file-buffer path2)))
           (with-current-buffer buf
             (save-buffer)))
@@ -2429,7 +2428,7 @@ NOSELECT is non-nil) the target link and returns it."
             ;; ("C-c )" . ) ;
             ;; ("C-c -" . ) ;
             ("C-c _" . ezeka-find-descendant)
-            ("C-c =" . ezeka-normalize-header) ; `org-table-eval-formula'
+            ("C-c =" . ezeka--update-file-header) ; `org-table-eval-formula'
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-set-title) ;
@@ -2466,7 +2465,7 @@ NOSELECT is non-nil) the target link and returns it."
 ;; On save, update modificate date and normalize file name
 (add-hook 'ezeka-mode-hook
   (lambda ()
-    (add-hook 'before-save-hook 'ezeka-normalize-header nil t)
+    (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
     (add-hook 'after-save-hook 'ezeka-normalize-file-name nil t)))
 
 (provide 'ezeka)
