@@ -559,8 +559,8 @@ get the content. If HEADER-ONLY is non-nil, only get the header."
 ;; representation of that metadata inside the Zettel note.
 ;;
 ;; Rubric is the compressed metadata information that is added to the file name
-;; in numerus currens notes. Caption is the shortened title that is included in
-;; the rubric.
+;; in numerus currens notes. Caption is the shortened title, matching the file
+;; name, that is included in the rubric for redundancy.
 ;;;=============================================================================
 
 (defvar ezeka-regexp-header-line
@@ -849,22 +849,27 @@ ignoring the value of `ezeka-update-header-modified'."
   (let ((ezeka-update-header-modified 'always))
     (ezeka--update-file-header file)))
 
+;; There are three different places where files can be captioned or titled:
+;; 1) The file name itself might contain a caption;
+;; 2) The rubric in the file header should contain caption matching the
+;;    caption in the file name; and, finally,
+;; 3) The title in the file header contains a nicely formatted version
+;;    of the caption that is used when inserting links.
+
 (defun ezeka--reconcile-title-and-caption (metadata)
   "Interactively reconcile the title and caption in the given
 METADATA. Returns modifed metadata."
-  (let ((title (or (alist-get :title metadata) ""))
-        (caption (or (alist-get :caption metadata) "")))
-    (when (and (not (string= title caption))
-               (not (alist-get :caption-stable metadata)))
+  (let ((caption (or (alist-get :caption metadata) ""))
+        (title (or (alist-get :title metadata) "")))
+    (unless (or (string= title caption)
+                (alist-get :caption-stable metadata))
       (let ((choice
              (read-char-choice
               (format (concat
-                       "Caption: %s\n"
-                       "  Title: %s\n"
-                       "Press [c] or [u] to use caption for title "
-                       "[C] or [U] to enter new caption, \n"
-                       "      [t] or [l] to use title for caption, "
-                       "[T] or [L] to enter new title,\n"
+                       "Caption in metadata: %s\n"
+                       "  Title in metadata: %s\n"
+                       "Press [c] or [u] to use caption for title\n"
+                       "      [t] or [l] to use title for caption,\n"
                        "      [n] or [q] to do noting: ")
                       (propertize caption 'face 'bold)
                       (propertize title 'face 'italic))
@@ -872,10 +877,10 @@ METADATA. Returns modifed metadata."
         (pcase choice
           ((or ?c ?u) (setf (alist-get :title metadata) caption))
           ((or ?t ?l) (setf (alist-get :caption metadata) title))
-          ((or ?C ?U) (setf (alist-get :caption metadata)
-                            (read-string "New caption: ")))
-          ((or ?T ?L) (setf (alist-get :title metadata)
-                            (read-string "New title: "))))
+          ((or ?C ?U) (setf (alist-get :title metadata)
+                            (ezeka--read-parallel-change caption caption)))
+          ((or ?T ?L) (setf (alist-get :caption metadata)
+                            (ezeka--read-parallel-change title title))))
         (setf (alist-get :caption-stable metadata) t)))
     (funcall clear-message-function)
     metadata))
