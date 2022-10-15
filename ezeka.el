@@ -920,25 +920,19 @@ read only."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-;; TODO: This feels like a kludge that "smells"
-(defvar ezeka--currently-normalizing nil
-  "List of files that are currently undergoing file name
-normalization.")
-
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
   (interactive (list buffer-file-name))
   (let ((filename (or filename buffer-file-name)))
-    (when (and (not (cl-member filename
-                               ezeka--currently-normalizing
-                               :test #'string=))
-               (eq :numerus (or (alist-get :type metadata)
-                                (and (ezeka-file-kasten filename t)
-                                     (ezeka-kasten-id-type
-                                      (ezeka-file-kasten filename))))))
-      (cl-pushnew filename ezeka--currently-normalizing)
+    (when (eq :numerus (or (alist-get :type metadata)
+                           (and (ezeka-file-kasten filename t)
+                                (ezeka-kasten-id-type
+                                 (ezeka-file-kasten filename)))))
       (let* ((base (file-name-base filename))
-             (mdata (or metadata (ezeka-file-metadata filename)))
+             (mdata (if (null metadata)
+                        (ezeka-file-metadata filename t)
+                      (ezeka--update-file-header filename metadata)
+                      metadata))
              (mname (ezeka-format-metadata ezeka-file-name-format mdata))
              (keep-which
               (unless (string= mname base)
