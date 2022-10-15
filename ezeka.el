@@ -1336,7 +1336,7 @@ Zettel link at point or, if there is none, the current buffer. With
     (when file
       (let* ((mdata (ezeka-file-metadata file))
              (title (if arg
-                        (ezeka--link-with-metadata link :title :before mdata)
+                        (ezeka--link-with-metadata link :title :after mdata)
                       (ezeka-format-metadata ezeka-header-rubric-format mdata)
                       (alist-get :title mdata))))
         (kill-new title)
