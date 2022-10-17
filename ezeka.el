@@ -252,13 +252,14 @@ If REGEXP is non-nil, FROM should be a regexp string."
   "Strip the named groups in the given REGEXP."
   (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
 
-(defun ezeka--read-parallel-change (old-string new-string)
-  "Use `read-string' to change OLD-STRING to NEW-STRING, showing them
-in parallel."
-  (read-string
-   (concat "Change: " (propertize old-string 'face 'italic) "\n"
-           "    to: ")
-   new-string nil new-string))
+(defun ezeka--minibuffer-edit-string (old-string &optional new-string)
+  "Edit NEW-STRING in minibuffer, showing it parallel to OLD-STRING.
+If NEW-STRING is nil, default to OLD-STRING."
+  (let ((new-string (or new-string old-string)))
+    (read-string
+     (concat " Original: " (propertize old-string 'face 'italic) "\n"
+             "Change to: ")
+     new-string nil new-string)))
 
 ;; See https://stackoverflow.com/a/65685019
 (defun ezeka--save-buffer-read-only (buffer)
@@ -879,9 +880,9 @@ METADATA. Returns modifed metadata."
           ((or ?c ?u) (setf (alist-get :title metadata) caption))
           ((or ?t ?l) (setf (alist-get :caption metadata) title))
           ((or ?C ?U) (setf (alist-get :title metadata)
-                            (ezeka--read-parallel-change caption caption)))
+                            (ezeka--minibuffer-edit-string caption)))
           ((or ?T ?L) (setf (alist-get :caption metadata)
-                            (ezeka--read-parallel-change title title))))
+                            (ezeka--minibuffer-edit-string title))))
         (setf (alist-get :caption-stable metadata) t)))
     (funcall clear-message-function)
     metadata))
@@ -966,7 +967,7 @@ read only."
                (ezeka--save-buffer-read-only filename))
               ((member keep-which '(?m ?l))
                (ezeka--rename-file
-                filename (ezeka--read-parallel-change base mname))))))))
+                filename (ezeka--minibuffer-edit-string base mname))))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
