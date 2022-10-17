@@ -179,6 +179,14 @@ beginning with #."
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-create-nonexistent-links 'confirm
+  "Determine how to handle links to non-existent notes.
+Possible valus are t (always create), nil (never create), or
+'confirm (ask user)."
+  :type 'symbol
+  :options '(t nil confirm)
+  :group 'ezeka)
+
 (defcustom ezeka-number-of-frames nil
   "Try to use only this many frames. Nil means single frame."
   :type 'symbol
@@ -1168,20 +1176,23 @@ same window."
       (t (find-file-other-frame file)))))
 
 (defun ezeka-find-link (link &optional same-window)
-  "Attempts to find the given Zettel link based on the value of
-`ezeka-number-of-frames'. If SAME-WINDOW is non-NIL, opens the link in
-the same window. Returns T if the link is a Zettel link."
+  "Find the given LINK.
+If SAME-WINDOW is non-NIL, opens the link in the same window. Returns
+T if the link is a Zettel link."
   (when (ezeka-link-p link)
     (let ((existing-file (ezeka-link-file link t 'wild)))
         (cond ((ezeka-note-p existing-file)
                (ezeka-find-file existing-file same-window))
-              ((y-or-n-p "Link doesn't exist. Create? ")
+              ((or (eql ezeka-create-nonexistent-links t)
+                   (and (eql ezeka-create-nonexistent-links 'confirm)
+                        (y-or-n-p "Link doesn't exist. Create? ")))
                (let ((caption (plist-get (assoc-string link ezeka--new-child-plist)
                                          :caption)))
                  (ezeka-find-file (ezeka-link-file link t caption) same-window)
                  (call-interactively #'ezeka-insert-header-template)))
               (t
-               (message "Link to non-existant note"))))))
+               (message "Link doesn't exist")
+               t)))))
 
 (defun ezeka-kill-link-or-sexp-at-point (&optional arg)
   "If there is a Zettel link at point, kill it, including the square
