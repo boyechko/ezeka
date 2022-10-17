@@ -1047,8 +1047,8 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defun ezeka-generate-new-id (type)
-  "Generates a random new ID of the given type."
+(defun ezeka--random-id (type)
+  "Generate a random new ID of the given TYPE."
   (cl-case type
     (:tempus (format-time-string "%Y%m%dT%H%M"))
     (:bolus  (format "%03d-%s"
@@ -1062,41 +1062,37 @@ abase26 equivalent of 0, namely 'a'."
                       (abase26-encode (random 26))))
     (t        (error "Unknown Zettel type"))))
 
-(defun ezeka-next-unused-id (kasten)
-  "Returns the next unused ID for the given KASTEN from `ezeka-kaesten'."
+(defun ezeka--generate-id (kasten)
+  "Return the next unused ID for the given KASTEN."
   (let ((type (ezeka-kasten-id-type kasten))
         id)
-    (cl-flet ((exists? ()
+    (cl-flet ((exists-p ()
                 "Checks if ID is either NIL or exists."
                 (or (null id)
                     (file-exists-p
                      (ezeka-link-file (ezeka-make-link kasten id))))))
-      (cond ((eq type :tempus)
-             (while (exists?)
-               (setq id (ezeka-generate-new-id type))))
-            ((and (eq type :numerus)
-                  (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
-             (unwind-protect
-                 (with-current-buffer
-                     (find-file-noselect
-                      (in-ezeka-dir ezeka-pregenerated-numeri-file))
-                   (let ((left (count-lines (point-min) (point-max))))
-                     (unwind-protect
-                         (while (and (> left 0) (exists?))
-                           (setq id
-                             (string-trim
-                              (delete-and-extract-region
-                               (point-min)
-                               (search-forward-regexp "[[:space:]]" nil t))))
-                           (cl-decf left))
-                       (let ((inhibit-message t))
-                         (basic-save-buffer)))
-                     (message "%d pregenerated numer%s left"
-                              left
-                              (if (= left 1) "us" "i"))))))
-            (t
-             (while (exists?)
-               (setq id (ezeka-generate-new-id type))))))
+      (if (and (eq type :numerus)
+               (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
+          (unwind-protect
+              (with-current-buffer
+                  (find-file-noselect
+                   (in-ezeka-dir ezeka-pregenerated-numeri-file))
+                (let ((left (count-lines (point-min) (point-max))))
+                  (unwind-protect
+                      (while (and (> left 0) (exists-p))
+                        (setq id
+                          (string-trim
+                           (delete-and-extract-region
+                            (point-min)
+                            (search-forward-regexp "[[:space:]]" nil t))))
+                        (cl-decf left))
+                    (let ((inhibit-message t))
+                      (basic-save-buffer)))
+                  (message "%d pregenerated numer%s left"
+                           left
+                           (if (= left 1) "us" "i")))))
+        (while (exists-p)
+          (setq id (ezeka--random-id type)))))
     id))
 
 ;;;=============================================================================
@@ -1132,7 +1128,7 @@ abase26 equivalent of 0, namely 'a'."
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
-                          (ezeka-next-unused-id (ezeka-link-kasten link))))))))
+                          (ezeka--generate-id (ezeka-link-kasten link))))))))
 
 ;;;=============================================================================
 ;;; Zettel Links
@@ -1542,7 +1538,7 @@ created child. Returns link to the new child."
                            (error "No `ezeka-kaesten' defined")))
                       (ezeka-link-kasten parent-link))))
         (setq child-link
-          (ezeka-make-link kasten (ezeka-next-unused-id kasten)))
+          (ezeka-make-link kasten (ezeka--generate-id kasten)))
         (when parent-link
           (add-to-list 'ezeka--new-child-plist
             (list child-link :parent parent-link)))))
@@ -2353,7 +2349,7 @@ NOSELECT is non-nil) the target link and returns it."
                           (ezeka-make-link
                            kasten
                            (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-                             (:numerus (ezeka-next-unused-id kasten))
+                             (:numerus (ezeka--generate-id kasten))
                              (:tempus (ezeka-tempus-currens-id-for source-link))
                              (t
                               (error "Don't know how to handle this")))))))
@@ -2383,7 +2379,7 @@ NOSELECT is non-nil) the target link and returns it."
   (goto-char (point-max))
   (let (ids)
     (dotimes (n how-many)
-      (push (ezeka-generate-new-id type) ids))
+      (push (ezeka--random-id type) ids))
     (mapc (lambda (s)
             (insert s "\n"))
           (delete-dups ids))

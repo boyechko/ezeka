@@ -119,7 +119,7 @@ optinal NUMBER-OF-FRAMES, set the `ezeka-number-of-frames' to that value."
 (defun ezeka-deft-new-unused-note ()
   "Create a new Zettel with unused numerus currens."
   (interactive)
-  (deft-new-file-named (ezeka-next-unused-id)))
+  (deft-new-file-named (ezeka--generate-id)))
 
 (defun ezeka-deft-parse-title-function (line &optional show-missing)
   "Function for post-processing titles for display in Deft buffer, intended
@@ -347,7 +347,7 @@ another window."
    (message "Generating next unused ID of type %s" type)
    (let ((used (mapcar #'ezeka-file-name-id deft-all-files)))
      (while (or (not id) (member id used))
-       (setq id (ezeka-generate-new-id type))))))
+       (setq id (ezeka--random-id type))))))
 
 (defun ezeka-deft--kill-ring-save-link-title ()
   (when (and deft-hash-contents (deft-file-contents file))
@@ -420,7 +420,7 @@ that of FILE2. Case is ignored."
      (defalias 'deft-sort-files-by-title 'ezeka-deft-sort-files-by-name)
      ;; "Shadow" the built-in id generator to generate timestamps by default,
      ;; i.e. when DEFT-NEW-FILE is called (C-c C-n)
-     (defalias 'deft-unused-slug 'ezeka-next-unused-id)))
+     (defalias 'deft-unused-slug 'ezeka--generate-id)))
 
 ;; Having a visual indicator of the sort method is helpful
 (defun ezeka-deft-set-mode-name ()
