@@ -851,6 +851,20 @@ ignoring the value of `ezeka-update-header-modified'."
   (let ((ezeka-update-header-modified 'always))
     (ezeka--update-file-header file)))
 
+(defun ezeka-force-save-buffer (&optional arg)
+  "Save the current buffer, even if it's unmodified.
+With \\[universal-argument] ARG, don't update the modification date."
+  (interactive "P")
+  (let ((ezeka-update-header-modified (if arg
+                                          'never
+                                        ezeka-update-header-modified))
+        (modified (buffer-modified-p)))
+    (unwind-protect
+        (when buffer-file-name
+          (set-buffer-modified-p t)
+          (save-buffer))
+      (set-buffer-modified-p modified))))
+
 ;; There are three different places where files can be captioned or titled:
 ;; 1) The file name itself might contain a caption;
 ;; 2) The rubric in the file header should contain caption matching the
