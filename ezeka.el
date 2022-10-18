@@ -1863,10 +1863,10 @@ traces genealogy further than parent."
                                                 (concat "@" citekey))))))
 
 (defun ezeka-add-keyword (filename keyword &optional arg)
-  "Adds the given KEYWORD to the Zettel note in FILE. With
-\\[universal-argument], clear keywords first."
+  "Add the given KEYWORD to the Zettel note in FILENAME.
+With \\[universal-argument] ARG, clear keywords first."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     (completing-read "Add keyword: " (cons "#" ezeka-keywords) nil nil "#")
+                     (completing-read "Add keyword: " ezeka-keywords nil nil "#")
                      current-prefix-arg))
   (if (not (ezeka-note-p filename))
       (error "Not a Zettel note")
