@@ -1142,6 +1142,10 @@ abase26 equivalent of 0, namely 'a'."
 ;;; Zettel Links
 ;;;=============================================================================
 
+(defvar ezeka--new-child-plist nil
+  "An alist of new children and a plist of their details.
+Plist values are :parent, :title, :label, and :citekey.")
+
 (defun ezeka-link-at-point-p (&optional freeform)
   "Returns non-nil if the thing at point is a wiki link (i.e. [[XXX]]). The
 first group is the link target. If FREEFORM is non-nil, also consider Zettel
@@ -1517,16 +1521,12 @@ ancestor. With a universal argument, ask for confirmation before inserting."
         (ezeka-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
-(defvar ezeka--new-child-plist nil
-  "An alist of new children and a plist of their details (:parent,
-:title, :label, etc.).")
-
 (defun ezeka-insert-new-child (parent &optional arg noselect)
-  "Inserts a link to a new Zettel in the same Kasten as the PARENT,
-which can be a file or a link. With \\[universal-argument] allows the
-user to select a different Kasten. With double \\[universal-argument]
-asks for the full link. If NOSELECT is non-nil, don't visit the
-created child. Returns link to the new child."
+  "Create a new child in the same Kasten as PARENT, inserting its link.
+With \\[universal-argument] ARG, allows the user to select a different
+Kasten. With double \\[universal-argument] asks for the full link. If
+NOSELECT is non-nil, don't visit the created child. Returns link to
+the new child."
   (interactive
    (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
          current-prefix-arg))
@@ -1561,7 +1561,7 @@ created child. Returns link to the new child."
     child-link))
 
 (defun ezeka--possible-new-note-title ()
-  "Returns a possible title for a new Zettel note based on context."
+  "Return a possible title for a new Zettel note based on context."
   (interactive)
   (if (region-active-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
@@ -1576,16 +1576,16 @@ created child. Returns link to the new child."
         "[ +*-]*")))))
 
 (defun ezeka-insert-new-child-with-title (arg title)
-  "Wrapper around `ezeka-insert-new-child' that creates a new child
-with given TITLE (defaults to text before point). Passes the prefix
-argument to `ezeka-insert-new-child'."
-  (interactive (list current-prefix-arg
-                     (read-from-minibuffer "Title for the child: "
-                                           (ezeka--possible-new-note-title))))
+  "Create a new child with given TITLE, inserting its link at point.
+If TITLE is not given, use text on the current line before point.
+Pass the prefix ARG to `ezeka-insert-new-child'."
+  (interactive
+   (list current-prefix-arg
+         (org-trim
+          (read-from-minibuffer "Title for the child: "
+                                (ezeka--possible-new-note-title)))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
-         (citekey (alist-get :citekey
-                    (ezeka-file-metadata buffer-file-name)))
-         (title (org-trim (or title (ezeka--possible-new-note-title))))
+         (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
          (child-link (ezeka-insert-new-child parent-link arg t))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
