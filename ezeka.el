@@ -1371,10 +1371,10 @@ Zettel link at point or, if there is none, the current buffer. With
         (message "Saved [%s] in the kill ring" title)))))
 
 (defun ezeka-kill-ring-save-link (arg)
-  "Save the Zettel link at point or the buffer base filename in the kill ring
-to be used as a wiki link elsewhere. With prefix argument, save the file name
-relative to `ezeka-directory' instead. With two prefix arguments, open the
-file in Finder with it selected."
+  "Save in kill ring the Zettel link at point or in Zettel buffer.
+With \\[universal-argument] ARG, save the file name relative to
+`ezeka-directory' instead. With two prefix arguments, open the file in
+Finder with it selected."
   (interactive "p")
   (let ((file (ezeka--grab-dwim-file-target t)))
     (when file
