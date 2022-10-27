@@ -1748,15 +1748,26 @@ first."
       (completing-read prompt categories))))
 
 (defun ezeka--read-genus (&optional prompt verbose default)
-  "Read a genus, a single Latin character as defined in
-`ezeka-genera'. Returns a string containing the genus letter. If
-VERBOSE is non-nil, show a list of choices with explantions. DEFAULT
-is the genus used if user just presses [return]."
+  "Read a genus as defined in `ezeka-genera'.
+Return a string containing the genus letter. If PROMPT is non-nil, use
+that prompt instead of the default. If VERBOSE is non-nil, show a list
+of choices with explantions. DEFAULT is the genus used if user just
+presses [return]."
   (let (item)
     (while (null item)
       (let ((result
              (if verbose
-                 (completing-read (or prompt "Genus: ") ezeka-genera nil t)
+                 (let ((table (mapcar (lambda (genus)
+                                        (cl-destructuring-bind (lt gk desc)
+                                            genus
+                                          (cons
+                                           (format "%s (%s) -- %s"
+                                                   lt gk desc)
+                                           lt)))
+                                      ezeka-genera)))
+                   (cdr (assoc-string (completing-read (or prompt "Genus: ")
+                                                       table nil t)
+                                  table)))
                (read-char
                 (concat (or prompt "Genus")
                         " (Latin character, or RETURN for \"" (or default "x")
