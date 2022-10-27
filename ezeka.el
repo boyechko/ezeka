@@ -1352,19 +1352,18 @@ link itself."
         (gui-set-selection 'CLIPBOARD backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
 
-(defun ezeka-kill-ring-save-link-title (arg)
-  "Save the title to the kill ring and system clipboard of either the
-Zettel link at point or, if there is none, the current buffer. With
-\\[universal-argument], also includes the link."
+(defun ezeka-kill-ring-save-link-and-title (arg)
+  "Save the link and title to kill ring and system clipboard.
+If the point is at Zettel link, use that; otherwise, the current
+buffer. With \\[universal-argument] ARG, save just the title."
   (interactive "P")
   (let* ((file (ezeka--grab-dwim-file-target))
          (link (ezeka-file-link file)))
     (when file
       (let* ((mdata (ezeka-file-metadata file))
              (title (if arg
-                        (ezeka--link-with-metadata link :title :after mdata)
-                      (ezeka-format-metadata ezeka-header-rubric-format mdata)
-                      (alist-get :title mdata))))
+                        (alist-get :title mdata)
+                      (ezeka--link-with-metadata link :title :after mdata))))
         (kill-new title)
         (unless select-enable-clipboard
           (gui-set-selection 'CLIPBOARD title))
@@ -2489,7 +2488,7 @@ NOSELECT is non-nil) the target link and returns it."
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
-            ("C-c /" . ezeka-kill-ring-save-link-title)
+            ("C-c /" . ezeka-kill-ring-save-link-and-title)
             ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
