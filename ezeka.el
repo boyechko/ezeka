@@ -871,7 +871,8 @@ With \\[universal-argument] ARG, don't update the modification date."
         (when buffer-file-name
           (set-buffer-modified-p t)
           (save-buffer))
-      (set-buffer-modified-p modified))))
+      (set-buffer-modified-p modified))
+    (set-buffer-modified-p nil)))
 
 ;; There are three different places where files can be captioned or titled:
 ;; 1) The file name itself might contain a caption;
