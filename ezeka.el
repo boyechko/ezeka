@@ -170,6 +170,10 @@ modification."
   "Return absolute path to RELATIVE-PATH in the Zettel directory."
   (expand-file-name (or relative-path "") ezeka-directory))
 
+(defun ezeka--match-entire (regexp)
+  "Wrap the REGEXP in ^...$ to match the entire string."
+  (concat "^" (string-trim regexp "^" "$") "$"))
+
 (defun space-or-punct-p (character)
   "Return T if the CHARACTER is a space or punctuation."
   (when character
@@ -457,9 +461,9 @@ non-NIL, don't signal an error if the link is invalid."
   "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
 Return nil if neither of these ID types are matched."
   (let ((id (file-name-base id-or-file)))
-    (cond ((string-match (ezeka--id-regexp :tempus) id)
+    (cond ((string-match (ezeka--match-entire (ezeka--id-regexp :tempus)) id)
            :tempus)
-          ((string-match (ezeka--id-regexp :numerus) id)
+          ((string-match (ezeka--match-entire (ezeka--id-regexp :numerus)) id)
            :numerus)
           (t
            ;; Anything else is not a Zettel
