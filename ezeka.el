@@ -700,6 +700,8 @@ symbol."
 (defun ezeka--header-deyamlify-value (value)
   "Returns an elisp version of the given YAML-formatted VALUE."
   (pcase value
+    ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
+     inside)
     ((rx bol "[" (let inside (1+ anychar)) "]" eol)
      (split-string inside "," t "[[:space:]]+"))
     (_
