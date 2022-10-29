@@ -1525,6 +1525,17 @@ ancestor. With a universal argument, ask for confirmation before inserting."
         (ezeka-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
+(defun ezeka--generate-new-child (parent &optional kasten)
+  "Generate a new child in the same Kasten as PARENT link.
+If KASTEN is given, use that kasten instead. Return link to the new
+child."
+  (let* ((kasten (or kasten (ezeka-link-kasten parent)))
+         (child-link (ezeka-make-link kasten (ezeka--generate-id kasten))))
+    (when parent
+      (add-to-list 'ezeka--new-child-plist
+        (list child-link :parent parent)))
+    child-link))
+
 (defun ezeka-insert-new-child (parent &optional arg noselect)
   "Create a new child in the same Kasten as PARENT, inserting its link.
 With \\[universal-argument] ARG, allows the user to select a different
@@ -1552,11 +1563,7 @@ the new child."
                              (mapcar #'car ezeka-kaesten)
                            (error "No `ezeka-kaesten' defined")))
                       (ezeka-link-kasten parent-link))))
-        (setq child-link
-          (ezeka-make-link kasten (ezeka--generate-id kasten)))
-        (when parent-link
-          (add-to-list 'ezeka--new-child-plist
-            (list child-link :parent parent-link)))))
+        (setq child-link (ezeka--generate-new-child parent kasten))))
     ;; Don't worry if insert fails
     (ignore-errors
       (insert (ezeka-org-format-link child-link)))
@@ -1590,11 +1597,10 @@ Pass the prefix ARG to `ezeka-insert-new-child'."
                                 (ezeka--possible-new-note-title)))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
          (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
-         (child-link (ezeka-insert-new-child parent-link arg t))
+         (child-link (ezeka-insert-new-child parent-link '(4) t))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
-          (plist-put (plist-put plist :citekey citekey)
-                     :title title))
+          (plist-put (plist-put plist :citekey citekey) :title title))
     (ezeka-find-link child-link)))
 
 ;;;=============================================================================
