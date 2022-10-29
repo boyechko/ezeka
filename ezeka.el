@@ -28,6 +28,8 @@
 ;; This package provides a very personalized implementation of Zettelkasten
 ;; relying on Org, Deft (now moved to ezeka-deft.el) that began on 2015-06-31.
 
+;;; Code:
+
 (require 'org)
 (require 'format-spec)
 
@@ -35,37 +37,24 @@
 ;;; Internal Variables
 ;;;=============================================================================
 
-(defun in-ezeka-dir (&optional relative-path)
-  "Returns absolute pathname of the given pathspec relative to
-the Zettel directory."
-  (expand-file-name (or relative-path "") ezeka-directory))
-
-;; FIXME: temporary
-(defvar ezeka-regexp-bolus-currens
-  "\\([0-9]\\{3\\}\\)-\\([a-z]\\{3\\}\\)"
-  "The regular expression that matches bolus currens like abc-123.")
-
 (defvar ezeka-regexp-numerus-currens
   "\\([a-z]\\)-\\([0-9]\\{4\\}\\)"
   "The regular expression that matches numerus currens like d-0503.")
 
 (defvar ezeka-regexp-tempus-currens
   "\\([0-9]\\{4\\}\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)T\\([0-9][0-9]\\)\\([0-9][0-9]\\)"
-  "The regular expression that matches the basic (but not extended) ISO 8601
-timestamp.
+  "The regular expression matching just the basic ISO 8601 timestamp.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour, minute.")
 
 ;; FIXME: Is this or the individually-named variables redundant?
 (defvar ezeka-id-type-regexp-alist
-  `((:bolus   . ,ezeka-regexp-bolus-currens) ; FIXME: temporary
-    (:numerus . ,ezeka-regexp-numerus-currens)
+  `((:numerus . ,ezeka-regexp-numerus-currens)
     (:tempus  . ,ezeka-regexp-tempus-currens))
   "An alist of type and its regular expressions for the various ID types.")
 
 (defvar ezeka-id-type-example-alist
-  '((:bolus   . "123-abc") ; FIXME: temporary
-    (:numerus . "a-1234")
+  '((:numerus . "a-1234")
     (:tempus  . "20210123T1234"))
   "An alist of type and an example of what it looks like for the various ID
 types.")
@@ -76,9 +65,6 @@ types.")
           (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-numerus-currens)
           "\\|"
           (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-tempus-currens)
-          ;; FIXME: temporary
-          "\\|"
-          (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-bolus-currens)
           "\\)")
   "A generalized regexp that matches any ID, whatever its ID type.")
 
@@ -135,7 +121,6 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   ;; name | directory | ID type | list-order
   `(("os"         :tempus  1)
     ("rumen"      :numerus 2)
-    ("esophagus"  :bolus   3)
     ("omasum"     :tempus  4)
     ("abomasum"   :tempus  5)
     ("rectum"     :tempus  6)
@@ -154,7 +139,6 @@ the actual name followed by the alias."
 (defcustom ezeka-default-kasten
   ;; ID type | kasten name
   `((:numerus . "rumen")
-    (:bolus . "esophagus")              ; FIXME: temporary
     (:tempus . "omasum"))
   "An alist of default Kasten (i.e. not requiring fully qualified link) for
 each ID type."
@@ -211,6 +195,10 @@ modification."
 ;;;=============================================================================
 ;;; General Functions
 ;;;=============================================================================
+
+(defun in-ezeka-dir (&optional relative-path)
+  "Return absolute path to RELATIVE-PATH in the Zettel directory."
+  (expand-file-name (or relative-path "") ezeka-directory))
 
 (defun space-or-punct-p (character)
   "Return T if the CHARACTER is a space or punctuation."
@@ -462,9 +450,7 @@ specified, asks the user to resolve the ambiguity."
   "Returns the relative subdirectory for the given ID, a string."
   (cl-case (ezeka-id-type id)
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
-    (:tempus (file-name-as-directory (match-string 1 id)))
-    (:bolus (file-name-as-directory
-             (format "%c00-%c99" (elt id 0) (elt id 0))))))
+    (:tempus (file-name-as-directory (match-string 1 id)))))
 
 (defun ezeka-link-file (link &optional noerror rubric)
   "Return a full file path to the Zettel LINK. If RUBRIC is nil (so
@@ -506,9 +492,6 @@ match data after matching against the appropriate ID type regexp."
            :tempus)
           ((string-match ezeka-regexp-numerus-currens id)
            :numerus)
-          ;; FIXME: Temporary
-          ((string-match ezeka-regexp-bolus-currens id)
-           :bolus)
           (t
            ;; Anything else is not a Zettel
            nil))))
@@ -1062,9 +1045,6 @@ abase26 equivalent of 0, namely 'a'."
   "Generate a random new ID of the given TYPE."
   (cl-case type
     (:tempus (format-time-string "%Y%m%dT%H%M"))
-    (:bolus  (format "%03d-%s"
-                     (random 1000)
-                     (abase26-encode (random (expt 26 3)) 3)))
     (:numerus (format "%s-%04d"
                       (abase26-encode (random 26))
                       (random 10000)))
