@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015-2022 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "25.1") (org "9.5"))
 ;; Keywords: zettelkasten org
 ;; URL: https://github.com/boyechko/ezeka
@@ -37,27 +37,27 @@
 ;;; Internal Variables
 ;;;=============================================================================
 
+(defvar ezeka-id-type-regexp-alist
+  (let ((numerus "\\([a-z]-[0-9]\\{4\\}\\)")
+        (tempus "\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)"))
+    `((:numerus . ,numerus)
+      (:tempus  . ,tempus)
+      (:all     . ,(concat "\\(" numerus "\\|" tempus "\\)"))))
+  "An alist of regexps for :NUMERUS, :TEMPUS, and :ALL IDs.
+The regexps should not use explicitly numbered groups.")
+
 (defvar ezeka-regexp-numerus-currens
-  "\\([a-z]\\)-\\([0-9]\\{4\\}\\)"
+  (alist-get :numerus ezeka-id-type-regexp-alist)
   "The regular expression that matches numerus currens like d-0503.")
 
 (defvar ezeka-regexp-tempus-currens
-  "\\([0-9]\\{4\\}\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)T\\([0-9][0-9]\\)\\([0-9][0-9]\\)"
-  "The regular expression matching just the basic ISO 8601 timestamp.
-Groups 1-3 are year, month, day.
-Groups 4-5 are hour, minute.")
-
-;; FIXME: Is this or the individually-named variables redundant?
-(defvar ezeka-id-type-regexp-alist
-  `((:numerus . ,ezeka-regexp-numerus-currens)
-    (:tempus  . ,ezeka-regexp-tempus-currens))
-  "An alist of type and its regular expressions for the various ID types.")
+  (alist-get :tempus ezeka-id-type-regexp-alist)
+  "The regular expression matching just the basic ISO 8601 timestamp.")
 
 (defvar ezeka-id-type-example-alist
   '((:numerus . "a-1234")
     (:tempus  . "20210123T1234"))
-  "An alist of type and an example of what it looks like for the various ID
-types.")
+  "An alist of ID type and an example of what it looks like.")
 
 (defvar ezeka-regexp-id
   ;; Strip the groups in the component regexps
