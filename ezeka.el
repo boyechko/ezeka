@@ -100,18 +100,13 @@ Zettel in rumen when Emacs cannot check the list of existing files.")
   :type 'alist
   :group 'ezeka)
 
-(defcustom ezeka-kaesten-aliases nil
-  "An alist of any other aliases for the `ezeka-kaesten'. This is an alist of
-the actual name followed by the alias."
-  :type 'alist
-  :group 'ezeka)
-
 (defcustom ezeka-default-kasten
   ;; ID type | kasten name
   `((:numerus . "rumen")
     (:tempus . "omasum"))
-  "An alist of default Kasten (i.e. not requiring fully qualified link) for
-each ID type."
+  "Alist of default Kasten for each ID type.
+The default Kasten is one that does not require fully qualified
+links."
   :type 'alist
   :group 'ezeka)
 
@@ -286,24 +281,19 @@ of these conditions are met:
                t))))))
 
 (defun ezeka-kasten-directory (kasten)
-  "Returns the directory of the given KASTEN."
+  "Return the directory of the given KASTEN."
   (if (assoc kasten ezeka-kaesten)
-      (file-name-as-directory (in-ezeka-dir (ezeka-kasten-truename kasten)))
+      (file-name-as-directory (in-ezeka-dir kasten))
     (error "Unknown Kasten: %s" kasten)))
 
 (defun ezeka-directory-kasten (directory)
-  "Returns the kasten name of the given Zettel directory."
+  "Return the kasten name of the given Zettel DIRECTORY."
   ;; FIXME: This is a hack that would not work if Kasten names don't match the
   ;; directory name.
   (file-name-base (directory-file-name directory)))
 
-(defun ezeka-kasten-truename (kasten)
-  "Returns the true name of the given KASTEN."
-  (or (cdr (assoc kasten ezeka-kaesten-aliases))
-      (car (assoc kasten ezeka-kaesten))))
-
 (defun ezeka-file-name-valid-p (filename)
-  "Returns non-nil if the given FILENAME is a valid Zettel filename."
+  "Return non-nil if FILENAME is a valid Zettel filename."
   (save-match-data
    (string-match ezeka-file-name-regexp (file-name-base filename))))
 
@@ -337,21 +327,21 @@ FILENAME."
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun ezeka-file-kasten (file &optional noerror)
-  "Returns the Kasten of the given Zettel file. If NOERROR is non-nil,
-simply returns nil if cannot figure out the Kasten."
+  "Return the Kasten of the given Zettel FILE.
+If NOERROR is non-nil, simply returns nil if cannot figure out the Kasten."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
     (cond ((assoc (car dirs) ezeka-kaesten)
-           (ezeka-kasten-truename (car dirs)))
+           (car dirs))
           ((assoc (cadr dirs) ezeka-kaesten)
-           (ezeka-kasten-truename (cadr dirs)))
+           (cadr dirs))
           (t
            (unless noerror
              (error "Can't figure out kasten for %s" file))))))
 
 (defun ezeka-file-link (file &optional noerror)
-  "Given the path to a Zettel FILE, returns a fully qualified link to
-it. If NOERROR is non-nil, do not signal an error if cannot figiure
-out a proper link, just return nil."
+  "Return a fully qualified link to FILE.
+If NOERROR is non-nil, do not signal an error if cannot figiure out a
+proper link, just return nil."
   (let ((kasten (ezeka-file-kasten file noerror))
         (id (ezeka-file-name-id file)))
     (cond ((or (null kasten) (null id))
@@ -363,13 +353,12 @@ out a proper link, just return nil."
            (concat kasten ":" (ezeka-file-name-id file))))))
 
 (defun ezeka-link-p (string)
-  "Returns non-NIL if the string could be a link to a Zettel."
+  "Return non-NIL if the STRING could be a link to a Zettel."
   (and (stringp string)
        (string-match (concat "^" ezeka-regexp-link "$") string)
        ;; If kasten is specified, make sure it's a valid one
-       (if (match-string-no-properties 2 string)
-           (or (assoc (match-string-no-properties 2 string) ezeka-kaesten)
-               (assoc (match-string-no-properties 2 string) ezeka-kaesten-aliases))
+       (if-let ((kasten (match-string-no-properties 2 string)))
+           (assoc kasten ezeka-kaesten)
          t)))
 
 (defun ezeka-link-kasten (link)
