@@ -70,8 +70,7 @@ Groups 1-3 are year, month, day.
 Groups 4-5 are hour and minute.")
 
 (defvar ezeka-pregenerated-numeri-file "auto/unused-numeri.dat"
-  "List of unused numri curentes to use for creating new numerus currens
-Zettel in rumen when Emacs cannot check the list of existing files.")
+  "File containing a list of unused numeri currentes.")
 
 ;;;=============================================================================
 ;;; User Variables
@@ -118,13 +117,13 @@ links."
 (defcustom ezeka-genera nil
   "An alist of genera used for numerus currens Zettel.
 Each element should be in the form
-(LATIN-LETTER GENUS DESCRIPTION)"
+\(LATIN-LETTER GENUS DESCRIPTION)"
   :type 'list
   :group 'ezeka)
 
 (defcustom ezeka-keywords nil
-  "A list of frequently-used keywords. Each element should be a string
-beginning with #."
+  "A list of frequently-used keywords.
+Each element should be a string beginning with #."
   :type 'list
   :group 'ezeka)
 
@@ -143,16 +142,15 @@ Possible valus are t (always create), nil (never create), or
   :group 'ezeka)
 
 (defcustom ezeka-update-header-modified t
-  "Determines whether `ezeka--update-file-header' updates the
-modification date. Possible choices are ALWAYS, SAMEDAY, NEVER, or
-CONFIRM (same as T)."
+  "Whether `ezeka--update-file-header' updates the modification date.
+Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
   :type 'symbol
   :group 'ezeka)
 
 (defcustom ezeka-save-after-metadata-updates 'confirm
-  "Determines whether `ezeka-set-label', `ezeka-set-title', and
-`ezeka-set-citekey' will automatically save the file after
-modification."
+  "Whether to automatically save the file after modification.
+Functions affected are `ezeka-set-label', `ezeka-set-title', and
+`ezeka-set-citekey'."
   :type 'symbol
   :options '(nil t confirm)
   :group 'ezeka)
@@ -176,8 +174,8 @@ modification."
 
 ;; TODO: More extensible way to do this without invoking other modes?
 (defun ezeka--grab-dwim-file-target (&optional link-at-point)
-  "Returns the do-what-I-mean Zettel file from a variety of modes. If
-LINK-AT-POINT is non-nil, prioritize such a link if exists."
+  "Return the do-what-I-mean Zettel file from a variety of modes.
+If LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point) t))
         ((and buffer-file-name
@@ -197,12 +195,9 @@ LINK-AT-POINT is non-nil, prioritize such a link if exists."
          (zk--select-file))))           ; FIXME: zk
 
 (defun ezeka--replace-pairs-in-string (replacements string)
-  "Replace pairs in the REPLACEMENTS alist in STRING. Each item in
-REPLACEMENTS should have the form
-
-(FROM TO REGEXP)
-
-If REGEXP is non-nil, FROM should be a regexp string."
+  "Replace pairs in the REPLACEMENTS alist in STRING.
+Each item in REPLACEMENTS should have the form (FROM TO REGEXP). If
+REGEXP is non-nil, FROM should be a regexp string."
   (save-match-data
     (dolist (recipe replacements string)
       (setq string
@@ -237,8 +232,8 @@ and therefore preventing hooks from running."
     (read-only-mode 0)))
 
 (defun ezeka--rename-file (filename newname)
-  "Rename the given FILENAME to NEWNAME. If NEWNAME is relative, fill
-missing values from FILENAME."
+  "Rename the given FILENAME to NEWNAME.
+If NEWNAME is relative, fill missing values from FILENAME."
   (let ((newname (if (file-name-absolute-p newname)
                      newname
                    (expand-file-name
@@ -258,8 +253,8 @@ missing values from FILENAME."
 ;;;=============================================================================
 
 (defun ezeka-note-p (file-or-buffer &optional strict)
-  "Returns non-NIL if the file or buffer is a Zettel. It is a Zettel if all
-of these conditions are met:
+  "Return non-NIL if the FILE-OR-BUFFER is a Zettel.
+It is a Zettel if all of these conditions are met:
 1) its extension is `ezeka-file-extension';
 2) its filename matches `ezeka-file-name-regexp'; and, if STRICT is non-NIL,
 3) the file exists;
@@ -459,8 +454,8 @@ Return nil if neither of these ID types are matched."
            nil))))
 
 (defun ezeka-encode-iso8601-datetime (string)
-  "Returns the internal encoded time given the ISO8601 date/time
-expression, with or without time."
+  "Return the internal encoded time corresponding to STRING.
+STRING should be an ISO8601 date/time expression, with or without time."
   (let ((second 0) (minute 0) (hour 0) day month year)
     (when (string-match (concat "^" ezeka-regexp-iso8601-date) string)
       (setq year  (string-to-number (match-string 1 string))
@@ -473,9 +468,9 @@ expression, with or without time."
       (encode-time second minute hour day month year))))
 
 (defun ezeka-file-content (file &optional header-only noerror)
-  "Returns the content of the FILE, getting it either from an opened buffer
-or the file itself. If NOERROR is non-NIL, don't signal an error if cannot
-get the content. If HEADER-ONLY is non-nil, only get the header."
+  "Return content of FILE, getting it first from opened buffer.
+If NOERROR is non-NIL, don't signal an error if cannot get the
+content. If HEADER-ONLY is non-nil, only get the header."
   (cl-flet ((retrieve-content ()
               "Get the content from `current-buffer'."
               (widen)
