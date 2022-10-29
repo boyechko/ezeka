@@ -445,13 +445,16 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
          (with-links (let ((zk-directory ezeka-directory))
                        (zk--grep-file-list
                         (format "(parent: %s|%s\\]\\])" link link) t)))
-         (change-to (or change-to
-                        (when-let* ((parent (alist-get :parent mdata)))
-                          (if (file-exists-p (ezeka-link-file parent))
-                              parent
-                            (message "%s's parent doesn't exist: %s"
-                                     (ezeka-file-link file)
-                                     parent)))))
+         (change-to
+          (or change-to
+              (when (> (length with-links) 0)
+               (if-let* ((parent (alist-get :parent mdata))
+                         (exists (file-exists-p (ezeka-link-file parent))))
+                   parent
+                 (read-string (concat link "has no parent or it doesn't exist, "
+                                      "replace " (length with-links) " link(s) "
+                                      "with what? ")
+                              (concat "{{" link "}}"))))))
          (count 0))
     (ezeka-zk-replace-links link change-to)
     (when (y-or-n-p (format "Really delete %s %s? "
