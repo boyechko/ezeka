@@ -540,4 +540,39 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
       (when arg
         (kill-buffer-if-not-modified buf)))))
 
+;;;=============================================================================
+;;; Advice
+;;;=============================================================================
+
+(defun adv--backlinks-in-entire-ezeka (func &rest args)
+  "Advice around `zk-backlinks' to look in entire `ezeka-directory'.
+Achieves this by lexically binding binding `zk-directory' and calling
+the original FUNC with ARGS."
+  (let ((zk-directory ezeka-directory))
+    (apply func args)))
+(advice-add 'zk-backlinks :around 'adv--backlinks-in-entire-ezeka)
+
+(defun adv--zk-group-function (file transform)
+  "Replace `zk--group-function' to better TRANSFORM the given FILE.
+See `zk--group-function' for details."
+  (if transform
+      (if (string-match (zk-file-name-regexp) file)
+          (match-string 2 file))
+    "zk"))
+(advice-add 'zk--group-function :override 'adv--zk-group-function)
+
+(defun ezeka-zk-file-name-regexp ()
+  "Return the correct regexp matching zk file names.
+Unlike `zk-file-name-regexp', the space and title after it are
+optional. The regexp captures these groups:
+
+Group 1 is the zk ID.
+Group 2 is the title."
+  (concat "\\(?1:" zk-id-regexp "\\)"
+          "\\(?: \\(?2:.*\\)\\)*"
+          "\\."
+          zk-file-extension
+          ".*"))
+(defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
+
 (provide 'ezeka-zk)
