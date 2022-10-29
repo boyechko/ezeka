@@ -41,7 +41,7 @@
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
   `(let ((zk-directory (ezeka-kasten-directory ,kasten))
-         (zk-id-regexp (alist-get :all ezeka-id-type-regexp-alist)))
+         (zk-id-regexp (ezeka--id-regexp :all)))
      (cl-progv '(zk-id-time-string-format
                  zk-file-name-id-only)
          (if (eq (ezeka-kasten-id-type ,kasten) :numerus)
@@ -55,7 +55,7 @@
 (defun ezeka-zk-initialize-kasten (kasten)
   "Set necessary variables for long-term work in KASTEN."
   (setq zk-directory (ezeka-kasten-directory kasten)
-        zk-id-regexp (alist-get :all ezeka-id-type-regexp-alist))
+        zk-id-regexp (ezeka--id-regexp :all))
   (if (eq (ezeka-kasten-id-type kasten) :numerus)
       (setq zk-id-time-string-format
             (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))

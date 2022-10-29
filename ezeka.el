@@ -37,43 +37,18 @@
 ;;; Internal Variables
 ;;;=============================================================================
 
-(defvar ezeka-id-type-regexp-alist
+(defun ezeka--id-regexp (type)
+  "Return the regexp for the given ID TYPE (:numerus, :tempus, or :all)."
   (let ((numerus "\\([a-z]-[0-9]\\{4\\}\\)")
         (tempus "\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)"))
-    `((:numerus . ,numerus)
-      (:tempus  . ,tempus)
-      (:all     . ,(concat "\\(" numerus "\\|" tempus "\\)"))))
-  "An alist of regexps for :NUMERUS, :TEMPUS, and :ALL IDs.
-The regexps should not use explicitly numbered groups.")
-
-(defvar ezeka-regexp-numerus-currens
-  (alist-get :numerus ezeka-id-type-regexp-alist)
-  "The regular expression that matches numerus currens like d-0503.")
-
-(defvar ezeka-regexp-tempus-currens
-  (alist-get :tempus ezeka-id-type-regexp-alist)
-  "The regular expression matching just the basic ISO 8601 timestamp.")
-
-(defvar ezeka-regexp-id
-  ;; Strip the groups in the component regexps
-  (concat "\\("
-          (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-numerus-currens)
-          "\\|"
-          (replace-regexp-in-string "\\\\[()]" "" ezeka-regexp-tempus-currens)
-          "\\)")
-  "A generalized regexp that matches any ID, whatever its ID type.")
+    (cl-case type
+      (:numerus numerus)
+      (:tempus  tempus)
+      (:all     (concat "\\(" numerus "\\|" tempus "\\)")))))
 
 (defvar ezeka-regexp-link
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" ezeka-regexp-id "\\)")
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" (ezeka--id-regexp :all) "\\)")
   "The regular expression that matches Zettel links.
-
-Group 1 is the ID.
-Group 2 is the kasten, if specified.")
-
-(defvar ezeka-regexp-link-simplified
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:[0-9a-zT-]+\\)")
-  "The regular expression that matches Zettel links but without matching
-`ezeka-regexp-id' precisely.
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified.")
@@ -433,8 +408,7 @@ specified, asks the user to resolve the ambiguity."
   (let ((id-type (ezeka-kasten-id-type kasten)))
     (cond ((not id-type)
            (error "Unknown kasten: %s" kasten))
-          ((not
-            (string-match-p (alist-get id-type ezeka-id-type-regexp-alist) id))
+          ((not (string-match-p (ezeka--id-regexp id-type) id))
            (error "ID doesn't match the ID type for %s kasten" kasten))
           ((rassoc kasten ezeka-default-kasten)
            id)
@@ -480,12 +454,12 @@ non-NIL, don't signal an error if the link is invalid."
         (error "Link not valid: %s" link))))
 
 (defun ezeka-id-type (id-or-file)
-  "Returns the type of the given ID or file: :NUMERUS or :TEMPUS. Modifies
-match data after matching against the appropriate ID type regexp."
+  "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
+Return nil if neither of these ID types are matched."
   (let ((id (file-name-base id-or-file)))
-    (cond ((string-match ezeka-regexp-tempus-currens id)
+    (cond ((string-match (ezeka--id-regexp :tempus) id)
            :tempus)
-          ((string-match ezeka-regexp-numerus-currens id)
+          ((string-match (ezeka--id-regexp :numerus) id)
            :numerus)
           (t
            ;; Anything else is not a Zettel
