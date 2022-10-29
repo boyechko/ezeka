@@ -223,13 +223,13 @@ If NEW-STRING is nil, default to OLD-STRING."
 
 ;; See https://stackoverflow.com/a/65685019
 (defun ezeka--save-buffer-read-only (buffer)
-  "Save the given BUFFER after enabling `read-only-mode'
-and therefore preventing hooks from running."
-  (if buffer-read-only
+  "Save the given BUFFER without running hooks."
+  (with-current-buffer (buffer)
+    (if buffer-read-only
+        (save-buffer)
+      (read-only-mode 1)
       (save-buffer)
-    (read-only-mode 1)
-    (save-buffer)
-    (read-only-mode 0)))
+      (read-only-mode 0))))
 
 (defun ezeka--rename-file (filename newname)
   "Rename the given FILENAME to NEWNAME.
