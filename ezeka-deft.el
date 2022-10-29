@@ -146,7 +146,8 @@ the missing metadata is explicitly displayed."
              (alist-get (or (ezeka-id-type (alist-get :id metadata))
                             (ezeka-kasten-id-type ezeka-deft-active-kasten)
                             :tempus)    ; assume longest
-                        ezeka-id-type-example-alist)))
+                        '((:numerus . "a-1234")
+                          (:tempus  . "20210123T1234")))))
            (CAT-LEN 12)
            (KEY-LEN 10)
            ;; ID---CATEGORY---CITEKEY---TITLE [where --- is tab]

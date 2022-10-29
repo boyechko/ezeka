@@ -54,11 +54,6 @@ The regexps should not use explicitly numbered groups.")
   (alist-get :tempus ezeka-id-type-regexp-alist)
   "The regular expression matching just the basic ISO 8601 timestamp.")
 
-(defvar ezeka-id-type-example-alist
-  '((:numerus . "a-1234")
-    (:tempus  . "20210123T1234"))
-  "An alist of ID type and an example of what it looks like.")
-
 (defvar ezeka-regexp-id
   ;; Strip the groups in the component regexps
   (concat "\\("
