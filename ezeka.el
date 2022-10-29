@@ -212,10 +212,10 @@ modification."
 ;;; General Functions
 ;;;=============================================================================
 
-(defun space-or-punct-p (char)
-  "Returns T if the character is a space or punctuation."
-  (when char
-    (string-match-p "[[:space:][:punct:]]" (char-to-string char))))
+(defun space-or-punct-p (character)
+  "Return T if the CHARACTER is a space or punctuation."
+  (when character
+    (string-match-p "[[:space:][:punct:]]" (char-to-string character))))
 
 ;; TODO: More extensible way to do this without invoking other modes?
 (defun ezeka--grab-dwim-file-target (&optional link-at-point)
@@ -1246,9 +1246,10 @@ at place WHERE (:before by default) in relation to the LINK."
               ""))))
 
 (defun ezeka-insert-link-with-metadata (link &optional field where confirm)
-  "Inserts the Zettel link, optionally adding a metadata FIELD put
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION). If CONFIRM is non-NIL,
-ask for confirmation before inserting metadata."
+  "Insert the Zettel LINK, optionally adding a metadata FIELD.
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where the field
+is added. If CONFIRM is non-NIL, ask for confirmation before inserting
+metadata."
   (let* ((field (or field
                     (when (called-interactively-p 'any)
                       (intern-soft
@@ -1298,8 +1299,9 @@ already inside a link, replace it instead."
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-to-other-window (arg)
-  "Like `ezeka-insert-link' but adds the link to file in the other
-window. With \\[universal-argument], insert just the link."
+  "Insert the link to the Zettel note in the other window.
+With \\[universal-argument] ARG, insert just the link, otherwise also
+include the title."
   (interactive "P")
   (let ((other-buf (window-buffer (other-window-for-scrolling))))
     (when-let* ((file (or (buffer-file-name other-buf)
