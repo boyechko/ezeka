@@ -31,32 +31,25 @@
 (require 'zk)
 (require 'zk-index)
 
-;; For these avariables to be treated as dynamic in `ezeka-zk-index-choose-kasten',
-;; need to declare them first here.
+;; For these avariables to be treated as dynamic, need to declare them first
+;; here.
 (defvar zk-directory)
 (defvar zk-id-regexp)
 (defvar zk-id-format)
 
 (defmacro ezeka-zk-with-kasten (kasten &rest body)
+  "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
-  `(let ((zk-directory (ezeka-kasten-directory ,kasten)))
-     (cl-progv '(zk-id-regexp
-                 zk-id-time-string-format
+  `(let ((zk-directory (ezeka-kasten-directory ,kasten))
+         (zk-id-regexp (alist-get :all ezeka-id-type-regexp-alist)))
+     (cl-progv '(zk-id-time-string-format
                  zk-file-name-id-only)
-         (cl-case (ezeka-kasten-id-type ,kasten)
-           (:numerus
-            '("[a-z]-[0-9]\\{4\\}"
-              ,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
-                       "-%H%M")
-              nil))
-           (:bolus
-            '("[0-9]\\{3\\}-[a-z]\\{3\\}"
-              ,(concat (downcase (format-time-string "%a")) "-%j")
-              t))
-           (t
-            '("[0-9]\\{8\\}T[0-9]\\{4\\}"
-              "%Y%m%dT%H%M"
-              t)))
+         (if (eq (ezeka-kasten-id-type ,kasten) :numerus)
+             '(,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
+                        "-%H%M")
+               nil)
+           '("%Y%m%dT%H%M"
+             t))
        ,@body)))
 
 (defun ezeka-zk-initialize-kasten (kasten)
