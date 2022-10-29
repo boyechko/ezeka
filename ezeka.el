@@ -46,25 +46,25 @@
       (:tempus  tempus)
       (:all     (concat "\\(" numerus "\\|" tempus "\\)")))))
 
-(defvar ezeka-regexp-link
+(defvar ezeka-link-regexp
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" (ezeka--id-regexp :all) "\\)")
   "The regular expression that matches Zettel links.
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified.")
 
-(defvar ezeka-regexp-iso8601-date
+(defvar ezeka-iso8601-date-regexp
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
   "The regular expression that matches ISO 8601-like date.
 Groups 1-3 are year, month, day.")
 
-(defvar ezeka-regexp-iso8601-time
+(defvar ezeka-iso8601-time-regexp
   "T*\\([0-9]\\{2\\}\\):*\\([0-9]\\{2\\}\\)\\>"
   "The regular expression that matches ISO 8601-like time.
 Groups 1-2 are hour and minute.")
 
-(defvar ezeka-regexp-iso8601-datetime
-  (concat ezeka-regexp-iso8601-date ezeka-regexp-iso8601-time)
+(defvar ezeka-iso8601-datetime-regexp
+  (concat ezeka-iso8601-date-regexp ezeka-iso8601-time-regexp)
   "The regular expression that matches ISO 8601 date and time separate with T.
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour and minute.")
@@ -350,7 +350,7 @@ proper link, just return nil."
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (and (stringp string)
-       (string-match (concat "^" ezeka-regexp-link "$") string)
+       (string-match (concat "^" ezeka-link-regexp "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if-let ((kasten (match-string-no-properties 2 string)))
            (assoc kasten ezeka-kaesten)
@@ -359,7 +359,7 @@ proper link, just return nil."
 (defun ezeka-link-kasten (link)
   "Returns the kasten part of the given LINK. If no kasten is explicitly
 specified, asks the user to resolve the ambiguity."
-  (when (string-match ezeka-regexp-link link)
+  (when (string-match ezeka-link-regexp link)
     (let* ((kasten (match-string 2 link))
            (id (match-string 1 link))
            (type (ezeka-id-type id)))
@@ -388,7 +388,7 @@ specified, asks the user to resolve the ambiguity."
 
 (defun ezeka-link-id (link)
   "Returns the ID part of the given LINK."
-  (when (string-match ezeka-regexp-link link)
+  (when (string-match ezeka-link-regexp link)
     (match-string 1 link)))
 
 (defun ezeka-make-link (kasten id)
@@ -457,11 +457,11 @@ Return nil if neither of these ID types are matched."
   "Return the internal encoded time corresponding to STRING.
 STRING should be an ISO8601 date/time expression, with or without time."
   (let ((second 0) (minute 0) (hour 0) day month year)
-    (when (string-match (concat "^" ezeka-regexp-iso8601-date) string)
+    (when (string-match (concat "^" ezeka-iso8601-date-regexp) string)
       (setq year  (string-to-number (match-string 1 string))
             month (string-to-number (match-string 2 string))
             day   (string-to-number (match-string 3 string)))
-      (when (string-match ezeka-regexp-iso8601-time string
+      (when (string-match ezeka-iso8601-time-regexp string
                           (match-end 0))
         (setq hour   (string-to-number (match-string 1 string))
               minute (string-to-number (match-string 2 string))))
@@ -513,13 +513,13 @@ content. If HEADER-ONLY is non-nil, only get the header."
 ;; name, that is included in the rubric for redundancy.
 ;;;=============================================================================
 
-(defvar ezeka-regexp-header-line
+(defvar ezeka-header-line-regexp
   "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
   "The regular expression that matches a line of YAML metadata.
 Group 1 is the key.
 Group 2 is the value.")
 
-(defcustom ezeka-regexp-header-separator "^$"
+(defcustom ezeka-header-separator-regexp "^$"
   "Regexp that matches the separator line between header and the note text."
   :type 'string
   :group 'ezeka)
@@ -540,7 +540,7 @@ and header match."
   "The format-spec string for generating the note's rubric to be used
 in the note's header.
 See `ezeka-format-metadata' for details.
-This should match `ezeka-regexp-header-rubric'."
+This should match `ezeka-header-rubric-regexp'."
   :type 'string
   :group 'ezeka)
 
@@ -552,7 +552,7 @@ This should match `ezeka-file-name-regexp'."
   :group 'ezeka)
 
 (defcustom ezeka-file-name-regexp
-  (concat ezeka-regexp-link             ; \1 and \2
+  (concat ezeka-link-regexp             ; \1 and \2
           "\\(?:"                       ; everything else is optional
           "\\(?:\\.\\)*"                               ; FIXME: optional historic period
           "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
@@ -569,7 +569,7 @@ Group 4 is the caption (i.e. short title).
 Group 5 is the citation key.
 Group 6 is the stable caption mark.")
 
-(defcustom ezeka-regexp-header-rubric
+(defcustom ezeka-header-rubric-regexp
   (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
           ezeka-file-name-regexp)
   "Regular expression for the rubric string as found in the header.
@@ -579,7 +579,7 @@ Group 6 is the stable caption mark."
   :type 'regexp
   :group 'ezeka)
 
-(defvar ezeka-regexp-genus "[α-ω]"
+(defvar ezeka-genus-regexp "[α-ω]"
   "Regexp matching genus.")
 
 (defun ezeka-format-metadata (format-string metadata)
@@ -604,7 +604,7 @@ The format control string may contain the following %-sequences:
 (defun ezeka-decode-rubric (rubric file)
   "Returns an alist of metadata from the RUBRIC in FILE. If cannot
 decode, returns NIL."
-  (when (and rubric (string-match ezeka-regexp-header-rubric rubric))
+  (when (and rubric (string-match ezeka-header-rubric-regexp rubric))
     (let ((id          (match-string 1 rubric))
           (kasten      (match-string 2 rubric))
           (label       (match-string 3 rubric))
@@ -670,7 +670,7 @@ FILE. They keys are converted to keywords."
           (mapcar
            (lambda (line)
              (when (> (length line) 0)
-               (if (string-match ezeka-regexp-header-line line)
+               (if (string-match ezeka-header-line-regexp line)
                    (ezeka--decode-header-make-tuple
                     (intern (concat ":" (match-string 1 line)))
                     (ezeka--header-deyamlify-value (match-string 2 line)))
@@ -866,7 +866,7 @@ read only."
       (with-current-buffer (get-file-buffer filename)
         (save-restriction
           (goto-char (point-min))
-          (when (re-search-forward ezeka-regexp-header-separator nil t 1)
+          (when (re-search-forward ezeka-header-separator-regexp nil t 1)
             (narrow-to-region (point-min) (point)))
           (setq metadata
             (ezeka--set-time-of-creation
@@ -945,19 +945,19 @@ both of which are strings."
 
 (defun ezeka-numerus-number (id)
   "Returns the number part of the ID as a string."
-  (when (string-match ezeka-regexp-numerus-currens id)
+  (when (string-match ezeka-numerus-currens-regexp id)
     (match-string 1 id)))
 
 (defun ezeka-numerus-letters (id)
   "Returns the letters part of the ID as a string."
-  (when (string-match ezeka-regexp-numerus-currens id)
+  (when (string-match ezeka-numerus-currens-regexp id)
     (match-string 3 id)))
 
 (defun ezeka-numerus-parts (id)
   "Returns NIL if the ID is not a numerus currens id, and otherwise
 returns a list of two elements: the number and letters parts of the id."
   (when (and (stringp id)
-             (string-match ezeka-regexp-numerus-currens id))
+             (string-match ezeka-numerus-currens-regexp id))
     (list (match-string 1 id) (match-string 3 id))))
 
 (defun abase26-letter-to-decimal (letter)
@@ -1091,7 +1091,7 @@ Plist values are :parent, :title, :label, and :citekey.")
 first group is the link target. If FREEFORM is non-nil, also consider Zettel
 links that are not enclosed in square brackets."
   (thing-at-point-looking-at
-   (let ((regexp (ezeka--regexp-strip-named-groups ezeka-regexp-link)))
+   (let ((regexp (ezeka--regexp-strip-named-groups ezeka-link-regexp)))
      (if freeform
          (concat "\\(?1:" regexp "\\)")
        (concat "\\[\\[\\(?1:" regexp "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
@@ -1336,7 +1336,7 @@ Finder with it selected."
     (let ((link (if (ezeka-link-at-point-p)
                     (ezeka-link-at-point)
                   (let ((eol (save-excursion (end-of-visual-line) (point))))
-                    (when (re-search-forward ezeka-regexp-link eol t)
+                    (when (re-search-forward ezeka-link-regexp eol t)
                       (match-string-no-properties 0))))))
       (when link
         (kill-new link)
@@ -1933,8 +1933,8 @@ else, try to make it into org-time-stamp."
   (interactive
    (cond ((org-at-timestamp-p t)
           (list (match-beginning 0) (match-end 0)))
-         ((or (thing-at-point-looking-at ezeka-regexp-iso8601-datetime)
-              (thing-at-point-looking-at ezeka-regexp-iso8601-date))
+         ((or (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
+              (thing-at-point-looking-at ezeka-iso8601-date-regexp))
           (list (match-beginning 0) (match-end 0)))
          ((region-active-p)
           (list (region-beginning) (region-end)))
@@ -2381,7 +2381,7 @@ NOSELECT is non-nil) the target link and returns it."
                 (line (magit-file-line file))
                 (mdata
                  (ezeka-decode-rubric
-                  (when (string-match ezeka-regexp-header-line line)
+                  (when (string-match ezeka-header-line-regexp line)
                     (match-string 2 line))
                   file)))
       (setq mode-line-misc-info
