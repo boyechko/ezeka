@@ -403,7 +403,7 @@ in number of files."
   (let ((with-links
          (let ((zk-directory (or directory ezeka-directory)))
            (zk--grep-file-list
-            (format "(parent: %s$|%s\\]\\])" before before) t)))
+            (format "(parent: %s$|%s]])" before before) t)))
         (count 0))
     (if (not with-links)
         (progn (message "No links to %s found" before) nil)
@@ -415,7 +415,7 @@ in number of files."
               (let ((f-mdata (ezeka-file-metadata f)))
                 (when (string= (alist-get :parent f-mdata) before)
                   (setf (alist-get :parent f-mdata) after)
-                  (ezeka-normalize-header f f-mdata)
+                  (ezeka--update-file-header f f-mdata)
                   (cl-incf count))
                 (goto-char (point-min))
                 (while (re-search-forward
