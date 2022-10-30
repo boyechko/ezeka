@@ -1220,6 +1220,18 @@ metadata."
                 (ezeka-org-format-link link))
               (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
 
+(defun ezeka--select-file (files &optional prompt require-match)
+  "Select from among Zettel FILES, presenting optional PROMPT.
+If REQUIRE-MATCH is non-nil, require match, otherwise treat entered
+text as a Zettel link."
+  (let* ((table (ezeka-completion-table files))
+         (file (when table
+                 (completing-read (or prompt "Select Zettel: ")
+                                  table
+                                  nil
+                                  require-match))))
+    (cdr (assoc-string file table))))
+
 (defun ezeka-insert-link-to-visiting (arg)
   "Insert a link to another Zettel being currently visited.
 With \\[universal-argument] ARG offers a few options for including
@@ -1227,12 +1239,9 @@ Zettel metadata. If the user selects a Zettel that does not exist in
 the list, just insert the link to what was selected. If the cursor in
 already inside a link, replace it instead."
   (interactive "P")
-  (let* ((table (ezeka-completion-table
-                 (ezeka-visiting-buffer-list t arg)))
-         (link (when table
-                 (ezeka-file-link
-                  (cdr (assoc-string
-                        (completing-read "Insert link to: " table nil t) table))))))
+  (let ((link (ezeka-file-link
+               (ezeka--select-file (ezeka-visiting-buffer-list)
+                                   "Insert link to: " t))))
     (if link
         (if (not (ezeka-link-at-point-p))
             (if arg
