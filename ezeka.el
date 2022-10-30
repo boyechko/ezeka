@@ -1766,18 +1766,17 @@ not given, read it from file first.
             (kill-buffer-if-not-modified buf)))))))
 
 ;; TODO: Also ask about updating the filename
-(defun ezeka-set-title (&optional filename new-title)
-  "Updates the title in FILENAME's header to NEW-TITLE."
-  (interactive)
-  (let ((filename (or filename (buffer-file-name))))
-    (when (ezeka-note-p filename)
-      (let ((metadata (ezeka-file-metadata filename)))
-        (setf (alist-get :title metadata)
-              (read-string "Change title to what? "
-                           (alist-get :title metadata))
-              (alist-get :caption-stable metadata)
-              nil)
-        (ezeka--update-metadata-values filename metadata)))))
+(defun ezeka-set-title (filename &optional new-title)
+  "Update the title in FILENAME's header to NEW-TITLE."
+  (interactive (list (buffer-file-name)))
+  (when (ezeka-note-p filename)
+    (let ((metadata (ezeka-file-metadata filename)))
+      (setf (alist-get :title metadata)
+            (or new-title
+                (read-string "Change title to what? "
+                             (alist-get :title metadata))))
+      (setf (alist-get :caption-stable metadata) nil)
+      (ezeka--update-metadata-values filename metadata))))
 
 (defun ezeka-set-label (filename label arg)
   "Set the appropriate label (genus or category) in the Zettel note
