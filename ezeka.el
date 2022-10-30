@@ -1368,14 +1368,14 @@ Finder with it selected."
 Called interactively, get the LINK at point or to current Zettel."
   (interactive (list (ezeka-file-link (ezeka--grab-dwim-file-target t))))
   (grep-compute-defaults)
-  (rgrep link "*.txt" (f-slash ezeka-directory) nil))
+  (rgrep link "*.txt" (file-name-as-directory ezeka-directory) nil))
 
 (defun ezeka-rgrep (string)
   "Run a recursive grep (`rgrep') for the given STRING across all Zettel."
   (interactive "sSearch for what? ")
   (grep-compute-defaults)
   (rgrep (string-replace " " ".*" string)
-         "*.txt" (f-slash ezeka-directory) nil))
+         "*.txt" (file-name-as-directory ezeka-directory) nil))
 
 ;; To show the beginning of Zettel title in the mode-line,
 ;; add the following to the user configuration:
@@ -1849,7 +1849,7 @@ With \\[universal-argument] ARG, clear keywords first."
                        (alist-get :keywords metadata))))
       (unless (or (string-empty-p keyword)
                   (string= keyword "#"))
-        (add-to-list 'keywords keyword t))
+        (cl-pushnew keyword keywords))
       (ezeka--update-metadata-values filename metadata :keywords keywords))))
 
 ;;;=============================================================================
@@ -1901,17 +1901,18 @@ CITEKEY."
       (insert "parent: " parent "\n"))
     (insert "\n")))
 
+;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
   "Move FILE (defaults to one in current buffer) to KASTEN.
 With \\[universal-argument] ARG, asks for a different name."
   (interactive (list (buffer-file-name)
                      (completing-read "Zettel kasten: " ezeka-kaesten)
                      current-prefix-arg))
-  (rename-file-and-buffer
+  (rb-rename-file-and-buffer
    (if (not arg)
        (ezeka-link-file
         (ezeka-make-link kasten (file-name-base file)))
-     (call-interactively #'rename-file-and-buffer))))
+     (call-interactively #'rb-rename-file-and-buffer))))
 
 ;;;=============================================================================
 ;;; Org-Mode Intergration
