@@ -293,8 +293,7 @@ It is a Zettel if all of these conditions are met:
    (string-match ezeka-file-name-regexp (file-name-base filename))))
 
 (defun ezeka--file-name-part (filename part)
-  "Returns the given PART (:id, :label, :caption, or :citekey) of the
-FILENAME."
+  "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
       (when (string-match ezeka-file-name-regexp base)
@@ -308,16 +307,16 @@ FILENAME."
             (string-trim match)))))))
 
 (defmacro ezeka-file-name-id (filename)
-  "Returns the ID part of the given Zettel FILENAME."
+  "Return the ID part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :id))
 (defmacro ezeka-file-name-label (filename)
-  "Returns the label part of the given Zettel FILENAME."
+  "Return the label part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :label))
 (defmacro ezeka-file-name-caption (filename)
-  "Returns the caption part of the given Zettel FILENAME."
+  "Return the caption part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :caption))
 (defmacro ezeka-file-name-citekey (filename)
-  "Returns the citekey part of the given Zettel FILENAME."
+  "Return the citekey part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :citekey))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
@@ -357,8 +356,8 @@ proper link, just return nil."
          t)))
 
 (defun ezeka-link-kasten (link)
-  "Returns the kasten part of the given LINK. If no kasten is explicitly
-specified, asks the user to resolve the ambiguity."
+  "Return the Kasten part of the given LINK.
+If link does not specify Kasten, asks the user to resolve the ambiguity."
   (when (string-match ezeka-link-regexp link)
     (let* ((kasten (match-string 2 link))
            (id (match-string 1 link))
@@ -370,8 +369,8 @@ specified, asks the user to resolve the ambiguity."
             (ezeka-link-kasten link))))))
 
 (defun ezeka-set-default-kasten (type kasten)
-  "Interactively set the default kasten for the given ID type. See
-`ezeka-default-kasten' for valid types."
+  "Set the default kasten for the given ID TYPE to KASTEN.
+See `ezeka-default-kasten' for valid types."
   (interactive
    (list (intern (completing-read "Set default for which type of Zettel? "
                            (mapcar #'first ezeka-default-kasten)))
@@ -382,12 +381,11 @@ specified, asks the user to resolve the ambiguity."
   (setf (alist-get type ezeka-default-kasten) kasten))
 
 (defun ezeka-kasten-id-type (kasten)
-  "Returns the Zettel ID naming type for the given kasten based on
-`ezeka-kaesten'."
+  "Return the Zettel ID type for the KASTEN based on `ezeka-kaesten'."
   (cadr (assoc kasten ezeka-kaesten #'string=)))
 
 (defun ezeka-link-id (link)
-  "Returns the ID part of the given LINK."
+  "Return the ID part of the given LINK."
   (when (string-match ezeka-link-regexp link)
     (match-string 1 link)))
 
@@ -410,11 +408,11 @@ specified, asks the user to resolve the ambiguity."
     (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
 
 (defun ezeka-link-file (link &optional noerror rubric)
-  "Return a full file path to the Zettel LINK. If RUBRIC is nil (so
-return a file name consisting just the LINK), 'wild (find existing
-file beginning with LINK), or a string (returns a filename consisting
-of LINK, `ezeka-file-name-separator', and RUBRIC). If NOERROR is
-non-NIL, don't signal an error if the link is invalid."
+  "Return a full file path to the Zettel LINK.
+If RUBRIC is nil (so return a file name consisting of just the LINK),
+'wild (find existing file beginning with LINK), or a string (returns a
+filename consisting of LINK, `ezeka-file-name-separator', and RUBRIC).
+If NOERROR is non-NIL, don't signal an error if the link is invalid."
   (or (catch 'invalid
         (when (ezeka-link-p link)
           (let* ((kasten (ezeka-link-kasten link))
@@ -537,7 +535,7 @@ and header match."
   :group 'ezeka)
 
 (defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
-  "The format-spec string for generating the note's rubric to be used
+  "The `format-spec' string for generating the note's rubric to be used
 in the note's header.
 See `ezeka-format-metadata' for details.
 This should match `ezeka-header-rubric-regexp'."
@@ -545,7 +543,7 @@ This should match `ezeka-header-rubric-regexp'."
   :group 'ezeka)
 
 (defcustom ezeka-file-name-format "%i {%l} %c %k"
-  "The format-spec string for generating a numerus currens note's file name.
+  "The `format-spec' string for generating a numerus currens note's file name.
 See `ezeka-format-metadata' for details.
 This should match `ezeka-file-name-regexp'."
   :type 'string
@@ -583,7 +581,7 @@ Group 6 is the stable caption mark."
   "Regexp matching genus.")
 
 (defun ezeka-format-metadata (format-string metadata)
-  "Format a string out of format-string and METADATA.
+  "Format a string out of FORMAT-STRING and METADATA.
 The format control string may contain the following %-sequences:
 
 %i means ID or link.
@@ -601,9 +599,10 @@ The format control string may contain the following %-sequences:
                              ezeka-header-stable-caption-mark
                            ""))))))
 
+;; FIXME: Get rid of FILE or do something with it.
 (defun ezeka-decode-rubric (rubric file)
-  "Returns an alist of metadata from the RUBRIC in FILE. If cannot
-decode, returns NIL."
+  "Return alist of metadata from the RUBRIC in FILE.
+If cannot decode, returns NIL."
   (when (and rubric (string-match ezeka-header-rubric-regexp rubric))
     (let ((id          (match-string 1 rubric))
           (kasten      (match-string 2 rubric))
@@ -620,17 +619,16 @@ decode, returns NIL."
             (when citekey (cons :citekey (string-trim citekey)))))))
 
 (defmacro ezeka-encode-rubric (metadata)
-  "Returns a string that encodes the given METADATA into the rubric
-according to `ezeka-header-rubric-format'."
+  "Return a string that encodes the given METADATA into the rubric.
+The produced string is based on `ezeka-header-rubric-format'."
   (ezeka-format-metadata ezeka-header-rubric-format metadata))
 
 (defun ezeka--header-yamlify-key (keyword)
-  "Returns a YAML-formatted string that is the name of the KEY, a keyword
-symbol."
+  "Return a YAML-formatted string name of the KEYWORD symbol."
   (cl-subseq (symbol-name keyword) 1))
 
 (defun ezeka--header-yamlify-value (value)
-  "Returns a YAML-formatted string for the given metadata VALUE."
+  "Return a YAML-formatted string for the given metadata VALUE."
   (cl-typecase value
     (string value)
     (list (concat "[ " (mapconcat #'identity value ", ") " ]"))
@@ -638,7 +636,7 @@ symbol."
      (error "Not implemented for type %s" (type-of value)))))
 
 (defun ezeka--header-deyamlify-value (value)
-  "Returns an elisp version of the given YAML-formatted VALUE."
+  "Return an elisp version of the given YAML-formatted VALUE."
   (pcase value
     ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
      inside)
@@ -664,8 +662,9 @@ symbol."
           value)))
 
 (defun ezeka--decode-header (header file &optional noerror)
-  "Returns an alist of metadata decoded from the given YAML header of
-FILE. They keys are converted to keywords."
+  "Return metadata alist decoded from FILE's YAML HEADER.
+They keys are converted to keywords. If NOERROR is non-nil, do not
+signal an error when encountering malformed header lines."
   (let* ((metadata
           (mapcar
            (lambda (line)
@@ -681,8 +680,9 @@ FILE. They keys are converted to keywords."
     (append decoded metadata)))
 
 (defun ezeka-file-metadata (file &optional noerror)
-  "Returns an alist of metadata for the given FILE based on the most current
-content of the FILE. They keys are converted to keywords."
+  "Return an alist of metadata for FILE.
+If NOERROR is non-nil, do not signal errors. They keys are converted
+to keywords."
   (if-let ((header (ezeka-file-content file t noerror)))
       (let* ((mdata  (ezeka--decode-header header file noerror))
              ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
@@ -714,8 +714,9 @@ content of the FILE. They keys are converted to keywords."
 
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--normalize-title-into-caption (title)
-  "Returns TITLE after shortening it and stripping or replacing
-troublesome characters for it to be used safely as file caption."
+  "Return TITLE after making it safe to use as file caption.
+The function attemps to shorten the title, and strip or replace
+troublesome characters."
   (interactive (list (file-name-base buffer-file-name)))
   (let ((replacements
          '(("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1\\3\\)"
@@ -743,8 +744,8 @@ troublesome characters for it to be used safely as file caption."
 
 ;; TODO: Extend to check for any tempus currens oldnames
 (defun ezeka--set-time-of-creation (metadata)
-  "Update the time of creation in the METADATA based on the time
-encoded in tempus currens ID."
+  "Update the time of creation in the METADATA.
+The creation time is set based on the time encoded in tempus currens ID."
   (if (eq (alist-get :type metadata) :tempus)
       (let ((id (alist-get :id metadata)))
         (setf (alist-get :created metadata)
@@ -755,7 +756,7 @@ encoded in tempus currens ID."
 
 (defun ezeka-toggle-update-header-modified (arg)
   "Toggle between different value of `ezeka-update-header-modified'.
-With \\[universal-argument], show a list of options instead."
+With \\[universal-argument] ARG, show a list of options instead."
   (interactive "P")
   (let ((new-value
          (if arg
@@ -774,8 +775,9 @@ With \\[universal-argument], show a list of options instead."
       (message "Set `ezeka-update-header-modified' to %s" new-value))))
 
 (defun ezeka--maybe-update-modifed (metadata)
-  "Updates the modification time in the METADATA according to the
-value of `ezeka-update-modifaction-date', returning the new metadata."
+  "Maybe update the modification time in the METADATA.
+Whether to update is determined by `ezeka-update-modifaction-date'.
+Return the new metadata."
   (let* ((today (format-time-string "%Y-%m-%d"))
          (now (format-time-string "%Y-%m-%d %a %H:%M"))
          (last-modified (or (alist-get :modified metadata)
@@ -795,8 +797,9 @@ value of `ezeka-update-modifaction-date', returning the new metadata."
     metadata))
 
 (defun ezeka-update-modified (file)
-  "Update the modification time in the current Zettel file's header,
-ignoring the value of `ezeka-update-header-modified'."
+  "Update the modification time in the current Zettel FILE's header.
+This function ignores the value of `ezeka-update-header-modified',
+treating it as if set to 'ALWAYS."
   (interactive (list buffer-file-name))
   (let ((ezeka-update-header-modified 'always))
     (ezeka--update-file-header file)))
@@ -824,8 +827,8 @@ With \\[universal-argument] ARG, don't update the modification date."
 ;;    of the caption that is used when inserting links.
 
 (defun ezeka--reconcile-title-and-caption (metadata)
-  "Interactively reconcile the title and caption in the given
-METADATA. Returns modifed metadata."
+  "Interactively reconcile title and caption in given METADATA.
+Returns modifed metadata."
   (let ((caption (or (alist-get :caption metadata) ""))
         (title (or (alist-get :title metadata) "")))
     (unless (or (string= title caption)
@@ -853,15 +856,14 @@ METADATA. Returns modifed metadata."
     metadata))
 
 (defun ezeka--update-file-header (&optional filename metadata inhibit-read-only)
-  "Replaces the FILENAME's header with one generated from the given
-METADATA or by parsing the FILENAME's existing header. If
-INHIBIT-READ-ONLY is non-nil, write new header even if the buffer is
-read only."
+  "Replace FILENAME's header with one generated from METADATA.
+If METADATA is not given, get it by parsing the FILENAME's existing
+header. If INHIBIT-READ-ONLY is non-nil, write new header even if the
+buffer is read only."
   (interactive (list buffer-file-name))
   (let* ((filename (or filename buffer-file-name))
          (metadata (or metadata (ezeka-file-metadata filename t)))
-         (old-point (point))
-         (inhibit-read-only inhibit-read-only))
+         (old-point (point)))
     (save-mark-and-excursion
       (with-current-buffer (get-file-buffer filename)
         (save-restriction
@@ -939,44 +941,43 @@ read only."
 ;;;=============================================================================
 
 (defun ezeka-make-numerus (number letters)
-  "Returns a new numerus currens ID composed of the NUMBER and LETTERS,
-both of which are strings."
+  "Return new numerus currens ID based on NUMBER and LETTERS.
+Both NUMBER and LETTERS are strings."
   (concat number "-" letters))
 
 (defun ezeka-numerus-number (id)
-  "Returns the number part of the ID as a string."
+  "Return the number part of the ID as a string."
   (when (string-match ezeka-numerus-currens-regexp id)
     (match-string 1 id)))
 
 (defun ezeka-numerus-letters (id)
-  "Returns the letters part of the ID as a string."
+  "Return the letters part of the ID as a string."
   (when (string-match ezeka-numerus-currens-regexp id)
     (match-string 3 id)))
 
 (defun ezeka-numerus-parts (id)
-  "Returns NIL if the ID is not a numerus currens id, and otherwise
-returns a list of two elements: the number and letters parts of the id."
+  "Return a list of two elements: the number and letters parts of ID.
+Return NIL if the ID is not a numerus currens ID."
   (when (and (stringp id)
              (string-match ezeka-numerus-currens-regexp id))
     (list (match-string 1 id) (match-string 3 id))))
 
 (defun abase26-letter-to-decimal (letter)
-  "Returns the decimal number corresponding to the given character-as-string.
+  "Return the decimal number corresponding to LETTER, a string.
 Case-insensitive."
   (if (string-match "[a-zA-Z]" letter)
       (- (string-to-char (downcase letter)) ?a)
     (error "LETTER must be a string of one letter")))
 
 (defun abase26-decimal-to-letter (n)
-  "Returns a string of the number in abase26 corresponding to the given
-decimal."
+  "Return a string of number in abase26 corresponding decimal N."
   (if (< -1 n 26)
       (char-to-string (+ n ?a))
     (error "N must be an integer between 0 and 25")))
 
 (defun abase26-encode (n &optional width)
-  "Returns a string representation of the integer in the 'alphabetic' base
-26. If WIDTH is given, returns the string at least WIDTH wide, padded with
+  "Return string representating integer N in 'alphabetic' base 26.
+If WIDTH is given, returns the string at least WIDTH wide, padded with
 abase26 equivalent of 0, namely 'a'."
   (let (digits)
     (while (> n 25)
@@ -989,8 +990,7 @@ abase26 equivalent of 0, namely 'a'."
     (apply #'concat (mapcar #'abase26-decimal-to-letter digits))))
 
 (defun abase26-decode (string)
-  "Returns the integer for the given string representation in the
-'alphabetic' base 26."
+  "Return decimal integer for STRING representation in the 'alphabetic' base 26."
   (let ((n (1- (length string)))
         (total 0))
     (dolist (d (split-string string "" t))
@@ -1048,11 +1048,11 @@ abase26 equivalent of 0, namely 'a'."
 ;;;=============================================================================
 
 (defun ezeka-decode-time-into-tempus-currens (time)
-  "Returns a tempus currens ID based on the given Emacs time object."
+  "Return a tempus currens ID based on the given Emacs TIME object."
   (format-time-string "%Y%m%dT%H%M" time))
 
 (defun ezeka-tempus-currens-id-for (link)
-  "Returns a suitable tempus currens ID for the given Zettel link."
+  "Return a suitable tempus currens ID for the given Zettel LINK."
   (if (eq (ezeka-kasten-id-type (ezeka-link-kasten link)) :tempus)
       ;; If already tempus currens, just return that id
       (ezeka-link-id link)
@@ -1087,9 +1087,9 @@ abase26 equivalent of 0, namely 'a'."
 Plist values are :parent, :title, :label, and :citekey.")
 
 (defun ezeka-link-at-point-p (&optional freeform)
-  "Returns non-nil if the thing at point is a wiki link (i.e. [[XXX]]). The
-first group is the link target. If FREEFORM is non-nil, also consider Zettel
-links that are not enclosed in square brackets."
+  "Return non-nil if the thing at point is a wiki link (i.e. [[XXX]]).
+The first group is the link target. If FREEFORM is non-nil, also
+consider Zettel links that are not enclosed in square brackets."
   (thing-at-point-looking-at
    (let ((regexp (ezeka--regexp-strip-named-groups ezeka-link-regexp)))
      (if freeform
@@ -1097,14 +1097,14 @@ links that are not enclosed in square brackets."
        (concat "\\[\\[\\(?1:" regexp "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
 
 (defun ezeka-link-at-point ()
-  "Return the Zettel link at point. Needs to be called after
-`ezeka-link-at-point-p'."
+  "Return the Zettel link at point.
+Needs to be called after `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
 
 ;; FIXME: Relies on ace-window
 (defun ezeka-find-file (file &optional same-window)
-  "Edit the given file based on the value of `ezeka-number-of-frames'.
-If SAME-WINDOW is non-NIL, opens the buffer visiting the file in the
+  "Edit the given FILE based on the value of `ezeka-number-of-frames'.
+If SAME-WINDOW is non-NIL, open the buffer visiting the file in the
 same window."
   (if same-window
       (find-file file)
@@ -1121,7 +1121,7 @@ same window."
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
-If SAME-WINDOW is non-NIL, opens the link in the same window. Returns
+If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
     (let ((existing-file (ezeka-link-file link t 'wild)))
@@ -1139,8 +1139,8 @@ T if the link is a Zettel link."
                t)))))
 
 (defun ezeka-kill-link-or-sexp-at-point (&optional arg)
-  "If there is a Zettel link at point, kill it, including the square
-brackets. Otherwise, call `kill-sex'."
+  "If there is a Zettel link at point, kill it, including square brackets.
+Otherwise, call `kill-sexp', passing \\[universal-argument] ARG to it."
   (interactive "p")
   (if (ezeka-link-at-point-p)
       (let ((start (match-beginning 0))
@@ -1154,8 +1154,10 @@ brackets. Otherwise, call `kill-sex'."
                  (just-one-space 0)))))
     (kill-sexp arg)))
 
+;; FIXME: Remove DESCRIPTION, since don't usethat feature.
 (defun ezeka-org-format-link (target &optional description)
-  "Returns a formatted org-link to TARGET, which can be either a link or a filepath."
+  "Return a formatted org-link to TARGET with optional DESCRIPTION.
+TARGET can be either a link or a filepath."
   (let* ((link (if (file-name-absolute-p target)
                    (ezeka-file-link target)
                  target)))
@@ -1165,7 +1167,7 @@ brackets. Otherwise, call `kill-sex'."
                 (format "[%s]" description) ""))))
 
 (defun ezeka--link-with-metadata (link &optional field where metadata)
-  "Returns a string containing the metadata FIELD (:title by default)
+  "Return a string containing the metadata FIELD (:title by default)
 at place WHERE (:before by default) in relation to the LINK."
   (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
          (field (or field :title))
@@ -1213,10 +1215,10 @@ metadata."
               (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
 
 (defun ezeka-insert-link-to-visiting (arg)
-  "Inserts a link to another Zettel being currently visited. With
-\\[universal-argument] offers a few options for including Zettel
-metadata. If the user selects a Zettel that does not exist in the
-list, just insert the link to what was selected. If the cursor in
+  "Insert a link to another Zettel being currently visited.
+With \\[universal-argument] ARG offers a few options for including
+Zettel metadata. If the user selects a Zettel that does not exist in
+the list, just insert the link to what was selected. If the cursor in
 already inside a link, replace it instead."
   (interactive "P")
   (let* ((table (ezeka-completion-table
@@ -1250,11 +1252,11 @@ include the title."
         (ezeka-insert-link-with-metadata link :title :before t)))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
-  "Inserts a link to a bookmark. With \\[universal-argument] offers a
-few options for including Zettel metadata. If the user selects a
-Zettel that does not exist in the list, just insert the link to what
-was selected. If the cursor in already inside a link, replace it
-instead."
+  "Insert a link to a bookmark.
+With \\[universal-argument] ARG, offer a few options for including
+Zettel metadata. If the user selects a Zettel that does not exist in
+the list, just insert the link to what was selected. If the cursor in
+already inside a link, replace it instead."
   (interactive "P")
   (let* ((table (mapcar (lambda (item)
                               (let ((link (cdr (cl-find 'filename
@@ -1279,9 +1281,9 @@ instead."
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
-  "Like `ezeka-insert-link' but attempts to get the link ID from OS
-clipboard, inserting it with metadata. With prefix argument, insert just the
-link itself."
+  "Insert link with metadata to the LINK in the OS clipboard.
+See `ezeka-insert-link' for details. With \\[universal-argument] ARG,
+insert just the link itself."
   (interactive "P")
   (let ((link (gui-get-selection 'CLIPBOARD))
         (backlink (when buffer-file-name
@@ -1343,14 +1345,14 @@ Finder with it selected."
         (message "Saved [%s] to kill ring" link)))))
 
 (defun ezeka-links-to (link)
-  "Runs a recursive grep (`rgrep') to find references to the link at point or
-to current Zettel."
+  "Run a recursive grep (`rgrep') to find references LINK.
+Called interactively, get the LINK at point or to current Zettel."
   (interactive (list (ezeka-file-link (ezeka--grab-dwim-file-target t))))
   (grep-compute-defaults)
   (rgrep link "*.txt" (f-slash ezeka-directory) nil))
 
 (defun ezeka-rgrep (string)
-  "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
+  "Run a recursive grep (`rgrep') for the given STRING across all Zettel."
   (interactive "sSearch for what? ")
   (grep-compute-defaults)
   (rgrep (string-replace " " ".*" string)
@@ -1361,8 +1363,7 @@ to current Zettel."
 ;;
 ;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
 (defun ezeka-show-title-in-mode-line ()
-  "Change `mode-line-misc-info' to show the Zettel note's title from
-metadata."
+  "Change `mode-line-misc-info' to show Zettel's title from metadata."
   (interactive)
   (when (and (ezeka-note-p buffer-file-name)
              (not (zerop (buffer-size))))
@@ -1385,9 +1386,8 @@ metadata."
                                     " "))))))))))
 
 (defun ezeka-update-link-prefix-title (arg)
-  "Kills text from point to the next Zettel link, replacing it with
-that Zettel's title. With \\[universal-argument] kill text from point
-to the next link."
+  "Replace text from point to next Zettel link with that Zettel's title.
+With \\[universal-argument] ARG, kill text from point to the next link."
   (interactive "P")
   (save-excursion
     ;; if already inside a link, go to the start
@@ -1413,10 +1413,10 @@ to the next link."
 ;;;=============================================================================
 
 (defun ezeka-trace-genealogy (file-or-link &optional degree)
-  "Returns the FILE-OR-LINK's next genealogical link, or NIL if could not
-figure out. With the optional DEGREE, try to find the Nth link (i.e.
-grandparent if DEGREE is 2, child if DEGREE is -1, an so on), returning the
-most remote link that could be found."
+  "Return FILE-OR-LINK's next genealogical link.
+If cannot figure it out, return NIL. With the optional DEGREE, try to
+find the Nth link (i.e. grandparent if DEGREE is 2, child if DEGREE is
+-1, an so on), returning the most remote link that could be found."
   (let ((degree (or degree 1)))
     (if (= (abs degree) 0)
         file-or-link
@@ -1432,8 +1432,8 @@ most remote link that could be found."
                                (1+ degree))))))
 
 (defun ezeka-find-ancestor (n)
-  "Opens the current Zettel's immediate ancestor. With a prefix argument, try
-to find the Nth ancestor."
+  "Open the current Zettel's immediate ancestor.
+With a prefix argument, try to find the Nth ancestor."
   (interactive "p")
   (when (ezeka-note-p buffer-file-name)
     (let ((ancestor (ezeka-trace-genealogy buffer-file-name n)))
@@ -1442,8 +1442,8 @@ to find the Nth ancestor."
         (message "No ancestor found")))))
 
 (defun ezeka-find-descendant (n)
-  "Opens the current Zettel's immediate descendant. With a prefix argument,
-try to find the Nth ancestor."
+  "Open the current Zettel's immediate descendant.
+With a prefix argument, try to find the Nth ancestor."
   (interactive "p")
   (when (ezeka-note-p buffer-file-name)
     (let ((descendant (ezeka-trace-genealogy buffer-file-name (- n))))
@@ -1452,9 +1452,9 @@ try to find the Nth ancestor."
         (message "No descendant found")))))
 
 (defun ezeka-insert-ancestor-link (arg)
-  "Insert a link to the ancestor of the current Zettel, adding its title (if
-available) before the link. With a numerical prefix argument, try to find Nth
-ancestor. With a universal argument, ask for confirmation before inserting."
+  "Insert a link with title to the ancestor of the current Zettel.
+With a numerical prefix ARG'ument, try to find Nth ancestor. With a
+universal argument, ask for confirmation before inserting."
   (interactive "P")
   (let* ((degree (if (integerp arg) arg 1))
          (link (ezeka-trace-genealogy buffer-file-name degree)))
@@ -1477,7 +1477,7 @@ child."
   "Create a new child in the same Kasten as PARENT, inserting its link.
 With \\[universal-argument] ARG, allows the user to select a different
 Kasten. With double \\[universal-argument] asks for the full link. If
-NOSELECT is non-nil, don't visit the created child. Returns link to
+NOSELECT is non-nil, don't visit the created child. Return link to
 the new child."
   (interactive
    (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
@@ -1545,9 +1545,9 @@ Pass the prefix ARG to `ezeka-insert-new-child'."
 ;;;=============================================================================
 
 (defun ezeka-visiting-buffer-list (&optional skip-current modified-only)
-  "Returns a list of Zettel files that are currently being visited. If
-SKIP-CURRENT is non-nil, remove the current buffer. If MODIFIED-ONLY
-is non-nil, only list modified buffers."
+  "Return a list of Zettel files that are currently being visited.
+If SKIP-CURRENT is non-nil, remove the current buffer. If
+MODIFIED-ONLY is non-nil, only list modified buffers."
   (nreverse
    (mapcar #'buffer-file-name
            (cl-remove-if-not (lambda (buf)
@@ -1559,8 +1559,8 @@ is non-nil, only list modified buffers."
                                      (buffer-list))))))
 
 (defun ezeka-kill-visiting-buffers (arg)
-  "Allows the user to easily kill Zettel that are being currently
-visited. With \\[universal-argument], kill all visiting Zettel."
+  "Allow kill currently visited Zettel buffers one-by-one.
+With \\[universal-argument] ARG, just kill all visiting Zettel."
   (interactive "P")
   (let (;; Disabling sorting preserves the same order as with `switch-to-buffer'
         ;; FIXME: How to do this without relying on vertico?
@@ -1579,9 +1579,9 @@ visited. With \\[universal-argument], kill all visiting Zettel."
                                table)))))))))
 
 (defun ezeka-formatted-frame-title ()
-  "Returns a string suitable for `frame-title-format' as a way to
-consistently format the frame title with useful information for
-Zettelkasten work."
+  "Return string suitable for `frame-title-format'.
+This is a way to consistently format the frame title with useful
+information for Zettelkasten work."
   (interactive)
   (concat (if (ezeka-note-p buffer-file-name)
               (let ((metadata (ezeka-file-metadata buffer-file-name)))
@@ -1631,8 +1631,7 @@ Zettelkasten work."
       (setq mode-line-misc-info zk-index-mode-line-orig))))
 
 (defun ezeka-completion-table (files)
-  "Given a list of Zettel files, returns a nicely formatted list of choices
-suitable for passing to `completing-read' as collection."
+  "Turn list of FILES into completion table suitable for `completing-read'."
   ;;                  * ID  LABEL  TITLE  CITEKEY
   (let* ((iw 14) (lw 10) (kw 25)
          (tw (- (frame-width) (+ iw lw kw 5)))
@@ -1655,9 +1654,9 @@ suitable for passing to `completing-read' as collection."
             files)))
 
 (defun ezeka-switch-to-buffer (arg)
-  "Quickly switch to other open Zettel buffers. With
-\\[universal-argument], show only modified buffers. With double
-\\[universal-argument], open buffer in other window."
+  "Quickly switch to other open Zettel buffers.
+With \\[universal-argument] ARG, show only modified buffers. With
+double \\[universal-argument], open buffer in other window."
   (interactive "P")
   (let ((table (ezeka-completion-table
                 (nreverse (ezeka-visiting-buffer-list t (equal arg '(4))))))
@@ -1681,10 +1680,10 @@ suitable for passing to `completing-read' as collection."
 ;;;=============================================================================
 
 (defun ezeka--read-category (&optional prompt custom sort-fn)
-  "Uses `completing-read' to select a category from
-`ezeka-categories'. If CUSTOM is non-nil, asks the user to type in the
-category directly. If SORT-FN is given, use that to sort the list
-first."
+  "Use `completing-read' to select a category from `ezeka-categories'.
+Optional PROMPT allows customizing the prompt. If CUSTOM is non-nil,
+asks the user to type in the category directly. If SORT-FN is given,
+use that to sort the list first."
   (let ((prompt (or prompt "Category: "))
         (categories (if (not (functionp sort-fn))
                         ezeka-categories
@@ -1732,16 +1731,16 @@ presses [return]."
     (cadr item)))
 
 (defun ezeka--read-label (file-or-link &optional arg prompt default)
-  "Interactively read the label for the given FILE-OR-LINK. Passes ARG
-to the appropriate function."
+  "Interactively read label for the given FILE-OR-LINK.
+Pass ARG, PROMPT, and DEFAULT to the appropriate function."
   (if (eq :numerus (ezeka-id-type file-or-link))
       (ezeka--read-genus prompt arg default)
     (ezeka--read-category prompt arg)))
 
 (defun ezeka--update-metadata-values (filename metadata &rest args)
-  "Update FILENAME's header, replacing metadata values with new ones,
-and saves the file while ignoring its read only status. If METADATA is
-not given, read it from file first.
+  "Update FILENAME's header, replacing METADATA values with new ones.
+Afterwards, save the file while ignoring its read only status. If
+METADATA is not given, read it from file first.
 
 \(fn FILENAME METADATA &REST KEY VAL KEY VAL ...)"
   (when (/= (logand (length args) 1) 0)
@@ -1779,10 +1778,9 @@ not given, read it from file first.
       (ezeka--update-metadata-values filename metadata))))
 
 (defun ezeka-set-label (filename label arg)
-  "Set the appropriate label (genus or category) in the Zettel note
-with given FILENAME (defaults to `buffer-file-name'). With
-\\[universal-argument], either show genera verbosely or type custom
-category."
+  "Set LABEL (genus or category) in Zettel FILENAME.
+With \\[universal-argument], either show genera verbosely or type
+custom category."
   (interactive
    (let ((target (ezeka--grab-dwim-file-target)))
      (list target
@@ -1795,10 +1793,10 @@ category."
       (cl-pushnew label ezeka-categories))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
-  "Set the CITEKEY in the Zettel note in FILENAME. If CITEKEY is not
-given, get it from the parent unless it's \\[universal-argument], in
-which case let the user enter the citekey no matter what. With DEGREE,
-traces genealogy further than parent."
+  "Set CITEKEY in the Zettel note in FILENAME.
+If CITEKEY is not given, get it from the parent unless it's
+\\[universal-argument], in which case let the user enter the citekey
+no matter what. With DEGREE, traces genealogy further than parent."
   (interactive (list (buffer-file-name)
                      current-prefix-arg
                      (if (integerp current-prefix-arg)
@@ -1840,8 +1838,9 @@ With \\[universal-argument] ARG, clear keywords first."
 ;;;=============================================================================
 
 (defun ezeka-insert-header-template (&optional link label title parent citekey)
-  "Inserts the header template into the current buffer, populating the
-header with the LINK, LABEL, TITLE, PARENT, and CITEKEY."
+  "Insert header template into the current buffer.
+If given, populate the header with the LINK, LABEL, TITLE, PARENT, and
+CITEKEY."
   (interactive
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
@@ -1884,8 +1883,8 @@ header with the LINK, LABEL, TITLE, PARENT, and CITEKEY."
     (insert "\n")))
 
 (defun ezeka-incorporate-file (file kasten &optional arg)
-  "Moves the file in the current buffer to the appropriate Zettelkasten. With
-prefix argument, asks for a different name."
+  "Move FILE (defaults to one in current buffer) to KASTEN.
+With \\[universal-argument] ARG, asks for a different name."
   (interactive (list (buffer-file-name)
                      (completing-read "Zettel kasten: " ezeka-kaesten)
                      current-prefix-arg))
@@ -1900,8 +1899,7 @@ prefix argument, asks for a different name."
 ;;;=============================================================================
 
 (defun ezeka-org-set-todo-properties ()
-  "Set the FROM, CREATED, and ID properties for the current heading to
-facilitate refiling."
+  "Set the FROM, CREATED, and ID properties for the current org heading."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
   (org-set-property "FROM" (ezeka-insert-link-with-metadata
@@ -1913,8 +1911,7 @@ facilitate refiling."
                              (cl-subseq (cdr org-time-stamp-formats) 1 -1)))))
 
 (defun ezeka-org-interactive-tempus ()
-  "Inserts a tempus currens link after having the user select the date using
-org-mode's interactive `org-time-stamp' command."
+  "Use org-mode's `org-time-stamp' command to insert a tempus currens."
   (interactive)
   (let ((datetime
          (with-temp-buffer
@@ -1926,9 +1923,9 @@ org-mode's interactive `org-time-stamp' command."
     (insert (ezeka-org-format-link datetime))))
 
 (defun ezeka-dwim-with-this-timestring (beg end)
-  "Do What I Mean with the timestring in the region. If the timestring is
-IS8601, make it into an org-time-stamp, and vice-versa. If it's something
-else, try to make it into org-time-stamp."
+  "Do What I Mean with the timestring in the region between BEG and END.
+If the timestring is IS8601, make it into an org-time-stamp, and vice-versa.
+If it's something else, try to make it into org-time-stamp."
   (interactive
    (cond ((org-at-timestamp-p t)
           (list (match-beginning 0) (match-end 0)))
@@ -1966,8 +1963,8 @@ else, try to make it into org-time-stamp."
            (signal 'wrong-type-argument (list text))))))
 
 (defun ezeka-org-export-as-new-note (&optional kasten)
-  "Creates a new Zettel in the current Kasten (with prefix argument,
-ask for the Kasten) from the current org subtree."
+  "Create new Zettel in KASTEN from the current org subtree.
+With prefix argument, ask to select the KASTEN."
   (interactive (list (when current-prefix-arg
                        (completing-read "Zettel kasten: " ezeka-kaesten))))
   (let ((parent-file buffer-file-name)
@@ -2017,9 +2014,9 @@ ask for the Kasten) from the current org subtree."
                         (alist-get :title (ezeka-file-metadata new-file)))))))))))
 
 (defun ezeka-open-link-at-point (&optional arg)
-  "Open a Zettel link at point even if it's not formatted as a link. With a
-prefix argument, ignore `ezeka-number-of-frames' and open the link in the
-same window."
+  "Open a Zettel link at point even if it's not formatted as a link.
+With \\[universal-argument] ARG, ignore `ezeka-number-of-frames' and
+open the link in the same window."
   (interactive "P")
   (when (or (ezeka-link-at-point-p)
             (ezeka-link-at-point-p t))
@@ -2031,7 +2028,7 @@ same window."
     t))
 
 (defun ezeka-open-link-at-mouse (ev)
-  "Open a Zettel link at mouse point."
+  "Open a Zettel link at mouse point (determined from EV)."
   (interactive "e")
   (mouse-set-point ev)
   (ezeka-open-link-at-point t))
@@ -2072,8 +2069,9 @@ same window."
 ;;; - quickly scan through all the headings and see if any need updating?
 ;;; - add marker that I'm including text from the Zettel; define a new org block?
 (defun ezeka-insert-snippet-text (arg file)
-  "Inserts the combination of Summary and Snippet sections from the given
-snippet FILE into the current buffer. With prefix argument, forces update."
+  "Insert snippet text from the given FILE into the current buffer.
+By default, only update the text if the modification time is
+different. With \\[universal-argument] ARG, forces update."
   (interactive
    ;; Assume the file is the last link on the current line
    (list current-prefix-arg
@@ -2167,8 +2165,8 @@ snippet FILE into the current buffer. With prefix argument, forces update."
               t)))))))
 
 (defun ezeka-find-inserted-snippet ()
-  "While the point is within the org entry, find the source of the snippet
-inserted through `ezeka-insert-snippet-text'."
+  "Find source of snippet inserted with `ezeka-insert-snippet-text'.
+The point should be within the org entry."
   (interactive)
   (save-excursion
     (org-back-to-heading t)
@@ -2176,8 +2174,7 @@ inserted through `ezeka-insert-snippet-text'."
     (org-open-at-point)))
 
 (defun ezeka-transclude-snippet (link)
-  "Inserts the transclusion statement from given snippet LINKE into the
-current buffer."
+  "Insert `#+transclude' statement from LINK."
   (interactive
    ;; Assume the file is the last link on the current line
    (list (save-excursion
@@ -2207,13 +2204,12 @@ current buffer."
   :type 'string)
 
 (defun ezeka-org-footnote-action-maybe-local (&optional arg)
-  "This is a wrapper around `org-footnote-action' to be used in the
-transcluded snippets, making sure that the footnotes are placed
-locally rather in whatever `org-footnote-section' is set to. Footnotes
-are placed locally if the current heading matches
-`ezeka-snippet-heading' or if the command was called with
-\\[universal-argument]. With double \\[universal-argument], offer
-additional options."
+  "Place footnotes locally in snippets, ignoring `org-footnote-section'.
+This is a wrapper around `org-footnote-action' to be used in the
+transcluded snippets. Footnotes are placed locally if the current
+heading matches `ezeka-snippet-heading' or if the command was called
+with \\[universal-argument] ARG. With double \\[universal-argument],
+offer additional options."
   (interactive "P")
   (let ((snippet? (string= ezeka-snippet-heading
                           (save-excursion
@@ -2242,13 +2238,13 @@ additional options."
 ;;;=============================================================================
 
 (defun bookmark-make-record-ezeka ()
-  "Bookmark record function for Zettel bookmarks, setting the
-bookmark's filename property to the Zettel link."
+  "Set the bookmark's filename property to the Zettel link.
+This is the Bookmark record function for Zettel files."
   (list (cons 'filename (ezeka-file-link buffer-file-name))
         (cons 'handler 'bookmark-ezeka-handler)))
 
 (defun bookmark-ezeka-handler (bmk-record)
-  "Bookmark record handler for Zettel bookmarks."
+  "Handle bookmark records for Zettel bookmark in BMK-RECORD."
   (find-file (ezeka-link-file (cdr (assoc 'filename bmk-record)))))
 
 ;; Use the special ezeka bookmark handler in Zettel buffers
@@ -2261,8 +2257,7 @@ bookmark's filename property to the Zettel link."
 ;;;=============================================================================
 
 (defvar ezeka--move-log-file "auto/zmove.log"
-  "Path, relative to `ezeka-directory', to the log file for recording
-  moves.")
+  "Path, relative to `ezeka-directory', to the log file for recording moves.")
 
 (defun ezeka--add-to-move-log (link1 link2)
   "Log the move from LINK1 to LINK2 in `ezeka--move-log-file'."
@@ -2272,8 +2267,8 @@ bookmark's filename property to the Zettel link."
                 t))
 
 (defun ezeka--move-note (link1 link2 &optional confirm)
-  "Move Zettel note from LINK1 to LINK2. With CONFIRM, confirm before
-move."
+  "Move Zettel note from LINK1 to LINK2.
+With CONFIRM, confirm before move."
   (let ((path1 (ezeka-link-file link1))
         (path2 (ezeka-link-file link2)))
     (when (or (not confirm)
@@ -2300,9 +2295,9 @@ move."
                    (or (car replaced) 0) (or (cdr replaced) 0)))))))
 
 (defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
-  "Moves the current Zettel to another KASTEN. With
-\\[universal-argument], asks for a target link instead. Opens (unless
-NOSELECT is non-nil) the target link and returns it."
+  "Move SOURCE-FILE Zettel to a generated link in KASTEN.
+With \\[universal-argument], asks for an explicit TARGET-LINK instead.
+Open (unless NOSELECT is non-nil) the target link and returns it."
   (interactive
    (let ((target (when (equal current-prefix-arg '(4))
                    (read-string "Enter target link: "))))
@@ -2339,7 +2334,7 @@ NOSELECT is non-nil) the target link and returns it."
         (ezeka-find-link target-link t)))))
 
 (defun ezeka-generate-n-new-ids (how-many type)
-  "Generates a bunch of new IDs, making sure there are no dulicates."
+  "Generate HOW-MANY new IDs of TYPE, making sure there are no dulicates."
   (interactive
    (list (read-number "How many? " 10)
          (intern (completing-read "Which type? "
@@ -2367,7 +2362,7 @@ NOSELECT is non-nil) the target link and returns it."
   "Value of `mode-line-misc-info' before we override it.")
 
 (defun ezeka--magit-show-title-in-mode-line ()
-  "Displays Zettel title of the file under cursor in the mode line."
+  "Display Zettel title of the file under cursor in the mode line."
   (while-no-input
     (redisplay)
     (when-let* ((file
@@ -2467,3 +2462,4 @@ NOSELECT is non-nil) the target link and returns it."
     (add-hook 'after-save-hook 'ezeka-normalize-file-name nil t)))
 
 (provide 'ezeka)
+;;; ezeka.el ends here
