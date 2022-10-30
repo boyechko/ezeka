@@ -395,11 +395,18 @@ for the particular Zettelkasten. Defaults to the Kasten set in
     (zk-index-search (string-replace " " ".*" string))))
 
 (defun ezeka-zk-replace-links (before after &optional directory)
-  "Replace BEFORE links to AFTER links in all Zettel files in
-DIRECTORY (defaults to `ezeka-directory'). If AFTER is nil, replace
-the link with {{BEFORE}}. Returns a tuple of number of links replaced
-in number of files."
-  (interactive "sReplace links to: \ns... with links to: ")
+  "Replace BEFORE links to AFTER links in DIRECTORY.
+DIRECTORY defaults to `ezeka-directory' if not given. If AFTER is nil,
+replace the link with {{BEFORE}}. Returns a tuple of number of links
+replaced in number of files."
+  (interactive
+   (if current-prefix-arg
+       (list (read-string "Before: ")
+             (read-string "After: "))
+     (let* ((zk-directory ezeka-directory)
+            (files (zk--directory-files)))
+       (list (ezeka-file-link (zk--select-file "Before: " files))
+             (ezeka-file-link (zk--select-file "After: " files))))))
   (let ((with-links
          (let ((zk-directory (or directory ezeka-directory)))
            (zk--grep-file-list
