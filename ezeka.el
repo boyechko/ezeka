@@ -404,10 +404,10 @@ specified, asks the user to resolve the ambiguity."
            (concat kasten ":" id)))))
 
 (defun ezeka-subdirectory (id)
-  "Returns the relative subdirectory for the given ID, a string."
+  "Return the subdirectory relative to Kasten for the given ID, a string."
   (cl-case (ezeka-id-type id)
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
-    (:tempus (file-name-as-directory (match-string 1 id)))))
+    (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
 
 (defun ezeka-link-file (link &optional noerror rubric)
   "Return a full file path to the Zettel LINK. If RUBRIC is nil (so
