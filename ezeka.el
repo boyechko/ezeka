@@ -585,15 +585,19 @@ Group 6 is the stable caption mark."
 The format control string may contain the following %-sequences:
 
 %i means ID or link.
+%K means kasten.
 %l means label (genus or category).
 %c means caption (i.e. short title).
+%t means title.
 %k means citation key.
 %s means stable mark (see `ezeka-header-stable-caption-mark')."
   (string-trim
    (format-spec format-string
                 `((?i . ,(alist-get :link metadata))
+                  (?K . ,(alist-get :kasten metadata))
                   (?l . ,(alist-get :label metadata))
                   (?c . ,(alist-get :caption metadata))
+                  (?t . ,(alist-get :title metadata))
                   (?k . ,(or (alist-get :citekey metadata) ""))
                   (?s . ,(if (alist-get :caption-stable metadata)
                              ezeka-header-stable-caption-mark
