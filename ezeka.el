@@ -222,9 +222,9 @@ If NEW-STRING is nil, default to OLD-STRING."
      new-string nil new-string)))
 
 ;; See https://stackoverflow.com/a/65685019
-(defun ezeka--save-buffer-read-only (buffer)
-  "Save the given BUFFER without running hooks."
-  (with-current-buffer (buffer)
+(defun ezeka--save-buffer-read-only (file)
+  "Save the FILE's buffer without running hooks."
+  (with-current-buffer (get-file-buffer file)
     (if buffer-read-only
         (save-buffer)
       (read-only-mode 1)
