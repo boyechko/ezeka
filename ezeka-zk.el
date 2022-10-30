@@ -562,10 +562,11 @@ the original FUNC with ARGS."
 (defun adv--zk-group-function (file transform)
   "Replace `zk--group-function' to better TRANSFORM the given FILE.
 See `zk--group-function' for details."
-  (if transform
-      (if (string-match (zk-file-name-regexp) file)
-          (match-string 2 file))
-    "zk"))
+  (cond ((not transform) "ezk")
+        ((string-match (zk-file-name-regexp) file)
+         (match-string 2 file))
+        (t (let ((mdata (ezeka-file-metadata file)))
+             (ezeka-format-metadata "{%l} %c <%K>" mdata)))))
 (advice-add 'zk--group-function :override 'adv--zk-group-function)
 
 (defun ezeka-zk-file-name-regexp ()
