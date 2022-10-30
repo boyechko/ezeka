@@ -638,9 +638,14 @@ The produced string is based on `ezeka-header-rubric-format'."
 (defun ezeka--header-deyamlify-value (value)
   "Return an elisp version of the given YAML-formatted VALUE."
   (pcase value
+    ;; strip [[ ]] in wiki links
     ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
      inside)
-    ((rx bol "[" (let inside (1+ anychar)) "]" eol)
+    ;; strip [ ] in org-style timestamps
+    ((rx bol "[" (let inside (seq digit (1+ anychar) digit)) "]" eol)
+     inside)
+    ;; remaining [ ] should be lists
+    ((rx bol "[ " (let inside (1+ anychar)) " ]" eol)
      (split-string inside "," t "[[:space:]]+"))
     (_
      (string-trim value))))
