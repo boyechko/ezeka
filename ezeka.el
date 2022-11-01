@@ -2072,11 +2072,13 @@ open the link in the same window."
 
 (defcustom ezeka-insert-snippet-summary nil
   "Non-nil means insert the snippet summary."
-  :type 'boolean)
+  :type 'boolean
+  :group 'ezeka)
 
-(defcustom ezeka-insert-snippet-footnotes nil
+(defcustom ezeka-insert-snippet-footnotes t
   "Non-nil means insert footnotes."
-  :type 'boolean)
+  :type 'boolean
+  :group 'ezeka)
 
 ;;; TODO:
 ;;; - implement some kind of checksum check for keeping draft up to date
