@@ -1591,13 +1591,9 @@ With \\[universal-argument] ARG, just kill all visiting Zettel."
                 (kill-buffer (get-file-buffer file)))
               (ezeka-visiting-buffer-list t))
       (while t
-        (let ((table
-               (ezeka-completion-table
-                (ezeka-visiting-buffer-list t))))
-          (kill-buffer
-           (get-file-buffer
-            (cdr (assoc-string (completing-read "Visit buffer: " table nil t)
-                               table)))))))))
+        (let* ((table (ezeka-completion-table (ezeka-visiting-buffer-list t)))
+               (choice (completing-read "Kill buffer: " table nil t)))
+          (kill-buffer (get-file-buffer (cdr (assoc-string choice table)))))))))
 
 (defun ezeka-formatted-frame-title ()
   "Return string suitable for `frame-title-format'.
