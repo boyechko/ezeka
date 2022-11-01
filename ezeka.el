@@ -1418,11 +1418,13 @@ With \\[universal-argument] ARG, kill text from point to the next link."
       (backward-char))
     (unless (char-equal (preceding-char) ? ) (insert " "))
     (let ((start (point)))
-      (org-next-link)
+      ;; Cannot use `org-next-link', since it ignores links in comments
+      (when (re-search-forward "\\[\\[")
+        (goto-char (match-beginning 0)))
       (when (ezeka-link-at-point-p)
         (let* ((file (ezeka-link-file (ezeka-link-at-point)))
                (title (alist-get :title (ezeka-file-metadata file))))
-          (delete-region start (1- (point)))
+          (delete-region start (point))
           (unless arg
             (backward-char)
             (insert title)))))))
