@@ -2103,30 +2103,24 @@ different. With \\[universal-argument] ARG, forces update."
   ;; Get the metadata and most recent modification
   (save-excursion
     (save-restriction
-      (let* ((metadata (ezeka-file-metadata file))
-             (modified (format "[%s]" (or (alist-get :modified metadata)
-                                          (alist-get :created metadata))))
-             current?)
-        ;; Update the timestamp if modification time is more recent
-        (end-of-line)
-        (if (org-at-timestamp-p 'inactive)
-            (if (string= (org-element-property :raw-value (org-element-context))
-                         modified)
-                (setq current? t)       ; we still have most recent text
-              ;; Need to repeat `org-at-timestamp-p' for match data
-              (when (org-at-timestamp-p 'inactive)
-                (replace-match modified)))
-          (just-one-space)
-          (insert modified))
+      (org-back-to-heading)
+      (let* ((mdata (ezeka-file-metadata file))
+             (modified-mdata (format "[%s]"
+                                     (or (alist-get :modified mdata)
+                                         (alist-get :created mdata))))
+             (modified-prop (org-entry-get (point) "MODIFIED"))
+             (current? (string= modified-mdata modified-prop)))
         (if (and current? (null arg))
             (message "Snippet is up to date; leaving alone")
-          (when (y-or-n-p "Update the text? ")
+          (org-entry-put (point) "MODIFIED" modified-mdata)
+          (when (or t (y-or-n-p "Update the text? "))
             ;; If current line is a comment, create a heading after it
             (when (org-at-comment-p)
               (org-insert-subheading nil))
             ;; Delete existing text
             (org-narrow-to-subtree)
-            (forward-line 1)
+            (goto-char (cdr (org-get-property-block)))
+            (forward-line 1)            ; `org-get-property-block' ends on :END:
             (let ((start (point))
                   (comments-removed 0)
                   (footnotes-removed 0)
@@ -2159,6 +2153,10 @@ different. With \\[universal-argument] ARG, forces update."
               (while (re-search-forward "^[*]+ " nil t) ; remove headings
                 (goto-char (match-beginning 0))
                 (kill-line 1))
+              ;; Remove <<tags>>
+              (goto-char start)
+              (while (re-search-forward "<<[^>]+>>" nil t)
+                (replace-match ""))
               ;; Remove my notes in {...} and Zettel links
               (goto-char start)
               (while (re-search-forward (rx (optional blank)
@@ -2167,7 +2165,7 @@ different. With \\[universal-argument] ARG, forces update."
                                                  (and "{" (+? anything) "}"))))
                                         nil t)
                 (when (eq (elt (match-string 1) 0) ?{)
-                  (incf comments-removed))
+                  (cl-incf comments-removed))
                 (replace-match ""))
               ;; Remove footnotes if need be
               (unless ezeka-insert-snippet-footnotes
@@ -2175,13 +2173,13 @@ different. With \\[universal-argument] ARG, forces update."
                 (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
                   (goto-char (match-beginning 0))
                   (kill-paragraph 1)
-                  (incf footnotes-removed)))
+                  (cl-incf footnotes-removed)))
               (org-indent-region (point-min) (point-max))
               (goto-char (point-max))
               (insert "\n")
-              (rb-collapse-blank-lines)
               (message "Removed %d comments and %d footnotes"
                        comments-removed footnotes-removed)
+              (rb-collapse-blank-lines)
               t)))))))
 
 (defun ezeka-find-inserted-snippet ()
