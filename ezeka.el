@@ -1431,8 +1431,7 @@ With \\[universal-argument] ARG, kill text from point to the next link."
                (title (alist-get :title (ezeka-file-metadata file))))
           (delete-region start (point))
           (unless arg
-            (backward-char)
-            (insert title)))))))
+            (insert title " ")))))))
 
 ;;;=============================================================================
 ;;; Genealogical
