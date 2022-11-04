@@ -33,6 +33,9 @@
 
 ;; For these avariables to be treated as dynamic, need to declare them first
 ;; here.
+
+;;; Code:
+
 (defvar zk-directory)
 (defvar zk-id-regexp)
 (defvar zk-id-format)
@@ -104,8 +107,7 @@ the environment."
       (zk-index))))
 
 (defun ezeka-zk--current-active-indexes ()
-  "Returns an alist of currently active kasten and their respective Zk
-index buffers."
+  "Return alist of currently active Kasten and their Zk index buffers."
   (let ((regexp
          (replace-regexp-in-string "%[Kk]"
                                    "\\\\(.*\\\\)"
@@ -123,7 +125,8 @@ Optionally use ORIG-ID for backlink."
   (ezeka-insert-header-template new-id nil title orig-id))
 
 (defun ezeka-zk-format-function (files)
-  "See `zk-new-note-header-function'."
+  "Format ezeka FILES from their metadata.
+See `zk-new-note-header-function'."
   (let* (output)
     (dolist (file files output)
       (when (ezeka-note-p file)
@@ -136,7 +139,7 @@ Optionally use ORIG-ID for backlink."
                 output))))))
 
 (defun ezeka--citaton-key-authors (key)
-  "Given a citation KEY, returns a human-readable list of authors."
+  "Return a human-readable list of authors for citation KEY."
   (let ((case-fold-search nil))
     (when (string-match (concat "^[@&]*\\(?1:[A-Z][a-z]+\\)"
                                 "\\(?:\\(?2:[A-Z][a-z]+\\)"
@@ -153,7 +156,8 @@ Optionally use ORIG-ID for backlink."
                author1))))))
 
 (defun ezeka-zk-format-link-and-title (id title)
-  "See `zk-format-link-and-title-function'."
+  "Format ID and TITLE pleasingly.
+See `zk-format-link-and-title-function'."
   (let ((file (ezeka-link-file id)))
     (when (ezeka-note-p file)
       (let* ((mdata (ezeka-file-metadata file)))
@@ -165,7 +169,8 @@ Optionally use ORIG-ID for backlink."
                        (?t . ,(alist-get :title mdata))))))))
 
 (defun ezeka-zk-parse-file (target files)
-  "See `zk-parse-file-function'."
+  "Parse FILES for TARGET.
+See `zk-parse-file-function'."
   (let* ((files (if (listp files)
                     files
                   (list files)))
@@ -181,13 +186,12 @@ Optionally use ORIG-ID for backlink."
       return)))
 
 (defvar ezeka-zk-metadata-alist nil
-  "An alist containing file metadata and mtime, cached by ID. Each item
-has the form
-(ID TITLE FILENAME MTIME METADATA).")
+  "An alist of file metadata and mtime, cached by ID.
+Each item has the form (ID TITLE FILENAME MTIME METADATA).")
 
 (defun ezeka-zk-cache-update-all ()
-  "Update file list and update cached information for each file. Returns
-`ezeka-zk-metadata-alist'."
+  "Update file list and update cached information for each file.
+Return `ezeka-zk-metadata-alist'."
   (setq ezeka-zk-metadata-alist
     (mapcar
      (lambda (file)
@@ -206,8 +210,8 @@ has the form
       (ezeka-zk-cache-update-all)))
 
 (defun ezeka-zk-set-parent (filename &optional new-parent)
-  "Sets the parent metadata of the FILENAME to NEW-PARENT. If
-NEW-PARENT is NIL, let user choose the the Zettel."
+  "Set parent metadata of FILENAME to NEW-PARENT.
+If NEW-PARENT is NIL, let user choose the the Zettel."
   (interactive (list (ezeka--grab-dwim-file-target) nil))
   (let ((new-parent (or new-parent (zk--select-file))))
     (ezeka--update-metadata-values filename
@@ -217,15 +221,16 @@ NEW-PARENT is NIL, let user choose the the Zettel."
 ;;; Mapping Across Zk-Index Buttons
 ;;;=============================================================================
 
-(defun ezeka-zk-map-buttons (func &optional buffer beg end)
-  "Like `widget-map-buttons' but for zk-index buttons."
-  (mapc func (zk-index--current-button-list buffer beg end)))
+(defun ezeka-zk-map-buttons (func &optional buffer start end)
+  "Map FUNC across zk-index buttons in BUFFER between START and END.
+Like `widget-map-buttons' but for zk-index buttons."
+  (mapc func (zk-index--current-button-list buffer start end)))
 
-(defun ezeka-zk-map-button-files (func &optional buffer beg end)
-  "Like `widget-map-buttons' but for zk-index buttons. FUNC should be
-a function accepting arguments FILE, COUNTER, TOTAL-FILES. Returns
-list of files mapped across."
-  (let* ((buttons (zk-index--current-button-list buffer beg end))
+(defun ezeka-zk-map-button-files (func &optional buffer start end)
+  "Map FUNC across zk-index buttons in BUFFER between START and END.
+FUNC should be a function accepting arguments FILE, COUNTER,
+TOTAL-FILES. Return list of files mapped across."
+  (let* ((buttons (zk-index--current-button-list buffer start end))
          (total (length buttons))
          (n 0)
          results)
@@ -236,10 +241,9 @@ list of files mapped across."
         (cl-incf n)))))
 
 (defmacro define-zk-index-mapper (name func &optional docstring &rest body)
-  "Define an interactive function to map a function across the files
-in the active region of the current ZK-Index buffer. FUNC is the
-function to map with, taking filename as the only argument. BODY is
-the body of the index mapper command.
+  "Define interactive function to map FUNC across Zk-Index region.
+FUNC should take filename as the only argument. BODY is the body of
+the index mapper command.
 
 \fn(NAME (ARG) &OPTIONAL DOCSTRING &BODY BODY)"
   (declare (indent 2))
@@ -270,8 +274,8 @@ the body of the index mapper command.
   "Used by `ezeka-zk-index-set-genus' to hold the last set genus.")
 
 (defun ezeka-zk-index-set-genus (file)
-  "Set the genus for the Zettel at point of the current Zk-Index buffer, saving
-the file without asking."
+  "Set genus for the Zettel FILE at point in the Zk-Index buffer.
+Afteward, save the file without asking."
   (interactive (list (ezeka--grab-dwim-file-target)))
   (let ((ezeka-save-after-metadata-updates t)
         (ezeka-update-modification-date 'never)
@@ -326,11 +330,12 @@ name."
   (when (ezeka-note-p (current-buffer))
     (ezeka-entitle-file-name (buffer-file-name) current-prefix-arg)
     (save-buffer)
-    (user-error "Use `ezeka-entitle-file-name' for singe files.")))
+    (user-error "Use `ezeka-entitle-file-name' for singe files")))
 
 (defun ezeka-zk-move-all-in-region (start end kasten arg)
-  "Move all files listed in the active region of zk index to KASTEN. With
-prefix argument, confirm each move and ask about destination kasten."
+  "Move files between START and END of Zk Index to KASTEN.
+With \\[universal-argument] ARG, confirm each move and ask about
+destination kasten."
   (interactive
    (append (if (region-active-p)
                (list (region-beginning) (region-end))
@@ -359,8 +364,7 @@ prefix argument, confirm each move and ask about destination kasten."
 ;;;=============================================================================
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
-  "Call `zk-insert-link' after temporarily setting zk variables to be
-appropriate for the particular Zettelkasten."
+  "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
   (interactive (list (if current-prefix-arg
                          (completing-read "Kasten: " ezeka-kaesten)
                        "rumen")))
@@ -368,9 +372,9 @@ appropriate for the particular Zettelkasten."
     (call-interactively 'zk-insert-link)))
 
 (defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
-  "Call `zk-find-file' after temporarily setting zk variables to be appropriate
-for the particular Zettelkasten. Defaults to the Kasten set in
-`zk-directory', if any. With prefix arg, ask to select Kasten."
+  "Temporarily set zk variables for KASTEN and call `zk-find-file'.
+Defaults to the Kasten set in `zk-directory', if any. With
+\\[universal-argument] ARG, ask to select Kasten."
   (interactive (list current-prefix-arg
                      (if-let ((kasten
                                (and (not current-prefix-arg)
@@ -381,18 +385,21 @@ for the particular Zettelkasten. Defaults to the Kasten set in
     (call-interactively 'zk-find-file)))
 
 (defun ezeka-rgrep-link-at-point (link)
-  "Executes recursive grep for the ezeka link at point."
+  "Execute recursive grep for the ezeka LINK at point."
   (interactive
    (list (when (ezeka-link-at-point-p t)
            (ezeka-link-at-point))))
   (consult-grep ezeka-directory link))
 
-(defun ezeka-zk-grep-in-zettelkasten (string)
-  "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
+(defun ezeka-zk-grep-in-zettelkasten (string &optional literal)
+  "Run recursive grep (`rgrep') for the given STRING across all Zettel.
+If LITERAL is non-nil, search for STRING literallyl."
   (interactive "sSearch for what? ")
   (grep-compute-defaults)
   (let ((zk-directory ezeka-directory))
-    (zk-index-search (string-replace " " ".*" string))))
+    (zk--grep-file-list (if literal
+                            (regexp-quote string)
+                          (string-replace " " ".*" string)))))
 
 (defun ezeka-zk-replace-links (before after &optional directory)
   "Replace BEFORE links to AFTER links in DIRECTORY.
@@ -439,8 +446,8 @@ replaced in number of files."
       (cons count (length with-links)))))
 
 (defun ezeka-zk-delete-note (link-or-file &optional change-to)
-  "Delete the Zettel note with the given LINK-OR-FILE, updating any existing
-links with CHANGE-TO, if given, or with the parent, if one is set."
+  "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
+If CHANGE-TO is not given, use the note's parent, if set."
   (interactive (list (ezeka--grab-dwim-file-target)))
   (let* ((file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
@@ -470,8 +477,7 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
       (kill-buffer-ask (get-file-buffer file)))))
 
 (defun ezeka-zk-insert-link-to-index ()
-  "Insert link in the current buffer for the button ID at point in
-`zk-index-buffer-name'"
+  "Insert link to the ID at point in `zk-index-buffer-name'."
   (interactive)
   (let ((id (with-current-buffer zk-index-buffer-name
               (zk-index--button-at-point))))
@@ -514,8 +520,9 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
                        (forward-line 1)))))
 
 (defun ezeka-entitle-file-name (file &optional arg prompt)
-  "Rename the given FILE to include rubric in the file name. *Without*
-\\[universal-argument], edit the resulting file name before renaming."
+  "Rename FILE to include caption in the file name.
+*Without* \\[universal-argument] ARG, edit the resulting file name
+before renaming If given, use the custom PROMPT."
   (interactive (list buffer-file-name
                      current-prefix-arg))
   (let* ((link (ezeka-file-link file))
@@ -619,3 +626,4 @@ Group 2 is the title."
     (ezeka-insert-link-with-metadata id :title :before)))
 
 (provide 'ezeka-zk)
+;;; ezeka-zk.el ends here
