@@ -2474,9 +2474,9 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
 
   ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
   ;; Zettel links.
-  (add-hook 'ezeka-mode-hook
-    (lambda ()
-      (modify-syntax-entry ?: "w"))))
+  (if ezeka-mode
+      (modify-syntax-entry ?: ".")      ; reset to punctuation
+    (modify-syntax-entry ?: "w")))
 
 ;; On save, update modificate date and normalize file name
 (add-hook 'ezeka-mode-hook
