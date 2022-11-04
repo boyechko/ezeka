@@ -551,6 +551,21 @@ links with CHANGE-TO, if given, or with the parent, if one is set."
 ;;; Advice
 ;;;=============================================================================
 
+(defun ezeka-zk-file-id (file)
+  "Return the ID of the given FILE."
+  (when (string-match (zk-file-name-regexp) file)
+    (match-string-no-properties 1 file)))
+
+(defun ezeka-zk-file-title (file)
+  "Return the TITLE of the given FILE."
+  (when (string-match (zk-file-name-regexp) file)
+    (let ((id (match-string-no-properties 1 file))
+          (title (match-string-no-properties 2 file)))
+      (if (string= "." title)
+          (or (alist-get :title (ezeka-file-metadata file t))
+            "<no title>")
+        title))))
+
 (defun adv--backlinks-in-entire-ezeka (func &rest args)
   "Advice around `zk-backlinks' to look in entire `ezeka-directory'.
 Achieves this by lexically binding binding `zk-directory' and calling
