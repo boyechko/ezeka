@@ -2027,6 +2027,7 @@ With prefix argument, ask to select the KASTEN."
                                               (ezeka--read-label new-file)
                                               new-title parent-link)
                 (insert "\n" content)
+                (set-visited-file-name new-file t)
                 (basic-save-buffer))
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
