@@ -584,6 +584,13 @@ See `zk--group-function' for details."
              (ezeka-format-metadata "{%l} %c <%K>" mdata)))))
 (advice-add 'zk--group-function :override 'adv--zk-group-function)
 
+(defun ezeka-zk--file-id (file)
+  "Replace `zk--file-id' for the given FILE."
+  (when (ezeka-note-p file)
+    (ezeka-file-name-id file)))
+(when (fboundp 'zk-file-id)
+  (defadvice 'zk--file-id :override 'ezeka-zk--file-id))
+
 (defun ezeka-zk-file-name-regexp ()
   "Return the correct regexp matching Ezeka file names.
 The regexp captures these groups:
