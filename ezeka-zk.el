@@ -93,7 +93,7 @@ the environment."
     current-prefix-arg))
   (let ((with-captions (eq (ezeka-kasten-id-type kasten) :numerus)))
     (custom-set-variables
-     '(zk-directory-subdir-function #'ezeka-subdirectory)
+     '(zk-subdirectory-function #'ezeka-subdirectory)
      `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten))
      `(zk-file-name-id-only ,(not with-captions))
      `(zk-parse-file-function (if ,with-captions
