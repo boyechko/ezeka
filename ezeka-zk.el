@@ -603,4 +603,8 @@ Group 2 is the title."
             "$")))
 (defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
 
+(defalias 'zk--insert-link-and-title
+  (lambda (id _)
+    (ezeka-insert-link-with-metadata id :title :before)))
+
 (provide 'ezeka-zk)
