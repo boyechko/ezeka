@@ -585,17 +585,22 @@ See `zk--group-function' for details."
 (advice-add 'zk--group-function :override 'adv--zk-group-function)
 
 (defun ezeka-zk-file-name-regexp ()
-  "Return the correct regexp matching zk file names.
-Unlike `zk-file-name-regexp', the space and title after it are
-optional. The regexp captures these groups:
+  "Return the correct regexp matching Ezeka file names.
+The regexp captures these groups:
 
-Group 1 is the zk ID.
+Group 1 is the ezk ID.
 Group 2 is the title."
-  (concat "\\(?1:" zk-id-regexp "\\)"
-          "\\(?: \\(?2:.*\\)\\)*"
-          "\\."
-          zk-file-extension
-          ".*"))
+  (if (string= "rumen" (ezeka-directory-kasten zk-directory))
+      (concat "\\(?1:" (ezeka--id-regexp :numerus) "\\)"
+              " "
+              "\\(?2:[^.]+\\)"
+              "\\."
+              zk-file-extension
+              "$")
+    (concat "\\(?1:" (ezeka--id-regexp :tempus) "\\)"
+            "\\(?2:\\.\\)"
+            zk-file-extension
+            "$")))
 (defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
 
 (provide 'ezeka-zk)
