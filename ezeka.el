@@ -2241,19 +2241,13 @@ offer additional options."
                                  (nth 4 (org-heading-components)))))))
     (if (or snippet? arg)
         (let ((org-footnote-section nil)
+              (org-footnote-auto-label nil)
+              (org-footnote-define-inline nil)
+              (org-footnote-auto-adjust 'sort)
               (context (org-context)))
           (org-element-cache-reset)
-          ;; taken from `org-footnote-action'
-          (if (not (and context
-                        (> (point)
-	                       (save-excursion
-                             ;; FIXME: Broken, since :END property is nil?
-		                     (goto-char (org-element-property :end context))
-		                     (skip-chars-backward " \t")
-		                     (point)))))
-              (org-footnote-action (equal arg '(16)))
-            (kill-new (format-time-string "%H%M"))
-            (org-footnote-new)))
+          (kill-new (format-time-string "%H%M"))
+          (org-footnote-new))
       (org-footnote-action (equal arg '(16))))))
 
 ;;;=============================================================================
