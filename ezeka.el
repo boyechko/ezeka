@@ -482,8 +482,7 @@ content. If HEADER-ONLY is non-nil, only get the header."
                    (goto-char (point-min))
                    (if (re-search-forward "\n\n" nil t)
                        (match-beginning 0)
-                     (unless noerror
-                       (error "Cannot separate header in %s" file))))))))
+                     (point-max)))))))
     (cond ((get-file-buffer file)
            (save-excursion
              (save-restriction
