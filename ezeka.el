@@ -2092,7 +2092,6 @@ open the link in the same window."
 ;;; - update the snippet title in the heading while I'm at it
 ;;; - command to edit the current heading in situ and locate same text point
 ;;; - quickly scan through all the headings and see if any need updating?
-;;; - add marker that I'm including text from the Zettel; define a new org block?
 (defun ezeka-insert-snippet-text (arg file)
   "Insert snippet text from the given FILE into the current buffer.
 By default, only update the text if the modification time is
@@ -2105,93 +2104,111 @@ different. With \\[universal-argument] ARG, forces update."
            (org-previous-link)
            (when (ezeka-link-at-point-p)
              (ezeka-link-file (ezeka-link-at-point))))))
-  ;; Get the metadata and most recent modification
-  (save-excursion
-    (save-restriction
-      (org-back-to-heading)
-      (let* ((mdata (ezeka-file-metadata file))
-             (modified-mdata (format "[%s]"
-                                     (or (alist-get :modified mdata)
-                                         (alist-get :created mdata))))
-             (modified-prop (org-entry-get (point) "MODIFIED"))
-             (current? (string= modified-mdata modified-prop)))
-        (if (and current? (null arg))
-            (message "Snippet is up to date; leaving alone")
-          (org-entry-put (point) "MODIFIED" modified-mdata)
-          (when (or t (y-or-n-p "Update the text? "))
-            ;; If current line is a comment, create a heading after it
-            (when (org-at-comment-p)
-              (org-insert-subheading nil))
-            ;; Delete existing text
-            (org-narrow-to-subtree)
-            (goto-char (cdr (org-get-property-block)))
-            (forward-line 1)            ; `org-get-property-block' ends on :END:
-            (let ((start (point))
-                  (comments-removed 0)
-                  (footnotes-removed 0)
-                  (content '()))
-              (delete-region start (point-max))
-              ;; Get the Summary and Snippet subtrees from snippet file
-              (with-current-buffer (find-file-noselect file)
-                ;; Include Summary section if present
-                (when (and ezeka-insert-snippet-summary
-                           (org-find-exact-headline-in-buffer "Summary"))
-                  (goto-char (org-find-exact-headline-in-buffer "Summary"))
-                  (forward-line)
+  (cl-flet ((move-after-properties ()
+              "Move point after the properties drawer, if any."
+              (goto-char (cdr (org-get-property-block)))
+              ;; `org-get-property-block' ends on :END:
+              (forward-line)))
+    ;; Get the metadata and most recent modification
+    (save-excursion
+      (save-restriction
+        (org-back-to-heading)
+        (let* ((mdata (ezeka-file-metadata file))
+               (modified-mdata (format "[%s]"
+                                       (or (alist-get :modified mdata)
+                                           (alist-get :created mdata))))
+               (modified-prop (org-entry-get (point) "MODIFIED"))
+               (current? (string= modified-mdata modified-prop))
+               (org-id (org-id-get-create)))
+          (if (and current? (null arg))
+              (message "Snippet is up to date; leaving alone")
+            (org-entry-put (point) "MODIFIED" modified-mdata)
+            (when (or t (y-or-n-p "Update the text? "))
+              ;; If current line is a comment, create a heading after it
+              (when (org-at-comment-p)
+                (org-insert-subheading nil))
+              ;; Delete existing text
+              (org-narrow-to-subtree)
+              (move-after-properties)
+              (let ((start (point))
+                    (comments-removed 0)
+                    (footnotes-removed 0)
+                    (content '()))
+                (delete-region start (point-max))
+                ;; Get the Summary and Snippet subtrees from snippet file
+                (with-current-buffer (find-file-noselect file)
+                  ;; Include Summary section if present
+                  (when (and ezeka-insert-snippet-summary
+                             (org-find-exact-headline-in-buffer "Summary"))
+                    (goto-char (org-find-exact-headline-in-buffer "Summary"))
+                    (forward-line)
+                    (let ((copy-from (point)))
+                      (org-end-of-subtree)
+                      (mapcar (lambda (line)
+                                (push (concat "# " line "\n") content))
+                              (split-string
+                               (buffer-substring-no-properties copy-from (point))
+                               "\n" t))))
+                  (goto-char
+                   (or (org-find-exact-headline-in-buffer "Snippet")
+                       (org-find-exact-headline-in-buffer "Content")
+                       (error "Can't find the Snippet or Content section")))
+                  (if (not org-id)
+                      (warn "No org-id added to file %s" file)
+                    (org-entry-put (point) "USED_IN+" (format "id:%s" org-id)))
+                  (basic-save-buffer)
+                  (move-after-properties)
                   (let ((copy-from (point)))
                     (org-end-of-subtree)
-                    (mapcar (lambda (line)
-                              (push (concat "# " line "\n") content))
-                            (split-string
-                             (buffer-substring-no-properties copy-from (point))
-                             "\n" t))))
-                (goto-char (or (org-find-exact-headline-in-buffer "Snippet")
-                               (org-find-exact-headline-in-buffer "Content")
-                               (error "Can't find the Snippet or Content section")))
-                (let ((copy-from (point)))
-                  (org-end-of-subtree)
-                  (push (buffer-substring copy-from (point)) content)))
-              ;; Insert the copied subtrees and remove its headings and comments
-              (insert "\n")
-              (apply #'insert (nreverse content))
-              (goto-char start)
-              (while (re-search-forward "^[*]+ " nil t) ; remove headings
-                (goto-char (match-beginning 0))
-                (kill-line 1))
-              ;; Remove <<tags>>
-              (goto-char start)
-              (while (re-search-forward "<<[^>]+>>" nil t)
-                (replace-match ""))
-              ;; Remove my notes in {...} and Zettel links
-              (goto-char start)
-              (while (re-search-forward (rx (optional blank)
-                                            (group
-                                             (or (and "[[" (+? (not space)) "]]")
-                                                 (and "{" (+? anything) "}"))))
-                                        nil t)
-                (when (eq (elt (match-string 1) 0) ?{)
-                  (cl-incf comments-removed))
-                (replace-match ""))
-              ;; Remove footnotes if need be
-              (unless ezeka-insert-snippet-footnotes
+                    (push (buffer-substring copy-from (point)) content)))
+                ;; Insert the copied subtrees and remove its headings and comments
+                (apply #'insert (nreverse content))
                 (goto-char start)
-                (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
+                (while (re-search-forward "^[*]+ " nil t) ; remove headings
                   (goto-char (match-beginning 0))
-                  (kill-paragraph 1)
-                  (cl-incf footnotes-removed)))
-              (org-indent-region (point-min) (point-max))
-              (goto-char (point-max))
-              (insert "\n")
-              (message "Removed %d comments and %d footnotes"
-                       comments-removed footnotes-removed)
-              (rb-collapse-blank-lines)
-              t)))))))
+                  (kill-line 1))
+                ;; Remove <<tags>>
+                (goto-char start)
+                (while (re-search-forward "<<[^>]+>>" nil t)
+                  (replace-match ""))
+                ;; Remove my notes in {...} and Zettel links
+                (goto-char start)
+                (while (re-search-forward (rx (optional blank)
+                                              (group
+                                               (or (and "[[" (+? (not space)) "]]")
+                                                   (and "{" (+? anything) "}"))))
+                                          nil t)
+                  (when (eq (elt (match-string 1) 0) ?{)
+                    (cl-incf comments-removed))
+                  (replace-match ""))
+                ;; Remove inline @@...@@ comments
+                (goto-char start)
+                (while (re-search-forward "@@.*@@" nil t)
+                  (cl-incf comments-removed)
+                  (replace-match ""))
+                ;; Remove footnotes if need be
+                (unless ezeka-insert-snippet-footnotes
+                  (goto-char start)
+                  (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
+                    (goto-char (match-beginning 0))
+                    (kill-paragraph 1)
+                    (cl-incf footnotes-removed)))
+                (org-indent-region (point-min) (point-max))
+                (goto-char (point-max))
+                (insert "\n")
+                (message "Removed %d comments and %d footnotes"
+                         comments-removed footnotes-removed)
+                (rb-collapse-blank-lines)
+                t))))))))
 
 (defun ezeka-find-inserted-snippet ()
   "Find source of snippet inserted with `ezeka-insert-snippet-text'.
-The point should be within the org entry."
+The point should be within the org entry. If called from the heading
+with :USED_IN: property, perform the reverse action."
   (interactive)
   (save-excursion
+    (if-let ((used-in (org-entry-get (point) "USED_IN+")))
+        (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]")))
     (org-back-to-heading t)
     (org-next-link)
     (org-open-at-point)))
