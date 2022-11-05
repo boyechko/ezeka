@@ -1456,15 +1456,20 @@ find the Nth link (i.e. grandparent if DEGREE is 2, child if DEGREE is
                                  (1- degree)
                                (1+ degree))))))
 
-(defun ezeka-find-ancestor (n)
+(defun ezeka-find-ancestor (n &optional same-window)
   "Open the current Zettel's immediate ancestor.
-With a prefix argument, try to find the Nth ancestor."
-  (interactive "p")
+With a prefix argument, try to find the Nth ancestor. With
+\\[universal-argument] or SAME-WINDOW non-nil, open in the same
+window."
+  (interactive (list (if (integerp current-prefix-arg)
+                         current-prefix-arg
+                       1)
+                     (equal current-prefix-arg '(4))))
   (when (ezeka-note-p buffer-file-name)
     (let ((ancestor (ezeka-trace-genealogy buffer-file-name n)))
       (if ancestor
-          (ezeka-find-link ancestor)
-        (message "No ancestor found")))))
+          (ezeka-find-link ancestor same-window)
+        (message "No ancestor of degree %d found" n)))))
 
 (defun ezeka-find-descendant (n)
   "Open the current Zettel's immediate descendant.
