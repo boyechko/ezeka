@@ -2458,9 +2458,9 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
             ;; ("C-c (" . ) ;
             ;; ("C-c )" . ) ;
-            ;; ("C-c -" . ) ;
+            ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
-            ("C-c =" . ezeka--update-file-header) ; `org-table-eval-formula'
+            ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-set-title) ;
@@ -2469,7 +2469,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
-            ("C-c /" . ezeka-kill-ring-save-link-and-title)
+            ;; ("C-c /" . ) ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
