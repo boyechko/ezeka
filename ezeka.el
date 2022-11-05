@@ -1689,13 +1689,15 @@ double \\[universal-argument], open buffer in other window."
         ;; Disabling sorting preserves the same order as with `switch-to-buffer'
         ;; FIXME: How to do this without relying on vertico?
         (vertico-sort-function nil))
-    (funcall (if (equal arg '(16)) 'find-file-other-window 'find-file)
+    (funcall (if (equal arg '(16))
+                 'switch-to-buffer-other-window
+               'switch-to-buffer)
              (if table
-                 (cdr (assoc-string
-                       (completing-read "Visit buffer: " table nil t) table))
-               (switch-to-buffer
-                (read-buffer-to-switch
-                 "No opened Zettel. Switch to regular buffer: "))))))
+                 (get-file-buffer
+                  (cdr (assoc-string
+                        (completing-read "Visit buffer: " table nil t) table)))
+               (read-buffer-to-switch
+                "No opened Zettel. Switch to regular buffer: ")))))
 
 ;;;=============================================================================
 ;;; Labels
