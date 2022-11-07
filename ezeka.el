@@ -1750,8 +1750,7 @@ presses [return]."
                                         (cl-destructuring-bind (lt gk desc)
                                             genus
                                           (cons
-                                           (format "%s (%s) -- %s"
-                                                   lt gk desc)
+                                           (format "%s (%s) ⇒ %s" lt gk desc)
                                            lt)))
                                       ezeka-genera)))
                    (cdr (assoc-string (completing-read (or prompt "Genus: ")
