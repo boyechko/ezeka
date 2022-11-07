@@ -2192,15 +2192,9 @@ different. With \\[universal-argument] ARG, forces update."
                 (goto-char start)
                 (while (re-search-forward "<<[^>]+>>" nil t)
                   (replace-match ""))
-                ;; Remove my notes in {...} and Zettel links
+                ;; Remove Zettel links
                 (goto-char start)
-                (while (re-search-forward (rx (optional blank)
-                                              (group
-                                               (or (and "[[" (+? (not space)) "]]")
-                                                   (and "{" (+? anything) "}"))))
-                                          nil t)
-                  (when (eq (elt (match-string 1) 0) ?{)
-                    (cl-incf comments-removed))
+                (while (re-search-forward " ?\\[\\[.+]]" nil t)
                   (replace-match ""))
                 ;; Remove inline @@...@@ comments
                 (goto-char start)
