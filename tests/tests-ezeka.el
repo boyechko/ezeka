@@ -52,6 +52,13 @@
   (should (equal (ezeka--header-deyamlify-value "[ 2020-01-01, 2022-01-01 ]")
                  '("2020-01-01" "2022-01-01"))))
 
+(ert-deftest tests/ezeka--metadata-equal-p ()
+  (let ((md1 (ezeka-file-metadata (ezeka-link-file "x-1613")))
+        (md1a (nreverse (ezeka-file-metadata (ezeka-link-file "x-1613"))))
+        (md2 (ezeka-file-metadata (ezeka-link-file "q-8148"))))
+    (should (ezeka--metadata-equal-p md1 md1a))
+    (should-not (ezeka--metadata-equal-p md1 md2))))
+
 (ert-deftest tests/ezeka--header-normalize-readings ()
   (should
    (equal (ezeka--header-normalize-readings

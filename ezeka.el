@@ -869,6 +869,17 @@ Returns modifed metadata."
     (funcall clear-message-function)
     metadata))
 
+(defun ezeka--metadata-equal-p (md1 md2)
+  "Return non-nil if the values of MD1 and MD2 are equal."
+  (and (= (length md1) (length md2))
+       (cl-every (lambda (x)
+                   (equal (cdr x) (alist-get (car x) md2)))
+                 md1)))
+
+(defvar ezeka--u-f-h-metadata nil
+  "Temporarily save resulting metadata to avoid duplication.
+Used in `ezeka--update-file-header'.")
+
 (defun ezeka--update-file-header (&optional filename metadata inhibit-read-only)
   "Replace FILENAME's header with one generated from METADATA.
 If METADATA is not given, get it by parsing the FILENAME's existing
@@ -878,32 +889,34 @@ buffer is read only."
   (let* ((filename (or filename buffer-file-name))
          (metadata (or metadata (ezeka-file-metadata filename t)))
          (old-point (point)))
-    (save-mark-and-excursion
-      (with-current-buffer (get-file-buffer filename)
-        (save-restriction
-          (goto-char (point-min))
-          (when (re-search-forward ezeka-header-separator-regexp nil t 1)
-            (narrow-to-region (point-min) (point)))
-          (setq metadata
-            (ezeka--set-time-of-creation
-             (ezeka--maybe-update-modifed
-              (ezeka--reconcile-title-and-caption metadata))))
-          (setf (alist-get :rubric metadata)
-                (ezeka-format-metadata ezeka-header-rubric-format metadata))
-          (delete-region (point-min) (point-max))
-          (mapc (lambda (cons)
-                  (insert (format "%s: %s\n"
-                                  (ezeka--header-yamlify-key (car cons))
-                                  (ezeka--header-yamlify-value (cdr cons)))))
-                (let (ordered)
-                  (dolist (key '(:rubric
-                                 :title :subtitle :author
-                                 :created :modified
-                                 :parent :firstborn :oldnames
-                                 :readings :keywords)
-                               (nreverse ordered))
-                    (when (alist-get key metadata)
-                      (push (cons key (alist-get key metadata)) ordered))))))))
+    (unless (ezeka--metadata-equal-p metadata ezeka--u-f-h-metadata)
+      (save-mark-and-excursion
+        (with-current-buffer (get-file-buffer filename)
+          (save-restriction
+            (goto-char (point-min))
+            (when (re-search-forward ezeka-header-separator-regexp nil t 1)
+              (narrow-to-region (point-min) (point)))
+            (setq metadata
+              (ezeka--set-time-of-creation
+               (ezeka--maybe-update-modifed
+                (ezeka--reconcile-title-and-caption metadata))))
+            (setq ezeka--u-f-h-metadata metadata)
+            (setf (alist-get :rubric metadata)
+                  (ezeka-format-metadata ezeka-header-rubric-format metadata))
+            (delete-region (point-min) (point-max))
+            (mapc (lambda (cons)
+                    (insert (format "%s: %s\n"
+                                    (ezeka--header-yamlify-key (car cons))
+                                    (ezeka--header-yamlify-value (cdr cons)))))
+                  (let (ordered)
+                    (dolist (key '(:rubric
+                                   :title :subtitle :author
+                                   :created :modified
+                                   :parent :firstborn :oldnames
+                                   :readings :keywords)
+                                 (nreverse ordered))
+                      (when (alist-get key metadata)
+                        (push (cons key (alist-get key metadata)) ordered)))))))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
