@@ -962,7 +962,9 @@ buffer is read only."
                (ezeka--save-buffer-read-only filename))
               ((member keep-which '(?m ?l))
                (ezeka--rename-file
-                filename (ezeka--minibuffer-edit-string base mname))))))))
+                filename (ezeka--minibuffer-edit-string base mname))
+               (ezeka--update-metadata-values filename mdata
+                                              :caption-stable nil)))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
