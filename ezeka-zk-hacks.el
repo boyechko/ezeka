@@ -40,7 +40,6 @@ Achieves this by lexically binding binding `zk-directory' and calling
 the original FUNC with ARGS."
   (let ((zk-directory ezeka-directory))
     (apply func args)))
-(advice-add 'zk-backlinks :around 'adv--backlinks-in-entire-ezeka)
 
 (defun adv--zk-group-function (file transform)
   "Replace `zk--group-function' to better TRANSFORM the given FILE.
@@ -54,14 +53,11 @@ See `zk--group-function' for details."
         (if (string= title ".")
             (ezeka-format-metadata "{%l} %c <%K>" (ezeka-file-metadata file))
           (or title "<WRONG>"))))))
-(advice-add 'zk--group-function :override 'adv--zk-group-function)
 
 (defun ezeka-zk--file-id (file)
   "Replace `zk--file-id' for the given FILE."
   (when (ezeka-note-p file)
     (ezeka-file-name-id file)))
-(when (fboundp 'zk-file-id)
-  (defadvice 'zk--file-id :override 'ezeka-zk--file-id))
 
 (defun ezeka-zk-file-name-regexp ()
   "Return the correct regexp matching Ezeka file names.
@@ -80,11 +76,40 @@ Group 2 is the title."
             "\\(?2:\\.\\)"
             zk-file-extension
             "$")))
-(defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
 
-(defalias 'zk--insert-link-and-title
-  (lambda (id _)
-    (ezeka-insert-link-with-metadata id :title :before)))
+(defun ezeka-zk--insert-link-and-title (id _)
+  "Insert link and title to the Ezeka note with given ID."
+  (ezeka-insert-link-with-metadata id :title :before))
+
+(defvar ezeka-zk-hacks--zfnr-func nil)
+(defvar ezeka-zk-hacks-mode nil)
+
+(defun ezeka-zk-hacks-mode (&optional arg)
+  "Toggle my custom hacks to make zk fit my workflow.
+If ARG is positive or T, enable the hacks; if negative, disable them.
+This is just a pseudo mode."
+  (interactive)
+  (cond ((or (eq arg t)                 ; enable the mode
+             (and (numberp arg) (> arg 0))
+             (not ezeka-zk-hacks-mode))
+         (advice-add 'zk-backlinks :around 'adv--backlinks-in-entire-ezeka)
+         (advice-add 'zk--group-function :override 'adv--zk-group-function)
+         (advice-add 'zk--file-id :override 'ezeka-zk--file-id)
+         (advice-add 'zk--insert-link-and-title
+                     :override 'ezeka-zk--insert-link-and-title)
+         (setq ezeka-zk-hacks--zfnr-func (symbol-function 'zk-file-name-regexp)
+               ezeka-zk-hacks-mode t)
+         (defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
+         (message "Ezeka-zk-hacks-mode enabled"))
+        (t                              ; disable the mode
+         (advice-remove 'zk-backlinks 'adv--backlinks-in-entire-ezeka)
+         (advice-remove 'zk--group-function 'adv--zk-group-function)
+         (advice-remove 'zk--file-id 'ezeka-zk--file-id)
+         (advice-remove 'zk--insert-link-and-title 'ezeka-zk--insert-link-and-title)
+         (fset 'zk-file-name-regexp ezeka-zk-hacks--zfnr-func)
+         (setq ezeka-zk-hacks--zfnr-func nil
+               ezeka-zk-hacks-mode nil)
+         (message "Ezeka-zk-hacks-mode disabled"))))
 
 (provide 'ezeka-zk-hacks)
 ;;; ezeka-zk-hacks.el ends here
