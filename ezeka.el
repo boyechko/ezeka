@@ -443,9 +443,9 @@ If NOERROR is non-NIL, don't signal an error if the link is invalid."
   "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
 Return nil if neither of these ID types are matched."
   (let ((id (file-name-base id-or-file)))
-    (cond ((string-match (ezeka--match-entire (ezeka--id-regexp :tempus)) id)
+    (cond ((string-match (concat "^" (ezeka--id-regexp :tempus)) id)
            :tempus)
-          ((string-match (ezeka--match-entire (ezeka--id-regexp :numerus)) id)
+          ((string-match (concat "^" (ezeka--id-regexp :numerus)) id)
            :numerus)
           (t
            ;; Anything else is not a Zettel
