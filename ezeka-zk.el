@@ -124,19 +124,11 @@ the environment."
 Optionally use ORIG-ID for backlink."
   (ezeka-insert-header-template new-id nil title orig-id))
 
-(defun ezeka-zk-format-function (files)
-  "Format ezeka FILES from their metadata.
-See `zk-new-note-header-function'."
-  (let* (output)
-    (dolist (file files output)
-      (when (ezeka-note-p file)
-        (let* ((metadata (ezeka-file-metadata file)))
-          (push (format-spec zk-index-format
-                             `((?i . ,(ezeka-file-name-id file))
-                               (?t . ,(alist-get :title metadata))
-                               (?c . ,(alist-get :category metadata))
-                               (?k . ,(or (alist-get :citekey metadata) ""))))
-                output))))))
+(defun ezeka-zk-format-function (format id title)
+  "Format given ID and TITLE according to FORMAT."
+  (if (string= "." title)
+      (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
+    (format-spec format `((?i . ,id) (?t . ,title)))))
 
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."
