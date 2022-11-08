@@ -59,6 +59,27 @@
     (should (ezeka--metadata-equal-p md1 md1a))
     (should-not (ezeka--metadata-equal-p md1 md2))))
 
+(ert-deftest tests/ezeka-link-kasten ()
+  (let ((numerus "q-8148")
+        (tempus-fq "os:20160313T2228")
+        (tempus "20160313T2228"))
+    (should (string= "rumen" (ezeka-link-kasten numerus)))
+    (should (string= "os" (ezeka-link-kasten tempus-fq)))
+    (should (string= "os" (ezeka-link-kasten tempus)))))
+
+(ert-deftest tests/ezeka-link-file ()
+  (let ((numerus "q-8148")
+        (tempus-fq "os:20160313T2228")
+        (tempus "20160313T2228"))
+    (should
+     (string=
+      "q-8148 {μ} having everything in one place frees up the mind @Allen2001"
+      (file-name-base (ezeka-link-file numerus))))
+    (should (string= "/Users/richard/Zettelkasten/os/2016/20160313T2228.txt"
+                     (ezeka-link-file tempus-fq)))
+    (should (string= "/Users/richard/Zettelkasten/omasum/2016/20160313T2228.txt"
+                     (ezeka-link-file tempus)))))
+
 (ert-deftest tests/ezeka--header-normalize-readings ()
   (should
    (equal (ezeka--header-normalize-readings
