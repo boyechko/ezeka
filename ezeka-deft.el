@@ -219,13 +219,12 @@ changes the existing one. With prefix argument, replaces the current
 ;;;=============================================================================
 
 (defun ezeka-deft-show-link-title-in-minibuffer ()
-  "Displays Zettel title of the link under cursor, less category and citekey,
-in the minibuffer."
+  "Display in the minibuffer the Zettel title of the link under cursor."
   (while-no-input
     (redisplay))
   (when (and (eq major-mode 'org-mode)
              (ezeka-link-at-point-p))
-    (let* ((file (ezeka-link-file (match-string 1) t))
+    (let* ((file (ezeka-link-file (match-string 1)))
            (title (ezeka-deft-parsed-title file))
            (title
             (if (string-match "^\\([[:alnum:]-]+\\).*	.*	\\(.*\\)$" title)

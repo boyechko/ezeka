@@ -177,7 +177,7 @@ Functions affected are `ezeka-set-label', `ezeka-set-title', and
   "Return the do-what-I-mean Zettel file from a variety of modes.
 If LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((and link-at-point (ezeka-link-at-point-p))
-         (ezeka-link-file (ezeka-link-at-point) t))
+         (ezeka-link-file (ezeka-link-at-point)))
         ((and buffer-file-name
               (or ezeka-mode (ezeka-note-p buffer-file-name t)))
          buffer-file-name)
@@ -407,12 +407,11 @@ See `ezeka-default-kasten' for valid types."
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
     (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
 
-(defun ezeka-link-file (link &optional noerror rubric)
+(defun ezeka-link-file (link &optional caption)
   "Return a full file path to the Zettel LINK.
-If RUBRIC is nil (so return a file name consisting of just the LINK),
+If CAPTION is nil (so return a file name consisting of just the LINK),
 'wild (find existing file beginning with LINK), or a string (returns a
-filename consisting of LINK, `ezeka-file-name-separator', and RUBRIC).
-If NOERROR is non-NIL, don't signal an error if the link is invalid."
+filename consisting of LINK, `ezeka-file-name-separator', and CAPTION)."
   (or (catch 'invalid
         (when (ezeka-link-p link)
           (let* ((kasten (ezeka-link-kasten link))
@@ -421,23 +420,22 @@ If NOERROR is non-NIL, don't signal an error if the link is invalid."
                   (expand-file-name
                    (format "%s%s.%s"
                            id
-                           (cond ((null rubric) "*")
-                                 ((eq rubric 'wild) "*")
-                                 ((stringp rubric)
-                                  (concat ezeka-file-name-separator rubric))
+                           (cond ((null caption) "*")
+                                 ((eq caption 'wild) "*")
+                                 ((stringp caption)
+                                  (concat ezeka-file-name-separator caption))
                                  (t
                                   (signal 'wrong-type-argument
-                                          '(rubric (or nil 'wild stringp)))))
+                                          '(caption (or nil 'wild stringp)))))
                            ezeka-file-extension)
                    (file-name-concat (ezeka-kasten-directory kasten)
                                      (or (ezeka-subdirectory id)
                                          (throw 'invalid nil))))))
-            (if (eq rubric 'wild)
+            (if (eq caption 'wild)
                 (car (file-expand-wildcards filename))
               (or (car (file-expand-wildcards filename))
                   (string-replace "*" "" filename)))))) ; FIXME: Hackish
-      (unless noerror
-        (error "Link not valid: %s" link))))
+      (error "Link not valid: %s" link)))
 
 (defun ezeka-id-type (id-or-file)
   "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
@@ -1047,8 +1045,8 @@ abase26 equivalent of 0, namely 'a'."
     (cl-flet ((exists-p ()
                 "Checks if ID is either NIL or exists."
                 (or (null id)
-                    (file-exists-p
-                     (ezeka-link-file (ezeka-make-link kasten id))))))
+                    (ignore-errors
+                      (ezeka-link-file (ezeka-make-link kasten id))))))
       (if (and (eq type :numerus)
                (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
           (unwind-protect
@@ -1154,7 +1152,7 @@ same window."
 If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
-    (let ((existing-file (ezeka-link-file link t 'wild)))
+    (let ((existing-file (ezeka-link-file link 'wild)))
         (cond ((ezeka-note-p existing-file)
                (ezeka-find-file existing-file same-window))
               ((or (eql ezeka-create-nonexistent-links t)
@@ -1162,7 +1160,7 @@ T if the link is a Zettel link."
                         (y-or-n-p "Link doesn't exist. Create? ")))
                (let ((caption (plist-get (assoc-string link ezeka--new-child-plist)
                                          :caption)))
-                 (ezeka-find-file (ezeka-link-file link t caption) same-window)
+                 (ezeka-find-file (ezeka-link-file link caption) same-window)
                  (call-interactively #'ezeka-insert-header-template)))
               (t
                (message "Link doesn't exist")
@@ -1646,7 +1644,7 @@ information for Zettelkasten work."
     (when-let* ((link (and (ezeka-link-at-point-p)
                            (ezeka-link-at-point)))
                 (position (window-absolute-pixel-position))
-                (metadata (ezeka-file-metadata (ezeka-link-file link t) t)))
+                (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
       (tooltip-show
        (format "%s%s%s" (alist-get :title metadata)
                (if (alist-get :citekey metadata) " " "")
@@ -1662,7 +1660,7 @@ information for Zettelkasten work."
     (redisplay)
     (if-let* ((link (and (ezeka-link-at-point-p)
                          (ezeka-link-at-point)))
-              (metadata (ezeka-file-metadata (ezeka-link-file link t) t)))
+              (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
       (setq mode-line-misc-info
         (propertize
          (format "%s%s%s" (alist-get :title metadata)
