@@ -44,15 +44,16 @@ the original FUNC with ARGS."
 (defun adv--zk-group-function (file transform)
   "Replace `zk--group-function' to better TRANSFORM the given FILE.
 See `zk--group-function' for details."
-  (let ((case-fold-search t))
-    (if (not transform)
-        "ezk"
-      (string-match (zk-file-name-regexp) file)
-      (let ((id (match-string 1 file))
-            (title (match-string 2 file)))
-        (if (string= title ".")
-            (ezeka-format-metadata "{%l} %c <%K>" (ezeka-file-metadata file))
-          (or title "<WRONG>"))))))
+  (let ((case-fold-search t)
+        (base (file-name-base file)))
+    (cond ((not transform)
+           "ezk")
+          ((string-match (zk-file-name-regexp) file)
+           (let ((id (match-string 1 file))
+                 (title (match-string 2 file)))
+             (ezeka-zk-format-function "%i {%l} %t" id title)))
+          (t
+           base))))
 
 (defun ezeka-zk--file-id (file)
   "Replace `zk--file-id' for the given FILE."
