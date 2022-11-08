@@ -355,30 +355,18 @@ proper link, just return nil."
            (assoc kasten ezeka-kaesten)
          t)))
 
-(defun ezeka-link-kasten (link)
+(defun ezeka-link-kasten (link &optional explicit)
   "Return the Kasten part of the given LINK.
-If link does not specify Kasten, asks the user to resolve the ambiguity."
-  (when (string-match ezeka-link-regexp link)
-    (let* ((kasten (match-string 2 link))
-           (id (match-string 1 link))
-           (type (ezeka-id-type id)))
-      (or kasten
-          (if-let ((default (alist-get type ezeka-default-kasten)))
-              default
-            (call-interactively #'ezeka-set-default-kasten)
-            (ezeka-link-kasten link))))))
-
-(defun ezeka-set-default-kasten (type kasten)
-  "Set the default kasten for the given ID TYPE to KASTEN.
-See `ezeka-default-kasten' for valid types."
-  (interactive
-   (list (intern (completing-read "Set default for which type of Zettel? "
-                           (mapcar #'first ezeka-default-kasten)))
-         (completing-read "Set the default to what Kasten? "
-                   (if (listp ezeka-kaesten)
-                       (mapcar #'first ezeka-kaesten)
-                     (error "No Zettelkästen defined")))))
-  (setf (alist-get type ezeka-default-kasten) kasten))
+If the link does not specify a Kasten, return the default one for the
+given ID type. If EXPLICIT is non-nil, return nil if Kasten is not
+explicitly given."
+  (if (string-match ezeka-link-regexp link)
+      (let* ((id (match-string 1 link))
+             (kasten (match-string 2 link)))
+        (or kasten
+            (and (not explicit)
+                 (alist-get (ezeka-id-type id) ezeka-default-kasten))))
+    (error "Invalid link %s" link)))
 
 (defun ezeka-kasten-id-type (kasten)
   "Return the Zettel ID type for the KASTEN based on `ezeka-kaesten'."
@@ -1112,6 +1100,18 @@ abase26 equivalent of 0, namely 'a'."
 ;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
+
+(defun ezeka-set-default-kasten (type kasten)
+  "Set the default kasten for the given ID TYPE to KASTEN.
+See `ezeka-default-kasten' for valid types."
+  (interactive
+   (list (intern (completing-read "Set default for which type of Zettel? "
+                           (mapcar #'first ezeka-default-kasten)))
+         (completing-read "Set the default to what Kasten? "
+                   (if (listp ezeka-kaesten)
+                       (mapcar #'first ezeka-kaesten)
+                     (error "No Zettelkästen defined")))))
+  (setf (alist-get type ezeka-default-kasten) kasten))
 
 (defvar ezeka--new-child-plist nil
   "An alist of new children and a plist of their details.
