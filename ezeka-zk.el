@@ -126,9 +126,11 @@ Optionally use ORIG-ID for backlink."
 
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT."
-  (if (string= "." title)
+  (if (string= id title)
       (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
-    (format-spec format `((?i . ,id) (?t . ,title)))))
+    (format-spec format `((?i . ,id)
+                          (?t . ,title)
+                          (?l . "")))))
 
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."

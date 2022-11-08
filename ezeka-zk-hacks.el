@@ -66,21 +66,11 @@ The regexp captures these groups:
 
 Group 1 is the ezk ID.
 Group 2 is the title."
-  (if (string= "rumen" (ezeka-directory-kasten zk-directory))
-      (concat "\\(?1:" (ezeka--id-regexp :numerus) "\\)"
-              " "
-              "\\(?2:[^.]+\\)"
-              "\\."
-              zk-file-extension
-              "$")
-    (concat "\\(?1:" (ezeka--id-regexp :tempus) "\\)"
-            "\\(?2:\\.\\)"
-            zk-file-extension
-            "$")))
-
-(defun ezeka-zk--insert-link-and-title (id _)
-  "Insert link and title to the Ezeka note with given ID."
-  (ezeka-insert-link-with-metadata id :title :before))
+  (concat "\\(?1:" (ezeka--id-regexp :all) "\\)"
+          "\\(?2: [^.]+\\)*"
+          "\\."
+          zk-file-extension
+          "$"))
 
 (defvar ezeka-zk-hacks--zfnr-func nil)
 (defvar ezeka-zk-hacks-mode nil)
