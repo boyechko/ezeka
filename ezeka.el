@@ -407,35 +407,38 @@ See `ezeka-default-kasten' for valid types."
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
     (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
 
+(defvar ezeka-file-name-separator " "
+  "Separator to use between ID and CAPTION in file names.")
+
 (defun ezeka-link-file (link &optional caption)
   "Return a full file path to the Zettel LINK.
-If CAPTION is nil (so return a file name consisting of just the LINK),
-'wild (find existing file beginning with LINK), or a string (returns a
-filename consisting of LINK, `ezeka-file-name-separator', and CAPTION)."
-  (or (catch 'invalid
-        (when (ezeka-link-p link)
-          (let* ((kasten (ezeka-link-kasten link))
-                 (id (ezeka-link-id link))
-                 (filename
-                  (expand-file-name
-                   (format "%s%s.%s"
-                           id
-                           (cond ((null caption) "*")
-                                 ((eq caption 'wild) "*")
-                                 ((stringp caption)
-                                  (concat ezeka-file-name-separator caption))
-                                 (t
-                                  (signal 'wrong-type-argument
-                                          '(caption (or nil 'wild stringp)))))
-                           ezeka-file-extension)
-                   (file-name-concat (ezeka-kasten-directory kasten)
-                                     (or (ezeka-subdirectory id)
-                                         (throw 'invalid nil))))))
-            (if (eq caption 'wild)
-                (car (file-expand-wildcards filename))
-              (or (car (file-expand-wildcards filename))
-                  (string-replace "*" "" filename)))))) ; FIXME: Hackish
-      (error "Link not valid: %s" link)))
+CAPTION can be a string (return a filename consisting of LINK and
+CAPTION separated with `ezeka-file-name-separator') or nil, in which
+case try wildcard expansion for the file name beginning with the ID
+given in LINK."
+  (if (not (ezeka-link-p link))
+      (error "Link not valid: %s" link)
+    (let* ((id (ezeka-link-id link))
+           (basename
+            (format "%s%s.%s"
+                    id
+                    (cond ((not (stringp caption)) "*")
+                          ((string-empty-p caption) "")
+                          (t
+                           (concat ezeka-file-name-separator caption)))
+                    ezeka-file-extension)))
+      (or (and (stringp caption)
+               (expand-file-name
+                basename
+                (ezeka-id-directory id (ezeka-link-kasten link))))
+          (catch 'found
+                 (dolist (kasten (ezeka--id-kaesten id))
+                   (when-let ((matches
+                               (file-expand-wildcards
+                                (expand-file-name basename
+                                                  (ezeka-id-directory id kasten)))))
+                     (throw 'found (car matches)))))
+         (error "Link %s cannot be found" link)))))
 
 (defun ezeka-id-type (id-or-file)
   "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
@@ -2316,8 +2319,8 @@ This is the Bookmark record function for Zettel files."
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
 With CONFIRM, confirm before move."
-  (let ((path1 (ezeka-link-file link1))
-        (path2 (ezeka-link-file link2)))
+  (let ((path1 (ezeka-link-file link1 ""))
+        (path2 (ezeka-link-file link2 "")))
     (when (or (not confirm)
               (y-or-n-p (format "Move %s to %s? " link1 link2)))
       (unless (file-exists-p (file-name-directory path2))

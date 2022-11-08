@@ -75,10 +75,18 @@
      (string=
       "q-8148 {μ} having everything in one place frees up the mind @Allen2001"
       (file-name-base (ezeka-link-file numerus))))
-    (should (string= "/Users/richard/Zettelkasten/os/2016/20160313T2228.txt"
-                     (ezeka-link-file tempus-fq)))
-    (should (string= "/Users/richard/Zettelkasten/omasum/2016/20160313T2228.txt"
-                     (ezeka-link-file tempus)))))
+    (should
+     (string=
+      "q-8148 random string"
+      (file-name-base (ezeka-link-file numerus "random string"))))
+    (should
+     (string=
+      "/Users/richard/Zettelkasten/os/2016/20160313T2228.txt"
+      (ezeka-link-file tempus-fq)))
+    (should
+     (string=
+      "/Users/richard/Zettelkasten/omasum/2016/20160313T2228.txt"
+      (ezeka-link-file tempus)))))
 
 (ert-deftest tests/ezeka--header-normalize-readings ()
   (should
