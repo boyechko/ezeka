@@ -212,12 +212,14 @@ REGEXP is non-nil, FROM should be a regexp string."
   "Strip the named groups in the given REGEXP."
   (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
 
-(defun ezeka--minibuffer-edit-string (old-string &optional new-string)
+(defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt)
   "Edit NEW-STRING in minibuffer, showing it parallel to OLD-STRING.
-If NEW-STRING is nil, default to OLD-STRING."
+If NEW-STRING is nil, default to OLD-STRING. If given, PROMPT is shown
+as the first line."
   (let ((new-string (or new-string old-string)))
     (read-string
-     (concat " Original: " (propertize old-string 'face 'italic) "\n"
+     (concat prompt
+             " Original: " (propertize old-string 'face 'italic) "\n"
              "Change to: ")
      new-string nil new-string)))
 
