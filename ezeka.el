@@ -1219,19 +1219,17 @@ same window."
 If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
-    (let ((existing-file (ezeka-link-file link 'wild)))
-        (cond ((ezeka-note-p existing-file)
-               (ezeka-find-file existing-file same-window))
-              ((or (eql ezeka-create-nonexistent-links t)
-                   (and (eql ezeka-create-nonexistent-links 'confirm)
-                        (y-or-n-p "Link doesn't exist. Create? ")))
-               (let ((caption (plist-get (assoc-string link ezeka--new-child-plist)
-                                         :caption)))
-                 (ezeka-find-file (ezeka-link-file link caption) same-window)
-                 (call-interactively #'ezeka-insert-header-template)))
-              (t
-               (message "Link doesn't exist")
-               t)))))
+    (let ((existing-file (ignore-errors (ezeka-link-file link 'try-wildcard))))
+      (cond ((ezeka-note-p existing-file)
+             (ezeka-find-file existing-file same-window))
+            ((or (eql ezeka-create-nonexistent-links t)
+                 (and (eql ezeka-create-nonexistent-links 'confirm)
+                      (y-or-n-p "Link doesn't exist. Create? ")))
+             (ezeka-find-file (ezeka-link-file link "") same-window)
+             (call-interactively #'ezeka-insert-header-template))
+            (t
+             (message "Link doesn't exist")
+             t)))))
 
 (defun ezeka-kill-link-or-sexp-at-point (&optional arg)
   "If there is a Zettel link at point, kill it, including square brackets.
