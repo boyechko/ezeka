@@ -86,8 +86,6 @@ This is just a pseudo mode."
          (advice-add 'zk-backlinks :around 'adv--backlinks-in-entire-ezeka)
          (advice-add 'zk--group-function :override 'adv--zk-group-function)
          (advice-add 'zk--file-id :override 'ezeka-zk--file-id)
-         (advice-add 'zk--insert-link-and-title
-                     :override 'ezeka-zk--insert-link-and-title)
          (setq ezeka-zk-hacks--zfnr-func (symbol-function 'zk-file-name-regexp)
                ezeka-zk-hacks-mode t)
          (defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
@@ -96,7 +94,6 @@ This is just a pseudo mode."
          (advice-remove 'zk-backlinks 'adv--backlinks-in-entire-ezeka)
          (advice-remove 'zk--group-function 'adv--zk-group-function)
          (advice-remove 'zk--file-id 'ezeka-zk--file-id)
-         (advice-remove 'zk--insert-link-and-title 'ezeka-zk--insert-link-and-title)
          (fset 'zk-file-name-regexp ezeka-zk-hacks--zfnr-func)
          (setq ezeka-zk-hacks--zfnr-func nil
                ezeka-zk-hacks-mode nil)

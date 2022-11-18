@@ -586,20 +586,41 @@ Group 6 is the stable caption mark."
 (defvar ezeka-genus-regexp "[α-ω]"
   "Regexp matching genus.")
 
+(defun ezeka--citaton-key-authors (key)
+  "Return a human-readable list of authors for citation KEY."
+  (let ((case-fold-search nil))
+    (when (string-match (concat "^[@&]*\\(?1:[A-Z][a-z]+\\)"
+                                "\\(?:\\(?2:[A-Z][a-z]+\\)"
+                                "\\(?3:EtAl\\)*\\)*\\(?4:[0-9-]+\\)*$") key)
+      (let ((author1 (match-string 1 key))
+            (author2 (match-string 2 key))
+            (etal (match-string 3 key))
+            (date (match-string 4 key)))
+        (cond (etal
+               (format "%s, %s, et al." author1 author2))
+              (author2
+               (format "%s and %s" author1 author2))
+              (t
+               author1))))))
+
 (defun ezeka-format-metadata (format-string metadata)
   "Format a string out of FORMAT-STRING and METADATA.
 The format control string may contain the following %-sequences:
 
+%a means list of cited authors.
+%c means caption (i.e. short title).
 %i means ID or link.
+%k means citation key.
 %K means kasten.
 %l means label (genus or category).
-%c means caption (i.e. short title).
-%t means title.
-%k means citation key.
-%s means stable mark (see `ezeka-header-stable-caption-mark')."
+%s means stable mark (see `ezeka-header-stable-caption-mark').
+%t means title."
   (string-trim
    (format-spec format-string
-                `((?i . ,(alist-get :link metadata))
+                `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
+                             (format "%s's " (ezeka--citaton-key-authors ck))
+                           ""))
+                  (?i . ,(alist-get :link metadata))
                   (?K . ,(alist-get :kasten metadata))
                   (?l . ,(alist-get :label metadata))
                   (?c . ,(alist-get :caption metadata))

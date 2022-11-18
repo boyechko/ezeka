@@ -126,41 +126,16 @@ Optionally use ORIG-ID for backlink."
 
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT."
-  (if (string= id title)
+  (if (or (string= id title)
+          (string-match-p "%a" format)) ; FIXME: Hackish
       (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
-    (format-spec format `((?i . ,id)
-                          (?t . ,title)
-                          (?l . "")))))
-
-(defun ezeka--citaton-key-authors (key)
-  "Return a human-readable list of authors for citation KEY."
-  (let ((case-fold-search nil))
-    (when (string-match (concat "^[@&]*\\(?1:[A-Z][a-z]+\\)"
-                                "\\(?:\\(?2:[A-Z][a-z]+\\)"
-                                "\\(?3:EtAl\\)*\\)*\\(?4:[0-9-]+\\)*$") key)
-      (let ((author1 (match-string 1 key))
-            (author2 (match-string 2 key))
-            (etal (match-string 3 key))
-            (date (match-string 4 key)))
-        (cond (etal
-               (format "%s, %s, et al." author1 author2))
-              (author2
-               (format "%s and %s" author1 author2))
-              (t
-               author1))))))
-
-(defun ezeka-zk-format-link-and-title (id title)
-  "Format ID and TITLE pleasingly.
-See `zk-format-link-and-title-function'."
-  (let ((file (ezeka-link-file id)))
-    (when (ezeka-note-p file)
-      (let* ((mdata (ezeka-file-metadata file)))
-        (format-spec "%a%t [[%i]]"
-                     `((?a . ,(if-let ((ck (alist-get :citekey mdata)))
-                                  (format "%s's " (ezeka--citaton-key-authors ck))
-                                ""))
-                       (?i . ,(ezeka-file-name-id file))
-                       (?t . ,(alist-get :title mdata))))))))
+    (format-spec format
+                 `((?i . ,id)
+                   ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                         `((?t . ,(match-string 2 title))
+                           (?l . ,(match-string 1 title)))
+                       `((?t . ,title)
+                         (?l . "")))))))
 
 (defun ezeka-zk-parse-file (target files)
   "Parse FILES for TARGET.
