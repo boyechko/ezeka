@@ -2190,9 +2190,10 @@ different. With \\[universal-argument] ARG, forces update."
              (ezeka-link-file (ezeka-link-at-point))))))
   (cl-flet ((move-after-properties ()
               "Move point after the properties drawer, if any."
-              (goto-char (cdr (org-get-property-block)))
-              ;; `org-get-property-block' ends on :END:
-              (forward-line)))
+              (when (org-get-property-block)
+               (goto-char (cdr (org-get-property-block)))
+               ;; `org-get-property-block' ends on :END:
+               (forward-line))))
     ;; Get the metadata and most recent modification
     (save-excursion
       (save-restriction
