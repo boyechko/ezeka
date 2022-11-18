@@ -96,7 +96,7 @@ the environment."
     current-prefix-arg))
   (let ((with-captions (eq (ezeka-kasten-id-type kasten) :numerus)))
     (custom-set-variables
-     '(zk-subdirectory-function #'ezeka-subdirectory)
+     '(zk-subdirectory-function #'ezeka-id-subdirectory)
      `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten))
      `(zk-file-name-id-only ,(not with-captions))
      `(zk-parse-file-function (if ,with-captions
@@ -494,7 +494,7 @@ If CHANGE-TO is not given, use the note's parent, if set."
                   ezeka-file-name-separator
                   title
                   ezeka-file-extension))
-         (expand-file-name (or (ezeka-subdirectory id)
+         (expand-file-name (or (ezeka-id-subdirectory id)
                                (unless noerror
                                  (error "Link not valid: %s" link)))
                            (ezeka-kasten-directory kasten))))

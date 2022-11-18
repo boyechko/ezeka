@@ -391,14 +391,30 @@ explicitly given."
           (t
            (concat kasten ":" id)))))
 
-(defun ezeka-subdirectory (id)
+(defun ezeka-id-subdirectory (id)
   "Return the subdirectory relative to Kasten for the given ID, a string."
   (cl-case (ezeka-id-type id)
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
     (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
 
+(defun ezeka-id-directory (id kasten)
+  "Return the full directory under KASTEN where ID should be."
+  (file-name-as-directory
+   (file-name-concat
+    (ezeka-kasten-directory kasten)
+    (or (ezeka-id-subdirectory id)
+        (error "Cannot get subdirectory for %s" id)))))
+
 (defvar ezeka-file-name-separator " "
   "Separator to use between ID and CAPTION in file names.")
+
+(defun ezeka--id-kaesten (id)
+  "Return all kaesten for the ID's type."
+  (let ((type (ezeka-id-type id)))
+    (mapcar #'car
+            (cl-remove-if-not (lambda (x)
+                                (eq (cadr x) type))
+                              ezeka-kaesten))))
 
 (defun ezeka-link-file (link &optional caption)
   "Return a full file path to the Zettel LINK.
