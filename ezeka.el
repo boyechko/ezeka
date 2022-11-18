@@ -1958,7 +1958,7 @@ CITEKEY."
       (read-string "Title: " (plist-get plist :title))
       (read-string "Parent? " (plist-get plist :parent))
       (read-string "Citekey? " (plist-get plist :citekey)))))
-  (let* ((file (ezeka-link-file link))
+  (let* ((id (ezeka-link-id link))
          (caption (ezeka--normalize-title-into-caption title)))
     (goto-char (point-min))
     (insert
@@ -1975,14 +1975,14 @@ CITEKEY."
             (format-time-string
              "%Y-%m-%d %a %H:%M"
              (let ((today (format-time-string "%Y%m%d")))
-               (if (and (eq :tempus (ezeka-id-type file))
-                        (not (string-match-p (regexp-quote today) file))
+               (if (and (eq :tempus (ezeka-id-type id))
+                        (not (string-match-p (regexp-quote today) id))
                         (not
                          (when (called-interactively-p 'any)
                            (y-or-n-p "Past tempus currens; set created time to now? "))))
-                   (ezeka-encode-iso8601-datetime file)
+                   (ezeka-encode-iso8601-datetime id)
                  nil)))
-            "\n")                     ; i.e. current time
+            "\n")                       ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " parent "\n"))
     (insert "\n")))
