@@ -61,16 +61,17 @@
 
 (ert-deftest tests/ezeka-link-kasten ()
   (let ((numerus "q-8148")
-        (tempus-fq "os:20160313T2228")
-        (tempus "20160313T2228"))
+        (tempus-with-kasten "os:20160313T2228")
+        (tempus-no-kasten "20160313T2228"))
     (should (string= "rumen" (ezeka-link-kasten numerus)))
-    (should (string= "os" (ezeka-link-kasten tempus-fq)))
-    (should (string= "os" (ezeka-link-kasten tempus)))))
+    (should (string= "os" (ezeka-link-kasten tempus-with-kasten)))
+    (should (string= "omasum" (ezeka-link-kasten tempus-no-kasten)))
+    (should-not (ezeka-link-kasten tempus-no-kasten t))))
 
 (ert-deftest tests/ezeka-link-file ()
   (let ((numerus "q-8148")
-        (tempus-fq "os:20160313T2228")
-        (tempus "20160313T2228"))
+        (tempus-with-kasten "os:20160313T2228")
+        (tempus-no-kasten "20160313T2228"))
     (should
      (string=
       "q-8148 {μ} having everything in one place frees up the mind @Allen2001"
@@ -81,12 +82,20 @@
       (file-name-base (ezeka-link-file numerus "random string"))))
     (should
      (string=
-      "/Users/richard/Zettelkasten/os/2016/20160313T2228.txt"
-      (ezeka-link-file tempus-fq)))
+      "/Users/richard/Zettelkasten/os/2016/20160313T2228 {Class} Translation, Final Project.txt"
+      (ezeka-link-file tempus-with-kasten)))
+    (should
+     (string=
+      "/Users/richard/Zettelkasten/os/2016/20160313T2228 {Class} Translation, Final Project.txt"
+      (ezeka-link-file tempus-no-kasten)))
     (should
      (string=
       "/Users/richard/Zettelkasten/omasum/2016/20160313T2228.txt"
-      (ezeka-link-file tempus)))))
+      (ezeka-link-file tempus-no-kasten "")))
+    (should
+     (string=
+      "/Users/richard/Zettelkasten/omasum/2016/20160313T2228 testing.txt"
+      (ezeka-link-file tempus-no-kasten "testing")))))
 
 (ert-deftest tests/ezeka--header-normalize-readings ()
   (should
