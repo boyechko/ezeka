@@ -2227,12 +2227,12 @@ different. With \\[universal-argument] ARG, forces update."
                              (org-find-exact-headline-in-buffer "Summary"))
                     (goto-char (org-find-exact-headline-in-buffer "Summary"))
                     (forward-line)
-                    (let ((copy-from (point)))
+                    (let ((summary-start (point)))
                       (org-end-of-subtree)
                       (mapcar (lambda (line)
                                 (push (concat "# " line "\n") content))
                               (split-string
-                               (buffer-substring-no-properties copy-from (point))
+                               (buffer-substring-no-properties summary-start (point))
                                "\n" t))))
                   (goto-char
                    (or (org-find-exact-headline-in-buffer "Snippet")
@@ -2243,9 +2243,10 @@ different. With \\[universal-argument] ARG, forces update."
                     (org-entry-put (point) "USED_IN+" (format "id:%s" org-id)))
                   (basic-save-buffer)
                   (move-after-properties)
-                  (let ((copy-from (point)))
+                  (let ((content-start (point)))
                     (org-end-of-subtree)
-                    (push (buffer-substring copy-from (point)) content)))
+                    (push (buffer-substring-no-properties content-start (point))
+                          content)))
                 ;; Insert the copied subtrees and remove its headings and comments
                 (apply #'insert (nreverse content))
                 (goto-char start)
@@ -2254,7 +2255,7 @@ different. With \\[universal-argument] ARG, forces update."
                   (kill-line 1))
                 ;; Remove <<tags>>
                 (goto-char start)
-                (while (re-search-forward "<<[^>]+>>" nil t)
+                (while (re-search-forward "<<[^>]+>>\n*" nil t)
                   (replace-match ""))
                 ;; Remove Zettel links
                 (goto-char start)
@@ -2262,7 +2263,7 @@ different. With \\[universal-argument] ARG, forces update."
                   (replace-match ""))
                 ;; Remove inline @@...@@ comments
                 (goto-char start)
-                (while (re-search-forward "@@.*@@" nil t)
+                (while (re-search-forward "@@.*@@\n*" nil t)
                   (cl-incf comments-removed)
                   (replace-match ""))
                 ;; Remove footnotes if need be
