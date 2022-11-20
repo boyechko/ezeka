@@ -2374,7 +2374,7 @@ This is the Bookmark record function for Zettel files."
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
 With CONFIRM, confirm before move."
-  (let ((path1 (ezeka-link-file link1 ""))
+  (let ((path1 (ezeka-link-file link1 'try-wild))
         (path2 (ezeka-link-file link2 "")))
     (when (or (not confirm)
               (y-or-n-p (format "Move %s to %s? " link1 link2)))
