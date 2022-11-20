@@ -68,6 +68,13 @@
     (should (string= "omasum" (ezeka-link-kasten tempus-no-kasten)))
     (should-not (ezeka-link-kasten tempus-no-kasten t))))
 
+(ert-deftest tests/ezeka-file-link ()
+  (let ((numerus "q-8148")
+        (tempus "20160313T2228"))
+    (should (string= numerus (ezeka-file-link (ezeka-link-file numerus))))
+    (should (string= tempus (ezeka-file-link (ezeka-link-file tempus))))
+    (should-error (ezeka-file-link buffer-file-name))))
+
 (ert-deftest tests/ezeka-link-file ()
   (let ((numerus "q-8148")
         (tempus-with-kasten "os:20160313T2228")

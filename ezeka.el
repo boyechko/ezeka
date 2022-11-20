@@ -322,27 +322,22 @@ It is a Zettel if all of these conditions are met:
   `(ezeka--file-name-part ,filename :citekey))
 
 ;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
-(defun ezeka-file-kasten (file &optional noerror)
-  "Return the Kasten of the given Zettel FILE.
-If NOERROR is non-nil, simply returns nil if cannot figure out the Kasten."
+(defun ezeka-file-kasten (file)
+  "Return the Kasten of the given Zettel FILE."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
     (cond ((assoc (car dirs) ezeka-kaesten)
            (car dirs))
           ((assoc (cadr dirs) ezeka-kaesten)
            (cadr dirs))
           (t
-           (unless noerror
-             (error "Can't figure out kasten for %s" file))))))
+           (error "Can't figure out kasten for %s" file)))))
 
-(defun ezeka-file-link (file &optional noerror)
-  "Return a fully qualified link to FILE.
-If NOERROR is non-nil, do not signal an error if cannot figiure out a
-proper link, just return nil."
-  (let ((kasten (ezeka-file-kasten file noerror))
+(defun ezeka-file-link (file)
+  "Return a fully qualified link to FILE."
+  (let ((kasten (ezeka-file-kasten file))
         (id (ezeka-file-name-id file)))
     (cond ((or (null kasten) (null id))
-           (unless noerror
-             (error "Can't get id or kasten for file %s" (file-name-base file))))
+           (error "Can't get id or kasten for file %s" (file-name-base file)))
           ((equal kasten (alist-get (ezeka-id-type id) ezeka-default-kasten))
            id)
           (t
@@ -728,7 +723,7 @@ to keywords."
                          (ezeka-id-type file)))
              (kasten (or (alist-get :kasten mdata)
                          (alist-get type ezeka-default-kasten)))
-             (link   (or (ezeka-file-link file noerror)
+             (link   (or (ignore-errors (ezeka-file-link file))
                          (ezeka-make-link kasten id)))
              ;; TODO: Remove after full transition from v0.1 to v0.2
              (title   (or (alist-get :title mdata)
