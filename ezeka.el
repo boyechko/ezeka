@@ -336,12 +336,9 @@ It is a Zettel if all of these conditions are met:
   "Return a fully qualified link to FILE."
   (let ((kasten (ezeka-file-kasten file))
         (id (ezeka-file-name-id file)))
-    (cond ((or (null kasten) (null id))
-           (error "Can't get id or kasten for file %s" (file-name-base file)))
-          ((equal kasten (alist-get (ezeka-id-type id) ezeka-default-kasten))
-           id)
-          (t
-           (concat kasten ":" (ezeka-file-name-id file))))))
+    (if (and id kasten)
+        id
+      (error "Can't get id or kasten for file %s" (file-name-base file)))))
 
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
