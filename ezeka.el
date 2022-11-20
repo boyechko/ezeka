@@ -954,65 +954,61 @@ like slash (/) or colon (:), and is less than 255 characters long."
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
   (interactive (list buffer-file-name))
-  (let ((filename (or filename buffer-file-name)))
-    (when (eq :numerus (or (alist-get :type metadata)
-                           (and (ezeka-file-kasten filename t)
-                                (ezeka-kasten-id-type
-                                 (ezeka-file-kasten filename)))))
-      (cl-flet
-          ((read-user-choice (file-base mdata-base)
-             "Prompt the user about which name to use."
-             (downcase
-              (read-char-choice
-               (format (concat "Caption in filename and metadata differ:\n"
-                               "[F]ilename: %s\n"
-                               "[M]etadata: %s\n"
-                               "Press [f/u] to set metadata from filename,\n"
-                               "      [m/l] to set filename from metadata, or\n"
-                               "      [n] or [q] to do noting: ")
-                       (propertize file-base 'face 'bold)
-                       (propertize mdata-base 'face 'bold-italic))
-               '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q)))))
-        (let* ((file-base (file-name-base filename))
-               (mdata (if (null metadata)
-                          (ezeka-file-metadata filename t)
-                        (ezeka--update-file-header filename metadata)
-                        metadata))
-               (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-               (keep-which (unless (string= mdata-base file-base)
-                             (read-user-choice file-base mdata-base)))
-               new-base
-               prompt)
-          (funcall clear-message-function)
-          (cond ((member keep-which '(nil ?n ?q))
-                 ;; do nothing
-                 )
-                ((member keep-which '(?f ?u))
-                 (setf (alist-get :label mdata)
-                       (ezeka-file-name-label file-base)
-                       (alist-get :caption mdata)
-                       (ezeka-file-name-caption file-base)
-                       (alist-get :citekey mdata)
-                       (ezeka-file-name-citekey file-base)
-                       (alist-get :caption-stable mdata)
-                       nil)
-                 (ezeka--update-file-header filename mdata)
-                 (ezeka--save-buffer-read-only filename))
-                ((member keep-which '(?m ?l))
-                 (while (not new-base)
-                   (setq new-base
-                     (ezeka--minibuffer-edit-string
-                      file-base mdata-base prompt))
-                   (when (ezeka--invalid-filename-p new-base)
-                     (setq prompt
-                       "The new name has restricted characters; try again"
-                       new-base
-                       nil)))
-                 (let ((newname (file-name-with-extension
-                                 new-base ezeka-file-extension)))
-                   (ezeka--rename-file filename newname)
-                   (ezeka--update-metadata-values newname mdata
-                                                  :caption-stable nil)))))))))
+  (cl-flet
+      ((read-user-choice (file-base mdata-base)
+          "Prompt the user about which name to use."
+          (downcase
+           (read-char-choice
+            (format (concat "Caption in filename and metadata differ:\n"
+                            "[F]ilename: %s\n"
+                            "[M]etadata: %s\n"
+                            "Press [f/u] to set metadata from filename,\n"
+                            "      [m/l] to set filename from metadata, or\n"
+                            "      [n] or [q] to do noting: ")
+                    (propertize file-base 'face 'bold)
+                    (propertize mdata-base 'face 'bold-italic))
+            '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q)))))
+    (let* ((filename (or filename buffer-file-name))
+           (file-base (file-name-base filename))
+           (mdata (if (null metadata)
+                      (ezeka-file-metadata filename t)
+                    (ezeka--update-file-header filename metadata)
+                    metadata))
+           (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
+           (keep-which (unless (string= mdata-base file-base)
+                         (read-user-choice file-base mdata-base)))
+           new-base
+           prompt)
+      (funcall clear-message-function)
+      (cond ((member keep-which '(nil ?n ?q))
+             ;; do nothing
+             )
+            ((member keep-which '(?f ?u))
+             (setf (alist-get :label mdata)
+                   (ezeka-file-name-label file-base)
+                   (alist-get :caption mdata)
+                   (ezeka-file-name-caption file-base)
+                   (alist-get :citekey mdata)
+                   (ezeka-file-name-citekey file-base)
+                   (alist-get :caption-stable mdata)
+                   nil)
+             (ezeka--update-file-header filename mdata)
+             (ezeka--save-buffer-read-only filename))
+            ((member keep-which '(?m ?l))
+             (while (not new-base)
+               (setq new-base
+                 (ezeka--minibuffer-edit-string
+                  file-base mdata-base prompt))
+               (when (ezeka--invalid-filename-p new-base)
+                 (setq prompt
+                   "The new name has restricted characters; try again"
+                   new-base
+                   nil)))
+             (let ((newname (file-name-with-extension
+                             new-base ezeka-file-extension)))
+               (ezeka--rename-file filename newname)
+               (ezeka--update-metadata-values newname mdata
+                                              :caption-stable nil)))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
