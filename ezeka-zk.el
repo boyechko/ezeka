@@ -60,10 +60,11 @@
   (setq zk-directory (ezeka-kasten-directory kasten)
         zk-id-regexp (ezeka--id-regexp :all))
   (if (eq (ezeka-kasten-id-type kasten) :numerus)
-      (setq zk-id-time-string-format
+      (setq zk-index-format "%i {%l} %t"
+            zk-id-time-string-format
             (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))
     (setq zk-id-time-string-format "%Y%m%dT%H%M"
-          zk-index-format "%t [[%i]]")))
+          zk-index-format "{%-12l} %t [[%i]]")))
 
 (defcustom ezeka-zk-index-format "*Zk-Index: %k*"
   "Format string to use when creating Zk index buffers.
