@@ -115,7 +115,7 @@ the cursor in already inside a link, replace it instead."
                         "Insert link to: " choices 'ezeka-file-link nil))
                (link (or (cdr choice)
                          ;; Create a new child if there is no match
-                         (let ((new-child (ezeka-insert-new-child nil)))
+                         (let ((new-child (ezeka-create-new-child nil)))
                            (kill-new (car choice)) ; save the entered text
                            (save-excursion
                              (with-current-buffer

@@ -1572,12 +1572,12 @@ child."
         (list child-link :parent parent)))
     child-link))
 
-(defun ezeka-insert-new-child (parent &optional arg noselect)
-  "Create a new child in the same Kasten as PARENT, inserting its link.
+(defun ezeka-create-new-child (parent &optional arg noselect)
+  "Create a new child in the same Kasten as PARENT.
 With \\[universal-argument] ARG, allows the user to select a different
-Kasten. With double \\[universal-argument] asks for the full link. If
-NOSELECT is non-nil, don't visit the created child. Return link to
-the new child."
+Kasten as well as prompts to insert the link. With double
+\\[universal-argument] asks for the full link. If NOSELECT is non-nil,
+don't visit the created child. Return link to the new child."
   (interactive
    (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
          current-prefix-arg))
@@ -1600,8 +1600,8 @@ the new child."
                            (error "No `ezeka-kaesten' defined")))
                       (ezeka-link-kasten parent-link))))
         (setq child-link (ezeka--generate-new-child parent kasten))))
-    ;; Don't worry if insert fails
-    (ignore-errors
+    (when (and (equal arg '(4))
+               (y-or-n-p "Insert link to the new child? "))
       (insert (ezeka-org-format-link child-link)))
     (unless noselect
       (ezeka-find-link child-link))
@@ -1625,7 +1625,7 @@ the new child."
 (defun ezeka-insert-new-child-with-title (arg title)
   "Create a new child with given TITLE, inserting its link at point.
 If TITLE is not given, use text on the current line before point.
-Pass the prefix ARG to `ezeka-insert-new-child'."
+Pass the prefix ARG to `ezeka-create-new-child'."
   (interactive
    (list current-prefix-arg
          (org-trim
@@ -1633,7 +1633,7 @@ Pass the prefix ARG to `ezeka-insert-new-child'."
                                 (ezeka--possible-new-note-title)))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
          (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
-         (child-link (ezeka-insert-new-child parent-link '(4) t))
+         (child-link (ezeka-create-new-child parent-link '(4) t))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put (plist-put plist :citekey citekey) :title title))
@@ -2533,7 +2533,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
             ("C-c '" . ezeka-set-label) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
-            ("C-c ," . ezeka-insert-new-child)
+            ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
             ;; ("C-c /" . ) ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
