@@ -95,17 +95,12 @@ the environment."
                                      k)))
                                ezeka-kaesten)))
     current-prefix-arg))
-  (let ((with-captions (eq (ezeka-kasten-id-type kasten) :numerus)))
-    (custom-set-variables
-     '(zk-subdirectory-function #'ezeka-id-subdirectory)
-     `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten))
-     `(zk-file-name-id-only ,(not with-captions))
-     `(zk-parse-file-function (if ,with-captions
-                                  #'zk-parse-file-name
-                                #'zk-parse-file-header)))
-    (ezeka-zk-initialize-kasten kasten)
-    (unless arg
-      (zk-index))))
+  (custom-set-variables
+   '(zk-subdirectory-function #'ezeka-id-subdirectory)
+   `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten)))
+  (ezeka-zk-initialize-kasten kasten)
+  (unless arg
+    (zk-index)))
 
 (defun ezeka-zk--current-active-indexes ()
   "Return alist of currently active Kasten and their Zk index buffers."
