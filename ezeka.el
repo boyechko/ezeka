@@ -938,6 +938,33 @@ Returns modifed metadata."
     (funcall clear-message-function)
     metadata))
 
+(defun ezeka--replace-file-header (filename metadata)
+  "Replace FILENAME's file header with METADATA."
+  (let ((inhibit-read-only t))
+    (save-mark-and-excursion
+      (with-current-buffer (get-file-buffer filename)
+        (save-restriction
+          (goto-char (point-min))
+          (when (re-search-forward ezeka-header-separator-regexp nil t 1)
+            (narrow-to-region (point-min) (point)))
+          (setf (alist-get :rubric metadata)
+                (ezeka-format-metadata ezeka-header-rubric-format metadata))
+          (delete-region (point-min) (point-max))
+          (mapc (lambda (cons)
+                  (insert (format "%s: %s\n"
+                                  (ezeka--header-yamlify-key (car cons))
+                                  (ezeka--header-yamlify-value (cdr cons)))))
+                (let (ordered)
+                  (dolist (key '(:rubric
+                                 :title :subtitle :author
+                                 :created :modified
+                                 :parent :firstborn :oldnames
+                                 :readings :keywords)
+                               (nreverse ordered))
+                    (when (alist-get key metadata)
+                      (push (cons key (alist-get key metadata)) ordered)))))
+          (ezeka--read-only-region (point-min) (point-max)))))))
+
 (defun ezeka--metadata-equal-p (md1 md2)
   "Return non-nil if the values of MD1 and MD2 are equal."
   (and (= (length md1) (length md2))
