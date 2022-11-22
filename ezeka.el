@@ -710,6 +710,17 @@ signal an error when encountering malformed header lines."
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata) file)))
     (append decoded metadata)))
 
+(defun ezeka--header-region (buffer)
+  "Return a tuple of (START. END) for the header in Ezeka BUFFER."
+  (if (ezeka-note-p buffer)
+      (with-current-buffer buffer
+        (goto-char (point-min))
+        (cons (point)
+              (if (re-search-forward "\n\n" nil t)
+                  (match-beginning 0)
+                (point-max))))
+    (error "Not an Ezeka note")))
+
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
 If NOERROR is non-nil, do not signal errors. They keys are converted
