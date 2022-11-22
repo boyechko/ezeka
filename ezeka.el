@@ -250,6 +250,35 @@ If NEWNAME is relative, fill missing values from FILENAME."
            (rename-file filename newname t)
            (set-visited-file-name newname t t)))))
 
+;; The following is adapted from
+;; https://emacs.stackexchange.com/a/46059
+(defface ezeka-read-only '((((background light)) :foreground "gray50")
+                           (((background dark)) :foreground "beige"))
+  "Face for `ezeka--read-only-region'."
+  :group 'ezeka)
+
+(defun ezeka--read-only-region (begin end)
+  "Make the marked region between BEGIN and END read-only.
+See also `ezeka--writeable-region'.
+
+Read-only text is given the face `ezeka-read-only'."
+  (interactive "r")
+  (let ((inhibit-read-only t))
+    (with-silent-modifications
+      (add-text-properties begin end '(read-only t))
+      (let ((overlay (make-overlay begin end)))
+        (overlay-put overlay 'ezeka-text-type 'read-only)
+        (overlay-put overlay 'face 'ezeka-read-only)))))
+
+(defun ezeka--writeable-region (begin end)
+  "Make the marked region between BEGIN and END writeable.
+See also `ezeka--read-only-region'."
+  (interactive "r")
+  (let ((inhibit-read-only t))
+    (with-silent-modifications
+      (remove-text-properties begin end '(read-only t))
+      (remove-overlays begin end 'ezeka-text-type 'read-only))))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -720,6 +749,12 @@ signal an error when encountering malformed header lines."
                   (match-beginning 0)
                 (point-max))))
     (error "Not an Ezeka note")))
+
+(defun ezeka--make-header-read-only (buffer)
+  "Make the header in the Zettel BUFFER read-only."
+  (let ((beg-end (ezeka--header-region buffer)))
+    (with-current-buffer buffer
+      (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
 
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
@@ -2567,9 +2602,10 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
 
   ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
   ;; Zettel links.
-  (if ezeka-mode
+  (if (not ezeka-mode)
       (modify-syntax-entry ?: ".")      ; reset to punctuation
-    (modify-syntax-entry ?: "w")))
+    (modify-syntax-entry ?: "w")
+    (ezeka--make-header-read-only (current-buffer))))
 
 ;; On save, update modificate date and normalize file name
 (add-hook 'ezeka-mode-hook
