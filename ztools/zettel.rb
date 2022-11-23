@@ -28,7 +28,6 @@ class Zettelkasten
 
   # Kasten Name => ID type
   @kaesten = { "os"        => :tempus,          # things get "ingested"
-               "esophagus" => :bolus,           # regurgitated ingesta (needs processing) FIXME
                "rumen"     => :numerus,         # [default] others' ideas
                # "reticulum" is not used, so "rumen" stands for "reticulorumen"
                "omasum"    => :tempus,          # [default] permanent notes
@@ -41,8 +40,7 @@ class Zettelkasten
   # The default kaesten can be referred to without specifying their kasten
   # ID type => Kasten
   @default_kasten = { :numerus => "rumen",
-                      :tempus => "omasum",
-                      :bolus => "esophagus" # FIXME: temporary
+                      :tempus => "omasum"
                     }
 
   # Translations for backward compatibility
@@ -90,7 +88,7 @@ end
 #-------------------------------------------------------------------------------
 
 class Zettel
-  attr_reader :id_type,         # Zettel ID type: :tempus, :numerus, or :bolus (FIXME)
+  attr_reader :id_type,         # Zettel ID type: :tempus, or :numerus
               :kasten,          # Kasten, as string
               :id,              # id only (i.e. without Kasten)
               :link,            # full link (i.e. with Kasten, unless default)
@@ -113,8 +111,6 @@ class Zettel
       return Numerus.new_from_link(link)
     elsif Tempus.valid_link?(link)
       return Tempus.new_from_link(link)
-    elsif Bolus.valid_link?(link) # FIXME: temporary
-      return Bolus.new_from_link(link)
     else
       return nil
     end
@@ -127,8 +123,6 @@ class Zettel
       return Numerus.new_from_path(path)
     elsif Tempus.valid_path?(path)
       return Tempus.new_from_path(path)
-    elsif Bolus.valid_path?(path) # FIXME: temporary
-      return Bolus.new_from_path(path)
     else
       return nil
     end
@@ -546,63 +540,3 @@ class Tempus < Zettel
   end
 end
 
-#-------------------------------------------------------------------------------
-# Bolus (Temporary)
-#-------------------------------------------------------------------------------
-
-class Bolus < Numerus
-  ZETTEL_ID_TYPE = :bolus
-
-  N_LETTERS = 3
-  SEPARATOR = "-"
-  N_DIGITS = 3
-  ID_PATTERN = /^(?<digits>[0-9]{#{N_DIGITS}})#{SEPARATOR}(?<letters>[a-z]{#{N_LETTERS}})$/
-  FQN_PATTERN = ID_PATTERN
-
-  # How to form ids
-  def id()
-    return @digits + self.class::SEPARATOR + @letters
-  end
-
-  # Returns the appropriate sub-directory in the bolus Kasten based on the
-  # Zettel id.
-  def self.section_of(id)
-    if id =~ self::ID_PATTERN
-      num = $1.to_i
-      if num >= 0 and num <= 99
-        return "000-099"
-      elsif num >= 100 and num <= 999
-        return "#{id[0]}00-#{id[0]}99"
-      else
-        # Should never get here: ID_PATTERN limits the numerus to three digits
-        raise "Numerus currens '#{id}' is out of bounds (0-999)"
-      end
-    else
-      raise "ID '#{id}' is not a bolus currens"
-    end
-  end
-
-  #
-  # Instance Methods
-  #
-
-  # Returns the wiki link target
-  def link()
-    return @id
-  end
-
-  #
-  # Class Methods
-  #
-
-  # Returns true if the link (a string) is a valid link to Tempus Zettel
-  def self.valid_link?(string)
-    return string =~ FQN_PATTERN ? true : false
-  end
-
-  # Returns true if this is a valid path a to numerus currens zettel
-  def self.valid_path?(string)
-    return File.basename(string, Zettel.ext) =~ ID_PATTERN &&
-           Zettelkasten.includes?(string) ? true : false
-  end
-end
