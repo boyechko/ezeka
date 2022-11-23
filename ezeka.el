@@ -1281,11 +1281,12 @@ T if the link is a Zettel link."
              (ezeka-find-file existing-file same-window))
             ((or (eql ezeka-create-nonexistent-links t)
                  (and (eql ezeka-create-nonexistent-links 'confirm)
-                      (y-or-n-p "Link doesn't exist. Create? ")))
+                      (y-or-n-p
+                       (format "Link `%s' doesn't exist. Create? " link))))
              (ezeka-find-file (ezeka-link-file link "") same-window)
              (call-interactively #'ezeka-insert-header-template))
             (t
-             (message "Link doesn't exist")
+             (message "Link `%s' doesn't exist" link)
              t)))))
 
 (defun ezeka-kill-link-or-sexp-at-point (&optional arg)
