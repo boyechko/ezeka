@@ -39,12 +39,12 @@
 
 (defun ezeka--id-regexp (type)
   "Return the regexp for the given ID TYPE (:numerus, :tempus, or :all)."
-  (let ((numerus "\\([a-z]-[0-9]\\{4\\}\\)")
-        (tempus "\\([0-9]\\{8\\}T[0-9]\\{4\\}\\)"))
+  (let ((numerus "\\(?:[a-z]-[0-9]\\{4\\}\\)")
+        (tempus "\\(?:[0-9]\\{8\\}T[0-9]\\{4\\}\\)"))
     (cl-case type
       (:numerus numerus)
       (:tempus  tempus)
-      (:all     (concat "\\(" numerus "\\|" tempus "\\)")))))
+      (:all     (concat "\\(?:" numerus "\\|" tempus "\\)")))))
 
 (defvar ezeka-link-regexp
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" (ezeka--id-regexp :all) "\\)")
@@ -973,7 +973,7 @@ Returns modifed metadata."
                                (nreverse ordered))
                     (when (alist-get key metadata)
                       (push (cons key (alist-get key metadata)) ordered)))))
-          (ezeka--read-only-region (point-min) (point-max)))))))
+          (ezeka--make-header-read-only (current-buffer)))))))
 
 (defun ezeka--metadata-equal-p (md1 md2)
   "Return non-nil if the values of MD1 and MD2 are equal."
