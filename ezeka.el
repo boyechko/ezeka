@@ -988,16 +988,14 @@ buffer is read only."
          (previous (assoc-string filename ezeka--previously-updated))
          (old-point (point))
          (inhibit-read-only t))
-    (unless (ezeka--metadata-equal-p
-             metadata
-             (caddr (assoc-string filename ezeka--previously-updated)))
+    (unless (string= (buffer-hash) (cadr previous))
       (setq metadata
         (ezeka--set-time-of-creation
          (ezeka--maybe-update-modifed
           (ezeka--reconcile-title-and-caption metadata))))
+      (ezeka--replace-file-header filename metadata)
       (setf (alist-get filename ezeka--previously-updated nil nil #'string=)
-            (list filename metadata))
-      (ezeka--replace-file-header filename metadata))
+            (list (buffer-hash) metadata)))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
