@@ -756,6 +756,16 @@ signal an error when encountering malformed header lines."
     (with-current-buffer buffer
       (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
 
+(defun ezeka-toggle-header-read-only ()
+  "Toggle read-only header in the current Zettel buffer."
+  (interactive)
+  (let ((beg-end (ezeka--header-region (current-buffer))))
+    (if (cl-find-if (lambda (ol)
+                       (overlay-get ol 'ezeka-text-type))
+                    (overlays-at (car beg-end)))
+        (ezeka--writeable-region (car beg-end) (cdr beg-end))
+      (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
+
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
 If NOERROR is non-nil, do not signal errors. They keys are converted
@@ -2565,10 +2575,10 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;;   X   X X X X X           X X X X X X X X X X X X X
+          ;; X X   X X X X X           X X X X X X X X X X X X X
           ;;------------------------------------------------------------------
           '(
-            ;; ("C-c `" . ) ; `org-table-edit-field'
+            ("C-c `" . ezeka-toggle-header-read-only) ; `org-table-edit-field'
             ("C-c ~" . ezeka-set-title) ; `org-table-create-with-table\.el'
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
