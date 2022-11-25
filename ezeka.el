@@ -256,8 +256,7 @@ If NEWNAME is relative, fill missing values from FILENAME."
 
 ;; The following is adapted from
 ;; https://emacs.stackexchange.com/a/46059
-(defface ezeka-read-only '((((background light)) :foreground "gray50")
-                           (((background dark)) :foreground "beige"))
+(defface ezeka-read-only '((t :slant italic))
   "Face for `ezeka--read-only-region'."
   :group 'ezeka)
 
@@ -762,7 +761,7 @@ signal an error when encountering malformed header lines."
       (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
 
 (defun ezeka-toggle-header-read-only ()
-  "Toggle read-only header in the current Zettel buffer."
+  "Toggle header being read-only in the current Zettel buffer."
   (interactive)
   (let ((beg-end (ezeka--header-region (current-buffer))))
     (if (cl-find-if (lambda (ol)
