@@ -38,16 +38,20 @@
 ;;;=============================================================================
 
 (defun ezeka--id-regexp (type)
-  "Return the regexp for the given ID TYPE (:numerus, :tempus, or :all)."
-  (let ((numerus "\\(?:[a-z]-[0-9]\\{4\\}\\)")
-        (tempus "\\(?:[0-9]\\{8\\}T[0-9]\\{4\\}\\)"))
-    (cl-case type
-      (:numerus numerus)
-      (:tempus  tempus)
-      (:all     (concat "\\(?:" numerus "\\|" tempus "\\)")))))
+  "Return the regexp for the given ID TYPE (:numerus, :tempus, or :all).
+
+Group 1 is the ID."
+  (let ((numerus "[a-z]-[0-9]\\{4\\}")
+        (tempus "[0-9]\\{8\\}T[0-9]\\{4\\}"))
+    (concat "\\(?1:"
+            (cl-case type
+              (:numerus numerus)
+              (:tempus  tempus)
+              (:all     (concat numerus "\\|" tempus)))
+            "\\)")))
 
 (defvar ezeka-link-regexp
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*\\(?1:" (ezeka--id-regexp :all) "\\)")
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp :all))
   "The regular expression that matches Zettel links.
 
 Group 1 is the ID.
