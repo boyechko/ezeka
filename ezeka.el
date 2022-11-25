@@ -1071,11 +1071,12 @@ like slash (/) or colon (:), and is less than 255 characters long."
                   file-base mdata-base prompt))
                (when (ezeka--invalid-filename-p new-base)
                  (setq prompt
-                   "The new name has restricted characters; try again"
+                   "The new name has restricted characters; try again\n"
                    new-base
                    nil)))
              (let ((newname (file-name-with-extension
                              new-base ezeka-file-extension)))
+               (set-buffer-modified-p nil)
                (ezeka--rename-file filename newname)
                (ezeka--update-metadata-values newname mdata
                                               :caption-stable nil)))))))
@@ -1867,35 +1868,40 @@ Return a string containing the genus letter. If PROMPT is non-nil, use
 that prompt instead of the default. If VERBOSE is non-nil, show a list
 of choices with explantions. DEFAULT is the genus used if user just
 presses [return]."
-  (let (item)
-    (while (null item)
-      (let ((result
-             (if verbose
-                 (let ((table (mapcar (lambda (genus)
-                                        (cl-destructuring-bind (lt gk desc)
-                                            genus
-                                          (cons
-                                           (format "%s (%s) ⇒ %s" lt gk desc)
-                                           lt)))
-                                      ezeka-genera)))
-                   (cdr (assoc-string (completing-read (or prompt "Genus: ")
-                                                       table nil t)
-                                  table)))
-               (read-char
-                (concat (or prompt "Genus")
-                        " (Latin character, or RETURN for \"" (or default "x")
-                        "\"): ")))))
-        (cond ((and (characterp result) (eq result ?\C-m))
-               (setq result (car
-                             (cl-rassoc default ezeka-genera
-                                        :key #'car :test #'string=))))
-              ((characterp result)
-               (setq result (char-to-string result)))
-              ((stringp result))
-              (t (signal 'wrong-type-argument '(or character string))))
-        (unless (setq item (assoc-string result ezeka-genera))
-          (setq prompt "No such genus; try again. "))))
-    (cadr item)))
+  (cl-flet ((--completing-read ()
+               (let ((table (mapcar (lambda (genus)
+                                      (cl-destructuring-bind (lt gk desc)
+                                          genus
+                                        (cons
+                                         (format "%s (%s) ⇒ %s" lt gk desc)
+                                         lt)))
+                                    ezeka-genera)))
+                 (cdr (assoc-string (completing-read (or prompt "Genus: ")
+                                                     table nil t)
+                                    table)))))
+    (let (item)
+      (while (null item)
+        (let ((result
+               (if verbose
+                   (--completing-read)
+                 (read-char
+                  (concat (or prompt "Genus")
+                          " (Latin character, or RETURN for \"" (or default "x")
+                          "\"): ")))))
+          (cond ((and (characterp result) (eq result ?\C-m))
+                 (setq result
+                   (car (cl-rassoc default ezeka-genera
+                                   :key #'car :test #'string=))))
+                ((characterp result)
+                 (setq result (char-to-string result)))
+                ((stringp result)
+                 result)
+                (t
+                 (signal 'wrong-type-argument '(or character string))))
+          (setq item (assoc-string result ezeka-genera))
+          (cond ((string= result "?") (setq verbose t))
+                ((not item) (setq prompt "No such genus; try again. ")))))
+      (cadr item))))
 
 (defun ezeka--read-label (file-or-link &optional arg prompt default)
   "Interactively read label for the given FILE-OR-LINK.
