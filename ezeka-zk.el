@@ -66,7 +66,7 @@
     (setq zk-id-time-string-format "%Y%m%dT%H%M"
           zk-index-format "{%-12l} %c [[%i]]")))
 
-(defcustom ezeka-zk-index-format "*Zk-Index: %k*"
+(defcustom ezeka-zk-index-buffer-format "*Zk-Index: %k*"
   "Format string to use when creating Zk index buffers.
 %k means capitalized kasten.
 %K means upcased kasten."
@@ -74,8 +74,8 @@
 
 (defun ezeka-zk--index-buffer-name (kasten)
   "Return a name for an zk index buffer for KASTEN.
-The format is customizable via `ezeka-zk-index-format'."
-  (format-spec ezeka-zk-index-format
+The format is customizable via `ezeka-zk-index-buffer-format'."
+  (format-spec ezeka-zk-index-buffer-format
                `((?k . ,(capitalize kasten))
                  (?k . ,(upcase kasten)))))
 
@@ -105,9 +105,8 @@ the environment."
 (defun ezeka-zk--current-active-indexes ()
   "Return alist of currently active Kasten and their Zk index buffers."
   (let ((regexp
-         (replace-regexp-in-string "%[Kk]"
-                                   "\\\\(.*\\\\)"
-                                   (regexp-quote ezeka-zk-index-format))))
+         (string-replace "%k" "\\(.*\\)"
+          (regexp-quote ezeka-zk-index-buffer-format))))
     (delq nil
           (mapcar (lambda (buf)
                     (when (string-match regexp (buffer-name buf))
