@@ -2169,7 +2169,7 @@ With prefix argument, ask to select the KASTEN."
                                  (concat (org-timestamp-format timestamp "%Y%m%dT")
                                          (format-time-string "%H%M")))
                 new-link (ezeka-make-link kasten tempus-currens)
-                new-file (ezeka-link-file new-link))
+                new-file (ezeka-link-file new-link ""))
           (let* ((content (org-get-entry)))
             (if (file-exists-p new-file)
                 (message "Aborting, file already exists: %s" new-file)
