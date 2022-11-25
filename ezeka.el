@@ -1018,8 +1018,8 @@ buffer is read only."
   "Return non-nil if FILENAME is valid (on macOS).
 A valid caption is one that doesn't contain resticted characters
 like slash (/) or colon (:), and is less than 255 characters long."
-  (or (string-match-p "[/:*]" (file-name-base filename))
-      (> (length (file-name-nondirectory filename)) 255)))
+  (or (string-match-p "[/:*]" filename)
+      (> (length filename) 255)))
 
 (defun ezeka-normalize-file-name (&optional filename metadata)
   "Ensure that FILENAME's captioned name matches the METADATA."
