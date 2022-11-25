@@ -1913,7 +1913,8 @@ Pass ARG, PROMPT, and DEFAULT to the appropriate function."
 (defun ezeka--update-metadata-values (filename metadata &rest args)
   "Update FILENAME's header, replacing METADATA values with new ones.
 Afterwards, save the file while ignoring its read only status. If
-METADATA is not given, read it from file first.
+METADATA is not given, read it from file first. The rest of the ARGS
+should consist of KEY and VALUE pairs.
 
 \(fn FILENAME METADATA &REST KEY VAL KEY VAL ...)"
   (when (/= (logand (length args) 1) 0)
@@ -1923,11 +1924,10 @@ METADATA is not given, read it from file first.
       (unwind-protect
           (with-current-buffer (or already-open (find-file-noselect filename))
             (let ((already-modified (buffer-modified-p))
-                  (metadata (or metadata (ezeka-file-metadata filename)))
-                  sets)
+                  (metadata (or metadata (ezeka-file-metadata filename))))
               (while args
                 (setf (alist-get (pop args) metadata) (pop args)))
-              (ezeka--update-file-header filename metadata t)
+              (ezeka--replace-file-header filename metadata)
               (when (and (not already-modified)
                          (if (eq ezeka-save-after-metadata-updates 'confirm)
                              (y-or-n-p "Save? ")
