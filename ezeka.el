@@ -246,8 +246,8 @@ If NEWNAME is relative, fill missing values from FILENAME."
                     (file-name-with-extension
                      newname (file-name-extension filename))
                     (file-name-directory filename)))))
-    (cond ((not (and filename (file-exists-p filename)))
-           (set-visited-file-name newname))
+    (cond ((not (file-exists-p filename))
+           (set-visited-file-name newname t t))
           ((vc-backend filename)
            (vc-rename-file filename newname))
           (t
@@ -746,12 +746,13 @@ signal an error when encountering malformed header lines."
 (defun ezeka--header-region (buffer)
   "Return a tuple of (START. END) for the header in Ezeka BUFFER."
   (if (ezeka-note-p buffer)
-      (with-current-buffer buffer
-        (goto-char (point-min))
-        (cons (point)
-              (if (re-search-forward "\n\n" nil t)
-                  (match-beginning 0)
-                (point-max))))
+      (save-excursion
+       (with-current-buffer buffer
+         (goto-char (point-min))
+         (cons (point)
+               (if (re-search-forward "\n\n" nil t)
+                   (match-beginning 0)
+                 (point-max)))))
     (error "Not an Ezeka note")))
 
 (defun ezeka--make-header-read-only (buffer)
