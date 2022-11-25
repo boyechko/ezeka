@@ -60,11 +60,11 @@
   (setq zk-directory (ezeka-kasten-directory kasten)
         zk-id-regexp (ezeka--id-regexp :all))
   (if (eq (ezeka-kasten-id-type kasten) :numerus)
-      (setq zk-index-format "%i {%l} %t"
+      (setq zk-index-format "%i {%l} %c"
             zk-id-time-string-format
             (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))
     (setq zk-id-time-string-format "%Y%m%dT%H%M"
-          zk-index-format "{%-12l} %t [[%i]]")))
+          zk-index-format "{%-12l} %c [[%i]]")))
 
 (defcustom ezeka-zk-index-format "*Zk-Index: %k*"
   "Format string to use when creating Zk index buffers.
@@ -123,15 +123,13 @@ Optionally use ORIG-ID for backlink."
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT."
   (if (or (string= id title)
-          (string-match-p "%a" format)) ; FIXME: Hackish
+          (string-match-p "%t" format)) ; FIXME: Hackish
       (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
     (format-spec format
                  `((?i . ,id)
-                   ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-                         `((?t . ,(match-string 2 title))
-                           (?l . ,(match-string 1 title)))
-                       `((?t . ,title)
-                         (?l . "")))))))
+                   ,@(when (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                       `((?c . ,(match-string 2 title))
+                         (?l . ,(match-string 1 title))))))))
 
 (defun ezeka-zk-parse-file (target files)
   "Parse FILES for TARGET.

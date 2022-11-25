@@ -51,7 +51,7 @@ See `zk--group-function' for details."
           ((string-match (zk-file-name-regexp) file)
            (let ((id (match-string 1 file))
                  (title (match-string 2 file)))
-             (ezeka-zk-format-function "%i {%l} %t" id title)))
+             (ezeka-zk-format-function "%i {%l} %c" id title)))
           (t
            base))))
 
