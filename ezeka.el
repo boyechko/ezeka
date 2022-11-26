@@ -2457,7 +2457,7 @@ With CONFIRM, confirm before move."
               (y-or-n-p (format "Move %s to %s? " link1 link2)))
       (unless (file-exists-p (file-name-directory path2))
         (make-directory (file-name-directory path2)))
-      (vc-rename-file path1 path2)
+      (ezeka--rename-file path1 path2)
       (let* ((mdata (ezeka-file-metadata path2))
              (oldnames (alist-get :oldnames mdata)))
         ;; add to log
@@ -2490,14 +2490,15 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (source-link (ezeka-file-link source-file))
-         (target-link (or target-link
-                          (ezeka-make-link
-                           kasten
-                           (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-                             (:numerus (ezeka--generate-id kasten))
-                             (:tempus (ezeka-tempus-currens-id-for source-link))
-                             (t
-                              (error "Don't know how to handle this")))))))
+         (target-link
+          (or target-link
+              (ezeka-make-link
+               kasten
+               (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
+                 (:numerus (ezeka--generate-id kasten))
+                 (:tempus (ezeka-tempus-currens-id-for source-link))
+                 (t
+                  (error "Don't know how to handle this")))))))
     (if (not target-link)
         (error "Don't know where to move %s" source-link)
       ;; Offer to save buffers, since zmove tries to update links
