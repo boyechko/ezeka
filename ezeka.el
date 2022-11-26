@@ -2642,7 +2642,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
 (add-hook 'ezeka-mode-hook
   (lambda ()
     (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
-    (add-hook 'after-save-hook 'ezeka-normalize-file-name nil t)))
+    (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)))
 
 (provide 'ezeka)
 ;;; ezeka.el ends here
