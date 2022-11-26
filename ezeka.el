@@ -145,7 +145,7 @@ Possible valus are t (always create), nil (never create), or
   :options '(one two many)
   :group 'ezeka)
 
-(defcustom ezeka-update-header-modified t
+(defcustom ezeka-header-update-modified t
   "Whether `ezeka--update-file-header' updates the modification date.
 Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
   :type 'symbol
@@ -852,7 +852,7 @@ names is a tempus currens with time."
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
-  "Toggle between different value of `ezeka-update-header-modified'.
+  "Toggle between different value of `ezeka-header-update-modified'.
 With \\[universal-argument] ARG, show a list of options instead."
   (interactive "P")
   (let ((new-value
@@ -862,14 +862,14 @@ With \\[universal-argument] ARG, show a list of options instead."
                       '("sameday" "never" "confirm")
                       nil
                       t))
-           (if-let ((result (member ezeka-update-header-modified
+           (if-let ((result (member ezeka-header-update-modified
                                     '(#1=sameday never confirm #1#))))
                (cadr result)
-             (error "Invalid current `ezeka-update-header-modified': %s"
-                    ezeka-update-header-modified)))))
-    (setq ezeka-update-header-modified new-value)
+             (error "Invalid current `ezeka-header-update-modified': %s"
+                    ezeka-header-update-modified)))))
+    (setq ezeka-header-update-modified new-value)
     (unless arg
-      (message "Set `ezeka-update-header-modified' to %s" new-value))))
+      (message "Set `ezeka-header-update-modified' to %s" new-value))))
 
 (defun ezeka--maybe-update-modifed (metadata)
   "Maybe update the modification time in the METADATA.
@@ -882,11 +882,11 @@ Return the new metadata."
     (unless (string-equal (or last-modified "") now)
       ;; FIXME: Probably better to convert modification times to Emacs's encoded
       ;; time rather than doing it with strings.
-      (when (or (equal ezeka-update-header-modified 'always)
-                (and (equal ezeka-update-header-modified 'sameday)
+      (when (or (equal ezeka-header-update-modified 'always)
+                (and (equal ezeka-header-update-modified 'sameday)
                      (string= (cl-subseq last-modified 0 (length today)) today))
                 ;; Automatic updating conditions not met; need to confirm
-                (and (member ezeka-update-header-modified '(sameday confirm t))
+                (and (member ezeka-header-update-modified '(sameday confirm t))
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
                               (alist-get :id metadata) last-modified))))
@@ -895,19 +895,19 @@ Return the new metadata."
 
 (defun ezeka-update-modified (file)
   "Update the modification time in the current Zettel FILE's header.
-This function ignores the value of `ezeka-update-header-modified',
+This function ignores the value of `ezeka-header-update-modified',
 treating it as if set to 'ALWAYS."
   (interactive (list buffer-file-name))
-  (let ((ezeka-update-header-modified 'always))
+  (let ((ezeka-header-update-modified 'always))
     (ezeka--update-file-header file)))
 
 (defun ezeka-force-save-buffer (&optional arg)
   "Save the current buffer, even if it's unmodified.
 With \\[universal-argument] ARG, don't update the modification date."
   (interactive "P")
-  (let ((ezeka-update-header-modified (if arg
+  (let ((ezeka-header-update-modified (if arg
                                           'never
-                                        ezeka-update-header-modified))
+                                        ezeka-header-update-modified))
         (modified (buffer-modified-p)))
     (unwind-protect
         (when buffer-file-name
@@ -2488,7 +2488,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
                (ezeka-link-kasten target)
             (completing-read "Which kasten to move to? " ezeka-kaesten))
            target)))
-  (let* ((ezeka-update-header-modified 'never) ; FIXME: Hardcoded
+  (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (source-link (ezeka-file-link source-file))
          (target-link (or target-link
                           (ezeka-make-link
