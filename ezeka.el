@@ -899,7 +899,7 @@ This function ignores the value of `ezeka-header-update-modified',
 treating it as if set to 'ALWAYS."
   (interactive (list buffer-file-name))
   (let ((ezeka-header-update-modified 'always))
-    (ezeka--update-file-header file)))
+    (ezeka--update-file-header file nil t)))
 
 (defun ezeka-force-save-buffer (&optional arg)
   "Save the current buffer, even if it's unmodified.
@@ -991,18 +991,19 @@ Returns modifed metadata."
 This is a an alist of (FILENAME . CHECKSUM METADATA). Used in
 `ezeka--update-file-header'.")
 
-(defun ezeka--update-file-header (&optional filename metadata inhibit-read-only)
+(defun ezeka--update-file-header (&optional filename metadata force)
   "Replace FILENAME's header with one generated from METADATA.
 If METADATA is not given, get it by parsing the FILENAME's existing
-header. If INHIBIT-READ-ONLY is non-nil, write new header even if the
-buffer is read only."
+header. If FORCE is non-nil, update the header even if the the file
+has not changed since last update."
   (interactive (list buffer-file-name))
   (let* ((filename (or filename buffer-file-name))
          (metadata (or metadata (ezeka-file-metadata filename)))
          (previous (assoc-string filename ezeka--previously-updated))
          (old-point (point))
          (inhibit-read-only t))
-    (unless (string= (buffer-hash) (cadr previous))
+    (when (or force
+              (not (string= (buffer-hash) (cadr previous))))
       (setq metadata
         (ezeka--set-time-of-creation
          (ezeka--maybe-update-modifed
