@@ -782,7 +782,7 @@ to keywords."
              (type   (or (alist-get :type mdata)
                          (ezeka-id-type file)))
              (kasten (or (alist-get :kasten mdata)
-                         (alist-get type ezeka-default-kasten)))
+                         (ezeka-file-kasten file)))
              (link   (or (ignore-errors (ezeka-file-link file))
                          (ezeka-make-link kasten id)))
              ;; TODO: Remove after full transition from v0.1 to v0.2
