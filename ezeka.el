@@ -833,22 +833,26 @@ troublesome characters."
            ("*" "+"))))
     (ezeka--replace-pairs-in-string replacements title)))
 
-;; TODO: Extend to check for any tempus currens oldnames
 (defun ezeka--set-time-of-creation (metadata)
   "Possibly update the time of creation in the METADATA.
-The creation time is updated if 1) the current time is at 00:00 and
-something else appears in the tempus currens, or 2) one of the old
-names is a tempus currens with time."
-  (let ((id (alist-get :id metadata)))
-    (when-let* ((time-struct
-                 (and (eq (alist-get :type metadata) :tempus)
-                      (iso8601-parse id)))
-                (_ (= 0
-                      (decoded-time-hour time-struct)
-                      (decoded-time-minute time-struct))))
+The creation time is updated if 1) the current time is at 00:00 or is
+missing and something else appears in the tempus currens, or 2) one of
+the old names is a tempus currens with time."
+  (let ((created
+         (org-timestamp-from-string
+          (concat "[" (alist-get :created metadata) "]"))))
+    (when (string= (org-timestamp-format created "%H:%M") "00:00")
       (setf (alist-get :created metadata)
-            (format-time-string "%Y-%m-%d %a %H:%M"
-                                (encode-time time-struct))))
+            (concat (org-timestamp-format created "%Y-%m-%d %a ")
+                    (format-time-string
+                     "%H:%M"
+                     (when-let ((tempus
+                                 (cl-find-if
+                                  (lambda (id)
+                                    (eq (ezeka-id-type id) :tempus))
+                                  (cons (alist-get :id metadata)
+                                        (alist-get :oldnames metadata)))))
+                       (encode-time (iso8601-parse tempus)))))))
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
