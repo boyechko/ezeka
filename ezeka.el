@@ -2361,10 +2361,10 @@ with :USED_IN: property, perform the reverse action."
   (interactive)
   (save-excursion
     (if-let ((used-in (org-entry-get (point) "USED_IN+")))
-        (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]")))
-    (org-back-to-heading t)
-    (org-next-link)
-    (org-open-at-point)))
+        (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]"))
+      (org-back-to-heading t)
+      (org-next-link)
+      (org-open-at-point))))
 
 (defun ezeka-transclude-snippet (link)
   "Insert `#+transclude' statement from LINK."
