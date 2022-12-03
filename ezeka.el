@@ -2254,13 +2254,15 @@ open the link in the same window."
 By default, only update the text if the modification time is
 different. With \\[universal-argument] ARG, forces update."
   (interactive
-   ;; Assume the file is the last link on the current line
    (list current-prefix-arg
-         (save-excursion
-           (end-of-line)
-           (org-previous-link)
-           (when (ezeka-link-at-point-p)
-             (ezeka-link-file (ezeka-link-at-point))))))
+         (ezeka-link-file
+          (or (org-entry-get (point) "SNIP_SOURCE")
+              ;; Assume the file is the last link on the current line
+              (save-excursion
+               (end-of-line)
+               (org-previous-link)
+               (when (ezeka-link-at-point-p)
+                 (ezeka-link-at-point)))))))
   (cl-flet ((move-after-properties ()
               "Move point after the properties drawer, if any."
               (when (org-get-property-block)
@@ -2275,12 +2277,12 @@ different. With \\[universal-argument] ARG, forces update."
                (modified-mdata (format "[%s]"
                                        (or (alist-get :modified mdata)
                                            (alist-get :created mdata))))
-               (modified-prop (org-entry-get (point) "MODIFIED"))
+               (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
                (current? (string= modified-mdata modified-prop))
                (org-id (org-id-get-create)))
           (if (and current? (null arg))
               (message "Snippet is up to date; leaving alone")
-            (org-entry-put (point) "MODIFIED" modified-mdata)
+            (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
             (when (or t (y-or-n-p "Update the text? "))
               ;; If current line is a comment, create a heading after it
               (when (org-at-comment-p)
