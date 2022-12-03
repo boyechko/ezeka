@@ -2249,20 +2249,19 @@ open the link in the same window."
 ;;; - update the snippet title in the heading while I'm at it
 ;;; - command to edit the current heading in situ and locate same text point
 ;;; - quickly scan through all the headings and see if any need updating?
-(defun ezeka-insert-snippet-text (arg file)
-  "Insert snippet text from the given FILE into the current buffer.
+(defun ezeka-insert-snippet-text (arg link)
+  "Insert snippet text from the given LINK into the current buffer.
 By default, only update the text if the modification time is
 different. With \\[universal-argument] ARG, forces update."
   (interactive
    (list current-prefix-arg
-         (ezeka-link-file
-          (or (org-entry-get (point) "SNIP_SOURCE")
-              ;; Assume the file is the last link on the current line
-              (save-excursion
+         (or (org-entry-get (point) "SNIP_SOURCE")
+             ;; Assume the link is the last link on the current line
+             (save-excursion
                (end-of-line)
                (org-previous-link)
                (when (ezeka-link-at-point-p)
-                 (ezeka-link-at-point)))))))
+                 (ezeka-link-at-point))))))
   (cl-flet ((move-after-properties ()
               "Move point after the properties drawer, if any."
               (when (org-get-property-block)
@@ -2273,13 +2272,16 @@ different. With \\[universal-argument] ARG, forces update."
     (save-excursion
       (save-restriction
         (org-back-to-heading)
-        (let* ((mdata (ezeka-file-metadata file))
+        (let* ((file (ezeka-link-file link))
+               (mdata (ezeka-file-metadata file))
                (modified-mdata (format "[%s]"
                                        (or (alist-get :modified mdata)
                                            (alist-get :created mdata))))
                (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
                (current? (string= modified-mdata modified-prop))
                (org-id (org-id-get-create)))
+          (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
+            (org-entry-put (point) "SNIP_SOURCE" link))
           (if (and current? (null arg))
               (message "Snippet is up to date; leaving alone")
             (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
