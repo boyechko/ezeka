@@ -2280,6 +2280,8 @@ different. With \\[universal-argument] ARG, forces update."
                (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
                (current? (string= modified-mdata modified-prop))
                (org-id (org-id-get-create)))
+          (org-narrow-to-subtree)
+          (ezeka--writeable-region (point-min) (point-max))
           (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
             (org-entry-put (point) "SNIP_SOURCE" link))
           (if (and current? (null arg))
@@ -2290,7 +2292,6 @@ different. With \\[universal-argument] ARG, forces update."
               (when (org-at-comment-p)
                 (org-insert-subheading nil))
               ;; Delete existing text
-              (org-narrow-to-subtree)
               (move-after-properties)
               (let ((start (point))
                     (comments-removed 0)
@@ -2356,7 +2357,8 @@ different. With \\[universal-argument] ARG, forces update."
                 (message "Removed %d comments and %d footnotes"
                          comments-removed footnotes-removed)
                 (rb-collapse-blank-lines)
-                t))))))))
+                t)))
+          (ezeka--read-only-region (point-min) (point-max)))))))
 
 (defun ezeka-find-inserted-snippet ()
   "Find source of snippet inserted with `ezeka-insert-snippet-text'.
