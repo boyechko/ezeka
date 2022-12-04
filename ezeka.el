@@ -2369,8 +2369,10 @@ with :USED_IN: property, perform the reverse action."
     (if-let ((used-in (org-entry-get (point) "USED_IN+")))
         (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]"))
       (org-back-to-heading t)
-      (org-next-link)
-      (org-open-at-point))))
+      (if-let ((source-link (org-entry-get (point) "SNIP_SOURCE")))
+          (ezeka-find-link source-link)
+        (org-next-link)
+        (org-open-at-point)))))
 
 (defun ezeka-transclude-snippet (link)
   "Insert `#+transclude' statement from LINK."
