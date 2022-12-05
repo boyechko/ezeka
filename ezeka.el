@@ -2247,7 +2247,6 @@ open the link in the same window."
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
 ;;; - don't copy subtrees marked with COMMENT
 ;;; - update the snippet title in the heading while I'm at it
-;;; - command to edit the current heading in situ and locate same text point
 ;;; - quickly scan through all the headings and see if any need updating?
 (defun ezeka-insert-snippet-text (arg link)
   "Insert snippet text from the given LINK into the current buffer.
@@ -2365,14 +2364,19 @@ different. With \\[universal-argument] ARG, forces update."
 The point should be within the org entry. If called from the heading
 with :USED_IN: property, perform the reverse action."
   (interactive)
-  (save-excursion
+  (let ((line-at-point (thing-at-point 'line t)))
     (if-let ((used-in (org-entry-get (point) "USED_IN+")))
-        (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]"))
-      (org-back-to-heading t)
+        (progn
+          (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]"))
+          (org-back-to-heading t))
       (if-let ((source-link (org-entry-get (point) "SNIP_SOURCE")))
           (ezeka-find-link source-link)
+        (org-back-to-heading)
         (org-next-link)
-        (org-open-at-point)))))
+        (org-open-at-point)
+        (goto-char (point-min))))
+    (when (search-forward (string-trim line-at-point) nil t)
+      (goto-char (match-beginning 0)))))
 
 (defun ezeka-transclude-snippet (link)
   "Insert `#+transclude' statement from LINK."
