@@ -2293,6 +2293,12 @@ different. With \\[universal-argument] ARG, forces update."
                (org-id (org-id-get-create)))
           (org-narrow-to-subtree)
           (ezeka--writeable-region (point-min) (point-max))
+          ;; TODO: Find a way to preserve todos/priority/keywords
+          (when (looking-at org-outline-regexp)
+            (delete-region (match-end 0) (point-at-eol))
+            (goto-char (point-at-eol))
+            (insert (alist-get :title mdata)
+                    " [[" link "]] :ignore:"))
           (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
             (org-entry-put (point) "SNIP_SOURCE" link))
           (if (and current? (null arg))
