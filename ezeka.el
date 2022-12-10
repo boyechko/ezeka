@@ -2242,6 +2242,22 @@ open the link in the same window."
   :type 'boolean
   :group 'ezeka)
 
+(defun ezeka--org-nth-link-on-line (&optional n)
+  "Return the Nth link on the current line.
+With a negative N, count from the end. If there is no such link,
+return NIL."
+  (save-excursion
+    (cond ((> n 0)
+           (beginning-of-line)
+           (dotimes (i n)
+             (org-next-link)))
+          ((< n 0)
+           (end-of-line)
+           (dotimes (i n)
+             (org-previous-link))))
+    (when (ezeka-link-at-point-p)
+      (ezeka-link-at-point))))
+
 ;;; TODO:
 ;;; - implement some kind of checksum check for keeping draft up to date
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
@@ -2255,12 +2271,8 @@ different. With \\[universal-argument] ARG, forces update."
   (interactive
    (list current-prefix-arg
          (or (org-entry-get (point) "SNIP_SOURCE")
-             ;; Assume the link is the last link on the current line
-             (save-excursion
-               (end-of-line)
-               (org-previous-link)
-               (when (ezeka-link-at-point-p)
-                 (ezeka-link-at-point))))))
+             (ezeka--org-nth-link-on-line -1)
+             (ezeka-file-link (zk--select-file)))))
   (cl-flet ((move-after-properties ()
               "Move point after the properties drawer, if any."
               (when (org-get-property-block)
