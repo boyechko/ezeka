@@ -875,6 +875,10 @@ With \\[universal-argument] ARG, show a list of options instead."
     (unless arg
       (message "Set `ezeka-header-update-modified' to %s" new-value))))
 
+(defcustom ezeka-modified-updated-hook nil
+  "List of functions to call after modifying the metadata header."
+  :type '(or function list))
+
 (defun ezeka--maybe-update-modifed (metadata)
   "Maybe update the modification time in the METADATA.
 Whether to update is determined by `ezeka-update-modifaction-date'.
@@ -894,7 +898,8 @@ Return the new metadata."
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
                               (alist-get :id metadata) last-modified))))
-        (setf (alist-get :modified metadata) now)))
+        (setf (alist-get :modified metadata) now)
+        (run-hooks ezeka-modified-updated-hook)))
     metadata))
 
 (defun ezeka-update-modified (file)
