@@ -2263,7 +2263,7 @@ return NIL."
              (org-next-link)))
           ((< n 0)
            (end-of-line)
-           (dotimes (i n)
+           (dotimes (i (abs n))
              (org-previous-link))))
     (when (ezeka-link-at-point-p)
       (ezeka-link-at-point))))
