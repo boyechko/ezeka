@@ -2308,6 +2308,7 @@ different. With \\[universal-argument] ARG, forces update."
                             (ezeka-format-metadata "%t [[%i]]" mdata)))
           (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
             (org-entry-put (point) "SNIP_SOURCE" link))
+          (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
           (if (and current? (null arg))
               (message "Snippet is up to date; leaving alone")
             (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
