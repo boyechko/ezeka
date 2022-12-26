@@ -914,11 +914,14 @@ treating it as if set to 'ALWAYS."
 
 (defun ezeka-force-save-buffer (&optional arg)
   "Save the current buffer, even if it's unmodified.
-With \\[universal-argument] ARG, don't update the modification date."
+With \\[universal-argument] ARG, don't update the modification date.
+With double \\[universal-argument], update it unconditionally."
   (interactive "P")
-  (let ((ezeka-header-update-modified (if arg
-                                          'never
-                                        ezeka-header-update-modified))
+  (let ((ezeka-header-update-modified
+         (cond ((equal arg '(4)) 'never)
+               ((equal arg '(16)) 'always)
+               (t
+                ezeka-header-update-modified)))
         (modified (buffer-modified-p)))
     (unwind-protect
         (when buffer-file-name
