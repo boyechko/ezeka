@@ -2365,9 +2365,9 @@ different. With \\[universal-argument] ARG, forces update."
                 (goto-char start)
                 (while (re-search-forward " ?\\[\\[.+]]" nil t)
                   (replace-match ""))
-                ;; Remove inline @@...@@ comments
+                ;; Remove inline @@...@@ and {...~} comments
                 (goto-char start)
-                (while (re-search-forward "@@.*@@\n*" nil t)
+                (while (re-search-forward "\\(@@\\|{\\).*\\(@@\\|~}\\)\n*" nil t)
                   (cl-incf comments-removed)
                   (replace-match ""))
                 ;; Remove footnotes if need be
