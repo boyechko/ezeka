@@ -466,13 +466,13 @@ given in LINK."
           (let (found)
             (mapc (lambda (kasten)
                     (push (file-expand-wildcards
-                     (expand-file-name basename
-                                       (ezeka-id-directory id kasten)))
-                    found))
+                           (expand-file-name basename
+                                             (ezeka-id-directory id kasten)))
+                          found))
                   (ezeka--id-kaesten id))
             (if (= 1 (length (flatten-list found)))
                 (car (flatten-list found))
-              (error "Found more than one match: %s" (flatten-list found))))
+              (error "Found no or multiple matches: %s" (flatten-list found))))
          (error "Link %s cannot be found" link)))))
 
 (defun ezeka-id-type (id-or-file)
