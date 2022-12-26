@@ -901,7 +901,7 @@ Return the new metadata."
                       (format "%s was last modified at %s. Update to now? "
                               (alist-get :id metadata) last-modified))))
         (setf (alist-get :modified metadata) now)
-        (run-hooks ezeka-modified-updated-hook)))
+        (run-hooks 'ezeka-modified-updated-hook)))
     metadata))
 
 (defun ezeka-update-modified (file)
