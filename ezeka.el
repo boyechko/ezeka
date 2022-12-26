@@ -165,6 +165,8 @@ Functions affected are `ezeka-set-label', `ezeka-set-title', and
 
 (defun in-ezeka-dir (&optional relative-path)
   "Return absolute path to RELATIVE-PATH in the Zettel directory."
+  (unless ezeka-directory
+    (error "No `ezeka-directory' set"))
   (expand-file-name (or relative-path "") ezeka-directory))
 
 (defun ezeka--match-entire (regexp)
