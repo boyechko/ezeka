@@ -2303,12 +2303,9 @@ different. With \\[universal-argument] ARG, forces update."
                (org-id (org-id-get-create)))
           (org-narrow-to-subtree)
           (ezeka--writeable-region (point-min) (point-max))
-          ;; TODO: Find a way to preserve todos/priority/keywords
           (when (looking-at org-outline-regexp)
-            (delete-region (match-end 0) (point-at-eol))
-            (goto-char (point-at-eol))
-            (insert (alist-get :title mdata)
-                    " [[" link "]] :ignore:"))
+            (replace-regexp (regexp-quote (elt (org-heading-components) 4))
+                            (ezeka-format-metadata "%t [[%i]]" mdata)))
           (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
             (org-entry-put (point) "SNIP_SOURCE" link))
           (if (and current? (null arg))
@@ -2357,7 +2354,8 @@ different. With \\[universal-argument] ARG, forces update."
                 (goto-char start)
                 (while (re-search-forward "^[*]+ " nil t) ; remove headings
                   (goto-char (match-beginning 0))
-                  (kill-line 1))
+                  (move-after-properties)
+                  (kill-region (match-beginning 0) (point)))
                 ;; Remove <<tags>>
                 (goto-char start)
                 (while (re-search-forward "<<[^>]+>>\n*" nil t)
