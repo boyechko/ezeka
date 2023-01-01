@@ -1326,8 +1326,7 @@ Otherwise, call `kill-sexp', passing \\[universal-argument] ARG to it."
                  (just-one-space 0)))))
     (kill-sexp arg)))
 
-;; FIXME: Remove DESCRIPTION, since don't usethat feature.
-(defun ezeka-org-format-link (target &optional description)
+(defun ezeka--format-link (target &optional description)
   "Return a formatted org-link to TARGET with optional DESCRIPTION.
 TARGET can be either a link or a filepath."
   (let* ((link (if (file-name-absolute-p target)
@@ -1348,7 +1347,7 @@ at place WHERE (:before by default) in relation to the LINK."
     (concat (if (eq where :before)
                 (concat value " ")
               "")
-            (ezeka-org-format-link
+            (ezeka--format-link
              link
              (when (eq where :description)
                value))
@@ -1383,7 +1382,7 @@ metadata."
                                             "Insert [%s] %s the link? ")
                                           (alist-get field mdata) where))))
                   (ezeka--link-with-metadata link field where mdata)
-                (ezeka-org-format-link link))
+                (ezeka--format-link link))
               (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
@@ -1415,7 +1414,7 @@ already inside a link, replace it instead."
               (ezeka-insert-link-with-metadata link :title :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
-          (insert (ezeka-org-format-link link)))
+          (insert (ezeka--format-link link)))
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-to-other-window (arg)
@@ -1458,7 +1457,7 @@ already inside a link, replace it instead."
               (ezeka-insert-link-with-metadata link :title :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
-          (insert (ezeka-org-format-link link)))
+          (insert (ezeka--format-link link)))
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
@@ -1690,7 +1689,7 @@ don't visit the created child. Return link to the new child."
         (setq child-link (ezeka--generate-new-child parent kasten))))
     (when (and (equal arg '(4))
                (y-or-n-p "Insert link to the new child? "))
-      (insert (ezeka-org-format-link child-link)))
+      (insert (ezeka--format-link child-link)))
     (unless noselect
       (ezeka-find-link child-link))
     child-link))
@@ -2110,7 +2109,7 @@ With \\[universal-argument] ARG, asks for a different name."
              (org-timestamp-format (org-timestamp-from-string
                                     (delete-and-extract-region start (point)))
                                    "%Y%m%dT%H%M")))))
-    (insert (ezeka-org-format-link datetime))))
+    (insert (ezeka--format-link datetime))))
 
 (defun ezeka-dwim-with-this-timestring (beg end)
   "Do What I Mean with the timestring in the region between BEG and END.
@@ -2200,7 +2199,7 @@ With prefix argument, ask to select the KASTEN."
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 (org-cut-subtree)
-                (insert (ezeka-org-format-link new-link)
+                (insert (ezeka--format-link new-link)
                         " "
                         (alist-get :title (ezeka-file-metadata new-file)))))))))))
 
