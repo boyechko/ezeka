@@ -460,9 +460,10 @@ given in LINK."
                            (concat ezeka-file-name-separator caption)))
                     ezeka-file-extension)))
       (or (and (stringp caption)
-               (expand-file-name
-                basename
-                (ezeka-id-directory id (ezeka-link-kasten link))))
+               (file-truename
+                (expand-file-name
+                 basename
+                 (ezeka-id-directory id (ezeka-link-kasten link)))))
           (let (found)
             (mapc (lambda (kasten)
                     (push (file-expand-wildcards
@@ -471,7 +472,7 @@ given in LINK."
                           found))
                   (ezeka--id-kaesten id))
             (if (= 1 (length (flatten-list found)))
-                (car (flatten-list found))
+                (file-truename (car (flatten-list found)))
               (error "Found no or multiple matches: %s" (flatten-list found))))
          (error "Link %s cannot be found" link)))))
 
