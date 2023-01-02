@@ -444,37 +444,36 @@ explicitly given."
 
 (defun ezeka-link-file (link &optional caption)
   "Return a full file path to the Zettel LINK.
-CAPTION can be a string (return a filename consisting of LINK and
-CAPTION separated with `ezeka-file-name-separator') or nil, in which
-case try wildcard expansion for the file name beginning with the ID
-given in LINK."
-  (if (not (ezeka-link-p link))
-      (error "Link not valid: %s" link)
-    (let* ((id (ezeka-link-id link))
-           (basename
-            (format "%s%s.%s"
-                    id
-                    (cond ((not (stringp caption)) "*")
-                          ((string-empty-p caption) "")
-                          (t
-                           (concat ezeka-file-name-separator caption)))
-                    ezeka-file-extension)))
-      (or (and (stringp caption)
-               (file-truename
-                (expand-file-name
-                 basename
-                 (ezeka-id-directory id (ezeka-link-kasten link)))))
-          (let (found)
-            (mapc (lambda (kasten)
-                    (push (file-expand-wildcards
-                           (expand-file-name basename
-                                             (ezeka-id-directory id kasten)))
-                          found))
-                  (ezeka--id-kaesten id))
-            (if (= 1 (length (flatten-list found)))
-                (file-truename (car (flatten-list found)))
-              (error "Found no or multiple matches: %s" (flatten-list found))))
-         (error "Link %s cannot be found" link)))))
+CAPTION can be a string (including an empty string), in which case
+return a filename consisting of LINK and CAPTION separated with
+`ezeka-file-name-separator'. Alternatively, if CAPTION is nil, try
+wildcard expansion for the file name beginning with the ID given in
+LINK."
+  (unless (ezeka-link-p link) (error "Link not valid: %s" link))
+  (let* ((id (ezeka-link-id link))
+         (basename (format "%s%s.%s"
+                           id
+                           (cond ((string-empty-p caption)
+                                  "")
+                                 ((stringp caption)
+                                  (concat ezeka-file-name-separator caption))
+                                 (t
+                                  "*"))
+                           ezeka-file-extension)))
+    (file-truename
+     (if (stringp caption)
+         (expand-file-name basename
+                           (ezeka-id-directory id (ezeka-link-kasten link)))
+       (let (found)
+         (mapc (lambda (kasten)
+                 (push (file-expand-wildcards
+                        (expand-file-name basename
+                                          (ezeka-id-directory id kasten)))
+                       found))
+               (ezeka--id-kaesten id))
+         (if (= 1 (length (flatten-list found)))
+             (car (flatten-list found))
+           (error "Found no or multiple matches: %s" (flatten-list found))))))))
 
 (defun ezeka-id-type (id-or-file)
   "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
@@ -1297,7 +1296,7 @@ same window."
 If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
-    (let ((existing-file (ignore-errors (ezeka-link-file link 'try-wildcard))))
+    (let ((existing-file (ignore-errors (ezeka-link-file link))))
       (cond ((ezeka-note-p existing-file)
              (ezeka-find-file existing-file same-window))
             ((or (eql ezeka-create-nonexistent-links t)
@@ -1676,7 +1675,7 @@ don't visit the created child. Return link to the new child."
     (if (equal arg '(16))
         (while (not child-link)
           (setq child-link (read-string "Enter link for new child: "))
-          (when (file-exists-p (ezeka-link-file child-link))
+          (when (ezeka-link-file child-link)
             (message "This Zettel already exists; try again")))
       (let ((kasten (if (or (equal arg '(4))
                             (null parent-link))
