@@ -371,7 +371,7 @@ It is a Zettel if all of these conditions are met:
   (let ((kasten (ezeka-file-kasten file))
         (id (ezeka-file-name-id file)))
     (if (and id kasten)
-        id
+        (concat kasten ":" id)
       (error "Can't get id or kasten for file %s" (file-name-base file)))))
 
 (defun ezeka-link-p (string)
@@ -650,7 +650,7 @@ The format control string may contain the following %-sequences:
                 `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
                              (format "%s's " (ezeka--citaton-key-authors ck))
                            ""))
-                  (?i . ,(alist-get :link metadata))
+                  (?i . ,(alist-get :id metadata))
                   (?K . ,(alist-get :kasten metadata))
                   (?l . ,(alist-get :label metadata))
                   (?c . ,(alist-get :caption metadata))
@@ -1333,7 +1333,7 @@ TARGET can be either a link or a filepath."
                    (ezeka-file-link target)
                  target)))
     (format "[[%s]%s]"
-            link
+            (ezeka-link-id link)
             (if description
                 (format "[%s]" description) ""))))
 
@@ -1650,8 +1650,8 @@ universal argument, ask for confirmation before inserting."
 
 (defun ezeka--generate-new-child (parent &optional kasten)
   "Generate a new child in the same Kasten as PARENT link.
-If KASTEN is given, use that kasten instead. Return link to the new
-child."
+If KASTEN is given, use that kasten instead. Return a fully qualified
+link to the new child."
   (let* ((kasten (or kasten (ezeka-link-kasten parent)))
          (child-link (ezeka-make-link kasten (ezeka--generate-id kasten))))
     (when parent
@@ -1724,6 +1724,7 @@ Pass the prefix ARG to `ezeka-create-new-child'."
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put (plist-put plist :citekey citekey) :title title))
+    (insert (ezeka--format-link child-link))
     (ezeka-find-link child-link)))
 
 ;;;=============================================================================
@@ -2067,7 +2068,7 @@ CITEKEY."
                  nil)))
             "\n")                       ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
-      (insert "parent: " parent "\n"))
+      (insert "parent: " (ezeka--format-link parent) "\n"))
     (insert "\n")))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
