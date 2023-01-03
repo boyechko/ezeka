@@ -1665,36 +1665,21 @@ link to the new child."
         (list child-link :parent parent)))
     child-link))
 
-(defun ezeka-create-new-child (parent &optional arg noselect)
-  "Create a new child in the same Kasten as PARENT.
-With \\[universal-argument] ARG, allows the user to select a different
-Kasten as well as prompts to insert the link. With double
-\\[universal-argument] asks for the full link. If NOSELECT is non-nil,
-don't visit the created child. Return link to the new child."
+(defun ezeka-new-note-or-child (kasten &optional parent noselect)
+  "Create a new note in KASTEN as an orphan or with optional PARENT.
+If NOSELECT (or \\[universal-argument]) is given, don't open the new
+note. Return link to the note."
   (interactive
-   (list (when (ezeka-note-p buffer-file-name t) buffer-file-name)
+   (list (ezeka--read-kasten)
+         (when (ezeka-note-p buffer-file-name t)
+           (ezeka-file-link buffer-file-name))
          current-prefix-arg))
-  (let ((parent-link (if (or (null parent)
-                             (ezeka-link-p parent))
-                         parent
-                       (ezeka-file-link parent)))
-        child-link)
-    (if (equal arg '(16))
-        (while (not child-link)
-          (setq child-link (read-string "Enter link for new child: "))
-          (when (ezeka-link-file child-link)
-            (message "This Zettel already exists; try again")))
-      (let ((kasten (if (or (equal arg '(4))
-                            (null parent-link))
-                        (ezeka--read-kasten)
-                      (ezeka-link-kasten parent-link))))
-        (setq child-link (ezeka--generate-new-child parent kasten))))
-    (when (and (equal arg '(4))
-               (y-or-n-p "Insert link to the new child? "))
-      (insert (ezeka--format-link child-link)))
+  (let ((link (if parent
+                  (ezeka--generate-new-child parent kasten)
+                (ezeka-make-link kasten (ezeka--generate-id kasten)))))
     (unless noselect
-      (ezeka-find-link child-link))
-    child-link))
+      (ezeka-find-link link))
+    link))
 
 (defun ezeka--read-kasten (&optional prompt)
   "Read a valid Kasten with `completing-read' and given PROMPT, if any."
