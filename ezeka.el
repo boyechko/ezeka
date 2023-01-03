@@ -1061,9 +1061,7 @@ like slash (/) or colon (:), and is less than 255 characters long."
                     metadata))
            (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
            (keep-which (unless (string= mdata-base file-base)
-                         (read-user-choice file-base mdata-base)))
-           new-base
-           prompt)
+                         (read-user-choice file-base mdata-base))))
       (funcall clear-message-function)
       (cond ((member keep-which '(nil ?n ?q))
              ;; do nothing
@@ -1080,21 +1078,30 @@ like slash (/) or colon (:), and is less than 255 characters long."
              (ezeka--replace-file-header filename mdata)
              (ezeka--save-buffer-read-only filename))
             ((member keep-which '(?m ?l))
-             (while (not new-base)
-               (setq new-base
-                 (ezeka--minibuffer-edit-string
-                  file-base mdata-base prompt))
-               (when (ezeka--invalid-filename-p new-base)
-                 (setq prompt
-                   "The new name has restricted characters; try again\n"
-                   new-base
-                   nil)))
-             (let ((newname (file-name-with-extension
-                             new-base ezeka-file-extension)))
-               (set-buffer-modified-p nil)
-               (ezeka--rename-file filename newname)
-               (ezeka--update-metadata-values newname mdata
-                                              :caption-stable nil)))))))
+             (ezeka-rename-note filename mdata-base mdata))))))
+
+(defun ezeka-rename-note (filename &optional suggested metadata)
+  "Rename the Zettel in FILENAME interactively.
+If given, SUGGESTED is a suggested new base filename. METADATA is
+FILENAME's metadata."
+  (interactive (list buffer-file-name))
+  (let ((file-base (file-name-base filename))
+        new-base
+        prompt)
+    (while (not new-base)
+      (setq new-base
+        (ezeka--minibuffer-edit-string file-base suggested prompt))
+      (when (ezeka--invalid-filename-p new-base)
+        (setq prompt
+          "The new name has restricted characters; try again\n"
+          new-base
+          nil)))
+    (when new-base
+      (let ((newname (file-name-with-extension new-base ezeka-file-extension)))
+        (set-buffer-modified-p nil)
+        (ezeka--rename-file filename newname)
+        (ezeka--update-metadata-values newname metadata
+                                       :caption-stable nil)))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
