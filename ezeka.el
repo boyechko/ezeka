@@ -2558,15 +2558,17 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (source-link (ezeka-file-link source-file))
-         (target-link
-          (or target-link
-              (ezeka-make-link
-               kasten
-               (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-                 (:numerus (ezeka--generate-id kasten))
-                 (:tempus (ezeka-tempus-currens-id-for source-link))
-                 (t
-                  (error "Don't know how to handle this")))))))
+         target-link)
+    (while (not target-link)
+      (let ((candidate (ezeka-make-link
+                        kasten
+                        (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
+                          (:numerus (ezeka--generate-id kasten))
+                          (:tempus (ezeka-tempus-currens-id-for source-link))
+                          (t
+                           (error "Don't know how to handle this"))))))
+        (when (y-or-n-p (format "Is %s acceptable? " candidate))
+          (setq target-link candidate))))
     (if (not target-link)
         (error "Don't know where to move %s" source-link)
       ;; Offer to save buffers, since zmove tries to update links
