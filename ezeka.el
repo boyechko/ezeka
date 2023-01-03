@@ -2047,7 +2047,7 @@ CITEKEY."
      (concat ezeka-header-rubric-key
              ": "
              (ezeka-format-metadata ezeka-header-rubric-format
-                                    `((:link . ,link)
+                                    `((:id . ,(ezeka-link-id link))
                                       (:caption . ,caption)
                                       (:label . ,label)
                                       (:citekey . ,citekey)))))
