@@ -1686,11 +1686,7 @@ don't visit the created child. Return link to the new child."
             (message "This Zettel already exists; try again")))
       (let ((kasten (if (or (equal arg '(4))
                             (null parent-link))
-                        (completing-read
-                         "Kasten: "
-                         (if (listp ezeka-kaesten)
-                             (mapcar #'car ezeka-kaesten)
-                           (error "No `ezeka-kaesten' defined")))
+                        (ezeka--read-kasten)
                       (ezeka-link-kasten parent-link))))
         (setq child-link (ezeka--generate-new-child parent kasten))))
     (when (and (equal arg '(4))
@@ -1699,6 +1695,14 @@ don't visit the created child. Return link to the new child."
     (unless noselect
       (ezeka-find-link child-link))
     child-link))
+
+(defun ezeka--read-kasten (&optional prompt)
+  "Read a valid Kasten with `completing-read' and given PROMPT, if any."
+  (completing-read
+   (or prompt "Kasten: ")
+   (if (listp ezeka-kaesten)
+       (mapcar #'car ezeka-kaesten)
+     (error "No `ezeka-kaesten' defined"))))
 
 (defun ezeka--possible-new-note-title ()
   "Return a possible title for a new Zettel note based on context."
