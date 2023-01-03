@@ -1718,7 +1718,7 @@ don't visit the created child. Return link to the new child."
 (defun ezeka-insert-new-child-with-title (arg title)
   "Create a new child with given TITLE, inserting its link at point.
 If TITLE is not given, use text on the current line before point.
-Pass the prefix ARG to `ezeka-create-new-child'."
+With \\[universal-argument] ARG, ask for new child's Kasten."
   (interactive
    (list current-prefix-arg
          (org-trim
@@ -1726,7 +1726,10 @@ Pass the prefix ARG to `ezeka-create-new-child'."
                                 (ezeka--possible-new-note-title)))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
          (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
-         (child-link (ezeka-create-new-child parent-link '(4) t))
+         (child-link (ezeka--generate-new-child
+                      parent-link
+                      (when arg
+                        (ezeka--read-kasten "Kasten for new child: "))))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put (plist-put plist :citekey citekey) :title title))
