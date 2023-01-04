@@ -371,7 +371,7 @@ It is a Zettel if all of these conditions are met:
   (let ((kasten (ezeka-file-kasten file))
         (id (ezeka-file-name-id file)))
     (if (and id kasten)
-        (concat kasten ":" id)
+        (ezeka-make-link kasten id)
       (error "Can't get id or kasten for file %s" (file-name-base file)))))
 
 (defun ezeka-link-p (string)
