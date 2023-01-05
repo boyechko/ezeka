@@ -1935,13 +1935,15 @@ should consist of KEY and VALUE pairs.
   "Update the title in FILENAME's header to NEW-TITLE."
   (interactive (list (buffer-file-name)))
   (when (ezeka-note-p filename)
-    (let ((metadata (ezeka-file-metadata filename)))
-      (setf (alist-get :title metadata)
-            (or new-title
-                (read-string "Change title to what? "
-                             (alist-get :title metadata))))
-      (setf (alist-get :caption-stable metadata) nil)
-      (ezeka--update-metadata-values filename metadata))))
+    (let* ((mdata (ezeka-file-metadata filename))
+           (new-title (or new-title
+                          (read-string "Change title to what? "
+                                       (alist-get :title mdata)))))
+      (setf (alist-get :title mdata) new-title
+            (alist-get :caption-stable mdata) nil)
+      (setf (alist-get :caption mdata)
+            (ezeka--normalize-title-into-caption new-title))
+      (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label arg)
   "Set LABEL (genus or category) in Zettel FILENAME.
