@@ -2133,7 +2133,7 @@ If it's something else, try to make it into org-time-stamp."
 
 (defun ezeka-org-export-as-new-note (&optional kasten)
   "Create new Zettel in KASTEN from the current org subtree.
-With prefix argument, ask to select the KASTEN."
+With \\[universal-argument], ask to select the KASTEN."
   (interactive (list (when current-prefix-arg
                        (completing-read "Zettel kasten: " ezeka-kaesten))))
   (let ((parent-file buffer-file-name)
@@ -2151,9 +2151,14 @@ With prefix argument, ask to select the KASTEN."
               timestamp)
           (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" title)
                  (list (match-string 1 title) (match-string 2 title))
-                 (setq timestamp (save-match-data (org-timestamp-from-string
-                                                   (match-string 2 title)))
-                       new-title (match-string 1 title)))
+                 (setq timestamp
+                   (save-match-data
+                     (org-timestamp-from-string (match-string 2 title))))
+                 (setq new-title
+                   (ezeka--minibuffer-edit-string
+                    (match-string 1 title)
+                    nil
+                    "Title for new note: ")))
                 ((org-get-scheduled-time nil)
                  (setq timestamp
                    (org-timestamp-from-time (org-get-scheduled-time nil) t)))
