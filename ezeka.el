@@ -250,7 +250,7 @@ If NEWNAME is relative, fill missing values from FILENAME."
                     (file-name-directory filename)))))
     (cond ((not (file-exists-p filename))
            (set-visited-file-name newname t t))
-          ((vc-backend filename)
+          ((and nil (vc-backend filename))
            (vc-rename-file filename newname))
           (t
            (rename-file filename newname t)
