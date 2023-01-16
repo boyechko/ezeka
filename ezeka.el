@@ -832,7 +832,8 @@ troublesome characters."
            ("\"" "")
            ("|" "-")
            ("?" "+")
-           ("*" "+"))))
+           ("*" "+")
+           ("." ""))))
     (ezeka--replace-pairs-in-string replacements title)))
 
 (defun ezeka--set-time-of-creation (metadata)
