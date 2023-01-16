@@ -412,7 +412,7 @@ explicitly given."
            (error "Unknown kasten: %s" kasten))
           ((not (string-match-p (ezeka--id-regexp id-type) id))
            (error "ID doesn't match the ID type for %s kasten" kasten))
-          ((rassoc kasten ezeka-default-kasten)
+          ((eq id-type :numerus)
            id)
           (t
            (concat kasten ":" id)))))
