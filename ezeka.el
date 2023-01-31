@@ -1465,19 +1465,23 @@ insert just the link itself."
 (defun ezeka-kill-ring-save-link-and-title (arg)
   "Save the link and title to kill ring and system clipboard.
 If the point is at Zettel link, use that; otherwise, the current
-buffer. With \\[universal-argument] ARG, save just the title."
+buffer. With \\[universal-argument] ARG, save just the title.
+With double \\[universal-argument], save caption."
   (interactive "P")
   (let* ((file (ezeka--grab-dwim-file-target))
          (link (ezeka-file-link file)))
     (when file
       (let* ((mdata (ezeka-file-metadata file))
-             (title (if arg
-                        (alist-get :title mdata)
-                      (ezeka--link-with-metadata link :title :after mdata))))
-        (kill-new title)
+             (result (cond ((equal arg '(4))
+                            (alist-get :title mdata))
+                           ((equal arg '(16))
+                            (ezeka--link-with-metadata link :caption :after mdata))
+                           (t
+                            (ezeka--link-with-metadata link :title :after mdata)))))
+        (kill-new result)
         (unless select-enable-clipboard
-          (gui-set-selection 'CLIPBOARD title))
-        (message "Saved [%s] in the kill ring" title)))))
+          (gui-set-selection 'CLIPBOARD result))
+        (message "Saved [%s] in the kill ring" result)))))
 
 (defun ezeka-kill-ring-save-link (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
