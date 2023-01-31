@@ -1483,7 +1483,7 @@ With double \\[universal-argument], save caption."
           (gui-set-selection 'CLIPBOARD result))
         (message "Saved [%s] in the kill ring" result)))))
 
-(defun ezeka-kill-ring-save-link (arg)
+(defun ezeka-kill-ring-save-link-or-filename (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
 With \\[universal-argument] ARG, save the file name relative to
 `ezeka-directory' instead. With two prefix arguments, open the file in
@@ -1492,14 +1492,15 @@ Finder with it selected."
   (let ((file (ezeka--grab-dwim-file-target t)))
     (when file
       (let ((link (if (= arg 4)
-                      (file-relative-name file ezeka-directory)
+                      (file-relative-name (file-truename file)
+                                          (file-truename ezeka-directory))
                     (ezeka-file-link file))))
         (if select-enable-clipboard
             (kill-new link)
           (gui-set-selection 'CLIPBOARD link))
         (message "Saved [%s] in the kill ring" link)
         (when (= arg 16)
-          (shell-command (format "open -R %s &" file)))))))
+          (shell-command (format "open -R '%s' &" file)))))))
 
 (defun ezeka-kill-ring-save-next-link ()
   "Save the first link at or after point (but before EOL)."
@@ -2646,7 +2647,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-add-keyword)
             ("C-c $" . ezeka-kill-ring-save-link-at-point)
-            ("C-c %" . ezeka-kill-ring-save-link)
+            ("C-c %" . ezeka-kill-ring-save-link-or-filename)
             ("C-c ^" . ezeka-find-ancestor)
             ;; ("C-c &" . ) ; yasnippet
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
