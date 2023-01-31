@@ -950,8 +950,8 @@ Returns modifed metadata."
               (format (concat
                        "Caption in metadata: %s\n"
                        "  Title in metadata: %s\n"
-                       "Press [c] or [u] to use caption for title\n"
-                       "      [t] or [l] to use title for caption,\n"
+                       "Press [c|C] or [u|U] to use caption for title\n"
+                       "      [t|T] or [l|L] to use title for caption,\n"
                        "      [n] or [q] to do noting: ")
                       (propertize caption 'face 'bold)
                       (propertize title 'face 'italic))
