@@ -1037,23 +1037,24 @@ like slash (/) or colon (:), and is less than 255 characters long."
   (or (string-match-p "[/:*]" filename)
       (> (length filename) 255)))
 
-(defun ezeka-normalize-file-name (&optional filename metadata)
-  "Ensure that FILENAME's captioned name matches the METADATA."
-  (interactive (list buffer-file-name))
+(defun ezeka-normalize-file-name (&optional filename metadata arg)
+  "Ensure that FILENAME's captioned name matches the METADATA.
+With \\[universal-argument] ARG, offer to set metadata or rename the
+file even if they are in agreement."
+  (interactive (list buffer-file-name nil current-prefix-arg))
   (cl-flet
       ((read-user-choice (file-base mdata-base)
           "Prompt the user about which name to use."
-          (downcase
-           (read-char-choice
-            (format (concat "Caption in filename and metadata differ:\n"
-                            "[F]ilename: %s\n"
-                            "[M]etadata: %s\n"
-                            "Press [f/u] to set metadata from filename,\n"
-                            "      [m/l] to set filename from metadata, or\n"
-                            "      [n] or [q] to do noting: ")
-                    (propertize file-base 'face 'bold)
-                    (propertize mdata-base 'face 'bold-italic))
-            '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q)))))
+          (read-char-choice
+           (format (concat "Caption in filename and metadata differ:\n"
+                           "[F]ilename: %s\n"
+                           "[M]etadata: %s\n"
+                           "Press [f/u] to set metadata from filename (uppercase to edit),\n"
+                           "      [m/l] to set filename from metadata (uppercase to edit), or\n"
+                           "      [n] or [q] to do noting: ")
+                   (propertize file-base 'face 'bold)
+                   (propertize mdata-base 'face 'bold-italic))
+           '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q))))
     (let* ((filename (or filename buffer-file-name))
            (file-base (file-name-base filename))
            (mdata (if (null metadata)
@@ -1061,14 +1062,18 @@ like slash (/) or colon (:), and is less than 255 characters long."
                     (ezeka--update-file-header filename metadata)
                     metadata))
            (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-           (keep-which (unless (string= mdata-base file-base)
+           (keep-which (unless (and (null arg) (string= mdata-base file-base))
                          (read-user-choice file-base mdata-base))))
       (funcall clear-message-function)
       (cond ((member keep-which '(nil ?n ?q))
              ;; do nothing
              )
-            ((member keep-which '(?f ?u))
-             (setf (alist-get :label mdata)
+            ((member keep-which '(?f ?F ?u ?U))
+             (when (member keep-which '(?F ?U))
+               (setq file-base (ezeka--minibuffer-edit-string file-base)))
+             (setf (alist-get :id mdata)
+                   (ezeka-file-name-id file-base)
+                   (alist-get :label mdata)
                    (ezeka-file-name-label file-base)
                    (alist-get :caption mdata)
                    (ezeka-file-name-caption file-base)
@@ -1078,10 +1083,14 @@ like slash (/) or colon (:), and is less than 255 characters long."
                    nil)
              (ezeka--replace-file-header filename mdata)
              (ezeka--save-buffer-read-only filename))
-            ((member keep-which '(?m ?l))
+            ((member keep-which '(?m ?M ?l ?L))
              (ezeka--rename-file
               filename
-              (file-name-with-extension mdata-base ezeka-file-extension)))))))
+              (file-name-with-extension
+               (if (member keep-which '(?M ?L))
+                   (ezeka--minibuffer-edit-string mdata-base)
+                   mdata-base)
+               ezeka-file-extension)))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
