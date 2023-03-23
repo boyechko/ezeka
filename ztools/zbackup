@@ -1,0 +1,16 @@
+#!/bin/bash
+
+BACKUP_DIR=$HOME/Dropbox/B/Backup/crispy-memory
+
+if [ ! -d "$BACKUP_DIR" ]; then
+    mkdir -p "$BACKUP_DIR"
+fi
+if [ ! -d "$ZETTEL_DIR" ]; then
+    echo "Set \$ZETTEL_DIR first"
+    exit 1
+fi
+
+TIMESTAMP=$(date "+%Y%m%dT%H%M")
+cd $HOME
+tar zcf "$BACKUP_DIR/crispy-memory_${TIMESTAMP}.tar.gz" "$ZETTEL_DIR" > /dev/null 2>&1
+
