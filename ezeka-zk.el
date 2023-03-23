@@ -119,10 +119,21 @@ the environment."
 Optionally use ORIG-ID for backlink."
   (ezeka-insert-header-template new-id nil title orig-id))
 
+(defun ezeka-zk-index-button-display-action (file buffer)
+  "Function to display FILE or BUFFER on button press in Index and Desktop.
+See `zk-index-button-display-action'."
+  (if (one-window-p)
+      (pop-to-buffer buffer
+                     (display-buffer-in-direction
+                      buffer
+                      '((direction . top)
+                        (window-height . 0.6))))
+    (find-file-other-window file)))
+
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT."
   (if (or (string= id title)
-          (string-match-p "%t" format)) ; FIXME: Hackish
+          (string-match-p "%[^icl]" format)) ; FIXME: Hackish
       (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
     (format-spec format
                  `((?i . ,id)
