@@ -2195,8 +2195,7 @@ With \\[universal-argument], ask to select the KASTEN."
   (let ((parent-file buffer-file-name)
         (parent-link (ezeka-file-link buffer-file-name))
         (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
-        tempus-currens
-        new-title
+        (new-title "")
         new-link
         new-file)
     (save-excursion
@@ -2219,12 +2218,22 @@ With \\[universal-argument], ask to select the KASTEN."
                  (setq timestamp
                    (org-timestamp-from-time (org-get-scheduled-time nil) t)))
                 (t
-                 (error "Could not get the timestamp for new Zettel")))
-          (setq tempus-currens (if (org-timestamp-has-time-p timestamp)
-                                   (org-timestamp-format timestamp "%Y%m%dT%H%M")
-                                 (concat (org-timestamp-format timestamp "%Y%m%dT")
-                                         (format-time-string "%H%M")))
-                new-link (ezeka-make-link kasten tempus-currens)
+                 (setq new-title
+                   (ezeka--minibuffer-edit-string
+                    (buffer-substring-no-properties (point-at-bol) (point-at-eol))
+                    nil
+                    "Title for new note: "))
+                 (setq timestamp
+                   (org-timestamp-from-string
+                    (read-string "No timestamp found. Enter it here: ")))))
+          (setq new-link (ezeka-make-link
+                          kasten
+                          (if (eq (ezeka-kasten-id-type kasten) :numerus)
+                              (ezeka--random-id :numerus)
+                            (if (org-timestamp-has-time-p timestamp)
+                                (org-timestamp-format timestamp "%Y%m%dT%H%M")
+                              (concat (org-timestamp-format timestamp "%Y%m%dT")
+                                      (format-time-string "%H%M")))))
                 new-file (ezeka-link-file new-link ""))
           (let* ((content (org-get-entry)))
             (if (file-exists-p new-file)
