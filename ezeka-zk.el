@@ -351,7 +351,8 @@ Defaults to the Kasten set in `zk-directory', if any. With
 \\[universal-argument] ARG, ask to select Kasten."
   (interactive (list current-prefix-arg
                      (if-let ((kasten
-                               (and (not current-prefix-arg)
+                               (and zk-directory
+                                    (not current-prefix-arg)
                                     (ezeka-directory-kasten zk-directory))))
                          kasten
                        (completing-read "Kasten: " ezeka-kaesten))))
