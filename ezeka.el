@@ -1096,13 +1096,17 @@ file even if they are in agreement."
              (ezeka--replace-file-header filename mdata)
              (ezeka--save-buffer-read-only filename))
             ((member keep-which '(?m ?M ?l ?L))
-             (ezeka--rename-file
-              filename
-              (file-name-with-extension
-               (if (member keep-which '(?M ?L))
-                   (ezeka--minibuffer-edit-string mdata-base)
-                   mdata-base)
-               ezeka-file-extension)))))))
+             (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
+               (ezeka--rename-file
+                filename
+                (file-name-with-extension
+                 (if (or (member keep-which '(?M ?L))
+                         (not (string= pasturized mdata-base)))
+                     (ezeka--minibuffer-edit-string pasturized)
+                   pasturized)
+                 ezeka-file-extension)))
+             (when t                    ; TODO check if filename changed
+               (message "You might want to do `ezeka-normalize-file-name' again")))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -2698,7 +2702,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ;; ("C-c &" . ) ; yasnippet
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
             ;; ("C-c (" . ) ;
-            ;; ("C-c )" . ) ;
+            ("C-c )" . ezeka-normalize-file-name)
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
             ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
