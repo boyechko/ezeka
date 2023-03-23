@@ -961,10 +961,9 @@ Returns modifed metadata."
       (let ((choice
              (read-char-choice
               (format (concat
-                       "Caption in metadata: %s\n"
-                       "  Title in metadata: %s\n"
-                       "Press [c|C] or [u|U] to use caption for title\n"
-                       "      [t|T] or [l|L] to use title for caption,\n"
+                       "[C]aption: %s\n"
+                       "  [T]itle: %s\n"
+                       "Press [c/u] or [t/l] to use that one; uppercase to edit beforehand,\n"
                        "      [n] or [q] to do noting: ")
                       (propertize caption 'face 'bold)
                       (propertize title 'face 'italic))
