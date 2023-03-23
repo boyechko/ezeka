@@ -1661,29 +1661,36 @@ universal argument, ask for confirmation before inserting."
         (ezeka-insert-link-with-metadata link :title :before (not arg))
       (message "Could not find such ancestor"))))
 
-(defun ezeka--generate-new-child (parent &optional kasten)
+(defun ezeka--generate-new-child (parent &optional kasten id)
   "Generate a new child in the same Kasten as PARENT link.
 If KASTEN is given, use that kasten instead. Return a fully qualified
-link to the new child."
+link to the new child. If ID is non-nil, use that instead of
+generating one."
   (let* ((kasten (or kasten (ezeka-link-kasten parent)))
-         (child-link (ezeka-make-link kasten (ezeka--generate-id kasten))))
+         (child-link (ezeka-make-link
+                      kasten (or id (ezeka--generate-id kasten)))))
     (when parent
       (add-to-list 'ezeka--new-child-plist
         (list child-link :parent parent)))
     child-link))
 
-(defun ezeka-new-note-or-child (kasten &optional parent noselect)
+(defun ezeka-new-note-or-child (kasten &optional parent noselect manual)
   "Create a new note in KASTEN as an orphan or with optional PARENT.
 If NOSELECT (or \\[universal-argument]) is given, don't open the new
-note. Return link to the note."
+note. If MANUAL is non-nil (or double \\[universal-argument]) is
+given, allow the user to enter the ID manually. Return link to the
+note."
   (interactive
    (list (ezeka--read-kasten)
          (when (ezeka-note-p buffer-file-name t)
            (ezeka-file-link buffer-file-name))
-         current-prefix-arg))
+         (equal current-prefix-arg '(4))
+         (when (equal current-prefix-arg '(16))
+           (read-string "ID for the new note: "))))
   (let ((link (if parent
-                  (ezeka--generate-new-child parent kasten)
-                (ezeka-make-link kasten (ezeka--generate-id kasten)))))
+                  (ezeka--generate-new-child parent kasten manual)
+                (ezeka-make-link kasten (or manual
+                                            (ezeka--generate-id kasten))))))
     (unless noselect
       (ezeka-find-link link))
     link))
@@ -1711,21 +1718,25 @@ note. Return link to the note."
         (buffer-substring-no-properties (point) (max (point-min) (1- start)))
         "[ +*-]*")))))
 
-(defun ezeka-insert-new-child-with-title (arg title)
+(defun ezeka-insert-new-child-with-title (arg title &optional id)
   "Create a new child with given TITLE, inserting its link at point.
 If TITLE is not given, use text on the current line before point.
-With \\[universal-argument] ARG, ask for new child's Kasten."
+With \\[universal-argument] ARG, create the child in the same Kasten
+as the current note. With double \\[universal-argument], ask for ID."
   (interactive
    (list current-prefix-arg
          (org-trim
           (read-from-minibuffer "Title for the child: "
-                                (ezeka--possible-new-note-title)))))
+                                (ezeka--possible-new-note-title)))
+         (when (equal current-prefix-arg '(16))
+           (read-from-minibuffer "ID for the child: "))))
   (let* ((parent-link (ezeka-file-link buffer-file-name))
          (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
          (child-link (ezeka--generate-new-child
                       parent-link
-                      (when arg
-                        (ezeka--read-kasten "Kasten for new child: "))))
+                      (unless (equal arg '(4))
+                        (ezeka--read-kasten "Kasten for new child: "))
+                      id))
          (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
     (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
           (plist-put (plist-put plist :citekey citekey) :title title))
