@@ -1970,18 +1970,22 @@ should consist of KEY and VALUE pairs.
             (kill-buffer-if-not-modified buf)))))))
 
 ;; TODO: Also ask about updating the filename
-(defun ezeka-set-title (filename &optional new-title)
-  "Update the title in FILENAME's header to NEW-TITLE."
-  (interactive (list (buffer-file-name)))
+(defun ezeka-set-title (filename &optional new-title arg)
+  "Update the title in FILENAME's header to NEW-TITLE.
+With \\[universal-argument] ARG, don't change the caption."
+  (interactive (list (buffer-file-name) nil current-prefix-arg))
   (when (ezeka-note-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
            (new-title (or new-title
-                          (read-string "Change title to what? "
-                                       (alist-get :title mdata)))))
+                          (read-string
+                           (format "Change %stitle to what? "
+                                   (if arg "(just the) " ""))
+                           (alist-get :title mdata)))))
       (setf (alist-get :title mdata) new-title
             (alist-get :caption-stable mdata) nil)
-      (setf (alist-get :caption mdata)
-            (ezeka--pasturize-for-filename new-title))
+      (unless arg
+        (setf (alist-get :caption mdata)
+              (ezeka--pasturize-for-filename new-title)))
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label arg)
