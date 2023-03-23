@@ -183,12 +183,13 @@ Return `ezeka-zk-metadata-alist'."
       (ezeka-zk-cache-update-all)))
 
 (defun ezeka-zk-set-parent (filename &optional new-parent)
-  "Set parent metadata of FILENAME to NEW-PARENT.
+  "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel."
   (interactive (list (ezeka--grab-dwim-file-target) nil))
-  (let ((new-parent (or new-parent (zk--select-file))))
-    (ezeka--update-metadata-values filename
-                                   :parent (ezeka-file-link new-parent))))
+  (let ((new-parent
+         (or new-parent
+             (ezeka-file-link (zk--select-file "Set parent to: ")))))
+    (ezeka--update-metadata-values filename nil :parent new-parent)))
 
 ;;;=============================================================================
 ;;; Mapping Across Zk-Index Buttons
