@@ -284,6 +284,17 @@ See also `ezeka--read-only-region'."
       (remove-text-properties begin end '(read-only t))
       (remove-overlays begin end 'ezeka-text-type 'read-only))))
 
+(defun ezeka--concat-strings (separator &rest elements)
+  "Concatenate ELEMENTS, separating them with SEPARATOR.
+Any NULLs are stripped from ELEMENTS, and everything else is fed to
+FORMAT."
+  (mapconcat #'(lambda (elt)
+                 (if (stringp elt)
+                     elt
+                   (format "%s" elt)))
+    (cl-remove-if #'null elements)
+    separator))
+
 ;;;=============================================================================
 ;;; Fundamental Functions
 ;;;=============================================================================
@@ -1584,10 +1595,12 @@ With \\[universal-argument] ARG, kill text from point to the next link."
         (goto-char (match-beginning 0)))
       (when (ezeka-link-at-point-p)
         (let* ((file (ezeka-link-file (ezeka-link-at-point)))
-               (title (alist-get :title (ezeka-file-metadata file))))
+               (mdata (ezeka-file-metadata file))
+               (title (alist-get :title mdata))
+               (key (alist-get :citekey mdata)))
           (delete-region start (point))
           (unless arg
-            (insert title " ")))))))
+            (insert (ezeka--concat-strings " " title key) " ")))))))
 
 ;;;=============================================================================
 ;;; Genealogical
