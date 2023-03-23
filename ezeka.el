@@ -2139,14 +2139,8 @@ With \\[universal-argument] ARG, asks for a different name."
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
   (interactive)
-  (let ((datetime
-         (with-temp-buffer
-           (let ((start (point)))
-             (org-time-stamp '(4) t)
-             (org-timestamp-format (org-timestamp-from-string
-                                    (delete-and-extract-region start (point)))
-                                   "%Y%m%dT%H%M")))))
-    (insert (ezeka--format-link datetime))))
+  (insert (ezeka--format-link
+           (ezeka-decode-time-into-tempus-currens (org-read-date t t)))))
 
 (defun ezeka-dwim-with-this-timestring (beg end)
   "Do What I Mean with the timestring in the region between BEG and END.
