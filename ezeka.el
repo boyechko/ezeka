@@ -2592,16 +2592,16 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             (completing-read "Which kasten to move to? " ezeka-kaesten))
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
-         (source-link (ezeka-file-link source-file))
-         target-link)
+         (source-link (ezeka-file-link source-file)))
     (while (not target-link)
-      (let ((candidate (ezeka-make-link
-                        kasten
-                        (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-                          (:numerus (ezeka--generate-id kasten))
-                          (:tempus (ezeka-tempus-currens-id-for source-link))
-                          (t
-                           (error "Don't know how to handle this"))))))
+      (let ((candidate
+             (ezeka-make-link
+              kasten
+              (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
+                (:numerus (ezeka--generate-id kasten))
+                (:tempus (ezeka-tempus-currens-id-for source-link))
+                (t
+                 (error "Don't know how to handle this"))))))
         (when (y-or-n-p (format "Is %s acceptable? " candidate))
           (setq target-link candidate))))
     (if (not target-link)
