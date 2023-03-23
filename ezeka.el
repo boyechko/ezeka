@@ -2044,6 +2044,14 @@ With \\[universal-argument] ARG, clear keywords first."
         (cl-pushnew keyword keywords))
       (ezeka--update-metadata-values filename metadata :keywords keywords))))
 
+(defun ezeka-add-reading (filename &optional date)
+  "Add DATE to the FILENAME's readings."
+  (interactive (list (ezeka--grab-dwim-file-target)
+                     (org-read-date t nil nil nil nil nil t)))
+  (let ((mdata (ezeka-file-metadata filename)))
+    (ezeka--update-metadata-values filename mdata
+      :readings (cons date (alist-get :readings mdata)))))
+
 ;;;=============================================================================
 ;;; Populating Files
 ;;;=============================================================================
