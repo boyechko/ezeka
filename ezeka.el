@@ -817,7 +817,7 @@ to keywords."
 ;;;=============================================================================
 
 ;; See https://help.dropbox.com/organize/file-names
-(defun ezeka--normalize-title-into-caption (title)
+(defun ezeka--pasturize-for-filename (title)
   "Return TITLE after making it safe to use as file caption.
 The function attemps to shorten the title, and strip or replace
 troublesome characters."
@@ -1981,7 +1981,7 @@ should consist of KEY and VALUE pairs.
       (setf (alist-get :title mdata) new-title
             (alist-get :caption-stable mdata) nil)
       (setf (alist-get :caption mdata)
-            (ezeka--normalize-title-into-caption new-title))
+            (ezeka--pasturize-for-filename new-title))
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label arg)
@@ -2061,7 +2061,7 @@ CITEKEY."
       (read-string "Parent? " (plist-get plist :parent))
       (read-string "Citekey? " (plist-get plist :citekey)))))
   (let* ((id (ezeka-link-id link))
-         (caption (ezeka--normalize-title-into-caption title)))
+         (caption (ezeka--pasturize-for-filename title)))
     (goto-char (point-min))
     (insert
      (concat ezeka-header-rubric-key
