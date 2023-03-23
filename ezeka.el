@@ -2429,7 +2429,8 @@ different. With \\[universal-argument] ARG, forces update."
                          comments-removed footnotes-removed)
                 (rb-collapse-blank-lines)
                 t)))
-          (ezeka--read-only-region (point-min) (point-max)))))))
+          (when nil                     ; FIXME: Remove?
+            (ezeka--read-only-region (point-min) (point-max))))))))
 
 (defun ezeka--update-inserted-snippet ()
   "Update the snippet in the current note wherever it is used."
