@@ -983,7 +983,7 @@ Returns modifed metadata."
   "Replace FILENAME's file header with METADATA."
   (let ((inhibit-read-only t))
     (save-mark-and-excursion
-      (with-current-buffer (get-file-buffer filename)
+      (with-current-buffer (find-buffer-visiting filename)
         (save-restriction
           (goto-char (point-min))
           (when (re-search-forward ezeka-header-separator-regexp nil t 1)
