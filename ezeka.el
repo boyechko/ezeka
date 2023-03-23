@@ -1954,6 +1954,7 @@ METADATA is not given, read it from file first. The rest of the ARGS
 should consist of KEY and VALUE pairs.
 
 \(fn FILENAME METADATA &REST KEY VAL KEY VAL ...)"
+  (declare (indent 2))
   (when (/= (logand (length args) 1) 0)
     (signal 'wrong-number-of-arguments (list 'setf (length args))))
   (let ((already-open (get-file-buffer filename)))
@@ -2554,7 +2555,7 @@ This is the Bookmark record function for Zettel files."
   (write-region (format "\n%S" (list link1 link2 (format-time-string "%FT%T")))
                 nil
                 (expand-file-name ezeka--move-log-file ezeka-directory)
-                t))
+                'append))
 
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
