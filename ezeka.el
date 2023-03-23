@@ -938,6 +938,8 @@ With double \\[universal-argument], update it unconditionally."
     (unwind-protect
         (when buffer-file-name
           (set-buffer-modified-p t)
+          (ezeka--update-file-header nil nil
+                                     (eq ezeka-header-update-modified 'always))
           (save-buffer))
       (set-buffer-modified-p modified))
     (set-buffer-modified-p nil)))
