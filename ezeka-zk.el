@@ -389,11 +389,12 @@ replaced in number of files."
             (files (zk--directory-files)))
        (list (ezeka-file-link (zk--select-file "Before: " files))
              (ezeka-file-link (zk--select-file "After: " files))))))
-  (let ((with-links
-         (let ((zk-directory (or directory ezeka-directory)))
-           (zk--grep-file-list
-            (format "(parent: %s$|%s]])" before before) t)))
-        (count 0))
+  (let* ((bf-id (ezeka-link-id before))
+         (with-links
+          (let ((zk-directory (or directory ezeka-directory)))
+            (zk--grep-file-list
+             (format "(parent: [a-z:]*%s$|%s]])" bf-id bf-id) t)))
+         (count 0))
     (if (not with-links)
         (progn (message "No links to %s found" before) nil)
       (dolist (f with-links count)
@@ -402,17 +403,17 @@ replaced in number of files."
             (with-current-buffer (or open-buffer
                                      (find-file-noselect f))
               (let ((f-mdata (ezeka-file-metadata f)))
-                (when (string= (alist-get :parent f-mdata) before)
+                (when (string= (alist-get :parent f-mdata) bf-id)
                   (setf (alist-get :parent f-mdata) after)
                   (ezeka--update-file-header f f-mdata)
                   (cl-incf count))
                 (goto-char (point-min))
                 (while (re-search-forward
-                        (regexp-quote (ezeka-org-format-link before)) nil t)
+                        (format "\\[\\[[a-z:]*%s]]" bf-id) nil t)
                   (replace-match (save-match-data
                                    (if after
-                                       (ezeka-org-format-link after)
-                                     (format "{{%s}}" before))))
+                                       (ezeka--format-link after)
+                                     (format "{%s~}" before))))
                   (cl-incf count)))
               (save-buffer)
               (unless open-buffer
