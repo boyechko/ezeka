@@ -341,8 +341,20 @@ destination kasten."
   "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
   (interactive (list (if current-prefix-arg
                          (completing-read "Kasten: " ezeka-kaesten)
-                       "rumen")))
+                       "numerus")))
   (ezeka-zk-with-kasten kasten
+    (call-interactively 'zk-insert-link)))
+
+(defun ezeka-zk-insert-link-to-numerus ()
+  "Temporarily set zk variables for numerus and call `zk-insert-link'."
+  (interactive)
+  (ezeka-zk-with-kasten "numerus"
+    (call-interactively 'zk-insert-link)))
+
+(defun ezeka-zk-insert-link-to-tempus ()
+  "Temporarily set zk variables for tempus and call `zk-insert-link'."
+  (interactive)
+  (ezeka-zk-with-kasten "tempus"
     (call-interactively 'zk-insert-link)))
 
 (defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
@@ -358,6 +370,16 @@ Defaults to the Kasten set in `zk-directory', if any. With
                        (completing-read "Kasten: " ezeka-kaesten))))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-find-file)))
+
+(defun ezeka-zk-find-note-in-numerus ()
+  "Find zk note in numerus currens Kasten."
+  (interactive)
+  (ezeka-zk-find-note-in-kasten nil "numerus"))
+
+(defun ezeka-zk-find-note-in-tempus ()
+  "Find zk note in tempus currens Kasten."
+  (interactive)
+  (ezeka-zk-find-note-in-kasten nil "tempus"))
 
 (defun ezeka-rgrep-link-at-point (link)
   "Execute recursive grep for the ezeka LINK at point."

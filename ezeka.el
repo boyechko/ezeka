@@ -92,21 +92,16 @@ Groups 4-5 are hour and minute.")
 
 (defcustom ezeka-kaesten
   ;; name | directory | ID type | list-order
-  `(("os"         :tempus  1)
-    ("rumen"      :numerus 2)
-    ("omasum"     :tempus  4)
-    ("abomasum"   :tempus  5)
-    ("rectum"     :tempus  6)
-    ("fabula"     :tempus  7)
-    ("machina"    :tempus  8))
+  `(("tempus"  :tempus  1)
+    ("numerus" :numerus 2))
   "An alist containing the names and ID types of kaesten."
   :type 'alist
   :group 'ezeka)
 
 (defcustom ezeka-default-kasten
   ;; ID type | kasten name
-  `((:numerus . "rumen")
-    (:tempus . "omasum"))
+  `((:numerus . "numerus")
+    (:tempus  . "tempus"))
   "Alist of default Kasten for each ID type.
 The default Kasten is one that does not require fully qualified
 links."
