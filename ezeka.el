@@ -1581,9 +1581,9 @@ Called interactively, get the LINK at point or to current Zettel."
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
 
-(defun ezeka-update-link-prefix-title (arg)
+(defun ezeka-update-link-prefix-title (&optional delete-title)
   "Replace text from point to next Zettel link with that Zettel's title.
-With \\[universal-argument] ARG, kill text from point to the next link."
+With \\[universal-argument] DELETE-TITLE, delete the text instead."
   (interactive "P")
   (save-excursion
     ;; if already inside a link, go to the start
@@ -1604,7 +1604,7 @@ With \\[universal-argument] ARG, kill text from point to the next link."
                (title (alist-get :title mdata))
                (key (alist-get :citekey mdata)))
           (delete-region start (point))
-          (unless arg
+          (unless delete-title
             (insert (ezeka--concat-strings " " title key) " ")))))))
 
 ;;;=============================================================================
