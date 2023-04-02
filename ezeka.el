@@ -2176,9 +2176,16 @@ If it's something else, try to make it into org-time-stamp."
            (delete-region beg end)
            (insert
             (org-timestamp-format timestamp "[[%Y%m%dT%H%M]]")))
-          ((integerp (car (parse-time-string text))) ; otherwise -> org timestamp
+          ((integerp (car (parse-time-string text))) ; datetime -> org timestamp
            (delete-region beg end)
            (org-insert-time-stamp (encode-time (parse-time-string text)) t t))
+          ((integerp (nth 4 (parse-time-string text))) ; date -> ISO-8601
+           (delete-region beg end)
+           (insert
+            (format-time-string
+             "%Y-%d-%m"
+             (encode-time (cl-substitute 0 nil (parse-time-string text)))))
+           nil t)
           (t
            (signal 'wrong-type-argument (list text))))))
 
