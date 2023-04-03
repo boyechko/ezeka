@@ -811,6 +811,23 @@ to keywords."
 ;;; Metadata Commands
 ;;;=============================================================================
 
+(defvar ezeka-metadata-valid-fields
+  '((:rubric)
+    (:title)
+    (:subtitle)
+    (:author)
+    (:created)
+    (:modified)
+    (:parent)
+    (:firstborn)
+    (:oldnames)
+    (:readings)
+    (:keywords))
+  "An alist of valid metadata fields.
+The format of each item should be as follows:
+    (:FIELD).
+The order of items will affect how the metadata is written into the
+file header.")
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasturize-for-filename (title)
   "Return TITLE after making it safe to use as file caption.
@@ -991,11 +1008,7 @@ Returns modifed metadata."
                                   (ezeka--header-yamlify-key (car cons))
                                   (ezeka--header-yamlify-value (cdr cons)))))
                 (let (ordered)
-                  (dolist (key '(:rubric
-                                 :title :subtitle :author
-                                 :created :modified
-                                 :parent :firstborn :oldnames
-                                 :readings :keywords)
+                  (dolist (key (mapcar #'car ezeka-metadata-valid-fields)
                                (nreverse ordered))
                     (when (alist-get key metadata)
                       (push (cons key (alist-get key metadata)) ordered)))))
