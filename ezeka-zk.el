@@ -182,12 +182,18 @@ Return `ezeka-zk-metadata-alist'."
   (or ezeka-zk-metadata-alist
       (ezeka-zk-cache-update-all)))
 
-(defun ezeka-zk-set-parent (filename &optional new-parent)
+(defun ezeka-zk-set-parent (filename &optional new-parent other-window)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
-If NEW-PARENT is NIL, let user choose the the Zettel."
-  (interactive (list (ezeka--grab-dwim-file-target) nil))
+If NEW-PARENT is NIL, let user choose the the Zettel, unless
+\\[universal-argument] OTHER-WINDOW is non-nil and there is something
+usable in the other window, in which case set that as the new parent."
+  (interactive (list (ezeka--grab-dwim-file-target)
+                     nil
+                     (when current-prefix-arg
+                       (ezeka--link-to-other-window))))
   (let ((new-parent
          (or new-parent
+             other-window
              (ezeka-file-link (zk--select-file "Set parent to: ")))))
     (ezeka--update-metadata-values filename nil :parent new-parent)))
 
