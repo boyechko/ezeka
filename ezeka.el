@@ -2034,6 +2034,17 @@ no matter what. With DEGREE, traces genealogy further than parent."
                                      :citekey (when citekey
                                                 (concat "@" citekey))))))
 
+(defun ezeka-set-author (filename author)
+  "Set the AUTHOR metadata in Zettel FILENAME."
+  (interactive
+   (let ((target (ezeka--grab-dwim-file-target)))
+     (list target
+           (read-string "Set author (family, given) to: "
+                        (ezeka-file-name-citekey target)))))
+  (if (not (ezeka-note-p filename))
+      (error "Not a Zettel note")
+    (ezeka--update-metadata-values filename nil :author author)))
+
 (defun ezeka-add-keyword (filename keyword &optional arg)
   "Add the given KEYWORD to the Zettel note in FILENAME.
 With \\[universal-argument] ARG, clear keywords first."
@@ -2726,7 +2737,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
-            ;; ("C-c /" . ) ; `org-sparse-tree'
+            ("C-c /" . ezeka-set-author) ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
