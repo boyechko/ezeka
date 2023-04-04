@@ -39,12 +39,12 @@
 ;;; Internal Variables
 ;;;=============================================================================
 
-;; The variable can only be initialized after `ezeka-kaesten' is populated
-(defvar ezeka-link-regexp nil
-  "The regular expression that matches Zettel links.
+(defun ezeka-link-regexp ()
+  "Return the regular expression that matches Zettel links.
 
 Group 1 is the ID.
-Group 2 is the kasten, if specified.")
+Group 2 is the kasten, if specified."
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp)))
 
 (defvar ezeka-iso8601-date-regexp
   "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
@@ -180,10 +180,6 @@ Group 1 is the ID."
                 ezeka-kaesten
                 "\\|"))
             "\\)")))
-
-;; Now that `ezeka-kaesten' is populated, generate `ezeka-link-regexp'
-(setq ezeka-link-regexp
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp)))
 
 ;;;=============================================================================
 ;;; General Functions
@@ -403,7 +399,7 @@ It is a Zettel if all of these conditions are met:
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (and (stringp string)
-       (string-match (concat "^" ezeka-link-regexp "$") string)
+       (string-match (concat "^" (ezeka-link-regexp) "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if-let ((kasten (match-string-no-properties 2 string)))
            (ezeka-kasten-named kasten)
@@ -414,7 +410,7 @@ It is a Zettel if all of these conditions are met:
 If the link does not specify a Kasten, return the default one for the
 given ID type. If EXPLICIT is non-nil, return nil if Kasten is not
 explicitly given."
-  (if (string-match ezeka-link-regexp link)
+  (if (string-match (ezeka-link-regexp) link)
       (let* ((id (match-string 1 link))
              (kasten (match-string 2 link)))
         (or kasten
@@ -429,7 +425,7 @@ explicitly given."
 
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
-  (when (string-match ezeka-link-regexp link)
+  (when (string-match (ezeka-link-regexp) link)
     (match-string 1 link)))
 
 (defun ezeka-make-link (kasten id)
@@ -609,14 +605,15 @@ This should match `ezeka-file-name-regexp'."
   :type 'string
   :group 'ezeka)
 
+;; TODO: `ezeka-file-name-regexp' and `ezeka-header-rubric-regexp' should be functions
 (defcustom ezeka-file-name-regexp
-  (concat ezeka-link-regexp             ; \1 and \2
-          "\\(?:"                       ; everything else is optional
-          "\\(?:\\.\\)*"                               ; FIXME: optional historic period
-          "\\(?: {\\(?3:[^}]+\\)}\\)*"                 ; \3
-          "\\(?4:.+?\\)"                               ; \4
-          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$"              ; \5
-          "\\)*"                        ; end of everything else
+  (concat (ezeka-link-regexp)             ; \1 and \2
+          "\\(?:"                         ; everything else is optional
+          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
+          "\\(?: {\\(?3:[^}]+\\)}\\)*"    ; \3
+          "\\(?4:.+?\\)"                  ; \4
+          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
+          "\\)*"                          ; end of everything else
           )
   "Regexp matching numerus currens note file names.
 
@@ -1297,7 +1294,7 @@ Plist values are :parent, :title, :label, and :citekey.")
 The first group is the link target. If FREEFORM is non-nil, also
 consider Zettel links that are not enclosed in square brackets."
   (thing-at-point-looking-at
-   (let ((regexp (ezeka--regexp-strip-named-groups ezeka-link-regexp)))
+   (let ((regexp (ezeka--regexp-strip-named-groups (ezeka-link-regexp))))
      (if freeform
          (concat "\\(?1:" regexp "\\)")
        (concat "\\[\\[\\(?1:" regexp "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
@@ -1567,7 +1564,7 @@ Finder with it selected."
     (let ((link (if (ezeka-link-at-point-p)
                     (ezeka-link-at-point)
                   (let ((eol (save-excursion (end-of-visual-line) (point))))
-                    (when (re-search-forward ezeka-link-regexp eol t)
+                    (when (re-search-forward (ezeka-link-regexp) eol t)
                       (match-string-no-properties 0))))))
       (when link
         (kill-new link)
