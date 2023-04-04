@@ -798,13 +798,13 @@ signal an error when encountering malformed header lines."
 
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
-If NOERROR is non-nil, do not signal errors. They keys are converted
+If NOERROR is non-nil, do not signal errors. The keys are converted
 to keywords."
   (if-let ((header (ezeka-file-content file t noerror)))
       (let* ((mdata  (ezeka--decode-header header file noerror))
              ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
-             (id     (or (alist-get :id mdata)
-                         (file-name-base file)))
+             (id     (or (ezeka-file-name-id file)
+                         (alist-get :id mdata)))
              (type   (or (alist-get :type mdata)
                          (ezeka-id-type file)))
              (kasten (or (alist-get :kasten mdata)
