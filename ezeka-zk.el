@@ -450,7 +450,8 @@ replaced in number of files."
                   (replace-match (save-match-data
                                    (if after
                                        (ezeka--format-link after)
-                                     (format "{%s~}" before))))
+                                     (format "{%s~}" before)))
+                                 t)
                   (cl-incf count)))
               (save-buffer)
               (unless open-buffer
