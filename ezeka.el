@@ -498,8 +498,10 @@ LINK."
              (car matches)
            (error "Found no or multiple matches: %s" matches)))))))
 
-(defun ezeka-id-type (id-or-file)
-  "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`."
+(defun ezeka-id-type (id-or-file &optional noerror)
+  "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
+If NOERROR is non-nil, don't signal an error if ID doesn't match a
+known type."
   (let* ((id (file-name-base id-or-file))
          (kasten (cl-find-if (lambda (k)
                                (let ((regexp (ezeka-kasten-id-regexp k)))
@@ -507,7 +509,7 @@ LINK."
                              ezeka-kaesten)))
     (if kasten
         (ezeka-kasten-id-type kasten)
-      (unless no-error
+      (unless noerror
         (error "ID does not match any Kasten's ID pattern")))))
 
 (defun ezeka-encode-iso8601-datetime (string)
@@ -899,7 +901,7 @@ the old names is a tempus currens with time."
                      (when-let ((tempus
                                  (cl-find-if
                                   (lambda (id)
-                                    (eq (ezeka-id-type id) :tempus))
+                                    (eq (ezeka-id-type id 'noerror) :tempus))
                                   (cons (alist-get :id metadata)
                                         (alist-get :oldnames metadata)))))
                        (encode-time (iso8601-parse tempus)))))))
