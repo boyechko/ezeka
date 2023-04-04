@@ -149,6 +149,8 @@ NAME is a unique string, ID-FORMAT describes the format, ID-REGEXP is
 used to match IDs in this Kasten, DEFAULT specifies whether this is
 the default Kasten for this ID-REGEXP, and ORDER determines relative
 order in various `completing-read' invocations."
+  (setq ezeka-kaesten
+    (cl-remove name ezeka-kaesten :test #'string= :key #'ezeka-kasten-name))
   (add-to-list 'ezeka-kaesten
     (ezeka-kasten--create :name name
                           :id-type (intern (concat ":" name))
