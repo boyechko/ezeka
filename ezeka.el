@@ -159,6 +159,7 @@ order in various `completing-read' invocations."
 
 (ezeka-kaesten-add "numerus" "1L-4D" "[a-z]-[0-9]\\{4\\}" t 1)
 (ezeka-kaesten-add "tempus" "8DT4D" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
+(ezeka-kaesten-add "scriptum" "ms_2D1L" "ms_[0-9]\\{2\\}[a-z]" t 3)
 
 (defun ezeka-kasten-directory (kasten)
   "Return the directory of the Kasten named KASTEN."
@@ -446,7 +447,8 @@ explicitly given."
   "Return the subdirectory relative to Kasten for the given ID, a string."
   (cl-case (ezeka-id-type id)
     (:numerus (file-name-as-directory (cl-subseq id 0 1)))
-    (:tempus (file-name-as-directory (cl-subseq id 0 4)))))
+    (:tempus (file-name-as-directory (cl-subseq id 0 4)))
+    (:scriptum "")))
 
 (defun ezeka-id-directory (id kasten)
   "Return the full directory under KASTEN where ID should be."
@@ -1203,14 +1205,14 @@ abase26 equivalent of 0, namely 'a'."
 (defun ezeka--random-id (type)
   "Generate a random new ID of the given TYPE."
   (cl-case type
-    (:tempus (format-time-string "%Y%m%dT%H%M"))
+    (:tempus  (format-time-string "%Y%m%dT%H%M"))
     (:numerus (format "%s-%04d"
                       (abase26-encode (random 26))
                       (random 10000)))
-    (:index   (format "%02d-%s"
-                      (random 100)
-                      (abase26-encode (random 26))))
-    (t        (error "Unknown Zettel type"))))
+    (:scriptum (format "ms_%02d%s"
+                       (random 100)
+                       (abase26-encode (random 26))))
+    (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
 (defun ezeka--generate-id (kasten)
   "Return the next unused ID for the given KASTEN."

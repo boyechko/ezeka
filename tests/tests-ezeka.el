@@ -75,6 +75,11 @@
     (should (string= tempus (ezeka-file-link (ezeka-link-file tempus))))
     (should-error (ezeka-file-link buffer-file-name))))
 
+(ert-deftest tests/ezeka--generate-id ()
+  (should (eq (ezeka-id-type (ezeka--generate-id "numerus")) :numerus))
+  (should (eq (ezeka-id-type (ezeka--generate-id "tempus")) :tempus))
+  (should (eq (ezeka-id-type (ezeka--generate-id "scriptum")) :scriptum)))
+
 (ert-deftest tests/ezeka-link-file ()
   (let ((numerus "q-8148")
         (tempus-with-kasten "os:20160313T2228")
@@ -129,6 +134,19 @@
   (should (ezeka-link-p "a-1234"))
   (should (ezeka-link-p "20221029T1534"))
   (should-not (ezeka-link-p "abc-1234")))
+
+(ert-deftest tests/ezeka-make-link ()
+  (should-error (ezeka-make-link "kasten" "1234"))
+  (should-error (ezeka-make-link "numerus" "1234"))
+  (should (ezeka-make-link "numerus" "a-1234"))
+  (should (ezeka-make-link "tempus" "20230403T1000"))
+  (should (ezeka-make-link "scriptum" "ms_12a")))
+
+(ert-deftest tests/ezeka-id-type ()
+  (should-error (ezeka-id-type "1234"))
+  (should (ezeka-id-type "a-1234"))
+  (should (ezeka-id-type "20230403T1000"))
+  (should (ezeka-id-type "MS-123")))
 
 (ert-deftest tests/adv--zk-group-function ()
   (let ((file "/Users/richard/Zettelkasten/os/2022/20221030T1409.txt"))
