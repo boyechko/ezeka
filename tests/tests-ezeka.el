@@ -63,9 +63,9 @@
   (let ((numerus "q-8148")
         (tempus-with-kasten "os:20160313T2228")
         (tempus-no-kasten "20160313T2228"))
-    (should (string= "rumen" (ezeka-link-kasten numerus)))
+    (should (string= "numerus" (ezeka-link-kasten numerus)))
     (should (string= "os" (ezeka-link-kasten tempus-with-kasten)))
-    (should (string= "omasum" (ezeka-link-kasten tempus-no-kasten)))
+    (should (string= "tempus" (ezeka-link-kasten tempus-no-kasten)))
     (should-not (ezeka-link-kasten tempus-no-kasten t))))
 
 (ert-deftest tests/ezeka-file-link ()

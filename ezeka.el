@@ -1,10 +1,10 @@
 ;;; ezeka.el --- Eclectic Zettelkasten -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2022 Richard Boyechko
+;; Copyright (C) 2015-2023 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
-;; Version: 0.2
-;; Package-Requires: ((emacs "25.1") (org "9.5"))
+;; Version: 0.3
+;; Package-Requires: ((emacs "28.1") (org "9.5"))
 ;; Keywords: zettelkasten org
 ;; URL: https://github.com/boyechko/ezeka
 
@@ -32,26 +32,15 @@
 
 (require 'org)
 (require 'format-spec)
+(require 'cl-lib)
+(require 'cl-generic)
 
 ;;;=============================================================================
 ;;; Internal Variables
 ;;;=============================================================================
 
-(defun ezeka--id-regexp (type)
-  "Return the regexp for the given ID TYPE (:numerus, :tempus, or :all).
-
-Group 1 is the ID."
-  (let ((numerus "[a-z]-[0-9]\\{4\\}")
-        (tempus "[0-9]\\{8\\}T[0-9]\\{4\\}"))
-    (concat "\\(?1:"
-            (cl-case type
-              (:numerus numerus)
-              (:tempus  tempus)
-              (:all     (concat numerus "\\|" tempus)))
-            "\\)")))
-
-(defvar ezeka-link-regexp
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp :all))
+;; The variable can only be initialized after `ezeka-kaesten' is populated
+(defvar ezeka-link-regexp nil
   "The regular expression that matches Zettel links.
 
 Group 1 is the ID.
@@ -90,21 +79,9 @@ Groups 4-5 are hour and minute.")
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-kaesten
-  ;; name | directory | ID type | list-order
-  `(("tempus"  :tempus  1)
-    ("numerus" :numerus 2))
-  "An alist containing the names and ID types of kaesten."
-  :type 'alist
-  :group 'ezeka)
-
-(defcustom ezeka-default-kasten
-  ;; ID type | kasten name
-  `((:numerus . "numerus")
-    (:tempus  . "tempus"))
-  "Alist of default Kasten for each ID type.
-The default Kasten is one that does not require fully qualified
-links."
+(defcustom ezeka-kaesten nil
+  "An alist of `ezeka-kasten' structs populated by `ezeka-kaesten-add'.
+See that function for details; do not edit by hand."
   :type 'alist
   :group 'ezeka)
 
@@ -153,6 +130,59 @@ Functions affected are `ezeka-set-label', `ezeka-set-title', and
   :type 'symbol
   :options '(nil t confirm)
   :group 'ezeka)
+
+;;;=============================================================================
+;;; Kaesten
+;;;=============================================================================
+
+(cl-defstruct (ezeka-kasten (:constructor ezeka-kasten--create)
+                            (:copier nil))
+  name id-type id-format id-regexp default order)
+
+(defun ezeka-kasten-named (name)
+  "Return the Kasten with given NAME in `ezeka-kaesten'."
+  (cl-find name ezeka-kaesten :key #'ezeka-kasten-name :test #'string=))
+
+(defun ezeka-kaesten-add (name id-format id-regexp default order)
+  "Add a new Kasten to `ezeka-kaesten' with the given options.
+NAME is a unique string, ID-FORMAT describes the format, ID-REGEXP is
+used to match IDs in this Kasten, DEFAULT specifies whether this is
+the default Kasten for this ID-REGEXP, and ORDER determines relative
+order in various `completing-read' invocations."
+  (add-to-list 'ezeka-kaesten
+    (ezeka-kasten--create :name name
+                          :id-type (intern (concat ":" name))
+                          :id-format id-format
+                          :id-regexp id-regexp
+                          :default default
+                          :order order)))
+
+(ezeka-kaesten-add "numerus" "1L-4D" "[a-z]-[0-9]\\{4\\}" t 1)
+(ezeka-kaesten-add "tempus" "8DT4D" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
+
+(defun ezeka-kasten-directory (kasten)
+  "Return the directory of the Kasten named KASTEN."
+  (if (ezeka-kasten-named kasten)
+      (file-name-as-directory (in-ezeka-dir kasten))
+    (error "Unknown Kasten: %s" kasten)))
+
+(defun ezeka--id-regexp (&optional id-type)
+  "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
+If ID-TYPE is not given, return a regexp that matches all known types.
+
+Group 1 is the ID."
+  (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
+    (concat "\\(?1:"
+            (if kasten
+                (ezeka-kasten-id-regexp kasten)
+              (mapconcat (lambda (k) (ezeka-kasten-id-regexp k))
+                ezeka-kaesten
+                "\\|"))
+            "\\)")))
+
+;; Now that `ezeka-kaesten' is populated, generate `ezeka-link-regexp'
+(setq ezeka-link-regexp
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp)))
 
 ;;;=============================================================================
 ;;; General Functions
@@ -317,12 +347,6 @@ It is a Zettel if all of these conditions are met:
                       (string-prefix-p ezeka-directory file)) ; FIXME: Hack
                t))))))
 
-(defun ezeka-kasten-directory (kasten)
-  "Return the directory of the given KASTEN."
-  (if (assoc kasten ezeka-kaesten)
-      (file-name-as-directory (in-ezeka-dir kasten))
-    (error "Unknown Kasten: %s" kasten)))
-
 (defun ezeka-directory-kasten (directory)
   "Return the kasten name of the given Zettel DIRECTORY."
   ;; FIXME: This is a hack that would not work if Kasten names don't match the
@@ -361,16 +385,11 @@ It is a Zettel if all of these conditions are met:
   "Return the citekey part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :citekey))
 
-;; FIXME: Relies on the fact that the Kasten directory is 2nd from the last.
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
-    (cond ((assoc (car dirs) ezeka-kaesten)
-           (car dirs))
-          ((assoc (cadr dirs) ezeka-kaesten)
-           (cadr dirs))
-          (t
-           (error "Can't figure out kasten for %s" file)))))
+    (or (cl-find-if (lambda (dir) (ezeka-kasten-named dir)) dirs)
+        (error "Can't figure out kasten for %s" file))))
 
 (defun ezeka-file-link (file)
   "Return a fully qualified link to FILE."
@@ -386,7 +405,7 @@ It is a Zettel if all of these conditions are met:
        (string-match (concat "^" ezeka-link-regexp "$") string)
        ;; If kasten is specified, make sure it's a valid one
        (if-let ((kasten (match-string-no-properties 2 string)))
-           (assoc kasten ezeka-kaesten)
+           (ezeka-kasten-named kasten)
          t)))
 
 (defun ezeka-link-kasten (link &optional explicit)
@@ -399,12 +418,13 @@ explicitly given."
              (kasten (match-string 2 link)))
         (or kasten
             (and (not explicit)
-                 (alist-get (ezeka-id-type id) ezeka-default-kasten))))
+                 (ezeka-kasten-name
+                  (cl-find-if (lambda (k)
+                                (and (eq (ezeka-id-type id)
+                                         (ezeka-kasten-id-type k))
+                                     (ezeka-kasten-default k)))
+                              ezeka-kaesten)))))
     (error "Invalid link %s" link)))
-
-(defun ezeka-kasten-id-type (kasten)
-  "Return the Zettel ID type for the KASTEN based on `ezeka-kaesten'."
-  (cadr (assoc kasten ezeka-kaesten #'string=)))
 
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
@@ -413,15 +433,14 @@ explicitly given."
 
 (defun ezeka-make-link (kasten id)
   "Make a new proper link to ID in KASTEN."
-  (let ((id-type (ezeka-kasten-id-type kasten)))
-    (cond ((not id-type)
-           (error "Unknown kasten: %s" kasten))
-          ((not (string-match-p (ezeka--id-regexp id-type) id))
-           (error "ID doesn't match the ID type for %s kasten" kasten))
-          ((eq id-type :numerus)
-           id)
+  (let ((kstruct (ezeka-kasten-named kasten)))
+    (cond ((not (ezeka-kasten-id-type kstruct))
+           (error "Kasten %s is not in `ezeka-kaesten'" kasten))
+          ((not (eq (ezeka-kasten-id-type kstruct)
+                    (ezeka-id-type id)))
+           (error "ID doesn't match the ID type for %s Kasten" kasten))
           (t
-           (concat kasten ":" id)))))
+           id))))
 
 (defun ezeka-id-subdirectory (id)
   "Return the subdirectory relative to Kasten for the given ID, a string."
@@ -465,33 +484,29 @@ LINK."
                                   (concat ezeka-file-name-separator caption))
                                  (t
                                   "*"))
-                           ezeka-file-extension)))
+                           ezeka-file-extension))
+         (dir (ezeka-id-directory id (ezeka-link-kasten link))))
     (file-truename
      (if (stringp caption)
-         (expand-file-name basename
-                           (ezeka-id-directory id (ezeka-link-kasten link)))
-       (let (found)
-         (mapc (lambda (kasten)
-                 (push (file-expand-wildcards
-                        (expand-file-name basename
-                                          (ezeka-id-directory id kasten)))
-                       found))
-               (ezeka--id-kaesten id))
-         (if (= 1 (length (flatten-list found)))
-             (car (flatten-list found))
-           (error "Found no or multiple matches: %s" (flatten-list found))))))))
+         (expand-file-name basename dir)
+       (let ((matches (flatten-list
+                       (file-expand-wildcards
+                        (expand-file-name basename dir)))))
+         (if (= 1 (length matches))
+             (car matches)
+           (error "Found no or multiple matches: %s" matches)))))))
 
 (defun ezeka-id-type (id-or-file)
-  "Return the type of the given ID-OR-FILE: :NUMERUS or :TEMPUS.
-Return nil if neither of these ID types are matched."
-  (let ((id (file-name-base id-or-file)))
-    (cond ((string-match (concat "^" (ezeka--id-regexp :tempus)) id)
-           :tempus)
-          ((string-match (concat "^" (ezeka--id-regexp :numerus)) id)
-           :numerus)
-          (t
-           ;; Anything else is not a Zettel
-           nil))))
+  "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`."
+  (let* ((id (file-name-base id-or-file))
+         (kasten (cl-find-if (lambda (k)
+                               (let ((regexp (ezeka-kasten-id-regexp k)))
+                                 (string-match (concat "^" regexp) id)))
+                             ezeka-kaesten)))
+    (if kasten
+        (ezeka-kasten-id-type kasten)
+      (unless no-error
+        (error "ID does not match any Kasten's ID pattern")))))
 
 (defun ezeka-encode-iso8601-datetime (string)
   "Return the internal encoded time corresponding to STRING.
@@ -1199,7 +1214,7 @@ abase26 equivalent of 0, namely 'a'."
 
 (defun ezeka--generate-id (kasten)
   "Return the next unused ID for the given KASTEN."
-  (let ((type (ezeka-kasten-id-type kasten))
+  (let ((type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
         id)
     (cl-flet ((exists-p ()
                 "Checks if ID is either NIL or exists."
@@ -1268,18 +1283,6 @@ abase26 equivalent of 0, namely 'a'."
 ;;;=============================================================================
 ;;; Zettel Links
 ;;;=============================================================================
-
-(defun ezeka-set-default-kasten (type kasten)
-  "Set the default kasten for the given ID TYPE to KASTEN.
-See `ezeka-default-kasten' for valid types."
-  (interactive
-   (list (intern (completing-read "Set default for which type of Zettel? "
-                           (mapcar #'first ezeka-default-kasten)))
-         (completing-read "Set the default to what Kasten? "
-                   (if (listp ezeka-kaesten)
-                       (mapcar #'first ezeka-kaesten)
-                     (error "No Zettelkästen defined")))))
-  (setf (alist-get type ezeka-default-kasten) kasten))
 
 (defvar ezeka--new-child-plist nil
   "An alist of new children and a plist of their details.
@@ -1731,7 +1734,7 @@ note."
   (completing-read
    (or prompt "Kasten: ")
    (if (listp ezeka-kaesten)
-       (mapcar #'car ezeka-kaesten)
+       (mapcar #'ezeka-kasten-name ezeka-kaesten)
      (error "No `ezeka-kaesten' defined"))))
 
 (defun ezeka--possible-new-note-title ()
@@ -2635,7 +2638,8 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
-            (completing-read "Which kasten to move to? " ezeka-kaesten))
+            (completing-read "Which kasten to move to? "
+                             (mapcar #'ezeka-kasten-name ezeka-kaesten)))
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (source-link (ezeka-file-link source-file)))
@@ -2643,11 +2647,10 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
       (let ((candidate
              (ezeka-make-link
               kasten
-              (cl-case (cadr (assoc kasten ezeka-kaesten #'string=))
-                (:numerus (ezeka--generate-id kasten))
-                (:tempus (ezeka-tempus-currens-id-for source-link))
-                (t
-                 (error "Don't know how to handle this"))))))
+              ;; FIXME: Hardcoded
+              (if (eq (ezeka-kasten-id-type (ezeka-kasten-named kasten)) :tempus)
+                  (ezeka-tempus-currens-id-for source-link)
+                (ezeka--generate-id kasten)))))
         (when (y-or-n-p (format "Is %s acceptable? " candidate))
           (setq target-link candidate))))
     (if (not target-link)
@@ -2671,8 +2674,9 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
   "Generate HOW-MANY new IDs of TYPE, making sure there are no dulicates."
   (interactive
    (list (read-number "How many? " 10)
-         (intern (completing-read "Which type? "
-                           (mapcar #'first ezeka-default-kasten)))))
+         (completing-read "Which type? "
+                          (mapcar #'ezeka-kasten-type
+                                  ezeka-kaesten))))
   (goto-char (point-max))
   (let (ids)
     (dotimes (n how-many)

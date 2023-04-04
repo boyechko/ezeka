@@ -1,10 +1,10 @@
 ;;; ezeka-zk.el --- Eclectic Zettelkasten & Zk Integration -*- lexical-binding: t -*-
 
-;; Copyright (C) 2022 Richard Boyechko
+;; Copyright (C) 2022-2023 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
-;; Version: 0.1
-;; Package-Requires: ((emacs "25.1") (ezeka "0.8") (zk "0.4") (zk-index "0.4"))
+;; Version: 0.2
+;; Package-Requires: ((emacs "28.1") (ezeka "0.8") (zk "0.4") (zk-index "0.4"))
 ;; Keywords: deft zettelkasten org
 ;; URL: https://github.com/boyechko/eclectic-zettelkasten
 
@@ -43,11 +43,12 @@
 (defmacro ezeka-zk-with-kasten (kasten &rest body)
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
-  `(let ((zk-directory (ezeka-kasten-directory ,kasten))
-         (zk-id-regexp (ezeka--id-regexp :all)))
+  `(let ((ezeka-kasten (ezeka-kasten-named ,kasten))
+         (zk-directory (ezeka-kasten-directory ,kasten))
+         (zk-id-regexp (ezeka--id-regexp)))
      (cl-progv '(zk-id-time-string-format
                  zk-file-name-id-only)
-         (if (eq (ezeka-kasten-id-type ,kasten) :numerus)
+         (if (eq (ezeka-kasten-id-type ezeka-kasten) :numerus)
              '(,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
                         "-%H%M")
                nil)
@@ -55,16 +56,17 @@
              t))
        ,@body)))
 
-(defun ezeka-zk-initialize-kasten (kasten)
-  "Set necessary variables for long-term work in KASTEN."
-  (setq zk-directory (ezeka-kasten-directory kasten)
-        zk-id-regexp (ezeka--id-regexp :all))
-  (if (eq (ezeka-kasten-id-type kasten) :numerus)
-      (setq zk-index-format "%i {%l} %c"
-            zk-id-time-string-format
-            (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))
-    (setq zk-id-time-string-format "%Y%m%dT%H%M"
-          zk-index-format "{%-12l} %c [[%i]]")))
+(defun ezeka-zk-initialize-kasten (name)
+  "Set necessary variables for long-term work in Kasten with given NAME."
+  (setq zk-directory (ezeka-kasten-directory name)
+        zk-id-regexp (ezeka--id-regexp))
+  (let ((kasten (ezeka-kasten-named name)))
+    (if (eq (ezeka-kasten-id-type kasten) :numerus)
+        (setq zk-index-format "%i {%l} %c"
+              zk-id-time-string-format
+              (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))
+      (setq zk-id-time-string-format "%Y%m%dT%H%M"
+            zk-index-format "{%-12l} %c [[%i]]"))))
 
 (defcustom ezeka-zk-index-buffer-format "*Zk-Index: %k*"
   "Format string to use when creating Zk index buffers.
@@ -88,11 +90,11 @@ the environment."
    (list
     (let ((active (ezeka-zk--current-active-indexes)))
       (completing-read "Switch to Kasten: "
-                       (mapcar (lambda (kdef)
-                                 (let ((k (car kdef)))
-                                   (if (assoc-string k active)
-                                       (propertize k 'face 'bold-italic)
-                                     k)))
+                       (mapcar (lambda (k)
+                                 (let ((name (ezeka-kasten-name k)))
+                                   (if (assoc-string name active)
+                                       (propertize name 'face 'bold-italic)
+                                     name)))
                                ezeka-kaesten)))
     current-prefix-arg))
   (custom-set-variables
@@ -320,7 +322,8 @@ destination kasten."
    (append (if (region-active-p)
                (list (region-beginning) (region-end))
              (list (point-min) (point-max)))
-           (list (completing-read "Which kasten to move to? " ezeka-kaesten)
+           (list (completing-read "Which kasten to move to? "
+                                  (mapcar #'ezeka-kasten-name ezeka-kaesten))
                  current-prefix-arg)))
   (let ((lines (count-lines start end))
         (moved 1)
@@ -345,9 +348,13 @@ destination kasten."
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
-  (interactive (list (if current-prefix-arg
-                         (completing-read "Kasten: " ezeka-kaesten)
-                       "numerus")))
+  (interactive
+   (list (if current-prefix-arg
+             (completing-read "Kasten: "
+                              (mapcar #'ezeka-kasten-name ezeka-kaesten))
+           (cl-find (cl-reduce #'min ezeka-kaesten :key #'ezeka-kasten-order)
+                    ezeka-kaesten
+                    :key #'ezeka-kasten-order))))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-insert-link)))
 
@@ -367,13 +374,15 @@ destination kasten."
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
 Defaults to the Kasten set in `zk-directory', if any. With
 \\[universal-argument] ARG, ask to select Kasten."
-  (interactive (list current-prefix-arg
-                     (if-let ((kasten
-                               (and zk-directory
-                                    (not current-prefix-arg)
-                                    (ezeka-directory-kasten zk-directory))))
-                         kasten
-                       (completing-read "Kasten: " ezeka-kaesten))))
+  (interactive
+   (list current-prefix-arg
+         (if-let ((kasten
+                   (and zk-directory
+                        (not current-prefix-arg)
+                        (ezeka-directory-kasten zk-directory))))
+             kasten
+           (completing-read "Kasten: "
+                            (mapcar #'ezeka-kasten-name ezeka-kaesten)))))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-find-file)))
 
