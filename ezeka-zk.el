@@ -495,7 +495,7 @@ If CHANGE-TO is not given, use the note's parent, if set."
   (interactive)
   (let ((id (with-current-buffer zk-index-buffer-name
               (zk-index--button-at-point))))
-    (ezeka-insert-link-with-metadata id :title :before t)))
+    (ezeka-insert-link-with-metadata id '(:title) :before t)))
 
 ;;;=============================================================================
 ;;; Entitle

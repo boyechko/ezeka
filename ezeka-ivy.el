@@ -127,7 +127,7 @@ the cursor in already inside a link, replace it instead."
           (if (not (ezeka-link-at-point-p))
               (if arg
                   (funcall-interactively #'ezeka-insert-link-with-metadata link)
-                (ezeka-insert-link-with-metadata link :title :before t))
+                (ezeka-insert-link-with-metadata link '(:title) :before t))
             ;; When replacing, don't including anything
             (delete-region (match-beginning 0) (match-end 0))
             (insert (ezeka-org-format-link link))))

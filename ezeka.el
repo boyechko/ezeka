@@ -1446,7 +1446,7 @@ already inside a link, replace it instead."
         (if (not (ezeka-link-at-point-p))
             (if arg
                 (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link :title :before t))
+              (ezeka-insert-link-with-metadata link '(:title) :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
           (insert (ezeka--format-link link)))
@@ -1494,7 +1494,7 @@ already inside a link, replace it instead."
         (if (not (ezeka-link-at-point-p))
             (if arg
                 (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link :title :before t))
+              (ezeka-insert-link-with-metadata link '(:title) :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
           (insert (ezeka--format-link link)))
@@ -1511,7 +1511,7 @@ insert just the link itself."
     (when (ezeka-link-p link)
       (if arg
           (ezeka-insert-link-with-metadata link)
-        (ezeka-insert-link-with-metadata link :title :before t))
+        (ezeka-insert-link-with-metadata link '(:title) :before t))
       (when backlink
         (gui-set-selection 'CLIPBOARD backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
@@ -1692,7 +1692,7 @@ universal argument, ask for confirmation before inserting."
   (let* ((degree (if (integerp arg) arg 1))
          (link (ezeka-trace-genealogy buffer-file-name degree)))
     (if link
-        (ezeka-insert-link-with-metadata link :title :before (not arg))
+        (ezeka-insert-link-with-metadata link '(:title) :before (not arg))
       (message "Could not find such ancestor"))))
 
 (defun ezeka--generate-new-child (parent &optional kasten id)
@@ -2169,8 +2169,9 @@ With \\[universal-argument] ARG, asks for a different name."
   "Set the FROM, CREATED, and ID properties for the current org heading."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
-  (org-set-property "FROM" (ezeka-insert-link-with-metadata
-                            buffer-file-name :title :after))
+  (org-set-property "FROM"
+                    (ezeka-insert-link-with-metadata
+                     buffer-file-name '(:title) :after))
   (org-set-property "CREATED"
                     ;; FIXME: Surely there is a better function to do this, no?
                     (format-time-string
