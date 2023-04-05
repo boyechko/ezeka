@@ -2223,12 +2223,16 @@ If it's something else, try to make it into org-time-stamp."
            (delete-region beg end)
            (org-insert-time-stamp (encode-time (parse-time-string text)) t t))
           ((integerp (nth 4 (parse-time-string text))) ; date -> ISO-8601
-           (delete-region beg end)
-           (insert
-            (format-time-string
-             "%Y-%d-%m"
-             (encode-time (cl-substitute 0 nil (parse-time-string text)))))
-           nil t)
+           (let* ((parsed (parse-time-string text)))
+             (setf (decoded-time-second parsed) 0
+                   (decoded-time-minute parsed) 0
+                   (decoded-time-hour   parsed) 0)
+             (when (y-or-n-p
+                    (format "Is %s same as %s? "
+                            text
+                            (format-time-string "%F" (encode-time parsed))))
+               (delete-region beg end)
+               (insert (format-time-string "%F" (encode-time parsed))))))
           (t
            (signal 'wrong-type-argument (list text))))))
 
