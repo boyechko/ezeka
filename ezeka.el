@@ -340,7 +340,7 @@ It is a Zettel if all of these conditions are met:
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
         (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match ezeka-file-name-regexp (file-name-base file))
+             (string-match (ezeka-file-name-regexp) (file-name-base file))
              (if strict
                  (and (file-exists-p file)
                       (string-prefix-p ezeka-directory file)) ; FIXME: Hack
@@ -355,13 +355,13 @@ It is a Zettel if all of these conditions are met:
 (defun ezeka-file-name-valid-p (filename)
   "Return non-nil if FILENAME is a valid Zettel filename."
   (save-match-data
-   (string-match ezeka-file-name-regexp (file-name-base filename))))
+   (string-match (ezeka-file-name-regexp) (file-name-base filename))))
 
 (defun ezeka--file-name-part (filename part)
   "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
-      (when (string-match ezeka-file-name-regexp base)
+      (when (string-match (ezeka-file-name-regexp) base)
         (let ((match (match-string (cl-case part
                                      (:id      1)
                                      (:label   3)
@@ -586,29 +586,36 @@ Group 2 is the value.")
   :group 'ezeka)
 
 (defcustom ezeka-header-stable-caption-mark "§"
-  "A mark used in the rubric value to signify that any differences
+  "Mark that signifies stable caption.
+The mark is used in the rubric value to show that any differences
 between caption and title values should be ignored as long as filename
 and header match."
   :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
-  "The `format-spec' string for generating the note's rubric to be used
-in the note's header.
+  "The `format-spec' string for generating the note's rubric.
 See `ezeka-format-metadata' for details.
 This should match `ezeka-header-rubric-regexp'."
   :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-file-name-format "%i {%l} %c %k"
-  "The `format-spec' string for generating a numerus currens note's file name.
-See `ezeka-format-metadata' for details.
-This should match `ezeka-file-name-regexp'."
+  "The `format-spec' string for generating a note's file name.
+See `ezeka-format-metadata' for details. This should match
+`ezeka-file-name-regexp'."
   :type 'string
   :group 'ezeka)
 
-;; TODO: `ezeka-file-name-regexp' and `ezeka-header-rubric-regexp' should be functions
-(defcustom ezeka-file-name-regexp
+(defun ezeka-file-name-regexp ()
+  "Return regexp matching numerus currens note file names.
+
+Group 1 is the ID.
+Group 2 is the kasten.
+Group 3 is the label (genus or category).
+Group 4 is the caption (i.e. short title).
+Group 5 is the citation key.
+Group 6 is the stable caption mark."
   (concat (ezeka-link-regexp)             ; \1 and \2
           "\\(?:"                         ; everything else is optional
           "\\(?:\\.\\)*"                  ; FIXME: optional historic period
@@ -616,25 +623,15 @@ This should match `ezeka-file-name-regexp'."
           "\\(?4:.+?\\)"                  ; \4
           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
           "\\)*"                          ; end of everything else
-          )
-  "Regexp matching numerus currens note file names.
+          ))
 
-Group 1 is the ID.
-Group 2 is the kasten.
-Group 3 is the label (genus or category).
-Group 4 is the caption (i.e. short title).
-Group 5 is the citation key.
-Group 6 is the stable caption mark.")
-
-(defcustom ezeka-header-rubric-regexp
-  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
-          ezeka-file-name-regexp)
+(defun ezeka-header-rubric-regexp ()
   "Regular expression for the rubric string as found in the header.
 
 Groups 1-5 see `ezeka-file-name-regexp'.
 Group 6 is the stable caption mark."
-  :type 'regexp
-  :group 'ezeka)
+  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
+          (ezeka-file-name-regexp)))
 
 (defvar ezeka-genus-regexp "[α-ω]"
   "Regexp matching genus.")
@@ -687,7 +684,7 @@ The format control string may contain the following %-sequences:
 (defun ezeka-decode-rubric (rubric file)
   "Return alist of metadata from the RUBRIC in FILE.
 If cannot decode, returns NIL."
-  (when (and rubric (string-match ezeka-header-rubric-regexp rubric))
+  (when (and rubric (string-match (ezeka-header-rubric-regexp) rubric))
     (let ((id          (match-string 1 rubric))
           (kasten      (match-string 2 rubric))
           (label       (match-string 3 rubric))
