@@ -444,9 +444,10 @@ explicitly given."
 (defun ezeka-id-subdirectory (id)
   "Return the subdirectory relative to Kasten for the given ID, a string."
   (cl-case (ezeka-id-type id)
-    (:numerus (file-name-as-directory (cl-subseq id 0 1)))
-    (:tempus (file-name-as-directory (cl-subseq id 0 4)))
-    (:scriptum "")))
+    ;; FIXME: Hardcoded
+    (:numerus (file-name-as-directory (cl-subseq id 0 1))) ; first letter
+    (:tempus (file-name-as-directory (cl-subseq id 0 4)))  ; YYYY
+    (:scriptum (cl-subseq id 3))))                         ; skip ##-
 
 (defun ezeka-id-directory (id kasten)
   "Return the full directory under KASTEN where ID should be."
