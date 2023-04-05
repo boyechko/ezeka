@@ -137,16 +137,16 @@ Functions affected are `ezeka-set-label', `ezeka-set-title', and
 
 (cl-defstruct (ezeka-kasten (:constructor ezeka-kasten--create)
                             (:copier nil))
-  name id-type id-format id-regexp default order)
+  name id-type id-example id-regexp default order)
 
 (defun ezeka-kasten-named (name)
   "Return the Kasten with given NAME in `ezeka-kaesten'."
   (cl-find name ezeka-kaesten :key #'ezeka-kasten-name :test #'string=))
 
-(defun ezeka-kaesten-add (name id-format id-regexp default order)
+(defun ezeka-kaesten-add (name id-example id-regexp default order)
   "Add a new Kasten to `ezeka-kaesten' with the given options.
-NAME is a unique string, ID-FORMAT describes the format, ID-REGEXP is
-used to match IDs in this Kasten, DEFAULT specifies whether this is
+NAME is a unique string, ID-EXAMPLE is an example of an ID, ID-REGEXP
+is used to match IDs in this Kasten, DEFAULT specifies whether this is
 the default Kasten for this ID-REGEXP, and ORDER determines relative
 order in various `completing-read' invocations."
   (setq ezeka-kaesten
@@ -154,14 +154,14 @@ order in various `completing-read' invocations."
   (add-to-list 'ezeka-kaesten
     (ezeka-kasten--create :name name
                           :id-type (intern (concat ":" name))
-                          :id-format id-format
+                          :id-example id-example
                           :id-regexp id-regexp
                           :default default
                           :order order)))
 
-(ezeka-kaesten-add "numerus" "1L-4D" "[a-z]-[0-9]\\{4\\}" t 1)
-(ezeka-kaesten-add "tempus" "8DT4D" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
-(ezeka-kaesten-add "scriptum" "ms_2D1L" "ms_[0-9]\\{2\\}[a-z]" t 3)
+(ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" t 1)
+(ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
+(ezeka-kaesten-add "scriptum" "01-a-1234" "[0-9][0-9]-[a-z]-[0-9]\\{4\\}" t 3)
 
 (defun ezeka-kasten-directory (kasten)
   "Return the directory of the Kasten named KASTEN."
