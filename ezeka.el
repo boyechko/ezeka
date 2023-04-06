@@ -828,6 +828,13 @@ The format of each item should be as follows:
     (:FIELD).
 The order of items will affect how the metadata is written into the
 file header.")
+
+(defun ezeka-set-metadata-value (metadata field value)
+  "Set METADATA's FIELD to VALUE after doing some checking.
+Return the original METADATA wit the field changed."
+  (setf (alist-get field metadata) value)
+  metadata)
+
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasturize-for-filename (title)
   "Return TITLE after making it safe to use as file caption.
@@ -1977,7 +1984,8 @@ should consist of KEY and VALUE pairs.
             (let ((already-modified (buffer-modified-p))
                   (metadata (or metadata (ezeka-file-metadata filename))))
               (while args
-                (setf (alist-get (pop args) metadata) (pop args)))
+                (setq metadata
+                  (ezeka-set-metadata-value metadata (pop args) (pop args))))
               (ezeka--replace-file-header filename metadata)
               (when (and (not already-modified)
                          (if (eq ezeka-save-after-metadata-updates 'confirm)
