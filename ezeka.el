@@ -1363,13 +1363,14 @@ TARGET can be either a link or a filepath."
             (if description
                 (format "[%s]" description) ""))))
 
-(defun ezeka--link-with-metadata (link &optional field where metadata)
-  "Return a string containing the metadata FIELD (:title by default)
-at place WHERE (:before by default) in relation to the LINK."
+(defun ezeka--link-with-metadata (link &optional fields where metadata)
+  "Return a string with metadata FIELD(S) at place WHERE (relative to LINK).
+FIELDS defaults to :title, WHERE to :before."
   (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
-         (field (or field :title))
+         (fields (or fields '(:title)))
          (where (or where :before))
-         (value (alist-get field mdata)))
+         (value (mapconcat (lambda (f) (alist-get f mdata))
+                  fields " ")))
     (concat (if (eq where :before)
                 (concat value " ")
               "")
@@ -1381,19 +1382,20 @@ at place WHERE (:before by default) in relation to the LINK."
                 (concat " " value)
               ""))))
 
-(defun ezeka-insert-link-with-metadata (link &optional field where confirm)
-  "Insert the Zettel LINK, optionally adding a metadata FIELD.
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where the field
-is added. If CONFIRM is non-NIL, ask for confirmation before inserting
-metadata."
-  (let* ((field (or field
-                    (when (called-interactively-p 'any)
-                      (intern-soft
-                       (completing-read
-                        "Which metadata field? "
-                        '(":none" ":title" ":citekey" ":label"))))))
+(defun ezeka-insert-link-with-metadata (link &optional fields where confirm)
+  "Insert the Zettel LINK, optionally adding metadata FIELD(S).
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where the fields
+is added. FIELDS can be a list. If CONFIRM is non-NIL, ask for
+confirmation before inserting metadata."
+  (let* ((fields (or fields
+                     (when (called-interactively-p 'any)
+                       (list
+                        (intern-soft
+                         (completing-read
+                          "Which metadata field? "
+                          '(":none" ":title" ":citekey" ":label")))))))
          (where (or where
-                    (when field
+                    (when fields
                       (intern-soft
                        (completing-read "Where? "
                                         '(":before" ":after")))))))
@@ -1406,8 +1408,12 @@ metadata."
                         (y-or-n-p (format (if (eq where :description)
                                               "Insert [%s] in the link %s? "
                                             "Insert [%s] %s the link? ")
-                                          (alist-get field mdata) where))))
-                  (ezeka--link-with-metadata link field where mdata)
+                                          (mapconcat (lambda (f)
+                                                       (alist-get f mdata))
+                                            fields
+                                            " ")
+                                          where))))
+                  (ezeka--link-with-metadata link fields where mdata)
                 (ezeka--format-link link))
               (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
 
@@ -1460,7 +1466,7 @@ also include the title."
   (if link-only
       (ezeka-insert-link-with-metadata (ezeka--link-to-other-window))
     (ezeka-insert-link-with-metadata (ezeka--link-to-other-window)
-                                     :title :before t)))
+                                     '(:author :title) :before t)))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
