@@ -1020,6 +1020,7 @@ Returns modifed metadata."
     (save-mark-and-excursion
       (with-current-buffer (find-buffer-visiting filename)
         (save-restriction
+          (widen)
           (goto-char (point-min))
           (when (re-search-forward ezeka-header-separator-regexp nil t 1)
             (narrow-to-region (point-min) (point)))
