@@ -2023,22 +2023,33 @@ should consist of KEY and VALUE pairs.
             (kill-buffer-if-not-modified buf)))))))
 
 ;; TODO: Also ask about updating the filename
-(defun ezeka-set-title (filename &optional new-title arg)
-  "Update the title in FILENAME's header to NEW-TITLE.
-With \\[universal-argument] ARG, don't change the caption."
-  (interactive (list (buffer-file-name) nil current-prefix-arg))
+;; TODO: Change name to `ezeka-set-title-and-caption'
+(defun ezeka-set-title (filename &optional new-val keep-title keep-caption)
+  "Update the title in FILENAME's header to NEW-VAL.
+With \\[universal-argument] or non-nil KEEP-CAPTION, don't change the
+caption; with double \\[universal-argument] or non-nil KEEP-TITLE,
+don't change the title."
+  (interactive (list (buffer-file-name)
+                     nil                ; wait so I can pre-fill existing title
+                     (and current-prefix-arg
+                          (equal current-prefix-arg '(16)))
+                     (and current-prefix-arg
+                          (equal current-prefix-arg '(4)))))
   (when (ezeka-note-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
-           (new-title (or new-title
-                          (read-string
-                           (format "Change %stitle to what? "
-                                   (if arg "(just the) " ""))
-                           (alist-get :title mdata)))))
-      (setf (alist-get :title mdata) new-title
-            (alist-get :caption-stable mdata) nil)
-      (unless arg
+           (new-val (or new-val
+                        (read-string
+                         (format "Change %s to what? "
+                                 (cond (keep-title "only the caption")
+                                       (keep-caption "only the title")
+                                       (t "title and caption")))
+                         (alist-get (if keep-title :caption :title) mdata)))))
+      (unless keep-title
+        (setf (alist-get :title mdata) new-val))
+      (unless keep-caption
         (setf (alist-get :caption mdata)
-              (ezeka--pasturize-for-filename new-title)))
+              (ezeka--pasturize-for-filename new-val)))
+      (setf (alist-get :caption-stable mdata) nil)
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label arg)
