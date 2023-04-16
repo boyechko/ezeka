@@ -370,6 +370,12 @@ destination kasten."
   (ezeka-zk-with-kasten "tempus"
     (call-interactively 'zk-insert-link)))
 
+(defun ezeka-zk-insert-link-to-scriptum ()
+  "Temporarily set zk variables for tempus and call `zk-insert-link'."
+  (interactive)
+  (ezeka-zk-with-kasten "scriptum"
+    (call-interactively 'zk-insert-link)))
+
 (defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
 Defaults to the Kasten set in `zk-directory', if any. With
@@ -395,6 +401,11 @@ Defaults to the Kasten set in `zk-directory', if any. With
   "Find zk note in tempus currens Kasten."
   (interactive)
   (ezeka-zk-find-note-in-kasten nil "tempus"))
+
+(defun ezeka-zk-find-note-in-scriptum ()
+  "Find zk note in scriptum Kasten."
+  (interactive)
+  (ezeka-zk-find-note-in-kasten nil "scriptum"))
 
 (defun ezeka-rgrep-link-at-point (link)
   "Execute recursive grep for the ezeka LINK at point."

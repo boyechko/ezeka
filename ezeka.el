@@ -161,7 +161,7 @@ order in various `completing-read' invocations."
 
 (ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" t 1)
 (ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
-(ezeka-kaesten-add "scriptum" "01-a-1234" "[0-9][0-9]-[a-z]-[0-9]\\{4\\}" t 3)
+(ezeka-kaesten-add "scriptum" "a-1234~01" "[a-z]-[0-9]\\{4\\}~[0-9][0-9]" t 3)
 
 (defun ezeka-kasten-directory (kasten)
   "Return the directory of the Kasten named KASTEN."
@@ -443,11 +443,15 @@ explicitly given."
 
 (defun ezeka-id-subdirectory (id)
   "Return the subdirectory relative to Kasten for the given ID, a string."
-  (cl-case (ezeka-id-type id)
+  (file-name-as-directory
+   (cl-case (ezeka-id-type id)
     ;; FIXME: Hardcoded
-    (:numerus (file-name-as-directory (cl-subseq id 0 1))) ; first letter
-    (:tempus (file-name-as-directory (cl-subseq id 0 4)))  ; YYYY
-    (:scriptum (cl-subseq id 3))))                         ; skip ##-
+    (:numerus (cl-subseq id 0 1)) ; first letter
+    (:tempus (cl-subseq id 0 4))  ; YYYY
+    (:scriptum                    ; numerus
+     (cl-subseq id 0
+                (length
+                 (ezeka-kasten-id-example (ezeka-kasten-named "numerus"))))))))
 
 (defun ezeka-id-directory (id kasten)
   "Return the full directory under KASTEN where ID should be."
@@ -1202,6 +1206,7 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
+;; TODO: Somehow make this part of `ezeka-kasten'. Function?
 (defun ezeka--random-id (type)
   "Generate a random new ID of the given TYPE."
   (cl-case type
@@ -1209,9 +1214,15 @@ abase26 equivalent of 0, namely 'a'."
     (:numerus (format "%s-%04d"
                       (abase26-encode (random 26))
                       (random 10000)))
-    (:scriptum (format "ms_%02d%s"
-                       (random 100)
-                       (abase26-encode (random 26))))
+    (:scriptum
+     (let (project)
+       (while (not project)
+         (setq project (read-string "Scriptum project (numerus currens): "))
+         (unless (ezeka-link-file project)
+           (setq project nil)))
+       (format "%s~%02d"
+               project
+               (random 100))))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
 (defun ezeka--generate-id (kasten)
