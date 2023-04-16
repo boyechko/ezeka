@@ -359,9 +359,10 @@ destination kasten."
    (list (if current-prefix-arg
              (completing-read "Kasten: "
                               (mapcar #'ezeka-kasten-name ezeka-kaesten))
-           (cl-find (cl-reduce #'min ezeka-kaesten :key #'ezeka-kasten-order)
-                    ezeka-kaesten
-                    :key #'ezeka-kasten-order))))
+           (ezeka-kasten-name
+            (cl-find (cl-reduce #'min ezeka-kaesten :key #'ezeka-kasten-order)
+                     ezeka-kaesten
+                     :key #'ezeka-kasten-order)))))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'zk-insert-link)))
 
