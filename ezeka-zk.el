@@ -121,16 +121,20 @@ the environment."
 Optionally use ORIG-ID for backlink."
   (ezeka-insert-header-template new-id nil title orig-id))
 
-(defun ezeka-zk-index-button-display-action (file buffer)
+(defun ezeka-zk-index-button-display-action (file buffer &optional same-window)
   "Function to display FILE or BUFFER on button press in Index and Desktop.
+If \\[universal-argument] SAME-WINDOW is non-nil, use same window.
 See `zk-index-button-display-action'."
-  (if (one-window-p)
-      (pop-to-buffer buffer
-                     (display-buffer-in-direction
-                      buffer
-                      '((direction . top)
-                        (window-height . 0.6))))
-    (find-file-other-window file)))
+  (let ((same-window (or same-window current-prefix-arg)))
+    (cond ((one-window-p)
+           (pop-to-buffer buffer
+                          (display-buffer-in-direction
+                           buffer
+                           '((direction . top)
+                             (window-height . 0.6)))))
+          (same-window
+           (find-file file))
+          (t (find-file-other-window file)))))
 
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT."
