@@ -2497,8 +2497,7 @@ different. With \\[universal-argument] ARG, forces update."
                   (let ((content-start (point)))
                     (org-end-of-subtree)
                     (push (buffer-substring-no-properties content-start (point))
-                          content))
-                  (kill-buffer-if-not-modified (current-buffer)))
+                          content)))
                 ;; Insert the copied subtrees and remove its headings and comments
                 (apply #'insert (nreverse content))
                 (goto-char start)
