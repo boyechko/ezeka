@@ -2542,10 +2542,15 @@ different. With \\[universal-argument] ARG, forces update."
       (when-let ((pos (or (org-find-exact-headline-in-buffer "Snippet")
                           (org-find-exact-headline-in-buffer "Content"))))
         (goto-char pos)
-        (when-let ((used-in (org-entry-get (point) "USED_IN+")))
-          (org-id-goto (string-trim used-in "\\(id:\\|\\[id:\\)" "]"))
-          (org-back-to-heading t)
-          (org-set-tags (cons "CHANGED" (org-get-tags)))))
+        (when-let ((used-in (org-entry-get (point) "USED_IN+"))
+                   (used-list
+                    (split-string
+                     (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
+                     nil t " \n")))
+          (dolist (org-id used-list)
+            (org-id-goto org-id)
+            (org-back-to-heading t)
+            (org-set-tags (cl-union '("CHANGED") (org-get-tags))))))
       (switch-to-buffer current))))
 (add-hook 'ezeka-modified-updated-hook #'ezeka--update-inserted-snippet)
 
