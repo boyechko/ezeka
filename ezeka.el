@@ -2428,7 +2428,7 @@ different. With \\[universal-argument] ARG, forces update."
               (when (org-get-property-block)
                (goto-char (cdr (org-get-property-block)))
                ;; `org-get-property-block' ends on :END:
-               (forward-line))))
+               (forward-line 2))))
     ;; Get the metadata and most recent modification
     (save-excursion
       (save-restriction
