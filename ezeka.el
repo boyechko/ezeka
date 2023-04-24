@@ -2422,7 +2422,7 @@ different. With \\[universal-argument] ARG, forces update."
    (list current-prefix-arg
          (or (org-entry-get (point) "SNIP_SOURCE")
              (ezeka--org-nth-link-on-line -1)
-             (ezeka-file-link (zk--select-file)))))
+             (error "Insert a link to the snippet source first"))))
   (cl-flet ((move-after-properties ()
               "Move point after the properties drawer, if any."
               (when (org-get-property-block)
