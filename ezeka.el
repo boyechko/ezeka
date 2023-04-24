@@ -2489,7 +2489,9 @@ different. With \\[universal-argument] ARG, forces update."
                        (error "Can't find the Snippet or Content section")))
                   (if (not org-id)
                       (warn "No org-id added to file %s" file)
-                    (org-entry-put (point) "USED_IN+" (format "id:%s" org-id)))
+                    (org-entry-add-to-multivalued-property (point)
+                                                           "USED_IN+"
+                                                           (format "id:%s" org-id)))
                   (basic-save-buffer)
                   (move-after-properties)
                   (let ((content-start (point)))
