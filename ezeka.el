@@ -792,11 +792,12 @@ signal an error when encountering malformed header lines."
   "Toggle header being read-only in the current Zettel buffer."
   (interactive)
   (let ((beg-end (ezeka--header-region (current-buffer))))
-    (if (cl-find-if (lambda (ol)
-                       (overlay-get ol 'ezeka-text-type))
-                    (overlays-at (car beg-end)))
-        (ezeka--writeable-region (car beg-end) (cdr beg-end))
-      (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
+    (save-excursion
+      (if (cl-find-if (lambda (ol)
+                        (overlay-get ol 'ezeka-text-type))
+                      (overlays-at (car beg-end)))
+          (ezeka--writeable-region (car beg-end) (cdr beg-end))
+        (ezeka--read-only-region (car beg-end) (cdr beg-end))))))
 
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
