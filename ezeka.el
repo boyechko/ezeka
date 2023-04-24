@@ -2440,9 +2440,15 @@ different. With \\[universal-argument] ARG, forces update."
                                            (alist-get :created mdata))))
                (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
                (current? (string= modified-mdata modified-prop))
+               (local? (string-match-p "local"
+                                       (or (org-entry-get nil "TAGS")
+                                           "")))
                (org-id (org-id-get-create)))
           (org-narrow-to-subtree)
-          (ezeka--writeable-region (point-min) (point-max))
+          (unless 'disabled
+            (ezeka--writeable-region (point-min) (point-max)))
+          (when local?
+            (error "There are local changes (or at least :local: tag)"))
           (when (looking-at org-outline-regexp)
             (replace-regexp (regexp-quote (elt (org-heading-components) 4))
                             (ezeka-format-metadata "%t [[%i]]" mdata)))
