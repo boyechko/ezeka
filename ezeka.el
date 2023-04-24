@@ -2648,6 +2648,19 @@ This is the Bookmark record function for Zettel files."
                 (expand-file-name ezeka--move-log-file ezeka-directory)
                 'append))
 
+(defun ezeka-link-moved-p (link)
+  "Check whether LINK appears in the `ezeka--move-log-file'."
+  (interactive "sEnter link: ")
+  (with-temp-buffer
+    (insert-file-contents ezeka--move-log-file)
+    (goto-char (point-min))
+    (when-let* ((_ (re-search-forward (concat ".*" link ".*") nil t)))
+      (cl-destructuring-bind (from to time)
+          (read (match-string 0))
+          (if (y-or-n-p (format "%s moved to %s on %s. Open? " from to time))
+              (find-file-other-window (ezeka-link-file to))
+            t)))))
+
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
 With CONFIRM, confirm before move."
