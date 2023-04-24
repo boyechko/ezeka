@@ -162,3 +162,63 @@ usable in the other window, in which case set that as the new parent."
               (ezeka-zk-with-kasten "numerus" ; FIXME: Hardcoded
                 (zk--select-file "Scriptum file's project: "))))))
     (ezeka--update-metadata-values filename nil :parent new-parent)))
+
+;;;=============================================================================
+;;; Experiment with consult-grep instead of rgrep
+;;;=============================================================================
+
+(defun ezeka-rgrep (string)
+  "Runs a recursive grep (`rgrep') for the given STRING across all Zettel."
+  (interactive "sRgrep in Zettelkasten: ")
+  (grep-compute-defaults)
+  ;; (rgrep string "*.txt" (f-slash ezeka-directory) nil)
+  (consult-grep (f-slash ezeka-directory) string)
+  )
+
+;;;=============================================================================
+;;; Fix for `ezeka-completion-table' width issue
+;;;=============================================================================
+
+(defun ezeka-completion-table (files)
+  "Turn list of FILES into completion table suitable for `completing-read'."
+  ;;                    iw  lw     tw     kw
+  ;;                  * ID  LABEL  TITLE  CITEKEY
+  (let* ((ww (window-width (minibuffer-window)))
+         (iw 14) (lw 10) (kw 20) (extra-padding (round (/ ww 6.5)))
+         (tw (- ww (+ iw lw kw extra-padding)))
+         (fmt (format "%%s%%-%ds %%-%ds %%-%ds  %%%ds" iw lw tw kw))
+         (dashes (make-string (- ww extra-padding 10) ?-)))
+    (append (mapcar (lambda (file)
+                      (when (ezeka-note-p file)
+                        (let* ((metadata (ezeka-file-metadata file t))
+                               (title (alist-get :title metadata))
+                               (citekey (alist-get :citekey metadata))
+                               (buf (get-file-buffer file))
+                               (line (format
+                                      fmt
+                                      (if (and buf (buffer-modified-p buf)) "*" " ")
+                                      (or (alist-get :id metadata)
+                                          (file-name-base file))
+                                      (alist-get :label metadata)
+                                      (when title
+                                        (cl-subseq title
+                                                   0 (min (length title) tw)))
+                                      (if citekey
+                                          (cl-subseq citekey
+                                                     0 (min (length citekey) kw))
+                                        ""))))
+                          (cons line file))))
+                    files)
+            (format "--- %3d / %3d (%0.1f) %s"
+                    ww
+                    (+ iw lw kw tw extra-padding)
+                    (/ ww extra-padding)
+                    dashes))))
+
+;;;=============================================================================
+;;; Ezeka-link struct
+;;;=============================================================================
+
+(cl-defstruct (ezeka--link (:constructor ezeka--link-create)
+                           (:copier nil))
+  kasten id)
