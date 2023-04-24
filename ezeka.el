@@ -2264,16 +2264,17 @@ If it's something else, try to make it into org-time-stamp."
            (signal 'wrong-type-argument (list text))))))
 
 (defun ezeka-org-export-as-new-note (&optional kasten)
-  "Create new Zettel in KASTEN from the current org subtree.
+  "Create new Zettel in KASTEN (a string) from the current org subtree.
 With \\[universal-argument], ask to select the KASTEN."
   (interactive (list (when current-prefix-arg
-                       (completing-read "Zettel kasten: " ezeka-kaesten))))
-  (let ((parent-file buffer-file-name)
-        (parent-link (ezeka-file-link buffer-file-name))
-        (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
-        (new-title "")
-        new-link
-        new-file)
+                       (ezeka--read-kasten "Zettel Kasten: "))))
+  (let* ((parent-file buffer-file-name)
+         (parent-link (ezeka-file-link buffer-file-name))
+         (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
+         (kstruct (ezeka-kasten-named kasten))
+         (new-title "")
+         new-link
+         new-file)
     (save-excursion
       (save-restriction
         (org-narrow-to-subtree)
@@ -2304,7 +2305,7 @@ With \\[universal-argument], ask to select the KASTEN."
                     (read-string "No timestamp found. Enter it here: ")))))
           (setq new-link (ezeka-make-link
                           kasten
-                          (if (eq (ezeka-kasten-id-type kasten) :numerus)
+                          (if (eq (ezeka-kasten-id-type kstruct) :numerus)
                               (ezeka--random-id :numerus)
                             (if (org-timestamp-has-time-p timestamp)
                                 (org-timestamp-format timestamp "%Y%m%dT%H%M")
