@@ -1,0 +1,43 @@
+# ezeka: Eclectic Zettelkasten
+
+## Format of the File Names
+
+1. If the Zettel is in the `numerus currens` Kasten,
+   the file name should
+
+## Format of Zettel Files [*r-8526*]{.spurious-link target="r-8526"}
+
+The file begins with a header encoding metadata
+using a very simplified version of [YAML](https://yaml.org/).
+ The structure I am using is as follows:
+
+1.  The first line of the header contains the rubric line condensing
+    various key pieces of information ab the note
+    [*f-5889*]{.spurious-link target="f-5889"}.
+
+    The rubric consists of optional marker (§) that signifies that the
+    caption (shortened titled in the file name [*g-2502*]{.spurious-link
+    target="g-2502"}) and title are stable and differences should be
+    ignored. What follows is the the note ID, category enclosed in
+    squiggly brackets { }, caption (which should match the file name
+    caption), and an optional citation key preceded by @ (or & for
+    primary sources). For example:
+
+    ``` example
+    rubric: §r-8526 {Zettel} using metadata block in notes
+    ```
+
+2.  The rest of the metadata follows:
+
+    Each line consists of key (scalar) and value (scalar or flow
+    sequence). Currently recognized keys are:
+
+    - `title`{.verbatim} (human-formatted title used when inserting
+        links)
+    - `created`{.verbatim} (ISO8601 8601 date/time),
+    - `modified`{.verbatim} (ISO8601 8601 date/time),
+    - `parent`{.verbatim} (Zettel link),
+    - `firstborn`{.verbatim} (Zettel link),
+    - `oldnames`{.verbatim} (flow sequence of Zettel links),
+    - `readings`{.verbatim} (flow sequence of ISO8601 dates), and
+    - `keywords`{.verbatim} (flow sequence of #-prefixed words)
