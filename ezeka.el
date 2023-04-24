@@ -431,7 +431,7 @@ explicitly given."
     (match-string 1 link)))
 
 (defun ezeka-make-link (kasten id)
-  "Make a new proper link to ID in KASTEN."
+  "Make a new proper link to ID in KASTEN (a string)."
   (let ((kstruct (ezeka-kasten-named kasten)))
     (cond ((not (ezeka-kasten-id-type kstruct))
            (error "Kasten %s is not in `ezeka-kaesten'" kasten))
@@ -491,15 +491,15 @@ LINK."
                                   "*"))
                            ezeka-file-extension))
          (dir (ezeka-id-directory id (ezeka-link-kasten link))))
-    (file-truename
-     (if (stringp caption)
-         (expand-file-name basename dir)
-       (let ((matches (flatten-list
-                       (file-expand-wildcards
-                        (expand-file-name basename dir)))))
-         (if (= 1 (length matches))
-             (car matches)
-           (error "Found no or multiple matches: %s" matches)))))))
+    (if (stringp caption)
+        (file-truename (expand-file-name basename dir))
+      (let ((matches (flatten-list
+                      (file-expand-wildcards
+                       (expand-file-name basename dir)))))
+        (cl-case (length matches)
+          (0 nil)
+          (1 (file-truename (car matches)))
+          (t (error "Found multiple matches: %s" matches)))))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
