@@ -2384,16 +2384,18 @@ open the link in the same window."
 With a negative N, count from the end. If there is no such link,
 return NIL."
   (save-excursion
-    (cond ((> n 0)
-           (beginning-of-line)
-           (dotimes (i n)
-             (org-next-link)))
-          ((< n 0)
-           (end-of-line)
-           (dotimes (i (abs n))
-             (org-previous-link))))
-    (when (ezeka-link-at-point-p)
-      (ezeka-link-at-point))))
+    (save-restriction
+      (narrow-to-region (point-at-bol) (point-at-eol))
+      (cond ((> n 0)
+             (beginning-of-line)
+             (dotimes (i n)
+               (org-next-link)))
+            ((< n 0)
+             (end-of-line)
+             (dotimes (i (abs n))
+               (org-previous-link))))
+     (when (ezeka-link-at-point-p)
+       (ezeka-link-at-point)))))
 
 ;;; TODO:
 ;;; - implement some kind of checksum check for keeping draft up to date
