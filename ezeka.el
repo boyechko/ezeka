@@ -2397,6 +2397,17 @@ return NIL."
      (when (ezeka-link-at-point-p)
        (ezeka-link-at-point)))))
 
+(defun ezeka--initialize-org-id-locations ()
+  "Initialize the org-id locations."
+  (interactive)
+  (unless (listp org-id-extra-files)
+    (setq org-id-extra-files '()))
+  (dolist (file
+           (directory-files-recursively
+            ;; FIXME: hardcoded
+            (ezeka-kasten-directory "scriptum") ".*\\.txt"))
+    (cl-pushnew file org-id-extra-files)))
+
 ;;; TODO:
 ;;; - implement some kind of checksum check for keeping draft up to date
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
