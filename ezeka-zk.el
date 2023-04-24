@@ -204,7 +204,6 @@ usable in the other window, in which case set that as the new parent."
               (ezeka-zk-with-kasten (ezeka--read-kasten "Which Kasten is the parent in? ")
                 (zk--select-file "Set parent to: "))))))
     (ezeka--update-metadata-values filename nil :parent new-parent)))
-    (ezeka--update-metadata-values filename nil :parent new-parent)))
 
 ;;;=============================================================================
 ;;; Mapping Across Zk-Index Buttons
