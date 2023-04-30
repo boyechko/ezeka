@@ -2551,7 +2551,7 @@ different. With \\[universal-argument] ARG, forces update."
           (dolist (org-id used-list)
             (org-id-goto org-id)
             (org-back-to-heading t)
-            (org-set-tags (cl-union '("CHANGED") (org-get-tags))))))
+            (org-set-tags (cl-union '("CHANGED") (org-get-tags) :test #'string=)))))
       (switch-to-buffer current))))
 (add-hook 'ezeka-modified-updated-hook #'ezeka--update-inserted-snippet)
 
