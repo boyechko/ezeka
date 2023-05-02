@@ -882,8 +882,8 @@ troublesome characters."
            (":" ",")
            ("\"" "")
            ("|" "-")
-           ("?" "+")
-           ("*" "+")
+           ("?" "_")
+           ("*" "_")
            ("." ""))))
     (ezeka--replace-pairs-in-string replacements title)))
 
