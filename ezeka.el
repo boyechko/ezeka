@@ -550,7 +550,11 @@ content. If HEADER-ONLY is non-nil, only get the header."
                    (if (re-search-forward "\n\n" nil t)
                        (match-beginning 0)
                      (point-max)))))))
-    (cond ((get-file-buffer file)
+    (cond ((null file)
+           (unless noerror
+             (signal 'type-error
+                     '("FILE is nil, but should be a string"))))
+          ((get-file-buffer file)
            (save-excursion
              (save-restriction
                (with-current-buffer (get-file-buffer file)
