@@ -2220,21 +2220,24 @@ With \\[universal-argument] ARG, asks for a different name."
   (insert (ezeka--format-link
            (ezeka-decode-time-into-tempus-currens (org-read-date t t)))))
 
-(defun ezeka-dwim-with-this-timestring (beg end)
-  "Do What I Mean with the timestring in the region between BEG and END.
-If the timestring is IS8601, make it into an org-time-stamp, and vice-versa.
-If it's something else, try to make it into org-time-stamp."
-  (interactive
-   (cond ((org-at-timestamp-p t)
-          (list (match-beginning 0) (match-end 0)))
-         ((or (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
-              (thing-at-point-looking-at ezeka-iso8601-date-regexp))
-          (list (match-beginning 0) (match-end 0)))
-         ((region-active-p)
-          (list (region-beginning) (region-end)))
-         ((user-error "Region not active"))))
-  (let ((text (buffer-substring-no-properties beg end))
-        timestamp)
+(defun ezeka-dwim-with-this-timestring (&optional beg end)
+  "Do What I Mean with the timestring at point or between BEG and END.
+If the timestring is IS8601, make it into an org-time-stamp, and
+vice-versa. If it's something else, try to make it into
+org-time-stamp. Return the result of the conversion."
+  (interactive (if (region-active-p)
+                   (list (region-beginning) (region-end))
+                 (list)))
+  (when beg (goto-char beg))
+  ;; FIXME: This does not recognize extended timestamp w/o brackets
+  (if (or (org-at-timestamp-p t)
+          (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
+          (thing-at-point-looking-at ezeka-iso8601-date-regexp))
+      (setq beg (match-beginning 0)
+            end (match-end 0))
+    (error "Can't find any time strings here"))
+  (let* ((text (buffer-substring-no-properties beg end))
+         timestamp)
     ;; if the region was surrounded by parentheses, remove those
     (save-excursion
       (goto-char (1- beg))
@@ -2243,31 +2246,33 @@ If it's something else, try to make it into org-time-stamp."
         (setq beg (- beg 1)
               end (- end 1))))
     (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
-           (let ((parsed (iso8601-parse text)))
+           (let ((timestamp (iso8601-parse text)))
              (delete-region beg end)
-             (org-insert-time-stamp (iso8601--encode-time parsed)
-                                    (integerp (car parsed)) t)))
+             (org-insert-time-stamp (iso8601--encode-time timestamp)
+                                    (integerp (car timestamp)) t)
+             org-last-inserted-timestamp))
           ((setq timestamp              ; org timestamp -> ISO-8601
              (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
                                             text
                                           (format "[%s]" text))))
-           (delete-region beg end)
-           (insert
-            (org-timestamp-format timestamp "[[%Y%m%dT%H%M]]")))
+           (let ((iso8601 (org-timestamp-format timestamp "%Y%m%dT%H%M")))
+             (delete-region beg end)
+             (insert iso8601)
+             iso8601))
           ((integerp (car (parse-time-string text))) ; datetime -> org timestamp
            (delete-region beg end)
-           (org-insert-time-stamp (encode-time (parse-time-string text)) t t))
-          ((integerp (nth 4 (parse-time-string text))) ; date -> ISO-8601
-           (let* ((parsed (parse-time-string text)))
-             (setf (decoded-time-second parsed) 0
-                   (decoded-time-minute parsed) 0
-                   (decoded-time-hour   parsed) 0)
+           (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
+           org-last-inserted-timestamp)
+          ((integerp (nth 4 (setq parsed (parse-time-string text)))) ; date -> ISO-8601
+           (setf (decoded-time-second parsed) 0
+                 (decoded-time-minute parsed) 0
+                 (decoded-time-hour   parsed) 0)
+           (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
              (when (y-or-n-p
-                    (format "Is %s same as %s? "
-                            text
-                            (format-time-string "%F" (encode-time parsed))))
+                    (format "Is %s same as %s? " text timestamp))
                (delete-region beg end)
-               (insert (format-time-string "%F" (encode-time parsed))))))
+               (insert timestamp)
+               timestamp)))
           (t
            (signal 'wrong-type-argument (list text))))))
 
