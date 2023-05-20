@@ -2220,6 +2220,15 @@ With \\[universal-argument] ARG, asks for a different name."
   (insert (ezeka--format-link
            (ezeka-decode-time-into-tempus-currens (org-read-date t t)))))
 
+(defvar ezeka--org-timestamp-regexp
+  (rx (seq
+       (= 4 digit) "-" (= 2 digit) "-" (= 2 digit)
+       " "
+       (= 3 letter)
+       " "
+       (= 2 digit) ":" (= 2 digit)))
+  "Regexp matching Org timestamp, either with or without time.")
+
 (defun ezeka-dwim-with-this-timestring (&optional beg end)
   "Do What I Mean with the timestring at point or between BEG and END.
 If the timestring is IS8601, make it into an org-time-stamp, and
@@ -2229,8 +2238,7 @@ org-time-stamp. Return the result of the conversion."
                    (list (region-beginning) (region-end))
                  (list)))
   (when beg (goto-char beg))
-  ;; FIXME: This does not recognize extended timestamp w/o brackets
-  (if (or (org-at-timestamp-p t)
+  (if (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
           (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
           (thing-at-point-looking-at ezeka-iso8601-date-regexp))
       (setq beg (match-beginning 0)
