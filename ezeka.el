@@ -2093,12 +2093,13 @@ no matter what. With DEGREE, traces genealogy further than parent."
                         (and ancestor
                              (alist-get :citekey
                                (ezeka-file-metadata (ezeka-link-file ancestor) t)))
-                        (read-string "New citekey: ")))
-           (citekey (when (and citekey (not (string-empty-p citekey)))
-                      (string-trim-left citekey "@"))))
-      (ezeka--update-metadata-values filename nil
-                                     :citekey (when citekey
-                                                (concat "@" citekey))))))
+                        (read-string "New citekey: "))))
+      (ezeka--update-metadata-values
+          filename nil
+        :citekey (if (and citekey
+                          (string-match-p "^[^@&]" citekey))
+                     (concat "@" citekey)
+                   citekey)))))
 
 (defun ezeka-set-author (filename author)
   "Set the AUTHOR metadata in Zettel FILENAME."
