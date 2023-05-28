@@ -192,18 +192,28 @@ Return `ezeka-zk-metadata-alist'."
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel, unless
 \\[universal-argument] OTHER-WINDOW is non-nil and there is something
-usable in the other window, in which case set that as the new parent."
+usable in the other window, in which case set that as the new parent.
+With double \\[universal-argument], clear parent metadata."
   (interactive (list (ezeka--grab-dwim-file-target)
                      nil
-                     (when current-prefix-arg
-                       (ezeka--link-to-other-window))))
+                     (cond ((equal current-prefix-arg '(16))
+                            :none)
+                           (current-prefix-arg
+                            (ezeka--link-to-other-window))
+                           (t
+                            nil))))
   (let ((new-parent
          (or new-parent
              other-window
              (ezeka-file-link
-              (ezeka-zk-with-kasten (ezeka--read-kasten "Which Kasten is the parent in? ")
+              (ezeka-zk-with-kasten
+                  (ezeka--read-kasten "Which Kasten is the parent in? ")
                 (zk--select-file "Set parent to: "))))))
-    (ezeka--update-metadata-values filename nil :parent new-parent)))
+    (ezeka--update-metadata-values filename nil
+      :parent (if (not (eq new-parent :none))
+                  new-parent
+                (message "Parent metadata cleared")
+                nil))))
 
 ;;;=============================================================================
 ;;; Mapping Across Zk-Index Buttons
