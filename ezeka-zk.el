@@ -205,10 +205,10 @@ With double \\[universal-argument], clear parent metadata."
   (let ((new-parent
          (or new-parent
              other-window
-             (ezeka-file-link
-              (ezeka-zk-with-kasten
-                  (ezeka--read-kasten "Which Kasten is the parent in? ")
-                (zk--select-file "Set parent to: "))))))
+             (let ((kasten (ezeka--read-kasten "Parent's Kasten? ")))
+               (ezeka-file-link
+                (ezeka-zk-with-kasten kasten
+                  (zk--select-file "Set parent to: ")))))))
     (ezeka--update-metadata-values filename nil
       :parent (if (not (eq new-parent :none))
                   new-parent
