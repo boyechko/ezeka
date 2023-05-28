@@ -1233,15 +1233,17 @@ abase26 equivalent of 0, namely 'a'."
                (random 100))))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
-(defun ezeka--generate-id (kasten)
-  "Return the next unused ID for the given KASTEN."
+(defun ezeka--generate-id (kasten &optional confirm)
+  "Return the next unused ID for the given KASTEN.
+If CONFIRM is non-nil, interactively confirm that the generated ID is
+acceptable."
   (let ((type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
         id)
-    (cl-flet ((exists-p ()
-                "Checks if ID is either NIL or exists."
-                (or (null id)
+    (cl-flet ((keep-checking-p (candidate)
+                "Checks if CANDIDATE is either NIL or exists."
+                (or (null candidate)
                     (ignore-errors
-                      (ezeka-link-file (ezeka-make-link kasten id))))))
+                      (ezeka-link-file (ezeka-make-link kasten candidate))))))
       (if (and (eq type :numerus)
                (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
           (unwind-protect
@@ -1250,20 +1252,26 @@ abase26 equivalent of 0, namely 'a'."
                    (in-ezeka-dir ezeka-pregenerated-numeri-file))
                 (let ((left (count-lines (point-min) (point-max))))
                   (unwind-protect
-                      (while (and (> left 0) (exists-p))
+                      (while (and (> left 0) (keep-checking-p id))
                         (setq id
                           (string-trim
                            (delete-and-extract-region
                             (point-min)
                             (search-forward-regexp "[[:space:]]" nil t))))
-                        (cl-decf left))
+                        (unless (or (not confirm)
+                                    (y-or-n-p (format "Is %s acceptable? " id)))
+                          (setq id nil)))
+                    (cl-decf left)
                     (let ((inhibit-message t))
                       (basic-save-buffer)))
                   (message "%d pregenerated numer%s left"
                            left
                            (if (= left 1) "us" "i")))))
-        (while (exists-p)
-          (setq id (ezeka--random-id type)))))
+        (while (keep-checking-p id)
+          (if (not confirm)
+              (setq id (ezeka--random-id type))
+            (y-or-n-p (format "Is %s acceptable? "
+                              (setq id (ezeka--random-id type))))))))
     id))
 
 ;;;=============================================================================
@@ -1727,7 +1735,7 @@ link to the new child. If ID is non-nil, use that instead of
 generating one."
   (let* ((kasten (or kasten (ezeka-link-kasten parent)))
          (child-link (ezeka-make-link
-                      kasten (or id (ezeka--generate-id kasten)))))
+                      kasten (or id (ezeka--generate-id kasten 'confirm)))))
     (when parent
       (add-to-list 'ezeka--new-child-plist
         (list child-link :parent parent)))
@@ -2737,17 +2745,13 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
                              (mapcar #'ezeka-kasten-name ezeka-kaesten)))
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
-         (source-link (ezeka-file-link source-file)))
-    (while (not target-link)
-      (let ((candidate
-             (ezeka-make-link
-              kasten
-              ;; FIXME: Hardcoded
-              (if (eq (ezeka-kasten-id-type (ezeka-kasten-named kasten)) :tempus)
-                  (ezeka-tempus-currens-id-for source-link)
-                (ezeka--generate-id kasten)))))
-        (when (y-or-n-p (format "Is %s acceptable? " candidate))
-          (setq target-link candidate))))
+         (source-link (ezeka-file-link source-file))
+         (target-link (or target-link
+                          (if (eq (ezeka-kasten-id-type
+                                   (ezeka-kasten-named kasten))
+                                  :tempus) ; FIXME: Hardcoded
+                              (ezeka-tempus-currens-id-for source-link)
+                            (ezeka--generate-id kasten 'confirm)))))
     (if (not target-link)
         (error "Don't know where to move %s" source-link)
       ;; Offer to save buffers, since zmove tries to update links
