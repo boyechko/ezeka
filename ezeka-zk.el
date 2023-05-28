@@ -468,7 +468,8 @@ replaced in number of files."
             (with-current-buffer (or open-buffer
                                      (find-file-noselect f))
               (let ((f-mdata (ezeka-file-metadata f)))
-                (when (string= (alist-get :parent f-mdata) bf-id)
+                (when (ezeka--parent-of-p f bf-id f-mdata)
+                  ;; FIXME: Worth extending to preserve multiple parents?
                   (setf (alist-get :parent f-mdata) after)
                   (ezeka--update-file-header f f-mdata)
                   (cl-incf count))
@@ -486,6 +487,18 @@ replaced in number of files."
                 (kill-buffer (current-buffer)))))))
       (message "Replaced %d link(s) in %d files" count (length with-links))
       (cons count (length with-links)))))
+
+(defun ezeka--parent-of-p (note1 note2 &optional metadata)
+  "Return non-nil if NOTE1 is a child of NOTE2.
+METADATA is NOTE's metadata."
+  (let* ((mdata (or metadata (ezeka-file-metadata note1)))
+         (parents (alist-get :parent mdata))
+         (note2-id (ezeka-link-id note2))) ; FIXME: What if it's a file?
+    (cl-typecase parents
+      (null   nil)
+      (string (string= parents note2-id))
+      (cons   (cl-find note2-id parents :test #'string=))
+      (t (error "Don't know how to handle" (type-of parents))))))
 
 (defun ezeka-zk-delete-note (link-or-file &optional change-to)
   "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
