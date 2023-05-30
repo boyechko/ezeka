@@ -2122,7 +2122,8 @@ no matter what. With DEGREE, traces genealogy further than parent."
 
 (defun ezeka-add-keyword (filename keyword &optional arg)
   "Add the given KEYWORD to the Zettel note in FILENAME.
-With \\[universal-argument] ARG, clear keywords first."
+With \\[universal-argument] ARG, clear keywords first;
+with double \\[universal-argument], clear all keywords."
   (interactive (list (ezeka--grab-dwim-file-target)
                      (completing-read "Add keyword: " ezeka-keywords nil nil "#")
                      current-prefix-arg))
@@ -2132,7 +2133,8 @@ With \\[universal-argument] ARG, clear keywords first."
            (keywords (unless (equal arg '(4))
                        (alist-get :keywords metadata))))
       (unless (or (string-empty-p keyword)
-                  (string= keyword "#"))
+                  (string= keyword "#") ; default input
+                  (equal arg '(16)))
         (cl-pushnew keyword keywords))
       (ezeka--update-metadata-values filename metadata :keywords keywords))))
 
