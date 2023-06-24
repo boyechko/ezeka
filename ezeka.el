@@ -47,7 +47,12 @@ Group 2 is the kasten, if specified."
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp)))
 
 (defvar ezeka-iso8601-date-regexp
-  "\\<\\([0-9]\\{4\\}\\)-*\\([0-9]\\{2\\}\\)-*\\([0-9]\\{2\\}\\)"
+  (rx word-boundary
+    (group (repeat 4 digit))
+    (* "-")
+    (group (repeat 2 digit))
+    (* "-")
+    (group (repeat 2 digit)))
   "The regular expression that matches ISO 8601-like date.
 Groups 1-3 are year, month, day.")
 
