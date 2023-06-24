@@ -1098,6 +1098,42 @@ like slash (/) or colon (:), and is less than 255 characters long."
   (or (string-match-p "[/:*]" filename)
       (> (length filename) 255)))
 
+(defvar ezeka--unnormalized-files-to-move nil
+  "An alist of file names to rename with the caption inside metadata.
+Each element should consist of the key (full file name), what it
+should be renamed to (base file name), and current timestamp.")
+
+(defun ezeka-rename-unnormalized-files (&optional confirm)
+  "Rename files in `ezeka--unnormalized-files-to-move'.
+If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
+  (interactive "P")
+  (mapc
+   (lambda (entry)
+     (cl-destructuring-bind (filename caption time)
+         entry
+       (let ((renamed (expand-file-name
+                       (file-name-with-extension caption
+                                                 ezeka-file-extension)
+                       (file-name-directory filename))))
+         (cond ((file-exists-p renamed)
+                (unless (y-or-n-p (format "File `%s' already exists. Skip? "
+                                          caption))
+                  (error "File `%s' already exists" caption)))
+               ((and (file-exists-p filename)
+                     (or (not confirm)
+                         (y-or-n-p
+                          (format "Move [%s]\n  to [%s]\n(saved on %s)? "
+                                  (file-name-base filename)
+                                  caption
+                                  (format-time-string "%F" time)))))
+                (rename-file filename renamed)))
+         (if (file-exists-p renamed)
+             (when (y-or-n-p "Success! Remove entry? ")
+               (cl-delete filename ezeka--unnormalized-files-to-move
+                          :test #'string= :key #'car))
+           (message "Rename failed")))))
+        ezeka--unnormalized-files-to-move))
+
 (defun ezeka-normalize-file-name (&optional filename metadata arg)
   "Ensure that FILENAME's captioned name matches the METADATA.
 With \\[universal-argument] ARG, offer to set metadata or rename the
@@ -1111,11 +1147,12 @@ file even if they are in agreement."
                            "[F]ilename: %s\n"
                            "[M]etadata: %s\n"
                            "Press [f/u] to set metadata from filename (uppercase to edit),\n"
-                           "      [m/l] to set filename from metadata (uppercase to edit), or\n"
+                           "      [m/l] to set filename from metadata (uppercase to edit),\n"
+                           "      [r] to add file to a list for renaming later, or\n"
                            "      [n] or [q] to do noting: ")
                    (propertize file-base 'face 'bold)
                    (propertize mdata-base 'face 'bold-italic))
-           '(?f ?F ?u ?U ?m ?M ?l ?L ?n ?N ?q ?Q))))
+           '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
     (let* ((filename (or filename buffer-file-name))
            (file-base (file-name-base filename))
            (mdata (if (null metadata)
@@ -1129,6 +1166,21 @@ file even if they are in agreement."
       (cond ((member keep-which '(nil ?n ?q))
              ;; do nothing
              )
+            ((and (member keep-which '(nil ?r ?R))
+                  (not (alist-get filename ezeka--unnormalized-files-to-move
+                                  nil nil #'file-equal-p)))
+             (push (list filename mdata-base (current-time))
+                   ezeka--unnormalized-files-to-move))
+            ((and (member keep-which '(nil ?r ?R))
+                  (y-or-n-p
+                   (format
+                    "File `%s' already scheduled to be moved to `%s'. Update? "
+                    (file-name-base filename)
+                    (car (alist-get filename ezeka--unnormalized-files-to-move
+                                    nil nil #'string=)))))
+             (setf (alist-get filename ezeka--unnormalized-files-to-move
+                              nil nil #'string=)
+                   (list mdata-base (current-time))))
             ((member keep-which '(?f ?F ?u ?U))
              (when (member keep-which '(?F ?U))
                (setq file-base (ezeka--minibuffer-edit-string file-base)))
