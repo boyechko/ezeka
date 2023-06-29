@@ -44,7 +44,7 @@
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified."
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" (ezeka--id-regexp)))
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" "\\(?1:" (ezeka--id-regexp) "\\)"))
 
 (defvar ezeka-iso8601-date-regexp
   (rx word-boundary
@@ -176,11 +176,9 @@ order in various `completing-read' invocations."
 
 (defun ezeka--id-regexp (&optional id-type)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
-If ID-TYPE is not given, return a regexp that matches all known types.
-
-Group 1 is the ID."
+If ID-TYPE is not given, return a regexp that matches all known types."
   (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
-    (concat "\\(?1:"
+    (concat "\\(?:"
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
               (mapconcat (lambda (k) (ezeka-kasten-id-regexp k))

@@ -75,7 +75,9 @@ The regexp captures these groups:
 
 Group 1 is the ezk ID.
 Group 2 is the title."
-  (concat (ezeka--id-regexp)            ; captures group 1
+  (concat "\\(?1:"
+          (ezeka--id-regexp)
+          "\\)"
           "\\(?2: [^.]+\\)*"
           "\\."
           zk-file-extension
