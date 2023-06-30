@@ -2290,11 +2290,13 @@ With \\[universal-argument] ARG, asks for a different name."
 
 (defvar ezeka--org-timestamp-regexp
   (rx (seq
+       (optional (or "[" "<"))
        (= 4 digit) "-" (= 2 digit) "-" (= 2 digit)
        " "
        (= 3 letter)
        " "
-       (= 2 digit) ":" (= 2 digit)))
+       (= 2 digit) ":" (= 2 digit)
+       (optional (or "]" ">"))))
   "Regexp matching Org timestamp, either with or without time.")
 
 (defun ezeka-dwim-with-this-timestring (&optional beg end)
