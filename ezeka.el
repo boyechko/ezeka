@@ -2175,23 +2175,25 @@ no matter what. With DEGREE, traces genealogy further than parent."
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :author author)))
 
-(defun ezeka-add-keyword (filename keyword &optional arg)
+(defun ezeka-add-keyword (filename keyword &optional replace)
   "Add the given KEYWORD to the Zettel note in FILENAME.
-With \\[universal-argument] ARG, clear keywords first;
-with double \\[universal-argument], clear all keywords."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (completing-read "Add keyword: " ezeka-keywords nil nil "#")
-                     current-prefix-arg))
+When KEYWORD is nil (or \\[universal-argument]), clear any existing
+keywords. When REPLACE is non-nil (or double \\[universal-argument]),
+replace them with KEYWORD."
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         (pcase current-prefix-arg
+           ('(4) nil)
+           ('(16) (completing-read "Replace with keyword: " ezeka-keywords))
+           (_ (completing-read "Add keyword: " ezeka-keywords)))
+         (equal current-prefix-arg '(16))))
   (if (not (ezeka-note-p filename))
-      (error "Not a Zettel note")
-    (let* ((metadata (ezeka-file-metadata filename))
-           (keywords (unless (equal arg '(4))
-                       (alist-get :keywords metadata))))
-      (unless (or (string-empty-p keyword)
-                  (string= keyword "#") ; default input
-                  (equal arg '(16)))
-        (cl-pushnew keyword keywords))
-      (ezeka--update-metadata-values filename metadata :keywords keywords))))
+      (user-error "This command can only be sued on Zettel notes")
+    (let ((mdata (ezeka-file-metadata filename)))
+      (ezeka--update-metadata-values filename mdata
+        :keywords (cond (replace (list keyword))
+                        (keyword (cons keyword (alist-get :keywords mdata)))
+                        (t nil))))))
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
