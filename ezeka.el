@@ -343,7 +343,8 @@ It is a Zettel if all of these conditions are met:
                            '("FILE-OR-BUFFER can only be file or buffer"))))))
       (when file
         (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match (ezeka-file-name-regexp) (file-name-base file))
+             (string-match (concat "^" (ezeka-file-name-regexp) "$")
+                           (file-name-base file))
              (if strict
                  (and (file-exists-p file)
                       (string-prefix-p ezeka-directory file)) ; FIXME: Hack
