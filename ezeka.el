@@ -1340,7 +1340,8 @@ acceptable."
 
 (defun ezeka-tempus-currens-id-for (link)
   "Return a suitable tempus currens ID for the given Zettel LINK."
-  (if (eq (ezeka-kasten-id-type (ezeka-link-kasten link)) :tempus)
+  (if (eq (ezeka-kasten-id-type (ezeka-kasten-named (ezeka-link-kasten link)))
+          :tempus)
       ;; If already tempus currens, just return that id
       (ezeka-link-id link)
     ;; Otherwise come up with an appropriate ID based on the metadata
