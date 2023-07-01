@@ -2189,13 +2189,20 @@ replace them with KEYWORD."
            ('(16) (completing-read "Replace with keyword: " ezeka-keywords))
            (_ (completing-read "Add keyword: " ezeka-keywords)))
          (equal current-prefix-arg '(16))))
-  (if (not (ezeka-note-p filename))
-      (user-error "This command can only be sued on Zettel notes")
-    (let ((mdata (ezeka-file-metadata filename)))
-      (ezeka--update-metadata-values filename mdata
-        :keywords (cond (replace (list keyword))
-                        (keyword (cons keyword (alist-get :keywords mdata)))
-                        (t nil))))))
+  (let ((keyword (cond ((null keyword) nil)
+                       ((string-match-p "^#\\w+$" keyword)
+                        keyword)
+                       ((string-match-p "^\\w+$" keyword)
+                        (concat "#" keyword))
+                       (t
+                        (user-error "Keywords must consist of \\w characters")))))
+    (if (not (ezeka-note-p filename))
+        (user-error "This command can only be used on Zettel notes")
+      (let ((mdata (ezeka-file-metadata filename)))
+        (ezeka--update-metadata-values filename mdata
+          :keywords (cond (replace (list keyword))
+                          (keyword (cons keyword (alist-get :keywords mdata)))
+                          (t nil)))))))
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
