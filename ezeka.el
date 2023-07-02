@@ -130,8 +130,8 @@ Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
 
 (defcustom ezeka-save-after-metadata-updates 'confirm
   "Whether to automatically save the file after modification.
-Functions affected are `ezeka-set-label', `ezeka-set-title', and
-`ezeka-set-citekey'."
+Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
+`ezeka-set-title-or-caption'."
   :type 'symbol
   :options '(nil t confirm)
   :group 'ezeka)
@@ -2095,9 +2095,7 @@ should consist of KEY and VALUE pairs.
           (unless already-open
             (kill-buffer-if-not-modified buf)))))))
 
-;; TODO: Also ask about updating the filename
-;; TODO: Change name to `ezeka-set-title-and-caption'
-(defun ezeka-set-title (filename &optional new-val keep-title keep-caption)
+(defun ezeka-set-title-or-caption (filename &optional new-val keep-title keep-caption)
   "Update the title in FILENAME's header to NEW-VAL.
 With \\[universal-argument] or non-nil KEEP-CAPTION, don't change the
 caption; with double \\[universal-argument] or non-nil KEEP-TITLE,
@@ -2915,7 +2913,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
           ;;------------------------------------------------------------------
           '(
             ("C-c `" . ezeka-toggle-header-read-only) ; `org-table-edit-field'
-            ("C-c ~" . ezeka-set-title) ; `org-table-create-with-table\.el'
+            ("C-c ~" . ezeka-set-title-or-caption) ; `org-table-create-with-table\.el'
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-add-keyword)
@@ -2931,7 +2929,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
-            ("C-c ]" . ezeka-set-title) ;
+            ("C-c ]" . ezeka-set-title-or-caption) ;
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
             ("C-c '" . ezeka-set-label) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
