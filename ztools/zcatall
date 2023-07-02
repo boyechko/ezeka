@@ -1,4 +1,5 @@
 #!/bin/bash
+# Concatenate all text files in $ZETTEL_DIR
 
 if [[ -z "$ZETTEL_DIR" ]]; then
     echo "$(basename $0): $ZETTEL_DIR is not set"

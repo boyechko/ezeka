@@ -20,6 +20,7 @@ readings
 summary
 notes
 connections
+related
 EOF
 
 # Create frequency file if it doesn't exist
