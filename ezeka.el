@@ -2922,14 +2922,14 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c ^" . ezeka-find-ancestor)
             ;; ("C-c &" . ) ; yasnippet
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
-            ;; ("C-c (" . ) ;
-            ("C-c )" . ezeka-normalize-file-name)
+            ("C-c (" . ezeka-normalize-file-name)
+            ("C-c )" . ezeka-set-title-or-caption)
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
             ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
             ("C-c +" . ezeka-dwim-with-this-timestring)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
-            ("C-c ]" . ezeka-set-title-or-caption) ;
+            ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
             ("C-c '" . ezeka-set-label) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
