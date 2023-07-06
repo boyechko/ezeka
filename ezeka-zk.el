@@ -445,19 +445,24 @@ If LITERAL is non-nil, search for STRING literallyl."
                             (regexp-quote string)
                           (string-replace " " ".*" string)))))
 
-(defun ezeka-zk-replace-links (before after &optional directory)
+(defun ezeka-zk-replace-links (before after &optional directory confirm)
   "Replace BEFORE links to AFTER links in DIRECTORY.
 DIRECTORY defaults to `ezeka-directory' if not given. If AFTER is nil,
 replace the link with {{BEFORE}}. Returns a tuple of number of links
-replaced in number of files."
+replaced in number of files. If CONFIRM (or \\[universal-argument]) is
+non-nil, check with user before replacing."
   (interactive
    (if current-prefix-arg
        (list (read-string "Before: ")
-             (read-string "After: "))
+             (read-string "After: ")
+             nil
+             (y-or-n-p "Confirm before replacing? "))
      (let* ((zk-directory ezeka-directory)
             (files (zk--directory-files)))
        (list (ezeka-file-link (zk--select-file "Before: " files))
-             (ezeka-file-link (zk--select-file "After: " files))))))
+             (ezeka-file-link (zk--select-file "After: " files))
+             nil
+             (y-or-n-p "Confirm before replacing? ")))))
   (let* ((bf-id (ezeka-link-id before))
          (with-links
           (let ((zk-directory (or directory ezeka-directory)))
@@ -471,21 +476,28 @@ replaced in number of files."
           (save-excursion
             (with-current-buffer (or open-buffer
                                      (find-file-noselect f))
-              (let ((f-mdata (ezeka-file-metadata f)))
-                (when (ezeka--parent-of-p f bf-id f-mdata)
+              (if confirm (switch-to-buffer (current-buffer)))
+              (let ((f-mdata (ezeka-file-metadata f))
+                    (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
+                    (replacement (if after
+                                     (ezeka--format-link after)
+                                   (format "{%s~}" before))))
+                ;; Replace parent
+                (when (and (ezeka--parent-of-p f bf-id f-mdata)
+                           (or (not confirm)
+                               (y-or-n-p (format "Replace parent in %s (%s)? "
+                                                 (alist-get :title f-mdata)
+                                                 (alist-get :id f-mdata)))))
                   ;; FIXME: Worth extending to preserve multiple parents?
                   (setf (alist-get :parent f-mdata) after)
                   (ezeka--update-file-header f f-mdata)
                   (cl-incf count))
                 (goto-char (point-min))
-                (while (re-search-forward
-                        (format "\\[\\[[a-z:]*%s]]" bf-id) nil t)
-                  (replace-match (save-match-data
-                                   (if after
-                                       (ezeka--format-link after)
-                                     (format "{%s~}" before)))
-                                 t)
-                  (cl-incf count)))
+                (if confirm
+                    (query-replace-regexp link-regexp replacement)
+                  (while (re-search-forward link-regexp nil t)
+                    (replace-match replacement t)
+                    (cl-incf count))))
               (save-buffer)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
