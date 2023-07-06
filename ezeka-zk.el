@@ -518,8 +518,12 @@ METADATA is NOTE's metadata."
 
 (defun ezeka-zk-delete-note (link-or-file &optional change-to)
   "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
-If CHANGE-TO is not given, use the note's parent, if set."
-  (interactive (list (ezeka--grab-dwim-file-target)))
+If CHANGE-TO is not given, use the note's parent, if set. With
+\\[universal-argument], ask the user to enter CHANGE-TO."
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         (when (equal current-prefix-arg '(16))
+           (read-string "Change links to what? "))))
   (let* ((file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
                  link-or-file))
