@@ -1081,19 +1081,22 @@ header. If FORCE is non-nil, update the header even if the the file
 has not changed since last update."
   (interactive (list buffer-file-name))
   (let* ((filename (or filename buffer-file-name))
-         (metadata (or metadata (ezeka-file-metadata filename)))
+         (metadata (or metadata (ezeka-file-metadata filename 'noerror)))
          (previous (assoc-string filename ezeka--previously-updated))
          (old-point (point))
          (inhibit-read-only t))
-    (when (or force
-              (not (string= (buffer-hash) (cadr previous))))
-      (setq metadata
-        (ezeka--set-time-of-creation
-         (ezeka--maybe-update-modifed
-          (ezeka--reconcile-title-and-caption metadata))))
-      (ezeka--replace-file-header filename metadata)
-      (setf (alist-get filename ezeka--previously-updated nil nil #'string=)
-            (list (buffer-hash) metadata)))
+    (if (and metadata
+             (or force
+                 (not (string= (buffer-hash) (cadr previous)))))
+        (progn
+          (setq metadata
+            (ezeka--set-time-of-creation
+             (ezeka--maybe-update-modifed
+              (ezeka--reconcile-title-and-caption metadata))))
+          (ezeka--replace-file-header filename metadata)
+          (setf (alist-get filename ezeka--previously-updated nil nil #'string=)
+                (list (buffer-hash) metadata)))
+      (message "Cannot update header: can't parse metadata"))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
