@@ -136,6 +136,14 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
   :options '(nil t confirm)
   :group 'ezeka)
 
+(defcustom ezeka-rename-note-keyword "#rename"
+  "Keyword to add to notes that need renaming.
+Because git does not keep track of renames, significantly changing the
+content confuses the default rename detection. It is helpful,
+therefore, to split the operations into two commits."
+  :type 'string
+  :group 'ezeka)
+
 ;;;=============================================================================
 ;;; Kaesten
 ;;;=============================================================================
@@ -1138,75 +1146,70 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
 With \\[universal-argument] ARG, offer to set metadata or rename the
 file even if they are in agreement."
   (interactive (list buffer-file-name nil current-prefix-arg))
-  (cl-flet
-      ((read-user-choice (file-base mdata-base)
-          "Prompt the user about which name to use."
-          (read-char-choice
-           (format (concat "Caption in filename and metadata differ:\n"
-                           "[F]ilename: %s\n"
-                           "[M]etadata: %s\n"
-                           "Press [f/u] to set metadata from filename (uppercase to edit),\n"
-                           "      [m/l] to set filename from metadata (uppercase to edit),\n"
-                           "      [r] to add file to a list for renaming later, or\n"
-                           "      [n] or [q] to do noting: ")
-                   (propertize file-base 'face 'bold)
-                   (propertize mdata-base 'face 'bold-italic))
-           '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
-    (let* ((filename (or filename buffer-file-name))
-           (file-base (file-name-base filename))
-           (mdata (if (null metadata)
-                      (ezeka-file-metadata filename t)
-                    (ezeka--update-file-header filename metadata)
-                    metadata))
-           (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-           (keep-which (unless (and (null arg) (string= mdata-base file-base))
-                         (read-user-choice file-base mdata-base))))
-      (funcall clear-message-function)
-      (cond ((member keep-which '(nil ?n ?q))
-             ;; do nothing
-             )
-            ((and (member keep-which '(nil ?r ?R))
-                  (not (alist-get filename ezeka--unnormalized-files-to-move
-                                  nil nil #'file-equal-p)))
-             (push (list filename mdata-base (current-time))
-                   ezeka--unnormalized-files-to-move))
-            ((and (member keep-which '(nil ?r ?R))
-                  (y-or-n-p
-                   (format
-                    "File `%s' already scheduled to be moved to `%s'. Update? "
-                    (file-name-base filename)
-                    (car (alist-get filename ezeka--unnormalized-files-to-move
-                                    nil nil #'string=)))))
-             (setf (alist-get filename ezeka--unnormalized-files-to-move
-                              nil nil #'string=)
-                   (list mdata-base (current-time))))
-            ((member keep-which '(?f ?F ?u ?U))
-             (when (member keep-which '(?F ?U))
-               (setq file-base (ezeka--minibuffer-edit-string file-base)))
-             (setf (alist-get :id mdata)
-                   (ezeka-file-name-id file-base)
-                   (alist-get :label mdata)
-                   (ezeka-file-name-label file-base)
-                   (alist-get :caption mdata)
-                   (ezeka-file-name-caption file-base)
-                   (alist-get :citekey mdata)
-                   (ezeka-file-name-citekey file-base)
-                   (alist-get :caption-stable mdata)
-                   nil)
-             (ezeka--replace-file-header filename mdata)
-             (ezeka--save-buffer-read-only filename))
-            ((member keep-which '(?m ?M ?l ?L))
-             (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
-               (ezeka--rename-file
-                filename
-                (file-name-with-extension
-                 (if (or (member keep-which '(?M ?L))
-                         (not (string= pasturized mdata-base)))
-                     (ezeka--minibuffer-edit-string pasturized)
-                   pasturized)
-                 ezeka-file-extension)))
-             (when t                    ; TODO check if filename changed
-               (message "You might want to do `ezeka-normalize-file-name' again")))))))
+  (let* ((filename (or filename buffer-file-name))
+         (file-base (file-name-base filename))
+         (mdata (if (null metadata)
+                    (ezeka-file-metadata filename t)
+                  (ezeka--update-file-header filename metadata)
+                  metadata))
+         (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
+         (read-user-choice
+          (lambda (file-base mdata-base)
+            "Prompt the user about which name to use."
+            (read-char-choice
+             (format (concat "Caption in filename and metadata differ:\n"
+                             "[F]ilename: %s\n"
+                             "[M]etadata: %s\n"
+                             "Press [f/u] to set metadata from filename (uppercase to edit),\n"
+                             "      [m/l] to set filename from metadata (uppercase to edit),\n"
+                             "      [r] to add %s keyword for renaming later, or\n"
+                             "      [n] or [q] to do noting: ")
+                     (propertize file-base 'face 'bold)
+                     (propertize mdata-base 'face 'bold-italic)
+                     (propertize ezeka-rename-note-keyword 'face 'bold))
+             '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
+         (keep-which
+          (unless (and (null arg)
+                       (or (string= mdata-base file-base)
+                           (member ezeka-rename-note-keyword
+                                   (alist-get :keywords mdata))))
+            (funcall read-user-choice file-base mdata-base))))
+    (funcall clear-message-function)
+    (cond ((memq keep-which '(nil ?n ?q))
+           ;; do nothing
+           )
+          ((and (memq keep-which '(?r ?R))
+                (not (member ezeka-rename-note-keyword
+                             (alist-get :keywords mdata))))
+           (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
+           (ezeka--save-buffer-read-only filename))
+          ((memq keep-which '(?f ?F ?u ?U))
+           (when (memq keep-which '(?F ?U))
+             (setq file-base (ezeka--minibuffer-edit-string file-base)))
+           (setf (alist-get :id mdata)
+                 (ezeka-file-name-id file-base)
+                 (alist-get :label mdata)
+                 (ezeka-file-name-label file-base)
+                 (alist-get :caption mdata)
+                 (ezeka-file-name-caption file-base)
+                 (alist-get :citekey mdata)
+                 (ezeka-file-name-citekey file-base)
+                 (alist-get :caption-stable mdata)
+                 nil)
+           (ezeka--replace-file-header filename mdata)
+           (ezeka--save-buffer-read-only filename))
+          ((memq keep-which '(?m ?M ?l ?L))
+           (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
+             (ezeka--rename-file
+              filename
+              (file-name-with-extension
+               (if (or (member keep-which '(?M ?L))
+                       (not (string= pasturized mdata-base)))
+                   (ezeka--minibuffer-edit-string pasturized)
+                 pasturized)
+               ezeka-file-extension)))
+           (when t                      ; TODO check if filename changed
+             (message "You might want to do `ezeka-normalize-file-name' again"))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
