@@ -136,11 +136,15 @@ See `zk-index-button-display-action'."
            (find-file file))
           (t (find-file-other-window file)))))
 
-(defun ezeka-zk-format-function (format id title)
-  "Format given ID and TITLE according to FORMAT."
+(defun ezeka-zk-format-function (format id title &optional metadata)
+  "Format given ID and TITLE according to FORMAT.
+Optional METADATA allows internal passing of the metadat structure."
   (if (or (string= id title)
           (string-match-p "%[^icl]" format)) ; FIXME: Hackish
-      (ezeka-format-metadata format (ezeka-file-metadata (ezeka-link-file id)))
+      (let ((mdata (or metadata
+                       (ezeka-file-metadata (ezeka-link-file id)))))
+        (when title (setf (alist-get :title mdata) title))
+        (ezeka-format-metadata format mdata))
     (format-spec format
                  `((?i . ,id)
                    ,@(when (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
