@@ -1993,25 +1993,30 @@ information for Zettelkasten work."
                         file))))
             files)))
 
-(defun ezeka-switch-to-buffer (arg)
+(defun ezeka-switch-to-buffer (&optional modified-only other-window)
   "Quickly switch to other open Zettel buffers.
-With \\[universal-argument] ARG, show only modified buffers. With
-double \\[universal-argument], open buffer in other window."
-  (interactive "P")
-  (let ((table (ezeka-completion-table
-                (nreverse (ezeka-visiting-buffer-list t (equal arg '(4))))))
-        ;; Disabling sorting preserves the same order as with `switch-to-buffer'
-        ;; FIXME: How to do this without relying on vertico?
-        (vertico-sort-function nil))
-    (funcall (if (equal arg '(16))
-                 'switch-to-buffer-other-window
-               'switch-to-buffer)
-             (if table
-                 (get-file-buffer
-                  (cdr (assoc-string
-                        (completing-read "Visit buffer: " table nil t) table)))
-               (read-buffer-to-switch
-                "No opened Zettel. Switch to regular buffer: ")))))
+If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
+modified buffers. If OTHER-WINDOW is non-nil (or double
+\\[universal-argument]), open buffer in other window."
+  (interactive
+   (list (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
+  (let* ((buffers (nreverse (ezeka-visiting-buffer-list t modified-only)))
+         (table (ezeka-completion-table buffers))
+         ;; Disabling sorting preserves the same order as with `switch-to-buffer'
+         ;; FIXME: How to do this without relying on vertico?
+         (vertico-sort-function nil))
+    (if (null buffers)
+        (read-buffer-to-switch
+         (format "No %sZettel buffers. Switch to regular buffer: "
+                 (if modified-only "modified " " ")))
+      (funcall (if other-window
+                   'switch-to-buffer-other-window
+                 'switch-to-buffer)
+               (get-file-buffer
+                (cdr (assoc-string
+                      (completing-read "Visit Zettel buffer: " table nil t)
+                      table)))))))
 
 ;;;=============================================================================
 ;;; Labels
