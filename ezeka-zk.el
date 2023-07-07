@@ -203,7 +203,8 @@ With double \\[universal-argument], clear parent metadata."
                      (cond ((equal current-prefix-arg '(16))
                             :none)
                            (current-prefix-arg
-                            (ezeka--link-to-other-window))
+                            (ezeka-file-link
+                             (ezeka--note-in-other-window)))
                            (t
                             nil))))
   (let ((new-parent

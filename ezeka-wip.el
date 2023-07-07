@@ -152,7 +152,7 @@ usable in the other window, in which case set that as the new parent."
   (interactive (list (ezeka--grab-dwim-file-target)
                      nil
                      (when-let* ((arg current-prefix-arg)
-                                 (other-window (ezeka--link-to-other-window))
+                                 (other-window (ezeka--note-in-other-window))
                                  (numerusp (ezeka-file-kasten other-window)))
                        other-window)))
   (let ((new-parent

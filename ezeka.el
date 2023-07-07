@@ -1544,14 +1544,15 @@ already inside a link, replace it instead."
           (insert (ezeka--format-link link)))
       (message "No visiting Zettel"))))
 
-(defun ezeka--link-to-other-window ()
-  "Return the link to the Zettel note in the other window."
+(defun ezeka--note-in-other-window ()
+  "Return the file name to the Zettel note in the other window.
+If the file is not a Zettel note, return nil."
   (when-let* ((other-buf (window-buffer (other-window-for-scrolling)))
               (file (or (buffer-file-name other-buf)
                         (with-current-buffer other-buf
                           (ezeka--grab-dwim-file-target))))
-              (link (ezeka-file-link file)))
-    link))
+              (_ (ezeka-note-p file)))
+    file))
 
 (defun ezeka-insert-link-to-other-window (&optional link-only)
   "Insert the link to the Zettel note in the other window.
@@ -1559,8 +1560,8 @@ With \\[universal-argument] LINK-ONLY, insert just the link, otherwise
 also include the title."
   (interactive "P")
   (if link-only
-      (ezeka-insert-link-with-metadata (ezeka--link-to-other-window))
-    (ezeka-insert-link-with-metadata (ezeka--link-to-other-window)
+      (ezeka-insert-link-with-metadata (ezeka--note-in-other-window))
+    (ezeka-insert-link-with-metadata (ezeka--note-in-other-window)
                                      '(:author :title) :before t)))
 
 (defun ezeka-insert-link-to-bookmark (arg)
