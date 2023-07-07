@@ -367,6 +367,29 @@ destination kasten."
 ;;; Other
 ;;;=============================================================================
 
+(defun ezeka-zk-insert-link (file)
+  "Insert link to the Zettel FILE.
+Unlike `zk-insert-link', allows editing the title in the
+minibuffer according to the value of `zk-link-and-title': if it's
+'ask or t, the user can edit the title before it is inserted."
+  (interactive (list (zk--select-file "Insert link to: ")))
+  (let ((link (ezeka-file-link file)))
+    (if-let ((_ (or (eq zk-link-and-title 't)
+                    (and (eq zk-link-and-title 'ask)
+                         (y-or-n-p "Include (edited) title? "))))
+             (mdata (ezeka-file-metadata file t)))
+        (zk--insert-link-and-title
+         link
+         (if (eq zk-link-and-title 'ask)
+             (read-string "Title: " (alist-get :title mdata))
+           (alist-get :title mdata)))
+      (zk--insert-link file))))
+
+(defun ezeka-zk-insert-link-to-other-window ()
+  "Insert the link to the Zettel note in the other window."
+  (interactive)
+  (ezeka-zk-insert-link (ezeka--note-in-other-window)))
+
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
   (interactive
@@ -378,25 +401,25 @@ destination kasten."
                      ezeka-kaesten
                      :key #'ezeka-kasten-order)))))
   (ezeka-zk-with-kasten kasten
-    (call-interactively 'zk-insert-link)))
+    (call-interactively 'ezeka-zk-insert-link)))
 
 (defun ezeka-zk-insert-link-to-numerus ()
   "Temporarily set zk variables for numerus and call `zk-insert-link'."
   (interactive)
   (ezeka-zk-with-kasten "numerus"
-    (call-interactively 'zk-insert-link)))
+    (call-interactively 'ezeka-zk-insert-link)))
 
 (defun ezeka-zk-insert-link-to-tempus ()
   "Temporarily set zk variables for tempus and call `zk-insert-link'."
   (interactive)
   (ezeka-zk-with-kasten "tempus"
-    (call-interactively 'zk-insert-link)))
+    (call-interactively 'ezeka-zk-insert-link)))
 
 (defun ezeka-zk-insert-link-to-scriptum ()
   "Temporarily set zk variables for tempus and call `zk-insert-link'."
   (interactive)
   (ezeka-zk-with-kasten "scriptum"
-    (call-interactively 'zk-insert-link)))
+    (call-interactively 'ezeka-zk-insert-link)))
 
 (defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
