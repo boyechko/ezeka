@@ -2771,28 +2771,40 @@ This is the Bookmark record function for Zettel files."
 ;;; Maintenance
 ;;;=============================================================================
 
-(defvar ezeka--move-log-file "auto/zmove.log"
+(defvar ezeka--move-log-file "auto/move.log"
   "Path, relative to `ezeka-directory', to the log file for recording moves.")
 
 (defun ezeka--add-to-move-log (link1 link2)
   "Log the move from LINK1 to LINK2 in `ezeka--move-log-file'."
+  ;; FIXME: Hardcoded
+  ;; ("SOURCE" "TARGET" "TIME")
   (write-region (format "\n%S" (list link1 link2 (format-time-string "%FT%T")))
                 nil
                 (expand-file-name ezeka--move-log-file ezeka-directory)
                 'append))
 
-(defun ezeka-link-moved-p (link)
-  "Check whether LINK appears in the `ezeka--move-log-file'."
-  (interactive "sEnter link: ")
+(defun ezeka-link-moved-p (link &optional confirm)
+  "Check whether LINK appears in the `ezeka--move-log-file'.
+If CONFIRM is non-nil, confirm the link to check."
+  (interactive
+   (let ((link (when (ezeka-link-at-point-p t)
+                 (ezeka-link-at-point))))
+     (list (if (or current-prefix-arg (null link))
+               (read-string "Check which link? " link)
+             link))))
   (with-temp-buffer
     (insert-file-contents ezeka--move-log-file)
     (goto-char (point-min))
-    (when-let* ((_ (re-search-forward (concat ".*" link ".*") nil t)))
-      (cl-destructuring-bind (from to time)
-          (read (match-string 0))
-          (if (y-or-n-p (format "%s moved to %s on %s. Open? " from to time))
-              (find-file-other-window (ezeka-link-file to))
-            t)))))
+    (if-let* ((_ (re-search-forward
+                  (concat ".*" link ".*") nil t)))
+        (cl-destructuring-bind (source target time)
+            (read (match-string 0))
+          (kill-new target)
+          (if (y-or-n-p
+               (format "%s moved to %s on %s. Open? " source target time))
+              (find-file-other-window (ezeka-link-file target))
+            t))
+      (message "No record of moving %s" link))))
 
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
