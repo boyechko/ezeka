@@ -2529,11 +2529,17 @@ return NIL."
             (ezeka-kasten-directory "scriptum") ".*\\.txt"))
     (cl-pushnew file org-id-extra-files)))
 
+(defun ezeka--org-move-after-properties ()
+  "Move point after the properties drawer, if any."
+  (when (org-get-property-block)
+    (goto-char (cdr (org-get-property-block)))
+    ;; `org-get-property-block' ends on :END:
+    (unless (zerop (forward-line 2))
+      (insert "\n\n"))))
+
 ;;; TODO:
-;;; - implement some kind of checksum check for keeping draft up to date
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
 ;;; - don't copy subtrees marked with COMMENT
-;;; - update the snippet title in the heading while I'm at it
 ;;; - quickly scan through all the headings and see if any need updating?
 (defun ezeka-insert-snippet-text (arg link)
   "Insert snippet text from the given LINK into the current buffer.
@@ -2544,117 +2550,111 @@ different. With \\[universal-argument] ARG, forces update."
          (or (org-entry-get (point) "SNIP_SOURCE")
              (ezeka--org-nth-link-on-line -1)
              (error "Insert a link to the snippet source first"))))
-  (cl-flet ((move-after-properties ()
-              "Move point after the properties drawer, if any."
-              (when (org-get-property-block)
-               (goto-char (cdr (org-get-property-block)))
-               ;; `org-get-property-block' ends on :END:
-               (forward-line 2))))
-    ;; Get the metadata and most recent modification
-    (save-excursion
-      (save-restriction
-        (org-back-to-heading)
-        (let* ((file (ezeka-link-file link))
-               (mdata (ezeka-file-metadata file))
-               (modified-mdata (format "[%s]"
-                                       (or (alist-get :modified mdata)
-                                           (alist-get :created mdata))))
-               (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
-               (current? (string= modified-mdata modified-prop))
-               (local? (string-match-p "local"
-                                       (or (org-entry-get nil "TAGS")
-                                           "")))
-               (org-id (org-id-get-create)))
-          (org-narrow-to-subtree)
-          (unless 'disabled
-            (ezeka--writeable-region (point-min) (point-max)))
-          (when local?
-            (error "There are local changes (or at least :local: tag)"))
-          (when (looking-at org-outline-regexp)
-            (replace-regexp (regexp-quote (elt (org-heading-components) 4))
-                            (ezeka-format-metadata "%t [[%i]]" mdata)))
-          (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
-            (org-entry-put (point) "SNIP_SOURCE" link))
-          (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
-          (if (and current? (null arg))
-              (message "Snippet is up to date; leaving alone")
-            (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
-            (when (or t (y-or-n-p "Update the text? "))
-              ;; If current line is a comment, create a heading after it
-              (when (org-at-comment-p)
-                (org-insert-subheading nil))
-              ;; Delete existing text
-              (move-after-properties)
-              (let ((start (point))
-                    (comments-removed 0)
-                    (footnotes-removed 0)
-                    (content '()))
-                (delete-region start (point-max))
-                ;; Get the Summary and Snippet subtrees from snippet file
-                (with-current-buffer (find-file-noselect file)
-                  ;; Include Summary section if present
-                  (when (and ezeka-insert-snippet-summary
-                             (org-find-exact-headline-in-buffer "Summary"))
-                    (goto-char (org-find-exact-headline-in-buffer "Summary"))
-                    (forward-line)
-                    (let ((summary-start (point)))
-                      (org-end-of-subtree)
-                      (mapcar (lambda (line)
-                                (push (concat "# " line "\n") content))
-                              (split-string
-                               (buffer-substring-no-properties summary-start (point))
-                               "\n" t))))
-                  (goto-char
-                   (or (org-find-exact-headline-in-buffer "Snippet")
-                       (org-find-exact-headline-in-buffer "Content")
-                       (error "Can't find the Snippet or Content section")))
-                  (if (not org-id)
-                      (warn "No org-id added to file %s" file)
-                    (org-entry-add-to-multivalued-property (point)
-                                                           "USED_IN+"
-                                                           (format "id:%s" org-id)))
-                  (basic-save-buffer)
-                  (move-after-properties)
-                  (let ((content-start (point)))
+  (save-excursion
+    (save-restriction
+      (org-back-to-heading)
+      (let* ((file (ezeka-link-file link))
+             ;; Get the metadata and most recent modification
+             (mdata (ezeka-file-metadata file))
+             (modified-mdata (format "[%s]"
+                                     (or (alist-get :modified mdata)
+                                         (alist-get :created mdata))))
+             (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
+             (current? (string= modified-mdata modified-prop))
+             (local? (string-match-p "local"
+                                     (or (org-entry-get nil "TAGS")
+                                         "")))
+             (org-id (org-id-get-create)))
+        (org-narrow-to-subtree)
+        (unless 'disabled
+          (ezeka--writeable-region (point-min) (point-max)))
+        (when local?
+          (error "There are local changes (or at least :local: tag)"))
+        (when (looking-at org-outline-regexp)
+          (replace-regexp (regexp-quote (elt (org-heading-components) 4))
+                          (ezeka-format-metadata "%t [[%i]]" mdata)))
+        (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
+          (org-entry-put (point) "SNIP_SOURCE" link))
+        (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
+        (if (and current? (null arg))
+            (message "Snippet is up to date; leaving alone")
+          (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
+          (when (or t (y-or-n-p "Update the text? "))
+            ;; If current line is a comment, create a heading after it
+            (when (org-at-comment-p)
+              (org-insert-subheading nil))
+            ;; Delete existing text
+            (ezeka--org-move-after-properties)
+            (let ((start (point))
+                  (comments-removed 0)
+                  (footnotes-removed 0)
+                  (content '()))
+              (delete-region start (point-max))
+              ;; Get the Summary and Snippet subtrees from snippet file
+              (with-current-buffer (find-file-noselect file)
+                ;; Include Summary section if present
+                (when (and ezeka-insert-snippet-summary
+                           (org-find-exact-headline-in-buffer "Summary"))
+                  (goto-char (org-find-exact-headline-in-buffer "Summary"))
+                  (forward-line)
+                  (let ((summary-start (point)))
                     (org-end-of-subtree)
-                    (push (buffer-substring-no-properties content-start (point))
-                          content)))
-                ;; Insert the copied subtrees and remove its headings and comments
-                (apply #'insert (nreverse content))
+                    (mapcar (lambda (line)
+                              (push (concat "# " line "\n") content))
+                            (split-string
+                             (buffer-substring-no-properties summary-start (point))
+                             "\n" t))))
+                (goto-char
+                 (or (org-find-exact-headline-in-buffer "Snippet")
+                     (org-find-exact-headline-in-buffer "Content")
+                     (error "Can't find the Snippet or Content section")))
+                (if (not org-id)
+                    (warn "No org-id added to file %s" file)
+                  (org-entry-add-to-multivalued-property (point)
+                                                         "USED_IN+"
+                                                         (format "id:%s" org-id)))
+                (basic-save-buffer)
+                (ezeka--org-move-after-properties)
+                (let ((content-start (point)))
+                  (org-end-of-subtree)
+                  (push (buffer-substring-no-properties content-start (point))
+                        content)))
+              ;; Insert the copied subtrees and remove its headings and comments
+              (apply #'insert (nreverse content))
+              (goto-char start)
+              (while (re-search-forward "^[*]+ " nil t) ; remove headings
+                (goto-char (match-beginning 0))
+                (ezeka--org-move-after-properties)
+                (kill-region (match-beginning 0) (point)))
+              ;; Remove <<tags>>
+              (goto-char start)
+              (while (re-search-forward "<<[^>]+>>\n*" nil t)
+                (replace-match ""))
+              ;; Remove Zettel links
+              (goto-char start)
+              (while (re-search-forward " ?\\[\\[[^]]+]]" nil t)
+                (replace-match ""))
+              ;; Remove inline @@...@@ and {...~} comments, but not {{...}}
+              (goto-char start)
+              (while (re-search-forward " ?\\(@@\\|{[^{]\\).*\\(@@\\|~}\\)\n*" nil t)
+                (cl-incf comments-removed)
+                (replace-match ""))
+              ;; Remove footnotes if need be
+              (unless ezeka-insert-snippet-footnotes
                 (goto-char start)
-                (while (re-search-forward "^[*]+ " nil t) ; remove headings
+                (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
                   (goto-char (match-beginning 0))
-                  (move-after-properties)
-                  (kill-region (match-beginning 0) (point)))
-                ;; Remove <<tags>>
-                (goto-char start)
-                (while (re-search-forward "<<[^>]+>>\n*" nil t)
-                  (replace-match ""))
-                ;; Remove Zettel links
-                (goto-char start)
-                (while (re-search-forward " ?\\[\\[.+]]" nil t)
-                  (replace-match ""))
-                ;; Remove inline @@...@@ and {...~} comments, but not {{...}}
-                (goto-char start)
-                (while (re-search-forward "\\(@@\\|{[^{]\\).*\\(@@\\|~}\\)\n*" nil t)
-                  (cl-incf comments-removed)
-                  (replace-match ""))
-                ;; Remove footnotes if need be
-                (unless ezeka-insert-snippet-footnotes
-                  (goto-char start)
-                  (while (re-search-forward "^\\[fn:.+?\\].*?$" nil t)
-                    (goto-char (match-beginning 0))
-                    (kill-paragraph 1)
-                    (cl-incf footnotes-removed)))
-                (org-indent-region (point-min) (point-max))
-                (goto-char (point-max))
-                (insert "\n")
-                (message "Removed %d comments and %d footnotes"
-                         comments-removed footnotes-removed)
-                (rb-collapse-blank-lines)
-                t)))
-          (when nil                     ; FIXME: Remove?
-            (ezeka--read-only-region (point-min) (point-max))))))))
+                  (kill-paragraph 1)
+                  (cl-incf footnotes-removed)))
+              (org-indent-region (point-min) (point-max))
+              (goto-char (point-max))
+              (insert "\n")
+              (message "Removed %d comments and %d footnotes"
+                       comments-removed footnotes-removed)
+              (rb-collapse-blank-lines)
+              t)))
+        (when nil                     ; FIXME: Remove?
+          (ezeka--read-only-region (point-min) (point-max)))))))
 
 (defun ezeka--update-inserted-snippet ()
   "Update the snippet in the current note wherever it is used."
