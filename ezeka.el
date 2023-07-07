@@ -2181,11 +2181,11 @@ no matter what. With DEGREE, traces genealogy further than parent."
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :author author)))
 
-(defun ezeka-add-keyword (filename keyword &optional replace)
+(defun ezeka-add-keyword (filename keyword &optional replace metadata)
   "Add the given KEYWORD to the Zettel note in FILENAME.
 When KEYWORD is nil (or \\[universal-argument]), clear any existing
 keywords. When REPLACE is non-nil (or double \\[universal-argument]),
-replace them with KEYWORD."
+replace them with KEYWORD. If METADATA is supplied, used that."
   (interactive
    (list (ezeka--grab-dwim-file-target)
          (pcase current-prefix-arg
@@ -2202,7 +2202,7 @@ replace them with KEYWORD."
                         (user-error "Keywords must consist of \\w characters")))))
     (if (not (ezeka-note-p filename))
         (user-error "This command can only be used on Zettel notes")
-      (let ((mdata (ezeka-file-metadata filename)))
+      (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
           :keywords (cond (replace (list keyword))
                           (keyword (cons keyword (alist-get :keywords mdata)))
