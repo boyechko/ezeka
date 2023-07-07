@@ -1305,40 +1305,45 @@ abase26 equivalent of 0, namely 'a'."
 If CONFIRM is non-nil, interactively confirm that the generated ID is
 acceptable."
   (let ((type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
+        (keep-checking-p
+         (lambda (candidate)
+           "Checks if CANDIDATE is either NIL or exists."
+           (or (null candidate)
+               (ignore-errors
+                 (ezeka-link-file (ezeka-make-link kasten candidate))))))
+        (acceptablep
+         (lambda (id)
+           "Check if the ID is acceptable to the user."
+           (or (not confirm)
+               (y-or-n-p (format "Is %s acceptable? " id)))))
         id)
-    (cl-flet ((keep-checking-p (candidate)
-                "Checks if CANDIDATE is either NIL or exists."
-                (or (null candidate)
-                    (ignore-errors
-                      (ezeka-link-file (ezeka-make-link kasten candidate))))))
-      (if (and (eq type :numerus)
-               (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
-          (unwind-protect
-              (with-current-buffer
-                  (find-file-noselect
-                   (in-ezeka-dir ezeka-pregenerated-numeri-file))
-                (let ((left (count-lines (point-min) (point-max))))
-                  (unwind-protect
-                      (while (and (> left 0) (keep-checking-p id))
-                        (setq id
-                          (string-trim
-                           (delete-and-extract-region
-                            (point-min)
-                            (search-forward-regexp "[[:space:]]" nil t))))
-                        (unless (or (not confirm)
-                                    (y-or-n-p (format "Is %s acceptable? " id)))
-                          (setq id nil)))
-                    (cl-decf left)
-                    (let ((inhibit-message t))
-                      (basic-save-buffer)))
-                  (message "%d pregenerated numer%s left"
-                           left
-                           (if (= left 1) "us" "i")))))
-        (while (keep-checking-p id)
-          (if (not confirm)
-              (setq id (ezeka--random-id type))
-            (y-or-n-p (format "Is %s acceptable? "
-                              (setq id (ezeka--random-id type))))))))
+    (if (and (eq type :numerus)
+             (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
+        (unwind-protect
+            (with-current-buffer
+                (find-file-noselect
+                 (in-ezeka-dir ezeka-pregenerated-numeri-file))
+              (let ((left (count-lines (point-min) (point-max))))
+                (unwind-protect
+                    (while (and (> left 0)
+                                (funcall keep-checking-p id))
+                      (setq id
+                        (string-trim
+                         (delete-and-extract-region
+                          (point-min)
+                          (search-forward-regexp "[[:space:]]" nil t))))
+                      (unless (funcall acceptablep id)
+                        (setq id nil)))
+                  (cl-decf left)
+                  (let ((inhibit-message t))
+                    (basic-save-buffer)))
+                (message "%d pregenerated numer%s left"
+                         left
+                         (if (= left 1) "us" "i")))))
+      (while (funcall keep-checking-p id)
+        (setq id (ezeka--random-id type))
+        (unless (funcall acceptablep id)
+          (setq id nil))))
     id))
 
 ;;;=============================================================================
