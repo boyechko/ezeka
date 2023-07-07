@@ -1734,14 +1734,14 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
       ;; Cannot use `org-next-link', since it ignores links in comments
       (when (re-search-forward "\\[\\[")
         (goto-char (match-beginning 0)))
-      (when (ezeka-link-at-point-p)
-        (let* ((file (ezeka-link-file (ezeka-link-at-point)))
-               (mdata (ezeka-file-metadata file))
-               (title (alist-get :title mdata))
-               (key (alist-get :citekey mdata)))
-          (delete-region start (point))
-          (unless delete-title
-            (insert (ezeka--concat-strings " " title key) " ")))))))
+      (when-let* ((_ (ezeka-link-at-point-p))
+                  (link (ezeka-link-at-point))
+                  (file (ezeka-link-file link))
+                  (mdata (ezeka-file-metadata file))
+                  (title (alist-get :title mdata)))
+        (delete-region start (point))
+        (unless delete-title
+          (insert title " "))))))
 
 ;;;=============================================================================
 ;;; Genealogical
