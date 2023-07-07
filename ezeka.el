@@ -1287,7 +1287,12 @@ abase26 equivalent of 0, namely 'a'."
     (:scriptum
      (let (project)
        (while (not project)
-         (setq project (read-string "Scriptum project (numerus currens): "))
+         ;; FIXME: Do I need a native function for this?
+         (setq project
+           (if (fboundp #'zk--select-file)
+               (ezeka-zk-with-kasten "numerus"
+                (ezeka-file-link (zk--select-file "Select project: ")))
+             (read-string "Scriptum project (numerus currens): ")))
          (unless (ezeka-link-file project)
            (setq project nil)))
        (format "%s~%02d"
