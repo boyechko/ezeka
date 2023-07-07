@@ -2503,19 +2503,20 @@ open the link in the same window."
   "Return the Nth link on the current line.
 With a negative N, count from the end. If there is no such link,
 return NIL."
-  (save-excursion
-    (save-restriction
-      (narrow-to-region (point-at-bol) (point-at-eol))
-      (cond ((> n 0)
-             (beginning-of-line)
-             (dotimes (i n)
-               (org-next-link)))
-            ((< n 0)
-             (end-of-line)
-             (dotimes (i (abs n))
-               (org-previous-link))))
-     (when (ezeka-link-at-point-p)
-       (ezeka-link-at-point)))))
+  (let ((n (or n 1)))
+    (save-excursion
+      (save-restriction
+        (narrow-to-region (point-at-bol) (point-at-eol))
+        (cond ((> n 0)
+               (beginning-of-line)
+               (dotimes (i n)
+                 (org-next-link)))
+              ((< n 0)
+               (end-of-line)
+               (dotimes (i (abs n))
+                 (org-previous-link))))
+        (when (ezeka-link-at-point-p)
+          (ezeka-link-at-point))))))
 
 (defun ezeka--initialize-org-id-locations ()
   "Initialize the org-id locations."
