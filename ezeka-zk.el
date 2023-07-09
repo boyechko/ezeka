@@ -546,7 +546,7 @@ If CHANGE-TO is not given, use the note's parent, if set. With
 \\[universal-argument], ask the user to enter CHANGE-TO."
   (interactive
    (list (ezeka--grab-dwim-file-target)
-         (when (equal current-prefix-arg '(16))
+         (when current-prefix-arg
            (read-string "Change links to what? "))))
   (let* ((file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
@@ -561,13 +561,13 @@ If CHANGE-TO is not given, use the note's parent, if set. With
          (change-to
           (or change-to
               (when (> (length with-links) 0)
-               (if-let* ((parent (alist-get :parent mdata))
-                         (exists (file-exists-p (ezeka-link-file parent))))
-                   parent
-                 (read-string (concat link "has no parent or it doesn't exist, "
-                                      "replace " (length with-links) " link(s) "
-                                      "with what? ")
-                              (concat "{{" link "}}"))))))
+                (if-let* ((parent (alist-get :parent mdata))
+                          (exists (file-exists-p (ezeka-link-file parent))))
+                    parent
+                  (read-string (concat link "has no parent or it doesn't exist, "
+                                       "replace " (length with-links) " link(s) "
+                                       "with what? ")
+                               (concat "{{" link "}}"))))))
          (count 0))
     (ezeka-zk-replace-links link change-to)
     (when (y-or-n-p (format "Really delete %s %s? "
