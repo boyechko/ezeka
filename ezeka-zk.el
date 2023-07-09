@@ -476,17 +476,14 @@ replace the link with {{BEFORE}}. Returns a tuple of number of links
 replaced in number of files. If CONFIRM (or \\[universal-argument]) is
 non-nil, check with user before replacing."
   (interactive
-   (if current-prefix-arg
-       (list (read-string "Before: ")
-             (read-string "After: ")
-             nil
-             (y-or-n-p "Confirm before replacing? "))
-     (let* ((zk-directory ezeka-directory)
-            (files (zk--directory-files)))
-       (list (ezeka-file-link (zk--select-file "Before: " files))
-             (ezeka-file-link (zk--select-file "After: " files))
-             nil
-             (y-or-n-p "Confirm before replacing? ")))))
+   (let* ((before (if current-prefix-arg
+                      (read-string "Replace ... ")
+                    (zk--select-file "Replace links to ..." files)))
+          (after (if current-prefix-arg
+                     (read-string (format "Replace %s with ...: " before))
+                   (zk--select-file "... with a link to ..." files))))
+     (list before after nil
+           (y-or-n-p "Confirm before replacing? "))))
   (let* ((bf-id (ezeka-link-id before))
          (with-links
           (let ((zk-directory (or directory ezeka-directory)))
