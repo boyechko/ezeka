@@ -61,10 +61,9 @@ as list the note's children."
   (let* ((id (zk--file-id buffer-file-name))
          (zk-directory ezeka-directory)
          (files (zk--grep-file-list
-                 (concat "(parent: " id
-                         "|" (regexp-quote (format zk-link-format id))
-                         ")")
-                 t)))
+                 (concat "\\(parent: " id
+                         "\\|" (regexp-quote (zk--format zk-link-format id))
+                         "\\)"))))
     (if files
         (find-file (funcall zk-select-file-function "Backlinks: " files))
       (user-error "No backlinks found"))))
