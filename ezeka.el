@@ -1366,8 +1366,8 @@ acceptable."
       (cond ((setq oldname
                (cl-find-if
                 (lambda (l)
-                  (eq (ezeka-kasten-id-type (ezeka-link-kasten l))
-                      :tempus))
+                  (when (ezeka-link-p l)
+                    (eq (ezeka-kasten-id-type (ezeka-link-kasten l)) :tempus)))
                 (alist-get :oldnames metadata)))
              ;; One of the old names was a tempus currens; just use that
              (ezeka-link-id oldname))
