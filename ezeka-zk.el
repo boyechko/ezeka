@@ -138,18 +138,17 @@ See `zk-index-button-display-action'."
 
 (defun ezeka-zk-format-function (format id title &optional metadata)
   "Format given ID and TITLE according to FORMAT.
-Optional METADATA allows internal passing of the metadat structure."
-  (if (or (string= id title)
-          (string-match-p "%[^icl]" format)) ; FIXME: Hackish
-      (let ((mdata (or metadata
-                       (ezeka-file-metadata (ezeka-link-file id)))))
-        (when title (setf (alist-get :title mdata) title))
-        (ezeka-format-metadata format mdata))
-    (format-spec format
-                 `((?i . ,id)
-                   ,@(when (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-                       `((?c . ,(match-string 2 title))
-                         (?l . ,(match-string 1 title))))))))
+Control sequences %i (ID), %c (caption), and %l (link) are
+supported natively. For everything else or if METADATA is
+non-nil, call `ezeka-format-metadata' instead."
+  (if (not (string-match-p "%[^icl0-9-]" format))
+      (format-spec format
+                   `((?i . ,id)
+                     ,@(when (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                         `((?c . ,(match-string 2 title))
+                           (?l . ,(match-string 1 title))))))
+    (let ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file id)))))
+      (ezeka-format-metadata format mdata))))
 
 (defun ezeka-zk-parse-file (target files)
   "Parse FILES for TARGET.
