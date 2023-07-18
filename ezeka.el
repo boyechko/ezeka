@@ -2932,7 +2932,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
 ;; Define a minor mode for working with Zettel files
 (define-minor-mode ezeka-mode
   "Make the keymap ezeka-mode-map active."
-  :lighter " Zettel"
+  :lighter " Ezeka"
   :keymap
   (mapcar (lambda (tuple)
             (cons (if (stringp (car tuple)) (kbd (car tuple)) (car tuple))
@@ -2989,18 +2989,20 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c C-x z" . ezeka-move-to-another-kasten)
             ))
 
-  ;; Treat : (colon) as part of the word, allowing forward/backward-word over full
-  ;; Zettel links.
-  (if (not ezeka-mode)
-      (modify-syntax-entry ?: ".")      ; reset to punctuation
-    (modify-syntax-entry ?: "w")
-    (ezeka--make-header-read-only (current-buffer))))
+  (cond (ezeka-mode
+         (ezeka--make-header-read-only (current-buffer))
 
-;; On save, update modificate date and normalize file name
-(add-hook 'ezeka-mode-hook
-  (lambda ()
-    (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
-    (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)))
+         (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
+         (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)
+
+         ;; Treat : (colon) as part of the word, allowing forward/backward-word
+         ;; over full Zettel links.
+         (modify-syntax-entry ?: "w"))
+        (t
+         (remove-hook 'before-save-hook 'ezeka--update-file-header t)
+         (remove-hook 'before-save-hook 'ezeka-normalize-file-name t)
+
+         (modify-syntax-entry ?: "."))))
 
 (provide 'ezeka)
 ;;; ezeka.el ends here
