@@ -705,10 +705,9 @@ The format control string may contain the following %-sequences:
                              ezeka-header-stable-caption-mark
                            ""))))))
 
-;; FIXME: Get rid of FILE or do something with it.
-(defun ezeka-decode-rubric (rubric file)
-  "Return alist of metadata from the RUBRIC in FILE.
-If cannot decode, returns NIL."
+(defun ezeka-decode-rubric (rubric)
+  "Return alist of metadata from the RUBRIC line.
+If cannot decode, return NIL."
   (when (and rubric (string-match (ezeka-header-rubric-regexp) rubric))
     (let ((id          (match-string 1 rubric))
           (kasten      (match-string 2 rubric))
@@ -787,7 +786,7 @@ signal an error when encountering malformed header lines."
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
            (split-string header "\n")))
-         (decoded (ezeka-decode-rubric (alist-get :rubric metadata) file)))
+         (decoded (ezeka-decode-rubric (alist-get :rubric metadata))))
     (append decoded metadata)))
 
 (defun ezeka--header-region (buffer)
@@ -1708,8 +1707,7 @@ Called interactively, get the LINK at point or to current Zettel."
                (ezeka-decode-rubric
                 (buffer-substring-no-properties
                  (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
-                 (point-at-eol))
-                buffer-file-name)))
+                 (point-at-eol)))))
           (when metadata
             (let ((words (split-string (alist-get :title metadata))))
               (setq-local mode-line-misc-info
@@ -2917,8 +2915,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
                 (mdata
                  (ezeka-decode-rubric
                   (when (string-match ezeka-header-line-regexp line)
-                    (match-string 2 line))
-                  file)))
+                    (match-string 2 line)))))
       (setq mode-line-misc-info
         (format "%s: %s"
                 (propertize (alist-get :id mdata)
