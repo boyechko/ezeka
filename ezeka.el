@@ -486,12 +486,13 @@ explicitly given."
 
 (defun ezeka-link-file (link &optional caption noerror)
   "Return a full file path to the Zettel LINK.
-CAPTION can be a string (including an empty string), in which case
-return a filename consisting of LINK and CAPTION separated with
-`ezeka-file-name-separator'. Alternatively, if CAPTION is nil, try
-wildcard expansion for the file name beginning with the ID given in
-LINK. If NOERROR is non-nil, do not raise an error if no file is
-found."
+CAPTION can be a string (including an empty string), in
+which case return a filename consisting of LINK and CAPTION
+separated with `ezeka-file-name-separator'. Alternatively,
+if CAPTION is anything else (e.g. 'wildcard or nil), try
+wildcard expansion for the file name beginning with the ID
+given in LINK. If NOERROR is non-nil, do not raise an error
+if no file is found."
   (unless (ezeka-link-p link) (error "Link not valid: %s" link))
   (let* ((id (ezeka-link-id link))
          (basename (format "%s%s.%s"
