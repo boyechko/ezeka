@@ -1144,11 +1144,14 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
            (message "Rename failed")))))
         ezeka--unnormalized-files-to-move))
 
-(defun ezeka-normalize-file-name (&optional filename metadata arg)
+(defun ezeka-normalize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
-With \\[universal-argument] ARG, offer to set metadata or rename the
-file even if they are in agreement."
-  (interactive (list buffer-file-name nil current-prefix-arg))
+When called interactively or FORCE is non-nil, offer to set
+metadata or rename the file even if they are in agreement."
+  (interactive
+   (list buffer-file-name
+         nil
+         (prefix-numeric-value current-prefix-arg)))
   (let* ((filename (or filename buffer-file-name))
          (file-base (file-name-base filename))
          (mdata (if (null metadata)
@@ -1172,7 +1175,7 @@ file even if they are in agreement."
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
-          (unless (and (null arg)
+          (unless (and (not force)
                        (or (string= mdata-base file-base)
                            (member ezeka-rename-note-keyword
                                    (alist-get :keywords mdata))))
