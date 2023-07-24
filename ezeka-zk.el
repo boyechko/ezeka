@@ -383,9 +383,7 @@ minibuffer according to the value of `zk-link-and-title': if it's
              (mdata (ezeka-file-metadata file t)))
         (zk--insert-link-and-title
          link
-         (if (eq zk-link-and-title 'ask)
-             (read-string "Title: " (alist-get :title mdata))
-           (alist-get :title mdata)))
+         (read-string "Title: " (alist-get :title mdata)))
       (zk--insert-link file))))
 
 (defun ezeka-zk-insert-link-to-other-window ()
