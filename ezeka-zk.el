@@ -144,9 +144,13 @@ non-nil, call `ezeka-format-metadata' instead."
   (if (not (string-match-p "%[^icl0-9-]" format))
       (format-spec format
                    `((?i . ,id)
-                     ,@(when (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-                         `((?c . ,(match-string 2 title))
-                           (?l . ,(match-string 1 title))))))
+                     ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                           `((?c . ,(match-string 2 title))
+                             (?l . ,(match-string 1 title)))
+                         `((?c . ,title)
+                           (?l . ,id)))))
+    (unless metadata
+      (warn "Parsing metadata for %s (%s)" title id))
     (let ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file id)))))
       (ezeka-format-metadata format mdata))))
 

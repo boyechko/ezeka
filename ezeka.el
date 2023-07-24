@@ -2119,32 +2119,31 @@ should consist of KEY and VALUE pairs.
           (unless already-open
             (kill-buffer-if-not-modified buf)))))))
 
-(defun ezeka-set-title-or-caption (filename &optional new-val keep-title keep-caption)
+(defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption)
   "Update the title in FILENAME's header to NEW-VAL.
-With \\[universal-argument] or non-nil KEEP-CAPTION, don't change the
-caption; with double \\[universal-argument] or non-nil KEEP-TITLE,
-don't change the title."
-  (interactive (list (buffer-file-name)
-                     nil                ; wait so I can pre-fill existing title
-                     (and current-prefix-arg
-                          (equal current-prefix-arg '(16)))
-                     (and current-prefix-arg
-                          (equal current-prefix-arg '(4)))))
+With \\[universal-argument], change the caption instead;
+with double \\[universal-argument], change both the title
+and the caption. Non-interactively, non-nil SET-TITLE and
+SET-CAPTION determine which fields to change."
+  (interactive (let* ((arg (prefix-numeric-value current-prefix-arg))
+                      (set-title (not (eq arg 4)))
+                      (set-caption (member arg '(4 16))))
+                 (list (buffer-file-name) nil set-title set-caption)))
   (when (ezeka-note-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
+           (change-what (cond ((and (not set-title) set-caption) "the caption")
+                              ((and set-title (not set-caption)) "the title")
+                              ((and set-title set-caption) "both title and caption")
+                              (t "nothing (huh?)")))
            (new-val (or new-val
-                        (read-string
-                         (format "Change %s to what? "
-                                 (cond (keep-title "only the caption")
-                                       (keep-caption "only the title")
-                                       (t "title and caption")))
-                         (alist-get (if keep-title :caption :title) mdata)))))
-      (unless keep-title
+                        (read-string (format "Change %s to what? " change-what)
+                                     (alist-get (if set-title :title :caption)
+                                                mdata)))))
+      (when set-title
         (setf (alist-get :title mdata) new-val))
-      (unless keep-caption
-        (setf (alist-get :caption mdata)
-              (ezeka--pasturize-for-filename new-val)))
-      (setf (alist-get :caption-stable mdata) nil)
+      (when set-caption
+        (setf (alist-get :caption mdata) (ezeka--pasturize-for-filename new-val))
+        (setf (alist-get :caption-stable mdata) nil))
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label arg)
