@@ -672,5 +672,21 @@ before renaming If given, use the custom PROMPT."
             "<no title>")
         title))))
 
+;;;=============================================================================
+;;; Breadcrumbs
+;;;=============================================================================
+
+;;;###autoload
+(defun ezeka-zk-desktop-drop-breadcrumbs ()
+  "Add the currently-visited Zettel to today's `zk-desktop'."
+  (interactive)
+  (unless (buffer-live-p zk-desktop-current)
+    (zk-desktop-select))
+  (when (and (file-exists-p (buffer-file-name))
+             (ezeka-note-p (buffer-file-name)))
+    (zk-desktop-send-to-desktop (buffer-file-name))))
+
+;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
+
 (provide 'ezeka-zk)
 ;;; ezeka-zk.el ends here
