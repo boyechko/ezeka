@@ -149,8 +149,6 @@ non-nil, call `ezeka-format-metadata' instead."
                              (?l . ,(match-string 1 title)))
                          `((?c . ,title)
                            (?l . ,id)))))
-    (unless metadata
-      (warn "Parsing metadata for %s (%s)" title id))
     (let ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file id)))))
       (ezeka-format-metadata format mdata))))
 
