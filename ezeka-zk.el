@@ -692,5 +692,22 @@ With WINDOW, drop breadcrumbs for the buffer in that window."
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
+;;;###autoload
+(defun rb-zk-desktop-initialize ()
+  "Set `zk-desktop-current' to today's desktop.
+If the current buffer looks like a Zk-Desktop file, use
+that; otherwise, create a new one."
+  (interactive)
+  (let ((title (format-time-string "Zk-Desktop for %A, %B %d")))
+    (if (string-match title (or (ezeka-zk-file-title (buffer-file-name)) ""))
+        (setq zk-desktop-current (current-buffer))
+      (let* ((new-id (ezeka-format-tempus-currens)))
+        (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
+              (list :title (format-time-string "Zk-Desktop for %A, %B %d")
+                    :label "Journal"))
+        (ezeka-find-link new-id)
+        (setq zk-desktop-current (current-buffer))))
+    (message "Zk-Desktop initialized to %s" (current-buffer))))
+
 (provide 'ezeka-zk)
 ;;; ezeka-zk.el ends here
