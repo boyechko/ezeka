@@ -673,14 +673,22 @@ before renaming If given, use the custom PROMPT."
 ;;;=============================================================================
 
 ;;;###autoload
-(defun ezeka-zk-desktop-drop-breadcrumbs ()
-  "Add the currently-visited Zettel to today's `zk-desktop'."
+(defun ezeka-zk-desktop-drop-breadcrumbs (&optional window)
+  "Add the currently-visited Zettel to today's `zk-desktop'.
+With WINDOW, drop breadcrumbs for the buffer in that window."
   (interactive)
-  (unless (buffer-live-p zk-desktop-current)
-    (zk-desktop-select))
-  (when (and (file-exists-p (buffer-file-name))
-             (ezeka-note-p (buffer-file-name)))
-    (zk-desktop-send-to-desktop (buffer-file-name))))
+  (let* ((buffer (window-buffer))
+         (file (buffer-file-name buffer)))
+    (if (and (boundp 'zk-desktop-current)
+             (buffer-live-p zk-desktop-current)
+             (file-exists-p file)
+             (ezeka-note-p file)
+             (not (string-match zk-desktop-basename file)))
+        (zk-desktop-send-to-desktop file
+                                    (format-time-string
+                                     (concat " "
+                                             (cdr org-time-stamp-formats))))
+      (user-error "No Zk-Desktop set; first use `rb-zk-desktop-initialize'"))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
