@@ -1510,9 +1510,9 @@ FIELDS defaults to :title, WHERE to :before. If WHERE is
 
 (defun ezeka-insert-link-with-metadata (link &optional fields where confirm)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where the fields
-is added. FIELDS can be a list. If CONFIRM is non-NIL, ask for
-confirmation before inserting metadata."
+WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
+the fields are added. FIELDS can be a list. If CONFIRM is
+non-NIL, ask for confirmation before inserting metadata."
   (let* ((fields (or fields
                      (when (called-interactively-p 'any)
                        (list
@@ -1524,8 +1524,14 @@ confirmation before inserting metadata."
                     (when fields
                       (intern-soft
                        (completing-read "Where? "
-                                        '(":before" ":after")))))))
-    (let ((mdata (ezeka-file-metadata (ezeka-link-file link))))
+                                        '(":before" ":after"))))))
+         (file (or (ezeka-link-file link nil t)
+                   (when (cl-find-if #'(lambda (buf)
+                                         (string-match link (buffer-name buf)))
+                                     (buffer-list))))))
+    (unless file
+      (user-error "There is no file associated with %s" link))
+    (let ((mdata (ezeka-file-metadata file)))
       (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
               (if (or (not confirm)
                       (progn
