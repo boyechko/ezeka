@@ -1367,8 +1367,9 @@ acceptable."
 ;;; Tempus Currens
 ;;;=============================================================================
 
-(defun ezeka-decode-time-into-tempus-currens (time)
-  "Return a tempus currens ID based on the given Emacs TIME object."
+(defun ezeka-format-tempus-currens (&optional time)
+  "Return a tempus currens ID based on the given Emacs TIME object.
+If TIME is nil, default to current time."
   (format-time-string "%Y%m%dT%H%M" time))
 
 (defun ezeka-tempus-currens-id-for (link)
@@ -1391,7 +1392,7 @@ acceptable."
             ((alist-get :created metadata)
              (string-replace "T0000"    ; FIXME: A bit hacky?
                              (format-time-string "T%H%M")
-                             (ezeka-decode-time-into-tempus-currens
+                             (ezeka-format-tempus-currens
                               (ezeka-encode-iso8601-datetime
                                (alist-get :created metadata)))))
             (t
@@ -2343,7 +2344,7 @@ With \\[universal-argument] ARG, asks for a different name."
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
   (interactive)
   (insert (ezeka--format-link
-           (ezeka-decode-time-into-tempus-currens (org-read-date t t)))))
+           (ezeka-format-tempus-currens (org-read-date t t)))))
 
 (defvar ezeka--org-timestamp-regexp
   (rx (seq
