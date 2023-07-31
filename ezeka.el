@@ -959,14 +959,16 @@ With \\[universal-argument] ARG, show a list of options instead."
   :type '(or function list)
   :group 'ezeka)
 
-(defun ezeka--maybe-update-modifed (metadata)
+(defun ezeka--maybe-update-modified (metadata)
   "Maybe update the modification time in the METADATA.
 Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
   (let* ((today (format-time-string "%Y-%m-%d"))
          (now (format-time-string "%Y-%m-%d %a %H:%M"))
          (last-modified (or (alist-get :modified metadata)
-                            (alist-get :created metadata))))
+                            (alist-get :created metadata)
+                            (user-error "No created or modified time in %s"
+                                        (alist-get :link metadata)))))
     (unless (string-equal (or last-modified "") now)
       ;; FIXME: Probably better to convert modification times to Emacs's encoded
       ;; time rather than doing it with strings.
@@ -977,7 +979,8 @@ Return the new metadata."
                 (and (member ezeka-header-update-modified '(sameday confirm t))
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
-                              (alist-get :id metadata) last-modified))))
+                              (ezeka-format-metadata "%i {%l} %t" metadata)
+                              last-modified))))
         (setf (alist-get :modified metadata) now)
         (run-hooks 'ezeka-modified-updated-hook)))
     metadata))
@@ -1098,7 +1101,7 @@ has not changed since last update."
         (progn
           (setq metadata
             (ezeka--set-time-of-creation
-             (ezeka--maybe-update-modifed
+             (ezeka--maybe-update-modified
               (ezeka--reconcile-title-and-caption metadata))))
           (ezeka--replace-file-header filename metadata)
           (setf (alist-get filename ezeka--previously-updated nil nil #'string=)
