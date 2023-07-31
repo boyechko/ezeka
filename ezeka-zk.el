@@ -136,21 +136,25 @@ See `zk-index-button-display-action'."
            (find-file file))
           (t (find-file-other-window file)))))
 
-(defun ezeka-zk-format-function (format id title &optional metadata)
+(defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT.
 Control sequences %i (ID), %c (caption), and %l (link) are
-supported natively. For everything else or if METADATA is
-non-nil, call `ezeka-format-metadata' instead."
-  (if (not (string-match-p "%[^icl0-9-]" format))
-      (format-spec format
-                   `((?i . ,id)
-                     ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-                           `((?c . ,(match-string 2 title))
-                             (?l . ,(match-string 1 title)))
-                         `((?c . ,title)
-                           (?l . ,id)))))
-    (let ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file id)))))
-      (ezeka-format-metadata format mdata))))
+supported natively. For everything else, call
+`ezeka-format-metadata' instead."
+  (let ((title (string-trim title)))
+    (if (not (string-match-p "%[^icl0-9-]" format))
+        (format-spec format
+                     `((?i . ,id)
+                       ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                             `((?c . ,(match-string 2 title))
+                               (?l . ,(match-string 1 title)))
+                           `((?c . ,title)
+                             (?l . ,id)))))
+      (let ((mdata (ezeka-file-metadata (ezeka-link-file id))))
+        ;; FIXME: Hackish way to catch hand-edited TITLE
+        (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+          (setf (alist-get :title mdata) title))
+        (ezeka-format-metadata format mdata)))))
 
 (defun ezeka-zk-parse-file (target files)
   "Parse FILES for TARGET.
