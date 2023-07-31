@@ -2139,6 +2139,24 @@ should consist of KEY and VALUE pairs.
           (unless already-open
             (kill-buffer-if-not-modified buf)))))))
 
+(defun ezeka--add-change-log-entry (filename entry &optional section)
+  "Make a change log ENTRY in FILENAME's SECTION.
+If SECTION is nil, default to `Change Log'."
+  (save-excursion
+    (let* ((section (or section "Change Log"))
+           (headline (org-find-exact-headline-in-buffer section)))
+      (if headline
+          (goto-char headline)
+        (goto-char (point-max))
+        (org-insert-heading nil nil 'top)
+        (insert section))
+      (insert "\n\n")
+      (org-insert-item)
+      (insert
+       (format "- %s :: %s"
+               (format-time-string (org-time-stamp-format nil t))
+               entry)))))
+
 (defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption)
   "Update the title in FILENAME's header to NEW-VAL.
 With \\[universal-argument], change the caption instead;
