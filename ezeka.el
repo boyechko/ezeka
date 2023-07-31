@@ -2924,21 +2924,36 @@ With CONFIRM, confirm before move."
       (ezeka--rename-file path1 path2)
       (let* ((mdata (ezeka-file-metadata path2))
              (oldnames (alist-get :oldnames mdata)))
-        ;; add to log
         (ezeka--add-to-move-log link1 link2)
-        ;; put original name in oldnames, update rubric
+        ;; Put original name in oldnames, unless link1 == link2, and remove
+        ;; link2 from oldnames just in case we're resurrecting an oldname.
         (unless (string= (ezeka-link-id link1) (ezeka-link-id link2))
           (setf (alist-get :oldnames mdata)
-                (cons link1 oldnames)))
+                (cl-union (list link1) (remove link2 oldnames))))
         (ezeka--update-file-header path2 mdata t)
         (when-let ((buf (get-file-buffer path2)))
           (with-current-buffer buf
             (save-buffer)))
-        ;; replace links
+        ;; Replace links
+        (message "Replacing links: %s with %s" link1 link2)
         (let ((replaced (ezeka-zk-replace-links link1 link2)))
           (message "Moved %s to %s, replacing %d links in %d files"
                    link1 link2
                    (or (car replaced) 0) (or (cdr replaced) 0)))))))
+
+(defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
+  "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
+ID-TYPE should be a keyword matching an ID type in
+`ezeka-kaesten'. If METADATA is non-nil, use that rather
+than parsing the file again. If successful, return the
+appropriate oldname."
+  (when-let* ((mdata (or metadata (ezeka-file-metadata source-file)))
+              (cadaver (cl-find-if (lambda (link)
+                                     (when (ezeka-link-p link)
+                                       (eq (ezeka-id-type link t) id-type)))
+                                   (alist-get :oldnames mdata))))
+    (unless (ezeka-link-file cadaver nil t)
+      cadaver)))
 
 (defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
   "Move SOURCE-FILE Zettel to a generated link in KASTEN.
@@ -2950,20 +2965,20 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
-            (completing-read "Which kasten to move to? "
-                             (mapcar #'ezeka-kasten-name ezeka-kaesten)))
+             (completing-read "Which kasten to move to? "
+                              (mapcar #'ezeka-kasten-name ezeka-kaesten)))
            target)))
-  (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
+  (let* ((ezeka-header-update-modified 'never)  ; FIXME: Hardcoded
          (source-link (ezeka-file-link source-file))
-         (target-link (or target-link
-                          (if (eq (ezeka-kasten-id-type
-                                   (ezeka-kasten-named kasten))
-                                  :tempus) ; FIXME: Hardcoded
-                              (ezeka-tempus-currens-id-for source-link)
-                            (ezeka--generate-id kasten 'confirm)))))
+         (id-type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
+         (target-link
+          (or target-link
+              (ezeka--resurrectable-oldname source-file id-type)
+              (if (eq id-type :tempus)          ; FIXME: Hardcoded
+                  (ezeka-tempus-currens-id-for source-link)
+                (ezeka--generate-id kasten 'confirm)))))
     (if (not target-link)
         (error "Don't know where to move %s" source-link)
-      ;; Offer to save buffers, since zmove tries to update links
       (save-some-buffers nil (lambda () (ezeka-note-p buffer-file-name t)))
       (ezeka--move-note source-link target-link)
       (cond ((string= source-file buffer-file-name)
