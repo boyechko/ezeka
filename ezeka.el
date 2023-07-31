@@ -553,33 +553,34 @@ STRING should be an ISO8601 date/time expression, with or without time."
   "Return content of FILE, getting it first from opened buffer.
 If NOERROR is non-NIL, don't signal an error if cannot get the
 content. If HEADER-ONLY is non-nil, only get the header."
-  (cl-flet ((retrieve-content ()
-              "Get the content from `current-buffer'."
-              (widen)
-              (if (= 0 (buffer-size))
-                  (unless noerror
-                    (error "Buffer %s is empty" (current-buffer)))
-                (buffer-substring-no-properties
-                 (point-min)
-                 (if (not header-only)
-                     (point-max)
-                   (goto-char (point-min))
-                   (if (re-search-forward "\n\n" nil t)
-                       (match-beginning 0)
-                     (point-max)))))))
+  (let ((retrieve-content
+         (lambda (buffer)
+           "Get the content from BUFFER."
+           (save-excursion
+             (with-current-buffer buffer
+               (save-restriction
+                 (widen)
+                 (if (= 0 (buffer-size))
+                     (unless noerror
+                       (error "Buffer %s is empty" (current-buffer)))
+                   (buffer-substring-no-properties
+                    (point-min)
+                    (if (not header-only)
+                        (point-max)
+                      (goto-char (point-min))
+                      (if (re-search-forward ezeka-header-separator-regexp nil t)
+                          (match-beginning 0)
+                        (point-max)))))))))))
     (cond ((null file)
            (unless noerror
              (signal 'type-error
                      '("FILE is nil, but should be a string"))))
           ((get-file-buffer file)
-           (save-excursion
-             (save-restriction
-               (with-current-buffer (get-file-buffer file)
-                 (retrieve-content)))))
+           (funcall retrieve-content (get-file-buffer file)))
           ((file-exists-p file)
            (with-temp-buffer
              (insert-file-contents file)
-             (retrieve-content)))
+             (funcall retrieve-content (current-buffer))))
           (t
            (unless noerror
              (error "Cannot get content for %s" file))))))
