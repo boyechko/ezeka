@@ -86,22 +86,20 @@ Group 2 is the title."
 (defvar ezeka-zk-hacks--zb-func nil)
 (defvar ezeka-zk-hacks-mode nil)
 
-(defun ezeka-zk-hacks-mode (&optional arg)
-  "Toggle my custom hacks to make zk fit my workflow.
-If ARG is positive or T, enable the hacks; if negative, disable them.
-This is just a pseudo mode."
-  (interactive)
-  (cond ((or (eq arg t)                 ; enable the mode
-             (and (numberp arg) (> arg 0))
-             (not ezeka-zk-hacks-mode))
+(define-minor-mode ezeka-zk-hacks-mode
+  "More radical customization of `zk' than with just `ezeka-zk'."
+  :global nil
+  :init-value nil
+  :group 'ezeka
+  :lighter " EzzH"
+  (cond (ezeka-zk-hacks-mode            ; enable the mode
          (advice-add 'zk--group-function :override 'adv--zk-group-function)
          (advice-add 'zk--file-id :override 'ezeka-zk--file-id)
          (setq ezeka-zk-hacks--zfnr-func (symbol-function 'zk-file-name-regexp)
                ezeka-zk-hacks--zb-func (symbol-function 'zk-backlinks)
                ezeka-zk-hacks-mode t)
          (defalias 'zk-file-name-regexp 'ezeka-zk-file-name-regexp)
-         (defalias 'zk-backlinks 'ezeka-zk-backlinks)
-         (message "Ezeka-zk-hacks-mode enabled"))
+         (defalias 'zk-backlinks 'ezeka-zk-backlinks))
         (t                              ; disable the mode
          (advice-remove 'zk--group-function 'adv--zk-group-function)
          (advice-remove 'zk--file-id 'ezeka-zk--file-id)
@@ -109,8 +107,10 @@ This is just a pseudo mode."
          (fset 'zk-backlinks ezeka-zk-hacks--zb-func)
          (setq ezeka-zk-hacks--zfnr-func nil
                ezeka-zk-hacks--zb-func nil
-               ezeka-zk-hacks-mode nil)
-         (message "Ezeka-zk-hacks-mode disabled"))))
+               ezeka-zk-hacks-mode nil))))
+
+(define-globalized-minor-mode global-ezeka-zk-hacks-mode
+  ezeka-zk-hacks-mode ezeka-zk-hacks-mode)
 
 (provide 'ezeka-zk-hacks)
 ;;; ezeka-zk-hacks.el ends here
