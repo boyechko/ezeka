@@ -1659,13 +1659,9 @@ With double \\[universal-argument], save caption."
              (result (cond ((equal arg '(4))
                             (alist-get :title mdata))
                            ((equal arg '(16))
-                            (ezeka--link-with-metadata link
-                                                       '(:caption)
-                                                       :after mdata))
+                            (alist-get :rubric mdata))
                            (t
-                            (ezeka--link-with-metadata link
-                                                       '(:title)
-                                                       :before mdata)))))
+                            (ezeka-format-metadata "%i {%l} %t" mdata)))))
         (kill-new result)
         (unless select-enable-clipboard
           (gui-set-selection 'CLIPBOARD result))
