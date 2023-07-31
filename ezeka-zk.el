@@ -542,12 +542,8 @@ METADATA is NOTE's metadata."
 
 (defun ezeka-zk-delete-note (link-or-file &optional change-to)
   "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
-If CHANGE-TO is not given, use the note's parent, if set. With
-\\[universal-argument], ask the user to enter CHANGE-TO."
-  (interactive
-   (list (ezeka--grab-dwim-file-target)
-         (when current-prefix-arg
-           (read-string "Change links to what? "))))
+If CHANGE-TO is not given, suggest the note's parent, if set."
+  (interactive (list (ezeka--grab-dwim-file-target) nil))
   (let* ((file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
                  link-or-file))
@@ -555,21 +551,21 @@ If CHANGE-TO is not given, use the note's parent, if set. With
                    link-or-file
                  (ezeka-file-link link-or-file)))
          (mdata (ezeka-file-metadata file))
+         (parent (alist-get :parent mdata))
          (with-links (let ((zk-directory ezeka-directory))
                        (zk--grep-file-list
                         (format "(parent: %s|%s\\]\\])" link link) t)))
          (change-to
           (or change-to
-              (when (> (length with-links) 0)
-                (if-let* ((parent (alist-get :parent mdata))
-                          (exists (file-exists-p (ezeka-link-file parent))))
-                    parent
-                  (read-string (concat link "has no parent or it doesn't exist, "
-                                       "replace " (length with-links) " link(s) "
-                                       "with what? ")
-                               (concat "{{" link "}}"))))))
-         (count 0))
-    (ezeka-zk-replace-links link change-to)
+              (read-string (format "Replace %d link(s) to %s with what? "
+                                   (length with-links) link)
+                           (if (and parent
+                                    (file-exists-p (ezeka-link-file parent)))
+                               parent
+                             (concat "{{" link "}}"))))))
+    (when with-links                    ; FIXME: Pass with-links!
+      (ezeka-zk-replace-links link change-to))
+    (ezeka--add-to-move-log link change-to)
     (when (y-or-n-p (format "Really delete %s %s? "
                             link (alist-get :title mdata)))
       (delete-file file)
