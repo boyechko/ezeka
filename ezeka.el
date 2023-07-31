@@ -2177,6 +2177,11 @@ SET-CAPTION determine which fields to change."
                         (read-string (format "Change %s to what? " change-what)
                                      (alist-get (if set-title :title :caption)
                                                 mdata)))))
+      (when (and set-title set-caption)
+        (ezeka--add-change-log-entry
+         filename
+         (format "Rename from \"%s\" to \"%s.\""
+                 (alist-get :title mdata) new-val)))
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
