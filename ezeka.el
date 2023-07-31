@@ -2246,15 +2246,28 @@ CITEKEY."
                     (ezeka-file-link buffer-file-name)
                   ;; FIXME: Rewrite with completing-read
                   (read-string "Insert template into note with this link: ")))
+          (nondir (file-name-nondirectory buffer-file-name))
+          (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
+                   (ezeka-decode-rubric
+                    (concat (match-string 1 nondir)
+                            (match-string 2 nondir)))))
           (plist (cdr (assoc link ezeka--new-child-plist))))
      (list
       link
-      (ezeka--read-label link)
-      (read-string "Title: " (plist-get plist :title))
+      (or (alist-get :label mdata) (ezeka--read-label link))
+      (read-string "Title: " (or (plist-get plist :title)
+                                 (alist-get :caption mdata)))
       (read-string "Parent? " (plist-get plist :parent))
-      (read-string "Citekey? " (plist-get plist :citekey)))))
+      (read-string
+       "Citekey? " (or (plist-get plist :citekey)
+                       (when (string-match "[@&][^\\s]+$"
+                                           (file-name-base buffer-file-name))
+                         (match-string 0 (file-name-base buffer-file-name))))))))
   (let* ((id (ezeka-link-id link))
-         (caption (ezeka--pasturize-for-filename title)))
+         (caption (ezeka--pasturize-for-filename title))
+         (inhibit-read-only t))
+    (kill-new (buffer-substring-no-properties (point-min) (point-max)))
+    (erase-buffer)
     (goto-char (point-min))
     (insert
      (concat ezeka-header-rubric-key
@@ -2280,7 +2293,7 @@ CITEKEY."
             "\n")                       ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
-    (insert "\n")))
+    (insert "\n"))))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
