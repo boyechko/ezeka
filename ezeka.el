@@ -1488,7 +1488,8 @@ TARGET can be either a link or a filepath."
 
 (defun ezeka--link-with-metadata (link &optional fields where metadata)
   "Return a string with metadata FIELD(S) at place WHERE (relative to LINK).
-FIELDS defaults to :title, WHERE to :before."
+FIELDS defaults to :title, WHERE to :before. If WHERE is
+:instead, do not include the LINK."
   (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
          (fields (or fields '(:title)))
          (where (or where :before))
@@ -1497,10 +1498,12 @@ FIELDS defaults to :title, WHERE to :before."
     (concat (if (eq where :before)
                 (concat value " ")
               "")
-            (ezeka--format-link
-             link
-             (when (eq where :description)
-               value))
+            (if (eq where :instead)
+                ""
+              (ezeka--format-link
+               link
+               (when (eq where :description)
+                 value)))
             (if (eq where :after)
                 (concat " " value)
               ""))))
