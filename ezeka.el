@@ -2385,7 +2385,7 @@ CITEKEY."
             "\n")                       ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
-    (insert "\n"))))
+    (insert "\n")))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
