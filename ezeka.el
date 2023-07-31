@@ -825,9 +825,10 @@ signal an error when encountering malformed header lines."
 
 (defun ezeka-file-metadata (file &optional noerror)
   "Return an alist of metadata for FILE.
-If NOERROR is non-nil, do not signal errors. The keys are converted
-to keywords."
-  (if-let ((header (ezeka-file-content file t noerror)))
+If NOERROR is non-nil, do not signal errors. The keys are
+converted to keywords."
+  (if-let* ((file (expand-file-name file ezeka-directory))
+            (header (ezeka-file-content file t noerror)))
       (let* ((mdata  (ezeka--decode-header header file noerror))
              ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
              (id     (or (ezeka-file-name-id file)
@@ -856,7 +857,7 @@ to keywords."
 ;;; Metadata Commands
 ;;;=============================================================================
 
-(defvar ezeka-metadata-valid-fields
+(defconst ezeka-metadata-valid-fields
   '((:rubric)
     (:title)
     (:subtitle)
@@ -955,7 +956,8 @@ With \\[universal-argument] ARG, show a list of options instead."
 
 (defcustom ezeka-modified-updated-hook nil
   "List of functions to call after modifying the metadata header."
-  :type '(or function list))
+  :type '(or function list)
+  :group 'ezeka)
 
 (defun ezeka--maybe-update-modifed (metadata)
   "Maybe update the modification time in the METADATA.
