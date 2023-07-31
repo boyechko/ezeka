@@ -672,6 +672,9 @@ before renaming If given, use the custom PROMPT."
 ;;; Breadcrumbs
 ;;;=============================================================================
 
+(defvar ezeka-zk--previous-breadcrumb nil
+  "File name of the previous breadcrumb dropped.")
+
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window)
   "Add the currently-visited Zettel to today's `zk-desktop'.
@@ -679,16 +682,19 @@ With WINDOW, drop breadcrumbs for the buffer in that window."
   (interactive)
   (let* ((buffer (window-buffer))
          (file (buffer-file-name buffer)))
-    (if (and (boundp 'zk-desktop-current)
-             (buffer-live-p zk-desktop-current)
-             (file-exists-p file)
-             (ezeka-note-p file)
-             (not (string-match zk-desktop-basename file)))
-        (zk-desktop-send-to-desktop file
-                                    (format-time-string
-                                     (concat " "
-                                             (cdr org-time-stamp-formats))))
-      (user-error "No Zk-Desktop set; first use `rb-zk-desktop-initialize'"))))
+    (unless (and (boundp 'zk-desktop-current)
+                 (buffer-live-p zk-desktop-current))
+      (user-error "No Zk-Desktop set; first use `rb-zk-desktop-initialize'"))
+    (when (and (not (string= file ezeka-zk--previous-breadcrumb))
+               (not (string-match zk-desktop-basename file))
+               (file-exists-p file)
+               (ezeka-note-p file))
+      (setq ezeka-zk--previous-breadcrumb file)
+      (zk-desktop-send-to-desktop file
+                                  (format-time-string
+                                   (concat " "
+                                           (cdr org-time-stamp-formats))))
+      (message "Dropped %s breadcrumb" (file-name-base file)))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
@@ -698,15 +704,14 @@ With WINDOW, drop breadcrumbs for the buffer in that window."
 If the current buffer looks like a Zk-Desktop file, use
 that; otherwise, create a new one."
   (interactive)
-  (let ((title (format-time-string "Zk-Desktop for %A, %B %d")))
-    (if (string-match title (or (ezeka-zk-file-title (buffer-file-name)) ""))
-        (setq zk-desktop-current (current-buffer))
-      (let* ((new-id (ezeka-format-tempus-currens)))
-        (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
-              (list :title (format-time-string "Zk-Desktop for %A, %B %d")
-                    :label "Journal"))
-        (ezeka-find-link new-id)
-        (setq zk-desktop-current (current-buffer))))
+  (let ((title (format-time-string "Zk-Desktop for %A, %B %d"))
+        (new-id (ezeka-format-tempus-currens)))
+    (unless (string-match title (or (ezeka-zk-file-title (buffer-file-name)) ""))
+      (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
+            (list :title (format-time-string "Zk-Desktop for %A, %B %d")
+                  :label "Journal"))
+      (ezeka-find-link new-id))
+    (setq zk-desktop-current (current-buffer))
     (message "Zk-Desktop initialized to %s" (current-buffer))))
 
 (provide 'ezeka-zk)
