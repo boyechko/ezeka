@@ -108,6 +108,12 @@ Each element should be a string beginning with #."
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-dynamic-keywords t
+  "If non-nil, generate a dynamic list of keywords.
+The list is then merged with `ezeka-keywords'."
+  :type 'boolean
+  :group 'ezeka)
+
 (defcustom ezeka-create-nonexistent-links 'confirm
   "Determine how to handle links to non-existent notes.
 Possible valus are t (always create), nil (never create), or
@@ -2267,17 +2273,34 @@ argument), trace genealogy farther than parent."
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :author author)))
 
+(defvar ezeka--dynamic-keywords-cache nil
+  "A list of keywords present in the current `ezeka-directory'.
+This list is generated once per session and then just referenced.")
+
+(defun ezeka--all-keywords ()
+  "Return `ezeka-keywords' with optional dynamic keywords.
+See `ezeka-dynamic-keywords'."
+  (when (and ezeka-dynamic-keywords
+             (null ezeka--dynamic-keywords-cache))
+    (let* ((zk-directory ezeka-directory)
+           (tag-list (zk--grep-tag-list)))
+      (setq ezeka--dynamic-keywords-cache tag-list)))
+  (cl-union ezeka--dynamic-keywords-cache ezeka-keywords))
+
 (defun ezeka-add-keyword (filename keyword &optional replace metadata)
   "Add the given KEYWORD to the Zettel note in FILENAME.
-When KEYWORD is nil (or \\[universal-argument]), clear any existing
-keywords. When REPLACE is non-nil (or double \\[universal-argument]),
-replace them with KEYWORD. If METADATA is supplied, used that."
+When KEYWORD is nil (or \\[universal-argument]), clear any
+existing keywords. When REPLACE is non-nil (or double
+\\[universal-argument]), replace them with KEYWORD. Keywords
+are interactively selected based on `ezeka-keywords' and
+`ezeka-dynamic-keywords'. If METADATA is supplied, used
+that."
   (interactive
    (list (ezeka--grab-dwim-file-target)
          (pcase current-prefix-arg
            ('(4) nil)
-           ('(16) (completing-read "Replace with keyword: " ezeka-keywords))
-           (_ (completing-read "Add keyword: " ezeka-keywords)))
+           ('(16) (completing-read "Replace with keyword: " (ezeka--all-keywords)))
+           (_ (completing-read "Add keyword: " (ezeka--all-keywords))))
          (equal current-prefix-arg '(16))))
   (let ((keyword (cond ((null keyword) nil)
                        ((string-match-p "^#\\w+$" keyword)
