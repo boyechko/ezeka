@@ -275,20 +275,24 @@ as the first line."
       (read-only-mode 0))))
 
 (defun ezeka--rename-file (filename newname)
-  "Rename the given FILENAME to NEWNAME.
-If NEWNAME is relative, fill missing values from FILENAME."
-  (let ((newname (if (file-name-absolute-p newname)
-                     newname
-                   (expand-file-name
-                    (file-name-with-extension
-                     newname (file-name-extension filename))
-                    (file-name-directory filename)))))
+  "Rename the given FILENAME to NEWNAME in two steps.
+If NEWNAME is relative, fill missing values from FILENAME.
+The rename happens in two steps to bypass issues with
+case-insensitive file systems."
+  (let* ((tempname (file-name-with-extension filename "~tmp"))
+         (newname (if (file-name-absolute-p newname)
+                      newname
+                    (expand-file-name
+                     (file-name-with-extension
+                      newname (file-name-extension filename))
+                     (file-name-directory filename)))))
     (cond ((not (file-exists-p filename))
            (set-visited-file-name newname t t))
           ((and nil (vc-backend filename))
            (vc-rename-file filename newname))
           (t
-           (rename-file filename newname t)
+           (rename-file filename tempname t)
+           (rename-file tempname newname t)
            (set-visited-file-name newname t t)))))
 
 ;; The following is adapted from
@@ -1136,7 +1140,7 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
                                   (file-name-base filename)
                                   caption
                                   (format-time-string "%F" time)))))
-                (rename-file filename renamed)))
+                (ezeka--rename-file filename renamed)))
          (if (file-exists-p renamed)
              (when (y-or-n-p "Success! Remove entry? ")
                (cl-delete filename ezeka--unnormalized-files-to-move
