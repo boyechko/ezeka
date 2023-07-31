@@ -1216,6 +1216,10 @@ metadata or rename the file even if they are in agreement."
            (ezeka--save-buffer-read-only filename))
           ((memq keep-which '(?m ?M ?l ?L))
            (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
+             (setf (alist-get :keywords mdata)
+                   (cl-remove ezeka-rename-note-keyword
+                              (alist-get :keywords mdata)
+                              :test #'string=))
              (ezeka--rename-file
               filename
               (file-name-with-extension
