@@ -705,8 +705,9 @@ If the current buffer looks like a Zk-Desktop file, use
 that; otherwise, create a new one."
   (interactive)
   (let ((title (format-time-string "Zk-Desktop for %A, %B %d"))
-        (new-id (ezeka-format-tempus-currens)))
-    (unless (string-match title (or (ezeka-zk-file-title (buffer-file-name)) ""))
+        (new-id (ezeka-format-tempus-currens))
+        (ezeka-create-nonexistent-links t))
+    (unless (string-match title (or (buffer-file-name) ""))
       (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
             (list :title (format-time-string "Zk-Desktop for %A, %B %d")
                   :label "Journal"))
