@@ -711,7 +711,12 @@ The format control string may contain the following %-sequences:
                   (?l . ,(alist-get :label metadata))
                   (?c . ,(alist-get :caption metadata))
                   (?t . ,(alist-get :title metadata))
-                  (?k . ,(or (alist-get :citekey metadata) ""))
+                  (?k . ,(let ((citekey (alist-get :citekey metadata)))
+                           (cond ((not citekey) "")
+                                 ((string-match-p "^[@&]" citekey)
+                                  citekey)
+                                 (t
+                                  (concat "@" citekey)))))
                   (?s . ,(if (alist-get :caption-stable metadata)
                              ezeka-header-stable-caption-mark
                            ""))))))
