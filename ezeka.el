@@ -2357,8 +2357,8 @@ CITEKEY."
                          (match-string 0 (file-name-base buffer-file-name))))))))
   (let* ((id (ezeka-link-id link))
          (caption (ezeka--pasturize-for-filename title))
-         (inhibit-read-only t))
-    (kill-new (buffer-substring-no-properties (point-min) (point-max)))
+         (inhibit-read-only t)
+         (content (buffer-substring-no-properties (point-min) (point-max))))
     (erase-buffer)
     (goto-char (point-min))
     (insert
@@ -2385,7 +2385,8 @@ CITEKEY."
             "\n")                       ; i.e. current time
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
-    (insert "\n")))
+    (insert "\n")
+    (insert content)))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
