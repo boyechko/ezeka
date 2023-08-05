@@ -809,12 +809,12 @@ signal an error when encountering malformed header lines."
   "Return a tuple of (START. END) for the header in Ezeka BUFFER."
   (if (ezeka-note-p buffer)
       (save-excursion
-       (with-current-buffer buffer
-         (goto-char (point-min))
-         (cons (point)
-               (if (re-search-forward "\n\n" nil t)
-                   (match-beginning 0)
-                 (point-max)))))
+        (with-current-buffer buffer
+          (goto-char (point-min))
+          (cons (point)
+                (if (re-search-forward ezeka-header-separator-regexp nil t)
+                    (match-end 0)
+                  (point-max)))))
     (error "Not an Ezeka note")))
 
 (defun ezeka--make-header-read-only (buffer)
