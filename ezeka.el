@@ -150,6 +150,11 @@ therefore, to split the operations into two commits."
   :type 'string
   :group 'ezeka)
 
+(defcustom ezeka-after-save-hook '()
+  "Hook ran after an Ezeka file is saved."
+  :type 'list
+  :group 'ezeka)
+
 ;;;=============================================================================
 ;;; Kaesten
 ;;;=============================================================================
@@ -1224,7 +1229,8 @@ metadata or rename the file even if they are in agreement."
                  (alist-get :caption-stable mdata)
                  nil)
            (ezeka--replace-file-header filename mdata)
-           (ezeka--save-buffer-read-only filename))
+           (ezeka--save-buffer-read-only filename)
+           (apply #'run-hooks ezeka-after-save-hook))
           ((memq keep-which '(?m ?M ?l ?L))
            (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
              (setf (alist-get :keywords mdata)
