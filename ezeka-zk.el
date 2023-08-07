@@ -678,17 +678,20 @@ before renaming If given, use the custom PROMPT."
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window)
   "Add the currently-visited Zettel to today's `zk-desktop'.
-With WINDOW, drop breadcrumbs for the buffer in that window."
+With WINDOW, drop breadcrumbs for the buffer in that window
+\(see `window-selection-change-functions')."
   (interactive)
-  (let* ((file (buffer-file-name (current-buffer))))
-    (unless (and (boundp 'zk-desktop-current)
-                 (buffer-live-p zk-desktop-current))
-      (user-error "No Zk-Desktop set; first use `rb-zk-desktop-initialize'"))
+  (let* ((file (buffer-file-name (if window
+                                     (window-buffer window)
+                                   (current-buffer)))))
     (when (and file
                (not (string= file ezeka-zk--previous-breadcrumb))
                (not (string-match zk-desktop-basename file))
                (file-exists-p file)
                (ezeka-note-p file))
+      (unless (and (boundp 'zk-desktop-current)
+                   (buffer-live-p zk-desktop-current))
+        (rb-zk-desktop-initialize))
       (setq ezeka-zk--previous-breadcrumb file)
       (zk-desktop-send-to-desktop file
                                   (format-time-string
