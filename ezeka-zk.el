@@ -672,12 +672,14 @@ before renaming If given, use the custom PROMPT."
 ;;; Breadcrumbs
 ;;;=============================================================================
 
-(defvar ezeka-zk--breadcrumb-stack nil
-  "Stack of breadcrumb filenames.")
+(defvar ezeka-zk--breadcrumbs-stack nil
+  "Stack of breadcrumbs dropped.
+The variable is reset whenever `ezeka-zk-desktop-initialize'
+is executed.")
 
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window interactive)
-  "Add the currently-visited Zettel to today's `zk-desktop'.
+  "Add the currently-visited Zettel to the current `zk-desktop'.
 With WINDOW, drop breadcrumbs for the buffer in that window
 \(see `window-selection-change-functions'). INTERACTIVE is
 the current prefix argument."
@@ -687,7 +689,7 @@ the current prefix argument."
                                    (current-buffer)))))
     (when (and file
                (or interactive
-                   (not (string= file (or (car ezeka-zk--breadcrumb-stack) ""))))
+                   (not (string= file (or (car ezeka-zk--breadcrumbs-stack) ""))))
                (or interactive
                    (not (string-match zk-desktop-basename file)))
                (file-exists-p file)
@@ -695,30 +697,54 @@ the current prefix argument."
       (unless (and (boundp 'zk-desktop-current)
                    (buffer-live-p zk-desktop-current))
         (rb-zk-desktop-initialize))
-      (push (file-name-base file) ezeka-zk--breadcrumb-stack)
+      (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
       (zk-desktop-send-to-desktop file
                                   (format-time-string
                                    (concat " "
                                            (cdr org-time-stamp-formats))))
-      (message "Dropped %s breadcrumb" (file-name-base file)))))
+      (message "Dropped %s breadcrumbs" (file-name-base file)))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
+(defun ezeka-zk--ordinal-suffix (n)
+  "Ordinal suffix for N, a number or string.
+\(That is, `st', `nd', `rd', or `th', as appropriate.)
+This function is based on `diary-ordinal-suffix'."
+  (let ((n (round (if (numberp n) n (string-to-number n)))))
+    (if (or (memq (% n 100) '(11 12 13))
+            (< 3 (% n 10)))
+        "th"
+      (aref ["th" "st" "nd" "rd"] (% n 10)))))
+
 ;;;###autoload
-(defun rb-zk-desktop-initialize ()
+(defun ezeka-zk-desktop-initialize ()
   "Set `zk-desktop-current' to today's desktop.
 If the current buffer looks like a Zk-Desktop file, use
 that; otherwise, create a new one."
   (interactive)
-  (let ((title (format-time-string "Zk-Desktop for %A, %B %d"))
-        (new-id (ezeka-format-tempus-currens))
-        (ezeka-create-nonexistent-links t))
+  (let* ((title (format "%s for %s%s"
+                        zk-desktop-basename
+                        (format-time-string "%A, %B %-d")
+                        (ezeka-zk--ordinal-suffix
+                         (decoded-time-day (decode-time)))))
+         (new-id (ezeka-format-tempus-currens))
+         (ezeka-create-nonexistent-links t)
+         (buf-fname (or (buffer-file-name) ""))
+         (parent (when (and (string-match zk-desktop-basename buf-fname)
+                            (y-or-n-p "Treat current file as parent? "))
+                   (ezeka--replace-file-header
+                    buf-fname
+                    (ezeka-set-metadata-value (ezeka-file-metadata buf-fname)
+                                              :firstborn new-id))
+                   (ezeka-file-link buf-fname))))
     (unless (string-match title (or (buffer-file-name) ""))
       (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
-            (list :title (format-time-string "Zk-Desktop for %A, %B %d")
-                  :label "Journal"))
+            (list :title title
+                  :label "Journal"
+                  :parent parent))
       (ezeka-find-link new-id))
-    (setq zk-desktop-current (current-buffer))
+    (setq zk-desktop-current (current-buffer)
+          ezeka-zk--breadcrumbs-stack nil)
     (message "Zk-Desktop initialized to %s" (current-buffer))))
 
 (provide 'ezeka-zk)
