@@ -706,6 +706,26 @@ the current prefix argument."
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
+(defun ezeka-zk-desktop-magit-stage-breadcrumbs (&optional start end)
+  "Stage all breadcrumbs in the current buffer with `magit'.
+If region is active, only do so for links between START and
+END."
+  (interactive
+   (when (use-region-p)
+     (list (region-beginning) (region-end))))
+  (save-restriction
+    (if start
+        (narrow-to-region start end)
+      (org-find-exact-headline-in-buffer "Breadcrumbs")
+      (org-narrow-to-subtree))
+    (goto-char (point-min))
+    (while (re-search-forward (concat "\\[\\[" (ezeka-link-regexp) "]]") nil t)
+      (let ((file (ezeka-link-file (match-string 1))))
+        (message "Staging %s %s..."
+                 (ezeka-file-name-id file) (ezeka-file-name-caption file))
+        (magit-stage-file file))))
+  (magit-stage-file buffer-file-name))
+
 (defun ezeka-zk--ordinal-suffix (n)
   "Ordinal suffix for N, a number or string.
 \(That is, `st', `nd', `rd', or `th', as appropriate.)
