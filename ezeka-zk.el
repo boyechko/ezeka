@@ -675,6 +675,9 @@ before renaming If given, use the custom PROMPT."
 (defvar ezeka-zk--previous-breadcrumb nil
   "File name of the previous breadcrumb dropped.")
 
+(defvar ezeka-zk--breadcrumb-stack nil
+  "Stack of breadcrumbs.")
+
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window)
   "Add the currently-visited Zettel to today's `zk-desktop'.
@@ -693,6 +696,7 @@ With WINDOW, drop breadcrumbs for the buffer in that window
                    (buffer-live-p zk-desktop-current))
         (rb-zk-desktop-initialize))
       (setq ezeka-zk--previous-breadcrumb file)
+      (push (file-name-base file) ezeka-zk--breadcrumb-stack)
       (zk-desktop-send-to-desktop file
                                   (format-time-string
                                    (concat " "
