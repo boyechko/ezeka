@@ -3103,7 +3103,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
             ("C-c /" . ezeka-set-author) ; `org-sparse-tree'
-            ("C-c ?" . ezeka-links-to)                   ; `org-table-field-info'
+            ("C-c ?" . ezeka-links-to) ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
@@ -3119,17 +3119,18 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ;; Shadows `org-set-property-and-value'
             ("C-c C-x F" . ezeka-org-set-todo-properties)
             ("C-c C-x z" . ezeka-move-to-another-kasten)
-            ))
-
+            ))                          ; end of :keymap
   (cond (ezeka-mode
-         (ezeka--make-header-read-only (current-buffer))
+         (when (or (ezeka-note-p (current-buffer))
+                   (y-or-n-p "This doesn't look like an Ezeka note. Still enable `ezeka-mode'? "))
+           (ezeka--make-header-read-only (current-buffer))
 
-         (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
-         (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)
+           (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
+           (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)
 
-         ;; Treat : (colon) as part of the word, allowing forward/backward-word
-         ;; over full Zettel links.
-         (modify-syntax-entry ?: "w"))
+           ;; Treat : (colon) as part of the word, allowing
+           ;; forward/backward-word over full Zettel links.
+           (modify-syntax-entry ?: "w")))
         (t
          (remove-hook 'before-save-hook 'ezeka--update-file-header t)
          (remove-hook 'before-save-hook 'ezeka-normalize-file-name t)
