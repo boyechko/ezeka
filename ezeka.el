@@ -1185,6 +1185,7 @@ metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
+         (pasturized (ezeka--pasturize-for-filename mdata-base))
          (read-user-choice
           (lambda (file-base mdata-base)
             "Prompt the user about which name to use."
@@ -1197,7 +1198,7 @@ metadata or rename the file even if they are in agreement."
                              "      [r] to add %s keyword for renaming later, or\n"
                              "      [n] or [q] to do noting: ")
                      (propertize file-base 'face 'bold)
-                     (propertize mdata-base 'face 'bold-italic)
+                     (propertize pasturized 'face 'bold-italic)
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
@@ -1232,19 +1233,18 @@ metadata or rename the file even if they are in agreement."
            (ezeka--save-buffer-read-only filename)
            (apply #'run-hooks ezeka-after-save-hook))
           ((memq keep-which '(?m ?M ?l ?L))
-           (let ((pasturized (ezeka--pasturize-for-filename mdata-base)))
-             (setf (alist-get :keywords mdata)
-                   (cl-remove ezeka-rename-note-keyword
-                              (alist-get :keywords mdata)
-                              :test #'string=))
-             (ezeka--rename-file
-              filename
-              (file-name-with-extension
-               (if (or (member keep-which '(?M ?L))
-                       (not (string= pasturized mdata-base)))
-                   (ezeka--minibuffer-edit-string pasturized)
-                 pasturized)
-               ezeka-file-extension)))
+           (setf (alist-get :keywords mdata)
+                 (cl-remove ezeka-rename-note-keyword
+                            (alist-get :keywords mdata)
+                            :test #'string=))
+           (ezeka--rename-file
+            filename
+            (file-name-with-extension
+             (if (or (member keep-which '(?M ?L))
+                     (not (string= pasturized mdata-base)))
+                 (ezeka--minibuffer-edit-string pasturized)
+               pasturized)
+             ezeka-file-extension))
            (when t                      ; TODO check if filename changed
              (message "You might want to do `ezeka-normalize-file-name' again"))))))
 
