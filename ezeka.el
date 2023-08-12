@@ -1525,6 +1525,12 @@ FIELDS defaults to :title, WHERE to :before. If WHERE is
                 (concat " " value)
               ""))))
 
+(defun ezeka-insert-with-spaces (str)
+  "Insert STR at point surrounded by spaces as appropriate."
+  (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
+          (string-trim str)
+          (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))
+
 (defun ezeka-insert-link-with-metadata (link &optional fields where confirm)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
@@ -1549,22 +1555,21 @@ non-NIL, ask for confirmation before inserting metadata."
     (unless file
       (user-error "There is no file associated with %s" link))
     (let ((mdata (ezeka-file-metadata file)))
-      (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
-              (if (or (not confirm)
-                      (progn
-                        ;; Pressing return just defaults to NO rather than quit
-                        (define-key query-replace-map [return] 'act)
-                        (y-or-n-p (format (if (eq where :description)
-                                              "Insert [%s] in the link %s? "
-                                            "Insert [%s] %s the link? ")
-                                          (mapconcat (lambda (f)
-                                                       (alist-get f mdata))
-                                            fields
-                                            " ")
-                                          where))))
-                  (ezeka--link-with-metadata link fields where mdata)
-                (ezeka--format-link link))
-              (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))))
+      (ezeka-insert-with-spaces
+       (if (or (not confirm)
+               (progn
+                 ;; Pressing return just defaults to NO rather than quit
+                 (define-key query-replace-map [return] 'act)
+                 (y-or-n-p (format (if (eq where :description)
+                                       "Insert [%s] in the link %s? "
+                                     "Insert [%s] %s the link? ")
+                                   (mapconcat (lambda (f)
+                                                (alist-get f mdata))
+                                     fields
+                                     " ")
+                                   where))))
+           (ezeka--link-with-metadata link fields where mdata)
+         (ezeka--format-link link))))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
