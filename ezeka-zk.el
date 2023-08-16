@@ -677,6 +677,7 @@ before renaming If given, use the custom PROMPT."
 The variable is reset whenever `ezeka-zk-desktop-initialize'
 is executed.")
 
+;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window interactive)
   "Add the currently-visited Zettel to the current `zk-desktop'.
@@ -684,25 +685,27 @@ With WINDOW, drop breadcrumbs for the buffer in that window
 \(see `window-selection-change-functions'). INTERACTIVE is
 the current prefix argument."
   (interactive (list nil (prefix-numeric-value current-prefix-arg)))
-  (let* ((file (buffer-file-name (if window
-                                     (window-buffer window)
-                                   (current-buffer)))))
-    (when (and file
-               (or interactive
-                   (not (string= file (or (car ezeka-zk--breadcrumbs-stack) ""))))
-               (or interactive
-                   (not (string-match zk-desktop-basename file)))
-               (file-exists-p file)
-               (ezeka-note-p file))
-      (unless (and (boundp 'zk-desktop-current)
-                   (buffer-live-p zk-desktop-current))
-        (rb-zk-desktop-initialize))
-      (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
-      (zk-desktop-send-to-desktop file
-                                  (format-time-string
-                                   (concat " "
-                                           (cdr org-time-stamp-formats))))
-      (message "Dropped %s breadcrumbs" (file-name-base file)))))
+  (when (or (null window) (windowp window))
+    (let* ((file (buffer-file-name (if window
+                                       (window-buffer window)
+                                     (current-buffer)))))
+      (when (and file
+                 (or interactive
+                     (not (string= (file-name-base file)
+                                   (or (car ezeka-zk--breadcrumbs-stack) ""))))
+                 (or interactive
+                     (not (string-match zk-desktop-basename file)))
+                 (file-exists-p file)
+                 (ezeka-note-p file))
+        (unless (and (boundp 'zk-desktop-current)
+                     (buffer-live-p zk-desktop-current))
+          (ezeka-zk-desktop-initialize))
+        (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
+        (zk-desktop-send-to-desktop file
+                                    (format-time-string
+                                     (concat " "
+                                             (cdr org-time-stamp-formats))))
+        (message "Dropped %s breadcrumbs" (file-name-base file))))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
