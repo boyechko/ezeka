@@ -679,21 +679,22 @@ is executed.")
 
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
-(defun ezeka-zk-desktop-drop-breadcrumbs (&optional window interactive)
+(defun ezeka-zk-desktop-drop-breadcrumbs (&optional window caller)
   "Add the currently-visited Zettel to the current `zk-desktop'.
 With WINDOW, drop breadcrumbs for the buffer in that window
-\(see `window-selection-change-functions'). INTERACTIVE is
-the current prefix argument."
+\(see `window-selection-change-functions'). CALLER, if set,
+should be a string describing the caller or, if the command
+is called interactively, is the current prefix argument."
   (interactive (list nil (prefix-numeric-value current-prefix-arg)))
   (when (or (null window) (windowp window))
     (let* ((file (buffer-file-name (if window
                                        (window-buffer window)
                                      (current-buffer)))))
       (when (and file
-                 (or interactive
+                 (or (numberp caller)
                      (not (string= (file-name-base file)
                                    (or (car ezeka-zk--breadcrumbs-stack) ""))))
-                 (or interactive
+                 (or (numberp caller)
                      (not (string-match zk-desktop-basename file)))
                  (file-exists-p file)
                  (ezeka-note-p file))
@@ -703,8 +704,10 @@ the current prefix argument."
         (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
         (zk-desktop-send-to-desktop file
                                     (format-time-string
-                                     (concat " "
-                                             (cdr org-time-stamp-formats))))
+                                     (mapconcat #'identity
+                                       (list (if (stringp caller) caller "")
+                                             (cdr org-time-stamp-formats))
+                                       " ")))
         (message "Dropped %s breadcrumbs" (file-name-base file))))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
