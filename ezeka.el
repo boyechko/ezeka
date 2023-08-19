@@ -415,6 +415,8 @@ It is a Zettel if all of these conditions are met:
   "Return the Kasten of the given Zettel FILE."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
     (or (cl-find-if (lambda (dir) (ezeka-kasten-named dir)) dirs)
+        ;; FIXME: Hack
+        (ezeka-link-kasten (ezeka-file-name-id file))
         (error "Can't figure out kasten for %s" file))))
 
 (defun ezeka-file-link (file)
