@@ -2841,10 +2841,12 @@ different. With \\[universal-argument] ARG, forces update."
                     (split-string
                      (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
                      nil t " \n")))
-          (dolist (org-id used-list)
-            (org-id-goto org-id)
-            (org-back-to-heading t)
-            (org-set-tags (cl-union '("CHANGED") (org-get-tags) :test #'string=)))))
+          (when (y-or-n-p (format "Add CHANGED tags in %d places? "
+                                  (length used-list)))
+            (dolist (org-id used-list)
+              (org-id-goto org-id)
+              (org-back-to-heading t)
+              (org-set-tags (cl-union '("CHANGED") (org-get-tags) :test #'string=))))))
       (switch-to-buffer current))))
 (add-hook 'ezeka-modified-updated-hook #'ezeka--update-inserted-snippet)
 
