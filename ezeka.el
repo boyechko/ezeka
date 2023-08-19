@@ -2773,11 +2773,10 @@ different. With \\[universal-argument] ARG, forces update."
                   (forward-line)
                   (let ((summary-start (point)))
                     (org-end-of-subtree)
-                    (mapcar (lambda (line)
-                              (push (concat "# " line "\n") content))
-                            (split-string
-                             (buffer-substring-no-properties summary-start (point))
-                             "\n" t))))
+                    (push "#+begin_comment" content)
+                    (push (buffer-substring-no-properties summary-start (point))
+                          content)
+                    (push "\n#+end_comment\n\n" content)))
                 (goto-char
                  (or (org-find-exact-headline-in-buffer "Snippet")
                      (org-find-exact-headline-in-buffer "Content")
