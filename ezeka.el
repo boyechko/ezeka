@@ -2393,6 +2393,8 @@ that."
 ;;; Populating Files
 ;;;=============================================================================
 
+(defvar ezeka--citekey-history nil)
+
 (defun ezeka-insert-header-template (&optional link label title parent citekey)
   "Insert header template into the current buffer.
 If given, populate the header with the LINK, LABEL, TITLE, PARENT, and
@@ -2418,7 +2420,8 @@ CITEKEY."
        "Citekey? " (or (plist-get plist :citekey)
                        (when (string-match "[@&][^\\s]+$"
                                            (file-name-base buffer-file-name))
-                         (match-string 0 (file-name-base buffer-file-name))))))))
+                         (match-string 0 (file-name-base buffer-file-name))))
+       'ezeka--citekey-history))))
   (let* ((id (ezeka-link-id link))
          (caption (ezeka--pasturize-for-filename title))
          (inhibit-read-only t)
