@@ -2212,7 +2212,9 @@ If SECTION is nil, default to `Change Log'."
     (let* ((section (or section "Change Log"))
            (headline (org-find-exact-headline-in-buffer section)))
       (if headline
-          (goto-char headline)
+          (progn
+            (goto-char headline)
+            (end-of-line))
         (goto-char (point-max))
         (org-insert-heading nil nil 'top)
         (insert section))
@@ -2221,7 +2223,8 @@ If SECTION is nil, default to `Change Log'."
       (insert
        (format "- %s :: %s"
                (format-time-string (org-time-stamp-format nil t))
-               entry)))))
+               entry))
+      (org-fill-element))))
 
 (defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption)
   "Update the title in FILENAME's header to NEW-VAL.
