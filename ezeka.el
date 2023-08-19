@@ -717,7 +717,9 @@ The format control string may contain the following %-sequences:
                   (?c . ,(alist-get :caption metadata))
                   (?t . ,(alist-get :title metadata))
                   (?k . ,(let ((citekey (alist-get :citekey metadata)))
-                           (cond ((not citekey) "")
+                           (cond ((or (not citekey)
+                                      (string-empty-p citekey))
+                                  "")
                                  ((string-match-p "^[@&]" citekey)
                                   citekey)
                                  (t
