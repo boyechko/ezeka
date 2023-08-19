@@ -1402,22 +1402,18 @@ If TIME is nil, default to current time."
       ;; If already tempus currens, just return that id
       (ezeka-link-id link)
     ;; Otherwise come up with an appropriate ID based on the metadata
-    (let ((metadata (ezeka-file-metadata (ezeka-link-file link)))
-          oldname)
-      (cond ((setq oldname
-               (cl-find-if
-                (lambda (l)
-                  (when (ezeka-link-p l)
-                    (eq (ezeka-kasten-id-type (ezeka-link-kasten l)) :tempus)))
-                (alist-get :oldnames metadata)))
+    (let* ((file (ezeka-link-file link))
+           (mdata (ezeka-file-metadata file))
+           oldname)
+      (cond ((setq oldname (ezeka--resurrectable-oldname file :tempus mdata))
              ;; One of the old names was a tempus currens; just use that
              (ezeka-link-id oldname))
-            ((alist-get :created metadata)
+            ((alist-get :created mdata)
              (string-replace "T0000"    ; FIXME: A bit hacky?
                              (format-time-string "T%H%M")
                              (ezeka-format-tempus-currens
                               (ezeka-encode-iso8601-datetime
-                               (alist-get :created metadata)))))
+                               (alist-get :created mdata)))))
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
