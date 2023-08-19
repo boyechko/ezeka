@@ -1170,7 +1170,7 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
                (cl-delete filename ezeka--unnormalized-files-to-move
                           :test #'string= :key #'car))
            (message "Rename failed")))))
-        ezeka--unnormalized-files-to-move))
+   ezeka--unnormalized-files-to-move))
 
 (defun ezeka-normalize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
