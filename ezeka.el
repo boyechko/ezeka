@@ -507,7 +507,7 @@ separated with `ezeka-file-name-separator'. Alternatively,
 if CAPTION is anything else (e.g. 'wildcard or nil), try
 wildcard expansion for the file name beginning with the ID
 given in LINK. If NOERROR is non-nil, do not raise an error
-if no file is found."
+if file is not found."
   (unless (ezeka-link-p link) (error "Link not valid: %s" link))
   (let* ((id (ezeka-link-id link))
          (basename (format "%s%s.%s"
@@ -875,6 +875,7 @@ converted to keywords."
 ;;; Metadata Commands
 ;;;=============================================================================
 
+;; FIXME: Specify type (scalar/list) of data expected
 (defconst ezeka-metadata-valid-fields
   '((:rubric)
     (:title)
@@ -895,7 +896,7 @@ file header.")
 
 (defun ezeka-set-metadata-value (metadata field value)
   "Set METADATA's FIELD to VALUE after doing some checking.
-Return the original METADATA wit the field changed."
+Return the original METADATA with the field changed."
   (setf (alist-get field metadata) value)
   metadata)
 
@@ -1327,7 +1328,7 @@ abase26 equivalent of 0, namely 'a'."
          (setq project
            (if (fboundp #'zk--select-file)
                (ezeka-zk-with-kasten "numerus"
-                (ezeka-file-link (zk--select-file "Select project: ")))
+                 (ezeka-file-link (zk--select-file "Select project: ")))
              (read-string "Scriptum project (numerus currens): ")))
          (unless (ezeka-link-file project)
            (setq project nil)))
@@ -1353,6 +1354,7 @@ acceptable."
            (or (not confirm)
                (y-or-n-p (format "Is %s acceptable? " id)))))
         id)
+    ;; TODO: Extract to a separate function
     (if (and (eq type :numerus)
              (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
         (unwind-protect
@@ -1469,7 +1471,7 @@ T if the link is a Zettel link."
       (cond ((ezeka-note-p existing-file)
              (ezeka-find-file existing-file same-window))
             ((or (eql ezeka-create-nonexistent-links t)
-                 (and (eql ezeka-create-nonexistent-links 'confirm)
+                 (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
                        (format "Link `%s' doesn't exist. Create? " link))))
              (ezeka-find-file (ezeka-link-file link "") same-window)
@@ -1631,13 +1633,13 @@ the list, just insert the link to what was selected. If the cursor in
 already inside a link, replace it instead."
   (interactive "P")
   (let* ((table (mapcar (lambda (item)
-                              (let ((link (cdr (cl-find 'filename
-                                                        (cdr item)
-                                                        :key #'car))))
-                                (when (ezeka-link-p link)
-                                  (cons (car item)
-                                        (ezeka-link-file link)))))
-                            bookmark-alist))
+                          (let ((link (cdr (cl-find 'filename
+                                                    (cdr item)
+                                                    :key #'car))))
+                            (when (ezeka-link-p link)
+                              (cons (car item)
+                                    (ezeka-link-file link)))))
+                        bookmark-alist))
          (link (when table
                  (ezeka-file-link
                   (cdr (assoc-string
@@ -1894,14 +1896,14 @@ note."
   (if (region-active-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
     (let ((start (point)))
-     (save-excursion
-       (beginning-of-line)
-       ;; FIXME: Might be good to have some limit to prevent
-       ;; killing whole paragraphs worth of text with soft
-       ;; newlines.
-       (string-trim-left
-        (buffer-substring-no-properties (point) (max (point-min) (1- start)))
-        "[ +*-]*")))))
+      (save-excursion
+        (beginning-of-line)
+        ;; FIXME: Might be good to have some limit to prevent
+        ;; killing whole paragraphs worth of text with soft
+        ;; newlines.
+        (string-trim-left
+         (buffer-substring-no-properties (point) (max (point-min) (1- start)))
+         "[ +*-]*")))))
 
 (defun ezeka-insert-new-child-with-title (arg title &optional id)
   "Create a new child with given TITLE, inserting its link at point.
@@ -2006,12 +2008,12 @@ information for Zettelkasten work."
     (if-let* ((link (and (ezeka-link-at-point-p)
                          (ezeka-link-at-point)))
               (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-      (setq mode-line-misc-info
-        (propertize
-         (format "%s%s%s" (alist-get :title metadata)
-                 (if (alist-get :citekey metadata) " " "")
-                 (or (alist-get :citekey metadata) ""))
-         'face '(:slant italic :height 0.9)))
+        (setq mode-line-misc-info
+          (propertize
+           (format "%s%s%s" (alist-get :title metadata)
+                   (if (alist-get :citekey metadata) " " "")
+                   (or (alist-get :citekey metadata) ""))
+           'face '(:slant italic :height 0.9)))
       (setq mode-line-misc-info zk-index-mode-line-orig))))
 
 (defun ezeka-completion-table (files)
@@ -2091,16 +2093,16 @@ that prompt instead of the default. If VERBOSE is non-nil, show a list
 of choices with explantions. DEFAULT is the genus used if user just
 presses [return]."
   (cl-flet ((--completing-read ()
-               (let ((table (mapcar (lambda (genus)
-                                      (cl-destructuring-bind (lt gk desc)
-                                          genus
-                                        (cons
-                                         (format "%s (%s) ⇒ %s" lt gk desc)
-                                         lt)))
-                                    ezeka-genera)))
-                 (cdr (assoc-string (completing-read (or prompt "Genus: ")
-                                                     table nil t)
-                                    table)))))
+                               (let ((table (mapcar (lambda (genus)
+                                                      (cl-destructuring-bind (lt gk desc)
+                                                          genus
+                                                        (cons
+                                                         (format "%s (%s) ⇒ %s" lt gk desc)
+                                                         lt)))
+                                                    ezeka-genera)))
+                                 (cdr (assoc-string (completing-read (or prompt "Genus: ")
+                                                                     table nil t)
+                                                    table)))))
     (let (item)
       (while (null item)
         (let ((result
@@ -2267,10 +2269,10 @@ argument), trace genealogy farther than parent."
   (let* ((ancestor (ezeka-trace-genealogy filename degree))
          (initial
           (or (alist-get :citekey
-                          (ezeka-decode-rubric (file-name-base filename)))
+                (ezeka-decode-rubric (file-name-base filename)))
               (alist-get :citekey
-                          (ezeka-decode-rubric
-                           (file-name-base (ezeka-link-file ancestor))))))
+                (ezeka-decode-rubric
+                 (file-name-base (ezeka-link-file ancestor))))))
          (citekey (or citekey (read-string "New citekey: " initial))))
     (ezeka--update-metadata-values filename nil
       :citekey (if (and citekey
@@ -3103,12 +3105,12 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
-            ("C-c '" . ezeka-set-label) ; `org-edit-special'
+            ("C-c '" . ezeka-set-label)                     ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
-            ("C-c /" . ezeka-set-author) ; `org-sparse-tree'
-            ("C-c ?" . ezeka-links-to) ; `org-table-field-info'
+            ("C-c /" . ezeka-set-author)                 ; `org-sparse-tree'
+            ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
