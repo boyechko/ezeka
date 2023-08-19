@@ -742,7 +742,7 @@ If cannot decode, return NIL."
             (when kasten (cons :kasten (string-trim kasten)))
             (cons :type (ezeka-id-type id))
             (cons :label label)
-            (cons :caption (string-trim caption))
+            (when caption (cons :caption (string-trim caption)))
             (cons :caption-stable stable)
             (when citekey (cons :citekey (string-trim citekey)))))))
 
