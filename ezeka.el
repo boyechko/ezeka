@@ -1797,6 +1797,41 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
           (insert title " "))))))
 
 ;;;=============================================================================
+;;; Link hints via overlays
+;;;=============================================================================
+
+(defcustom ezeka-make-help-echo-overlays t
+  "Make help echo overlays with link's filename."
+  :group 'ezeka
+  :type 'boolean)
+
+(defun ezeka--make-help-echo-overlay (&optional pos context)
+  "Make an overlay at POS (or `point') with help-echo.
+CONTEXT is the result of `org-context'."
+  (save-excursion
+    (goto-char (or pos (point)))
+    (when-let* ((context (or context (org-context)))
+                (link (cl-find :link context :key #'car))
+                (_ (ezeka-link-at-point-p))
+                (overlay (make-overlay (cadr link) (caddr link))))
+      (overlay-put overlay 'type 'ezeka-help-echo)
+      (overlay-put overlay 'face '((t (:underline "purple"))))
+      (overlay-put overlay 'help-echo
+                   (file-name-base (ezeka-link-file (ezeka-link-at-point)))))))
+
+(defun ezeka--make-help-echo-overlays (&optional buffer)
+  "Make help echo overlays in BUFFER (or `current-buffer')."
+  (interactive)
+  (let ((buffer (or buffer (current-buffer))))
+    (save-excursion
+      (with-current-buffer buffer
+        (remove-overlays (point-min) (point-max) 'type 'ezeka-help-echo)
+        (goto-char (point-min))
+        (when ezeka-make-help-echo-overlays
+          (while (re-search-forward (ezeka-link-regexp) nil t)
+            (ezeka--make-help-echo-overlay (point) (org-context))))))))
+
+;;;=============================================================================
 ;;; Genealogical
 ;;;=============================================================================
 
