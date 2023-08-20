@@ -2965,7 +2965,7 @@ If CONFIRM is non-nil, confirm the link to check."
                (read-string "Check which link? " link)
              link))))
   (with-temp-buffer
-    (insert-file-contents ezeka--move-log-file)
+    (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
     (goto-char (point-min))
     (if-let* ((_ (re-search-forward
                   (concat ".*" link ".*") nil t)))
