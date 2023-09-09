@@ -1677,6 +1677,13 @@ insert just the link itself."
         (gui-set-selection 'CLIPBOARD backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
 
+(defun ezeka--kill-ring-clipboard-save (text)
+  "Save TEXT to kill ring and GUI clipboard."
+  (kill-new text)
+  (unless select-enable-clipboard
+    (gui-set-selection 'CLIPBOARD text))
+  (message "Saved [%s] in the kill ring & clipboard" text))
+
 (defun ezeka-kill-ring-save-link-and-title (arg)
   "Save the link and title to kill ring and system clipboard.
 If the point is at Zettel link, use that; otherwise, the current
@@ -1693,10 +1700,7 @@ With double \\[universal-argument], save caption."
                             (alist-get :rubric mdata))
                            (t
                             (ezeka-format-metadata "%i {%l} %t" mdata)))))
-        (kill-new result)
-        (unless select-enable-clipboard
-          (gui-set-selection 'CLIPBOARD result))
-        (message "Saved [%s] in the kill ring" result)))))
+        (ezeka--kill-ring-clipboard-save result)))))
 
 (defun ezeka-kill-ring-save-link-or-filename (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
@@ -1710,10 +1714,7 @@ Finder with it selected."
                       (file-relative-name (file-truename file)
                                           (file-truename ezeka-directory))
                     (ezeka-file-link file))))
-        (if select-enable-clipboard
-            (kill-new link)
-          (gui-set-selection 'CLIPBOARD link))
-        (message "Saved [%s] in the kill ring" link)
+        (ezeka--kill-ring-clipboard-save link)
         (when (= arg 16)
           (shell-command (format "open -R '%s' &" file)))))))
 
@@ -1727,8 +1728,7 @@ Finder with it selected."
                     (when (re-search-forward (ezeka-link-regexp) eol t)
                       (match-string-no-properties 0))))))
       (when link
-        (kill-new link)
-        (message "Saved [%s] to kill ring" link)))))
+        (ezeka--kill-ring-clipboard-save link)))))
 
 (defun ezeka-links-to (link)
   "Run a recursive grep (`rgrep') to find references LINK.
