@@ -2964,19 +2964,23 @@ If CONFIRM is non-nil, confirm the link to check."
      (list (if (or current-prefix-arg (null link))
                (read-string "Check which link? " link)
              link))))
-  (with-temp-buffer
-    (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
-    (goto-char (point-min))
-    (if-let* ((_ (re-search-forward
-                  (concat ".*" link ".*") nil t)))
-        (cl-destructuring-bind (source target time)
-            (read (match-string 0))
-          (kill-new target)
-          (if (y-or-n-p
-               (format "%s moved to %s on %s. Open? " source target time))
-              (find-file-other-window (ezeka-link-file target))
-            t))
-      (message "No record of moving %s" link))))
+  (let (records
+        message)
+    (with-temp-buffer
+      (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
+      (goto-char (point-min))
+      (while (re-search-forward (concat ".*" link ".*") nil t)
+        (push (read (match-string 0)) records))
+      (if (null records)
+          (message "No record of moving %s" link)
+        (dolist (rec records)
+          (cl-destructuring-bind (source target time)
+              rec
+            (setq message
+              (concat message
+                      (format "%s moved to %s on %s\n" source target time)))))
+        (when (y-or-n-p (concat message (format "Visit %s? " (cadr (car records)))))
+          (ezeka-find-link (cadr (car records))))))))
 
 (defun ezeka--move-note (link1 link2 &optional confirm)
   "Move Zettel note from LINK1 to LINK2.
