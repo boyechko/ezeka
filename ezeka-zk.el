@@ -485,14 +485,22 @@ replace the link with {{BEFORE}}. Returns a tuple of number of links
 replaced in number of files. If CONFIRM (or \\[universal-argument]) is
 non-nil, check with user before replacing."
   (interactive
-   (let* ((before (read-string "Replace link ... "
-                               nil
-                               'ezeka--zk-replace-links-history))
-          (after (read-string (format "Replace %s with ... " before)
-                              nil
-                              'ezeka--zk-replace-links-history)))
-     (list before after nil
-           (y-or-n-p "Confirm before replacing? "))))
+   (if (save-excursion
+         (beginning-of-line)
+         (thing-at-point-looking-at "^(.*)$"))
+       (when-let* ((_ (y-or-n-p
+                       (format "%s\nThis looks like a move.log record. Use it? "
+                               (match-string-no-properties 0))))
+                   (rec (read (match-string-no-properties 0))))
+         (list (car rec) (cadr rec) nil t))
+     (let* ((before (read-string "Replace link ... "
+                                 nil
+                                 'ezeka--zk-replace-links-history))
+            (after (read-string (format "Replace %s with ... " before)
+                                nil
+                                'ezeka--zk-replace-links-history)))
+       (list before after nil
+             (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
          (ezeka-zk-drop-breadcrumbs nil)
          (bf-id (ezeka-link-id before))
