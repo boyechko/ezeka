@@ -82,26 +82,32 @@ The format is customizable via `ezeka-zk-index-buffer-format'."
                  (?k . ,(upcase kasten)))))
 
 ;;;###autoload
-(defun ezeka-zk-index-switch-to-kasten (kasten &optional arg)
+(defun ezeka-zk-index-switch-to-kasten (kasten &optional choose noselect)
   "Create or switch to Zk-Index buffer for given KASTEN.
-With \\[universal-argument] ARG, don't actually switch, just set up
-the environment."
+If KASTEN is not specified, switch to the most recently
+viewed index, if there are active ones. With CHOOSE (or
+\\[universal-argument]), offer a choice of Kasten regardless. If NOSELECT
+is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually switch."
   (interactive
-   (list
-    (let ((active (ezeka-zk--current-active-indexes)))
-      (completing-read "Switch to Kasten: "
-                       (mapcar (lambda (k)
-                                 (let ((name (ezeka-kasten-name k)))
-                                   (if (assoc-string name active)
-                                       (propertize name 'face 'bold-italic)
-                                     name)))
-                               ezeka-kaesten)))
-    current-prefix-arg))
+   (let ((active (ezeka-zk--current-active-indexes))
+         (prefix (prefix-numeric-value current-prefix-arg)))
+     (list
+      (if (or (not active) (= prefix 4))
+          (completing-read "Switch to Kasten: "
+                           (mapcar (lambda (k)
+                                     (let ((name (ezeka-kasten-name k)))
+                                       (if (assoc-string name active)
+                                           (propertize name 'face 'bold-italic)
+                                         name)))
+                                   ezeka-kaesten))
+        (caar active))
+      (= prefix 4)
+      (= prefix 16))))
   (custom-set-variables
    '(zk-subdirectory-function #'ezeka-id-subdirectory)
    `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten)))
   (ezeka-zk-initialize-kasten kasten)
-  (unless arg
+  (unless noselect
     (zk-index)))
 
 (defun ezeka-zk--current-active-indexes ()
