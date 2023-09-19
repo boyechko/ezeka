@@ -131,16 +131,20 @@ Optionally use ORIG-ID for backlink."
   "Function to display FILE or BUFFER on button press in Index and Desktop.
 If \\[universal-argument] SAME-WINDOW is non-nil, use same window.
 See `zk-index-button-display-action'."
-  (let ((same-window (or same-window current-prefix-arg)))
-    (cond ((one-window-p)
-           (pop-to-buffer buffer
-                          (display-buffer-in-direction
-                           buffer
-                           '((direction . top)
-                             (window-height . 0.6)))))
-          (same-window
-           (find-file file))
-          (t (find-file-other-window file)))))
+  (let ((buffer (or buffer (find-file-noselect file))))
+    (with-current-buffer buffer
+      (ezeka-zk-breakcrumbs-reset-stack)
+      (ezeka-zk-desktop-drop-breadcrumbs))
+    (let ((same-window (or same-window current-prefix-arg)))
+      (cond ((one-window-p)
+             (pop-to-buffer buffer
+                            (display-buffer-in-direction
+                             buffer
+                             '((direction . top)
+                               (window-height . 0.6)))))
+            (same-window
+             (find-file file))
+            (t (find-file-other-window file))))))
 
 (defun ezeka-zk-format-function (format id title)
   "Format given ID and TITLE according to FORMAT.
