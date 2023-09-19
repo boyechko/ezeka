@@ -697,6 +697,9 @@ before renaming If given, use the custom PROMPT."
 The variable is reset whenever `ezeka-zk-desktop-initialize'
 is executed.")
 
+(defcustom ezeka-zk-drop-breadcrumbs t
+  "When non-nil, record visited notes into current Zk-Desktop.")
+
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
 (defun ezeka-zk-desktop-drop-breadcrumbs (&optional window caller)
@@ -706,7 +709,8 @@ With WINDOW, drop breadcrumbs for the buffer in that window
 should be a string describing the caller or, if the command
 is called interactively, is the current prefix argument."
   (interactive (list nil (prefix-numeric-value current-prefix-arg)))
-  (when (or (null window) (windowp window))
+  (when (and ezeka-zk-drop-breadcrumbs
+             (or (null window) (windowp window)))
     (let* ((file (buffer-file-name (if window
                                        (window-buffer window)
                                      (current-buffer)))))
@@ -720,15 +724,18 @@ is called interactively, is the current prefix argument."
                  (ezeka-note-p file))
         (unless (and (boundp 'zk-desktop-current)
                      (buffer-live-p zk-desktop-current))
-          (ezeka-zk-desktop-initialize))
-        (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
-        (zk-desktop-send-to-desktop file
-                                    (format-time-string
-                                     (mapconcat #'identity
-                                       (list (if (stringp caller) caller "")
-                                             (cdr org-time-stamp-formats))
-                                       " ")))
-        (message "Dropped %s breadcrumbs" (file-name-base file))))))
+          (when (y-or-n-p "No Zk-Desktop. Create one? ")
+            (ezeka-zk-desktop-initialize)))
+        (when (and (boundp 'zk-desktop-current)
+                   (buffer-live-p zk-desktop-current))
+          (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
+          (zk-desktop-send-to-desktop file
+                                      (format-time-string
+                                       (mapconcat #'identity
+                                         (list (if (stringp caller) caller "")
+                                               (cdr org-time-stamp-formats))
+                                         " ")))
+          (message "Dropped %s breadcrumbs" (file-name-base file)))))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
