@@ -2724,26 +2724,24 @@ different. With \\[universal-argument] ARG, forces update."
   (save-excursion
     (save-restriction
       (org-back-to-heading)
-      (let* ((file (ezeka-link-file link))
+      (let* ((snip-file (ezeka-link-file link))
              ;; Get the metadata and most recent modification
-             (mdata (ezeka-file-metadata file))
+             (snip-mdata (ezeka-file-metadata snip-file))
              (modified-mdata (format "[%s]"
-                                     (or (alist-get :modified mdata)
-                                         (alist-get :created mdata))))
-             (modified-prop (org-entry-get (point) "SNIP_MODIFIED"))
-             (current? (string= modified-mdata modified-prop))
+                                     (or (alist-get :modified snip-mdata)
+                                         (alist-get :created snip-mdata))))
+             (our-modified (org-entry-get (point) "SNIP_MODIFIED"))
+             (current? (string= modified-mdata our-modified))
              (local? (string-match-p "local"
                                      (or (org-entry-get nil "TAGS")
                                          "")))
              (org-id (org-id-get-create)))
         (org-narrow-to-subtree)
-        (unless 'disabled
-          (ezeka--writeable-region (point-min) (point-max)))
         (when local?
           (error "There are local changes (or at least :local: tag)"))
         (when (looking-at org-outline-regexp)
           (replace-regexp (regexp-quote (elt (org-heading-components) 4))
-                          (ezeka-format-metadata "%t [[%i]]" mdata)))
+                          (ezeka-format-metadata "%t [[%i]]" snip-mdata)))
         (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
           (org-entry-put (point) "SNIP_SOURCE" link))
         (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
@@ -2761,8 +2759,8 @@ different. With \\[universal-argument] ARG, forces update."
                   (footnotes-removed 0)
                   (content '()))
               (delete-region start (point-max))
-              ;; Get the Summary and Snippet subtrees from snippet file
-              (with-current-buffer (find-file-noselect file)
+              ;; Get the Summary and Snippet subtrees from snippet snip-file
+              (with-current-buffer (find-file-noselect snip-file)
                 ;; Include Summary section if present
                 (when (and ezeka-insert-snippet-summary
                            (org-find-exact-headline-in-buffer "Summary"))
@@ -2779,7 +2777,7 @@ different. With \\[universal-argument] ARG, forces update."
                      (org-find-exact-headline-in-buffer "Content")
                      (error "Can't find the Snippet or Content section")))
                 (if (not org-id)
-                    (warn "No org-id added to file %s" file)
+                    (warn "No org-id added to file %s" snip-file)
                   (org-entry-add-to-multivalued-property (point)
                                                          "USED_IN+"
                                                          (format "id:%s" org-id)))
@@ -2822,9 +2820,7 @@ different. With \\[universal-argument] ARG, forces update."
               (message "Removed %d comments and %d footnotes"
                        comments-removed footnotes-removed)
               (rb-collapse-blank-lines)
-              t)))
-        (when nil                     ; FIXME: Remove?
-          (ezeka--read-only-region (point-min) (point-max)))))))
+              t)))))))
 
 (defun ezeka--update-inserted-snippet ()
   "Update the snippet in the current note wherever it is used."
