@@ -2834,8 +2834,12 @@ different. With \\[universal-argument] ARG, forces update."
                     (split-string
                      (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
                      nil t " \n")))
-          (when (y-or-n-p (format "Add CHANGED tags in %d places? "
-                                  (length used-list)))
+          (when (y-or-n-p (format "%s\nAdd CHANGED tags in these files? "
+                                  (mapconcat (lambda (id)
+                                               (ezeka-file-name-caption
+                                                (car (org-id-find id))))
+                                    used-list
+                                    "\n")))
             (dolist (org-id used-list)
               (org-id-goto org-id)
               (org-back-to-heading t)
