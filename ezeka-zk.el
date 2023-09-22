@@ -720,8 +720,8 @@ is called interactively, is the current prefix argument."
                                      (current-buffer)))))
       (when (and file
                  (or (numberp caller)
-                     (not (string= (file-name-base file)
-                                   (or (car ezeka-zk--breadcrumbs-stack) ""))))
+                     (not (member (file-name-base file)
+                                  ezeka-zk--breadcrumbs-stack)))
                  (or (numberp caller)
                      (not (string-match zk-desktop-basename file)))
                  (file-exists-p file)
@@ -733,12 +733,14 @@ is called interactively, is the current prefix argument."
         (when (and (boundp 'zk-desktop-current)
                    (buffer-live-p zk-desktop-current))
           (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
-          (zk-desktop-send-to-desktop file
-                                      (format-time-string
-                                       (mapconcat #'identity
-                                         (list (if (stringp caller) caller "")
-                                               (cdr org-time-stamp-formats))
-                                         " ")))
+          (zk-desktop-send-to-desktop
+           file
+           "** "
+           (format-time-string
+            (mapconcat #'identity
+              (list (if (stringp caller) caller "")
+                    (cdr org-time-stamp-formats))
+              " ")))
           (message "Dropped %s breadcrumbs" (file-name-base file)))))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
