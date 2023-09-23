@@ -713,35 +713,34 @@ With WINDOW, drop breadcrumbs for the buffer in that window
 should be a string describing the caller or, if the command
 is called interactively, is the current prefix argument."
   (interactive (list nil (prefix-numeric-value current-prefix-arg)))
-  (when (and ezeka-zk-drop-breadcrumbs
-             (or (null window) (windowp window)))
-    (let* ((file (buffer-file-name (if window
-                                       (window-buffer window)
-                                     (current-buffer)))))
-      (when (and file
-                 (or (numberp caller)
-                     (not (member (file-name-base file)
-                                  ezeka-zk--breadcrumbs-stack)))
-                 (or (numberp caller)
-                     (not (string-match zk-desktop-basename file)))
-                 (file-exists-p file)
-                 (ezeka-note-p file))
-        (unless (and (boundp 'zk-desktop-current)
-                     (buffer-live-p zk-desktop-current))
-          (when (y-or-n-p "No Zk-Desktop. Create one? ")
-            (ezeka-zk-desktop-initialize)))
-        (when (and (boundp 'zk-desktop-current)
-                   (buffer-live-p zk-desktop-current))
-          (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
-          (zk-desktop-send-to-desktop
-           file
-           "** "
-           (format-time-string
-            (mapconcat #'identity
-              (list (if (stringp caller) caller "")
-                    (cdr org-time-stamp-formats))
-              " ")))
-          (message "Dropped %s breadcrumbs" (file-name-base file)))))))
+  (when-let* ((_ ezeka-zk-drop-breadcrumbs)
+              (file (buffer-file-name (if window
+                                          (window-buffer window)
+                                        (current-buffer))))
+              (_ (and (or (numberp caller)
+                          (not (string-match zk-desktop-basename file)))
+                      (or (numberp caller)
+                          (not (member (file-name-base file)
+                                       ezeka-zk--breadcrumbs-stack)))
+                      (file-exists-p file)
+                      (ezeka-note-p file))))
+    (unless (and (boundp 'zk-desktop-current)
+                 (buffer-live-p zk-desktop-current))
+      (when (y-or-n-p "No Zk-Desktop. Create one? ")
+        (ezeka-zk-desktop-initialize)))
+    (when (and (boundp 'zk-desktop-current)
+               (buffer-live-p zk-desktop-current))
+      (with-current-buffer zk-desktop-current
+        (goto-char (point-max))
+        (insert (if ezeka-zk--breadcrumbs-stack
+                    "- "
+                  "** ")
+                (ezeka-file-name-caption file) ; TODO: Change to title
+                " [[" (ezeka-file-name-id file) "]] "
+                (format-time-string (cdr org-time-stamp-formats))
+                (if (stringp caller) (concat " " caller) "\n")))
+      (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
+      (message "Dropped %s breadcrumbs" (file-name-base file)))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
 
