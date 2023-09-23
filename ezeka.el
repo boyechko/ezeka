@@ -155,7 +155,8 @@ therefore, to split the operations into two commits."
   :type 'list
   :group 'ezeka)
 
-(defcustom ezeka-time-stamp-format '("%Y-%m-%d" . "%Y-%m-%d %a %H:%M")
+(defcustom ezeka-time-stamp-formats
+  '("[%Y-%m-%d %a]" . "[%Y-%m-%d %a %H:%M]")
   "A cons cell of date-only and full time stamp format.
 See `format-time-string' for details."
   :type 'cons
@@ -948,7 +949,7 @@ the old names is a tempus currens with time."
          (org-timestamp-from-string
           (concat "[" (alist-get :created metadata) "]"))))
     (when (string= (org-timestamp-format created "%H:%M") "00:00")
-      ;; FIXME: Any way to use `ezeka-time-stamp-format' here?
+      ;; FIXME: Any way to use `ezeka-time-stamp-formats' here?
       (setf (alist-get :created metadata)
             (concat (org-timestamp-format created "%Y-%m-%d %a ")
                     (format-time-string
@@ -991,8 +992,8 @@ With \\[universal-argument] ARG, show a list of options instead."
   "Maybe update the modification time in the METADATA.
 Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
-  (let* ((today (format-time-string (car ezeka-time-stamp-format)))
-         (now (format-time-string (cdr ezeka-time-stamp-format)))
+  (let* ((today (format-time-string (car ezeka-time-stamp-formats)))
+         (now (format-time-string (cdr ezeka-time-stamp-formats)))
          (last-modified (or (alist-get :modified metadata)
                             (alist-get :created metadata)
                             (user-error "No created or modified time in %s"
@@ -2244,7 +2245,7 @@ If SECTION is nil, default to `Change Log'."
       (org-insert-item)
       (insert
        (format "- %s :: %s"
-               (format-time-string (car ezeka-time-stamp-format))
+               (format-time-string (car ezeka-time-stamp-formats))
                entry))
       (org-fill-element))))
 
@@ -2461,8 +2462,7 @@ CITEKEY."
     (insert "\ncreated: "
             ;; Insert creation time, making it match a tempus currens filename
             (format-time-string
-             (cdr ezeka-time-stamp-format)
-             "%Y-%m-%d %a %H:%M"
+             (cdr ezeka-time-stamp-formats)
              (let ((today (format-time-string "%Y%m%d")))
                (if (and (eq :tempus (ezeka-id-type id))
                         (not (string-match-p (regexp-quote today) id))
@@ -2504,7 +2504,7 @@ With \\[universal-argument] ARG, asks for a different name."
   (org-set-property "CREATED"
                     (format-time-string
                      (format "[%s]"
-                             (cdr ezeka-time-stamp-format)))))
+                             (cdr ezeka-time-stamp-formats)))))
 
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
