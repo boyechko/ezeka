@@ -1434,6 +1434,24 @@ If TIME is nil, default to current time."
   "An alist of new children and a plist of their details.
 Plist values are :parent, :title, :label, and :citekey.")
 
+(defun ezeka--set-new-child-metadata (link &rest values)
+  "Set the metadata property values for LINK.
+VALUES should be a list of keyword and value properties."
+  (unless (and values (zerop (mod (length values) 2)))
+    (error "VALUES should be paired :key value pairs: %s" values))
+  (let ((plist (alist-get link ezeka--new-child-plist nil nil #'string=)))
+    (while values
+      (setq plist (plist-put plist (car values) (cadr values)))
+      (setq values (cddr values)))
+    (setf (alist-get link ezeka--new-child-plist nil nil #'string=)
+          plist)))
+
+(defun ezeka--get-new-child-metadata (link key)
+  "Return KEY metadata value for child LINK, or nil."
+  (when-let* ((plist (alist-get link ezeka--new-child-plist nil nil #'string=))
+              (found (plist-member plist key)))
+    (cadr found)))
+
 (defun ezeka-link-at-point-p (&optional freeform)
   "Return non-nil if the thing at point is a wiki link (i.e. [[XXX]]).
 The first group is the link target. If FREEFORM is non-nil, also
@@ -1475,10 +1493,13 @@ T if the link is a Zettel link."
     (let ((existing-file (ignore-errors (ezeka-link-file link))))
       (cond ((ezeka-note-p existing-file)
              (ezeka-find-file existing-file same-window))
-            ((or (eql ezeka-create-nonexistent-links t)
+            ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
                        (format "Link `%s' doesn't exist. Create? " link))))
+             (when-let ((_ (ezeka-note-p buffer-file-name))
+                        (parent (ezeka-file-link buffer-file-name)))
+               (ezeka--set-new-child-metadata link :parent parent))
              (ezeka-find-file (ezeka-link-file link "") same-window)
              (call-interactively #'ezeka-insert-header-template))
             (t
@@ -1903,8 +1924,7 @@ generating one."
          (child-link (ezeka-make-link
                       kasten (or id (ezeka--generate-id kasten 'confirm)))))
     (when parent
-      (add-to-list 'ezeka--new-child-plist
-        (list child-link :parent parent)))
+      (ezeka--set-new-child-metadata child-link :parent parent))
     child-link))
 
 (defun ezeka-new-note-or-child (kasten &optional parent noselect manual)
@@ -1969,10 +1989,8 @@ as the current note. With double \\[universal-argument], ask for ID."
                       parent-link
                       (unless (equal arg '(4))
                         (ezeka--read-kasten "Kasten for new child: "))
-                      id))
-         (plist (cdr (assoc-string child-link ezeka--new-child-plist))))
-    (setf (alist-get child-link ezeka--new-child-plist nil nil #'string=)
-          (plist-put (plist-put plist :citekey citekey) :title title))
+                      id)))
+    (ezeka--set-new-child-metadata child-link :title title :citekey citekey)
     (insert (ezeka--format-link child-link))
     (ezeka-find-link child-link)))
 
@@ -2412,16 +2430,15 @@ CITEKEY."
           (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
                    (ezeka-decode-rubric
                     (concat (match-string 1 nondir)
-                            (match-string 2 nondir)))))
-          (plist (cdr (assoc link ezeka--new-child-plist))))
+                            (match-string 2 nondir))))))
      (list
       link
       (or (alist-get :label mdata) (ezeka--read-label link))
-      (read-string "Title: " (or (plist-get plist :title)
+      (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
                                  (alist-get :caption mdata)))
-      (read-string "Parent? " (plist-get plist :parent))
+      (read-string "Parent? " (ezeka--get-new-child-metadata link :parent))
       (read-string
-       "Citekey? " (or (plist-get plist :citekey)
+       "Citekey? " (or (ezeka--get-new-child-metadata link :citekey)
                        (when (string-match "[@&][^\\s]+$"
                                            (file-name-base buffer-file-name))
                          (match-string 0 (file-name-base buffer-file-name))))
