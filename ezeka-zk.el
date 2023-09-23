@@ -781,27 +781,34 @@ This function is based on `diary-ordinal-suffix'."
 If the current buffer looks like a Zk-Desktop file, use
 that; otherwise, create a new one."
   (interactive)
-  (let* ((title (format "%s for %s%s"
+  (let* ((buf-fname (or (buffer-file-name) ""))
+         (title (format "%s for %s%s"
                         zk-desktop-basename
                         (format-time-string "%A, %B %-d")
                         (ezeka-zk--ordinal-suffix
                          (decoded-time-day (decode-time)))))
          (new-id (ezeka-format-tempus-currens))
          (ezeka-create-nonexistent-links t)
-         (buf-fname (or (buffer-file-name) ""))
-         (parent (when (and (string-match zk-desktop-basename buf-fname)
-                            (y-or-n-p "Treat current file as parent? "))
-                   (ezeka--replace-file-header
-                    buf-fname
-                    (ezeka-set-metadata-value (ezeka-file-metadata buf-fname)
-                                              :firstborn new-id))
-                   (ezeka-file-link buf-fname))))
-    (unless (string-match title (or (buffer-file-name) ""))
-      (setf (alist-get new-id ezeka--new-child-plist nil nil #'string=)
-            (list :title title
-                  :label "Journal"
-                  :parent parent))
-      (ezeka-find-link new-id))
+         (child-plist (list :title title
+                            :label "Journal"
+                            :category "Journal"))
+         desktop-file)
+    (cond ((and (string-match zk-desktop-basename buf-fname)
+                (y-or-n-p "Set this as the Zk-Desktop file? "))
+           (setq desktop-file buf-fname))
+          ((and (string-match zk-desktop-basename buf-fname)
+                (y-or-n-p "Treat current file as parent? "))
+           (ezeka--replace-file-header buf-fname
+                                       (ezeka-set-metadata-value
+                                        (ezeka-file-metadata buf-fname)
+                                        :firstborn new-id))
+           (apply #'ezeka--set-new-child-metadata
+                  new-id
+                  (append child-plist
+                          (list :parent (ezeka-file-link buf-fname))))
+           (ezeka-find-link new-id))
+          (t
+           (user-error "Don't know what to do then")))
     (setq zk-desktop-current (current-buffer)
           ezeka-zk--breadcrumbs-stack nil)
     (message "Zk-Desktop initialized to %s" (current-buffer))))
