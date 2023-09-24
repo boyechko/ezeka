@@ -696,17 +696,21 @@ before renaming If given, use the custom PROMPT."
 ;;; Breadcrumbs
 ;;;=============================================================================
 
+(defcustom ezeka-zk-drop-breadcrumbs t
+  "When non-nil, record visited notes into current Zk-Desktop.")
+
 (defvar ezeka-zk--breadcrumbs-stack nil
   "Stack of breadcrumbs dropped.
 The variable is reset whenever `ezeka-zk-desktop-initialize'
 is executed.")
 
-(defcustom ezeka-zk-drop-breadcrumbs t
-  "When non-nil, record visited notes into current Zk-Desktop.")
+(defun ezeka-zk-breakcrumbs-reset-stack ()
+  "Reset the breadcrumb stack."
+  (setq ezeka-zk--breadcrumbs-stack nil))
 
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
-(defun ezeka-zk-desktop-drop-breadcrumbs (&optional window caller)
+(defun ezeka-zk-drop-breadcrumbs (&optional window caller)
   "Add the currently-visited Zettel to the current `zk-desktop'.
 With WINDOW, drop breadcrumbs for the buffer in that window
 \(see `window-selection-change-functions'). CALLER, if set,
@@ -726,8 +730,9 @@ is called interactively, is the current prefix argument."
                       (ezeka-note-p file))))
     (unless (and (boundp 'zk-desktop-current)
                  (buffer-live-p zk-desktop-current))
-      (when (y-or-n-p "No Zk-Desktop. Create one? ")
-        (ezeka-zk-desktop-initialize)))
+      (if (y-or-n-p "No Zk-Desktop. Create one? ")
+          (ezeka-zk-desktop-initialize)
+        (user-error "Cannot drop breadcrumbs without active zk-desktop")))
     (when (and (boundp 'zk-desktop-current)
                (buffer-live-p zk-desktop-current))
       (with-current-buffer zk-desktop-current
@@ -738,14 +743,15 @@ is called interactively, is the current prefix argument."
                 (ezeka-file-name-caption file) ; TODO: Change to title
                 " [[" (ezeka-file-name-id file) "]] "
                 (format-time-string (cdr org-time-stamp-formats))
-                (if (stringp caller) (concat " " caller) "\n")))
+                (if (stringp caller) (concat " " caller) "")
+                "\n"))
       (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
       (message "Dropped %s breadcrumbs" (file-name-base file)))))
 
-;; (add-hook 'ezeka-mode-hook #'ezeka-zk-desktop-drop-breadcrumbs)
+;; (add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
 
-(defun ezeka-zk-desktop-magit-stage-breadcrumbs (&optional start end)
-  "Stage all breadcrumbs in the current buffer with `magit'.
+(defun ezeka-zk-stage-links-in-subtree (&optional start end)
+  "Stage all links in the current `org-mode' subtree.
 If region is active, only do so for links between START and
 END."
   (interactive
@@ -754,7 +760,6 @@ END."
   (save-restriction
     (if start
         (narrow-to-region start end)
-      (org-find-exact-headline-in-buffer "Breadcrumbs")
       (org-narrow-to-subtree))
     (goto-char (point-min))
     (while (re-search-forward (concat "\\[\\[" (ezeka-link-regexp) "]]") nil t)
