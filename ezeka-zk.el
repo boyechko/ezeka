@@ -710,24 +710,21 @@ is executed.")
 
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
-(defun ezeka-zk-drop-breadcrumbs (&optional window caller)
+(defun ezeka-zk-drop-breadcrumbs (&optional source)
   "Add the currently-visited Zettel to the current `zk-desktop'.
-With WINDOW, drop breadcrumbs for the buffer in that window
-\(see `window-selection-change-functions'). CALLER, if set,
-should be a string describing the caller or, if the command
-is called interactively, is the current prefix argument."
-  (interactive (list nil (prefix-numeric-value current-prefix-arg)))
+SOURCE, if set, should be a string describing the source or,
+if the command is called interactively, defaults to \"manual\"."
+  (interactive (list nil "manual"))
   (when-let* ((_ ezeka-zk-drop-breadcrumbs)
-              (file (buffer-file-name (if window
-                                          (window-buffer window)
-                                        (current-buffer))))
-              (_ (and (or (numberp caller)
+              (file (buffer-file-name (current-buffer)))
+              (_ (and (or (numberp source)
                           (not (string-match zk-desktop-basename file)))
-                      (or (numberp caller)
+                      (or (numberp source)
                           (not (member (file-name-base file)
                                        ezeka-zk--breadcrumbs-stack)))
                       (file-exists-p file)
-                      (ezeka-note-p file))))
+                      (ezeka-note-p file)))
+              (timestamp (format-time-string (cdr org-time-stamp-formats))))
     (unless (and (boundp 'zk-desktop-current)
                  (buffer-live-p zk-desktop-current))
       (if (y-or-n-p "No Zk-Desktop. Create one? ")
@@ -736,16 +733,18 @@ is called interactively, is the current prefix argument."
     (when (and (boundp 'zk-desktop-current)
                (buffer-live-p zk-desktop-current))
       (with-current-buffer zk-desktop-current
+        (org-find-exact-headline-in-buffer "Breadcrumbs")
+        (org-narrow-to-subtree)
+        (when (search-forward (format "[[%s]]" source) nil t)
+          (org-narrow-to-subtree))
         (goto-char (point-max))
-        (insert (if ezeka-zk--breadcrumbs-stack
-                    "- "
-                  "** ")
-                (ezeka-file-name-caption file) ; TODO: Change to title
+        (org-insert-subheading nil)
+        (insert (ezeka-file-name-caption file) ; TODO: Change to title
                 " [[" (ezeka-file-name-id file) "]] "
-                (format-time-string (cdr org-time-stamp-formats))
-                (if (stringp caller) (concat " " caller) "")
+                timestamp
                 "\n"))
-      (push (file-name-base file) ezeka-zk--breadcrumbs-stack)
+      (push (list (ezeka-file-link file) timestamp source)
+            ezeka-zk--breadcrumbs-stack)
       (message "Dropped %s breadcrumbs" (file-name-base file)))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
