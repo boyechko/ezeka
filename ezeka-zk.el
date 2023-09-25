@@ -434,36 +434,49 @@ minibuffer according to the value of `zk-link-and-title': if it's
   (ezeka-zk-with-kasten "scriptum"
     (call-interactively 'ezeka-zk-insert-link)))
 
-(defun ezeka-zk-find-note-in-kasten (arg &optional kasten)
+(defun ezeka-zk-find-note-in-kasten (kasten &optional other-window)
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
-Defaults to the Kasten set in `zk-directory', if any. With
-\\[universal-argument] ARG, ask to select Kasten."
+With \\[universal-argument] OTHER-WINDOW, open in other
+window."
   (interactive
-   (list current-prefix-arg
-         (if-let ((kasten
+   (list (if-let ((kasten
                    (and zk-directory
                         (not current-prefix-arg)
                         (ezeka-directory-kasten zk-directory))))
              kasten
            (completing-read "Kasten: "
-                            (mapcar #'ezeka-kasten-name ezeka-kaesten)))))
+                            (mapcar #'ezeka-kasten-name ezeka-kaesten)))
+         current-prefix-arg))
   (ezeka-zk-with-kasten kasten
-    (call-interactively 'zk-find-file)))
+    (let ((file (funcall zk-select-file-function
+                         (if other-window
+                             "Find note in other window: "
+                           "Find note: "))))
+      (run-hook-with-args 'ezeka-find-link-functions
+                          (ezeka-file-link file)
+                          (when buffer-file-name
+                            (ezeka-file-link buffer-file-name)))
+      (if other-window
+          (find-file-other-window file)
+        (find-file file)))))
 
-(defun ezeka-zk-find-note-in-numerus ()
-  "Find zk note in numerus currens Kasten."
-  (interactive)
-  (ezeka-zk-find-note-in-kasten nil "numerus"))
+(defun ezeka-zk-find-note-in-numerus (&optional other-window)
+  "Find zk note in numerus currens Kasten.
+If OTHER-WINDOW is non-nil, find in other window."
+  (interactive "P")
+  (ezeka-zk-find-note-in-kasten "numerus" other-window))
 
-(defun ezeka-zk-find-note-in-tempus ()
-  "Find zk note in tempus currens Kasten."
-  (interactive)
-  (ezeka-zk-find-note-in-kasten nil "tempus"))
+(defun ezeka-zk-find-note-in-tempus (&optional other-window)
+  "Find zk note in tempus currens Kasten.
+If OTHER-WINDOW is non-nil, find in other window."
+  (interactive "P")
+  (ezeka-zk-find-note-in-kasten "tempus" other-window))
 
-(defun ezeka-zk-find-note-in-scriptum ()
-  "Find zk note in scriptum Kasten."
-  (interactive)
-  (ezeka-zk-find-note-in-kasten nil "scriptum"))
+(defun ezeka-zk-find-note-in-scriptum (&optional other-window)
+  "Find zk note in scriptum Kasten.
+If OTHER-WINDOW is non-nil, find in other window."
+  (interactive "P")
+  (ezeka-zk-find-note-in-kasten "scriptum" other-window))
 
 (defun ezeka-rgrep-link-at-point (link)
   "Execute recursive grep for the ezeka LINK at point."
