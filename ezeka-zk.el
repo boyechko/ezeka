@@ -482,6 +482,11 @@ If LITERAL is non-nil, search for STRING literallyl."
                             (regexp-quote string)
                           (string-replace " " ".*" string)))))
 
+(defvar ezeka--zk-replace-links-before-history nil
+  "History variable used in `ezeka-zk-replace-links'.")
+(defvar ezeka--zk-replace-links-after-history nil
+  "History variable used in `ezeka-zk-replace-links'.")
+
 (defun ezeka-zk-replace-links (before after &optional directory confirm)
   "Replace BEFORE links to AFTER links in DIRECTORY.
 DIRECTORY defaults to `ezeka-directory' if not given. If AFTER is nil,
@@ -496,13 +501,13 @@ non-nil, check with user before replacing."
                        (format "%s\nThis looks like a move.log record. Use it? "
                                (match-string-no-properties 0))))
                    (rec (read (match-string-no-properties 0))))
-         (list (car rec) (cadr rec) nil t))
-     (let* ((before (read-string "Replace link ... "
+         (list (car rec) (cadr rec) nil nil))
+     (let* ((before (read-string "Replace link: "
                                  nil
-                                 'ezeka--zk-replace-links-history))
-            (after (read-string (format "Replace %s with ... " before)
+                                 'ezeka--zk-replace-links-before-history))
+            (after (read-string (format "Replace `%s' with link: " before)
                                 nil
-                                'ezeka--zk-replace-links-history)))
+                                'ezeka--zk-replace-links-after-history)))
        (list before after nil
              (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
@@ -513,7 +518,7 @@ non-nil, check with user before replacing."
             ;; NOTE: Requires `zk--grep-file-list' after PR #68 that translates
             ;; Emacs regexp into POSIX form and defaults to extended regexps
             (zk--grep-file-list
-             (format "\\(parent: [a-z:]*%s$\\|%s]]\\)" bf-id bf-id))))
+             (format "\\(parent: [a-z:]*%s$\\|%s][][]\\)" bf-id bf-id))))
          (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
          (replacement (if after
                           (ezeka--format-link after)
