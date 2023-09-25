@@ -134,7 +134,7 @@ See `zk-index-button-display-action'."
   (let ((buffer (or buffer (find-file-noselect file))))
     (with-current-buffer buffer
       (ezeka-zk-breakcrumbs-reset-stack)
-      (ezeka-zk-desktop-drop-breadcrumbs))
+      (ezeka-zk-drop-breadcrumbs "index"))
     (let ((same-window (or same-window current-prefix-arg)))
       (cond ((one-window-p)
              (pop-to-buffer buffer
@@ -725,7 +725,7 @@ before renaming If given, use the custom PROMPT."
 
 (defvar ezeka-zk--breadcrumbs-stack nil
   "Stack of breadcrumbs dropped.
-The variable is reset whenever `ezeka-zk-desktop-initialize'
+The variable is reset whenever `ezeka-zk-initialize-desktop'
 is executed.")
 
 (defun ezeka-zk-breakcrumbs-reset-stack ()
@@ -734,44 +734,52 @@ is executed.")
 
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
-(defun ezeka-zk-drop-breadcrumbs (&optional source)
-  "Add the currently-visited Zettel to the current `zk-desktop'.
-SOURCE, if set, should be a string describing the source or,
-if the command is called interactively, defaults to \"manual\"."
-  (interactive (list nil "manual"))
-  (when-let* ((_ ezeka-zk-drop-breadcrumbs)
-              (file (buffer-file-name (current-buffer)))
-              (_ (and (or (numberp source)
-                          (not (string-match zk-desktop-basename file)))
-                      (or (numberp source)
-                          (not (member (file-name-base file)
-                                       ezeka-zk--breadcrumbs-stack)))
-                      (file-exists-p file)
-                      (ezeka-note-p file)))
-              (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (unless (and (boundp 'zk-desktop-current)
+(defun ezeka-zk-drop-breadcrumbs (&optional target source)
+  "Add the Zettel TARGET to the current `zk-desktop'.
+SOURCE, if set, should be either a Zettel link for the
+source, or a symbol describing where the function is being
+called from. If the command is executed interactively,
+the SOURCE is set to 'interactive."
+  (interactive (list buffer-file-name 'interactive))
+  (let ((target (cond ((ezeka-note-p target) target)
+                      ((ezeka-link-p target) (ezeka-link-file target))
+                      (t (buffer-file-name (current-buffer)))))
+        (timestamp (format-time-string (cdr org-time-stamp-formats))))
+    (when (and ezeka-zk-drop-breadcrumbs
+               (or (eq source 'interactive)
+                   (not (cl-member (ezeka-file-link target)
+                                   ezeka-zk--breadcrumbs-stack
+                                   :key #'car
+                                   :test #'string=)))
+               (file-exists-p target)
+               (ezeka-note-p target))
+      (unless (and (boundp 'zk-desktop-current)
+                   (buffer-live-p zk-desktop-current))
+        (if (y-or-n-p "No Zk-Desktop. Create one? ")
+            (ezeka-zk-initialize-desktop)
+          (user-error "Cannot drop breadcrumbs without active zk-desktop")))
+      (when (and (boundp 'zk-desktop-current)
                  (buffer-live-p zk-desktop-current))
-      (if (y-or-n-p "No Zk-Desktop. Create one? ")
-          (ezeka-zk-desktop-initialize)
-        (user-error "Cannot drop breadcrumbs without active zk-desktop")))
-    (when (and (boundp 'zk-desktop-current)
-               (buffer-live-p zk-desktop-current))
-      (with-current-buffer zk-desktop-current
-        (org-find-exact-headline-in-buffer "Breadcrumbs")
-        (org-narrow-to-subtree)
-        (when (search-forward (format "[[%s]]" source) nil t)
-          (org-narrow-to-subtree))
-        (goto-char (point-max))
-        (org-insert-subheading nil)
-        (insert (ezeka-file-name-caption file) ; TODO: Change to title
-                " [[" (ezeka-file-name-id file) "]] "
-                timestamp
-                "\n"))
-      (push (list (ezeka-file-link file) timestamp source)
-            ezeka-zk--breadcrumbs-stack)
-      (message "Dropped %s breadcrumbs" (file-name-base file)))))
+        (with-current-buffer zk-desktop-current
+          (save-restriction
+            (when-let ((pos (org-find-exact-headline-in-buffer "Breadcrumbs")))
+              (goto-char pos)
+              (org-narrow-to-subtree))
+            (when (search-forward (format "[[%s]]" source) nil t)
+              (org-narrow-to-subtree))
+            (end-of-line)
+            (org-insert-subheading nil)
+            (insert (format "%s [[%s]] %s"
+                            (ezeka-file-name-caption target)
+                            (ezeka-file-name-id target)
+                            timestamp))))
+        (push (list (ezeka-file-link target) timestamp source)
+              ezeka-zk--breadcrumbs-stack)
+        (message "Dropped breadcrumbs for `%s'" (file-name-base target))))))
 
 ;; (add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
+
+(add-hook 'ezeka-find-link-functions #'ezeka-zk-drop-breadcrumbs)
 
 (defun ezeka-zk-stage-links-in-subtree (&optional start end)
   "Stage all links in the current `org-mode' subtree.
@@ -803,17 +811,17 @@ This function is based on `diary-ordinal-suffix'."
       (aref ["th" "st" "nd" "rd"] (% n 10)))))
 
 ;;;###autoload
-(defun ezeka-zk-desktop-initialize ()
-  "Set `zk-desktop-current' to today's desktop.
+(defun ezeka-zk-initialize-desktop (title)
+  "Set `zk-desktop-current' to today's desktop with TITLE.
 If the current buffer looks like a Zk-Desktop file, use
 that; otherwise, create a new one."
-  (interactive)
+  (interactive
+   (list (read-string "Title: " (format "%s for %s%s"
+                                        zk-desktop-basename
+                                        (format-time-string "%A, %B %-d")
+                                        (ezeka-zk--ordinal-suffix
+                                         (decoded-time-day (decode-time)))))))
   (let* ((buf-fname (or (buffer-file-name) ""))
-         (title (format "%s for %s%s"
-                        zk-desktop-basename
-                        (format-time-string "%A, %B %-d")
-                        (ezeka-zk--ordinal-suffix
-                         (decoded-time-day (decode-time)))))
          (new-id (ezeka-format-tempus-currens))
          (ezeka-create-nonexistent-links t)
          (child-plist (list :title title
