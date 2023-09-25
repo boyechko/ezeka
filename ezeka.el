@@ -1468,11 +1468,21 @@ consider Zettel links that are not enclosed in square brackets."
 Needs to be called after `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
 
+(defvar ezeka-find-file-functions nil
+  "List of functions to call when finding Ezeka files.
+Each function should accept two arguments: the file to find,
+and optionally, the source from where the function was
+called. TARGET should be a filename; SOURCE can be either a
+filename or a symbol describing the source.")
+
 ;; FIXME: Relies on ace-window
 (defun ezeka-find-file (file &optional same-window)
   "Edit the given FILE based on the value of `ezeka-number-of-frames'.
 If SAME-WINDOW is non-NIL, open the buffer visiting the file in the
 same window."
+  (run-hook-with-args 'ezeka-find-file-functions
+                      file
+                      buffer-file-name)
   (if same-window
       (find-file file)
     (cl-case ezeka-number-of-frames
