@@ -452,13 +452,7 @@ window."
                          (if other-window
                              "Find note in other window: "
                            "Find note: "))))
-      (run-hook-with-args 'ezeka-find-link-functions
-                          (ezeka-file-link file)
-                          (when buffer-file-name
-                            (ezeka-file-link buffer-file-name)))
-      (if other-window
-          (find-file-other-window file)
-        (find-file file)))))
+      (ezeka-find-file file (not other-window)))))
 
 (defun ezeka-zk-find-note-in-numerus (&optional other-window)
   "Find zk note in numerus currens Kasten.
@@ -777,9 +771,9 @@ the SOURCE is set to 'interactive."
               ezeka-zk--breadcrumbs-stack)
         (message "Dropped breadcrumbs for `%s'" (file-name-base target))))))
 
-;; (add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
-
-(add-hook 'ezeka-find-link-functions #'ezeka-zk-drop-breadcrumbs)
+;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
+;;; dropping should perhaps be a minor mode?
+(add-hook 'ezeka-find-file-functions #'ezeka-zk-drop-breadcrumbs)
 
 (defun ezeka-zk-stage-links-in-subtree (&optional start end)
   "Stage all links in the current `org-mode' subtree.
