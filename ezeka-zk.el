@@ -470,7 +470,13 @@ If OTHER-WINDOW is non-nil, find in other window."
   "Find zk note in tempus currens Kasten.
 If OTHER-WINDOW is non-nil, find in other window."
   (interactive "P")
-  (ezeka-zk-find-note-in-kasten "tempus" other-window))
+  (require 'vertico)
+  (unless (fboundp 'vertico-sort-reverse-alpha)
+    (vertico--define-sort (reverse-alpha)
+      32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
+    (put 'vertico--define-sort 'lisp-indent-function 1))
+  (let ((vertico-sort-function #'vertico-sort-reverse-alpha))
+    (ezeka-zk-find-note-in-kasten "tempus" other-window)))
 
 (defun ezeka-zk-find-note-in-scriptum (&optional other-window)
   "Find zk note in scriptum Kasten.
