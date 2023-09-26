@@ -251,7 +251,7 @@ changes the existing one. With prefix argument, replaces the current
           (delete-dups (append
                         (mapcar (lambda (path)
                                   (cons (deft-file-title path) path))
-                                (ezeka-visiting-buffer-list t))
+                                (ezeka-visiting-files-list t))
                         (ezeka-ivy-titles-reverse-alist)))))
     (if choices
         (ezeka-ivy-read-reverse-alist-action

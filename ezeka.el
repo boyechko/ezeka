@@ -1630,7 +1630,7 @@ the list, just insert the link to what was selected. If the cursor in
 already inside a link, replace it instead."
   (interactive "P")
   (let ((link (ezeka-file-link
-               (ezeka--select-file (ezeka-visiting-buffer-list)
+               (ezeka--select-file (ezeka-visiting-files-list)
                                    "Insert link to: " t))))
     (if link
         (if (not (ezeka-link-at-point-p))
@@ -2009,7 +2009,7 @@ as the current note. With double \\[universal-argument], ask for ID."
 ;;; Buffers and Frames
 ;;;=============================================================================
 
-(defun ezeka-visiting-buffer-list (&optional skip-current modified-only)
+(defun ezeka-visiting-files-list (&optional skip-current modified-only)
   "Return a list of Zettel files that are currently being visited.
 If SKIP-CURRENT is non-nil, remove the current buffer. If
 MODIFIED-ONLY is non-nil, only list modified buffers."
@@ -2033,9 +2033,9 @@ With \\[universal-argument] ARG, just kill all visiting Zettel."
     (if arg
         (mapc (lambda (file)
                 (kill-buffer (get-file-buffer file)))
-              (ezeka-visiting-buffer-list t))
+              (ezeka-visiting-files-list t))
       (while t
-        (let* ((table (ezeka-completion-table (ezeka-visiting-buffer-list t)))
+        (let* ((table (ezeka-completion-table (ezeka-visiting-files-list t)))
                (choice (completing-read "Kill buffer: " table nil t)))
           (kill-buffer (get-file-buffer (cdr (assoc-string choice table)))))))))
 
@@ -2122,7 +2122,7 @@ modified buffers. If OTHER-WINDOW is non-nil (or double
   (interactive
    (list (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
-  (let* ((buffers (nreverse (ezeka-visiting-buffer-list t modified-only)))
+  (let* ((buffers (nreverse (ezeka-visiting-files-list t modified-only)))
          (table (ezeka-completion-table buffers))
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?

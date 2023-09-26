@@ -108,7 +108,7 @@ the cursor in already inside a link, replace it instead."
           (delete-dups (append
                         (mapcar (lambda (path)
                                   (cons (ezeka-deft-parsed-title path) path))
-                                (ezeka-visiting-buffer-list t))
+                                (ezeka-visiting-files-list t))
                         (ezeka-ivy-titles-reverse-alist 'mtime)))))
     (if choices
         (let* ((choice (ezeka-ivy-read-reverse-alist-action
