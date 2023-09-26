@@ -2139,6 +2139,40 @@ modified buffers. If OTHER-WINDOW is non-nil (or double
                       (completing-read "Visit Zettel buffer: " table nil t)
                       table)))))))
 
+(defun ezeka-switch-to-other-buffer (buffer-or-name &optional norecord force-same-window)
+  "Wrapper around `switch-to-buffer' that skips Zettel buffers.
+See `switch-to-buffer' for details about "
+  (interactive
+   (let ((force-same-window
+          (unless switch-to-buffer-obey-display-actions
+            (cond
+             ((window-minibuffer-p) nil)
+             ((not (eq (window-dedicated-p) t)) 'force-same-window)
+             ((pcase switch-to-buffer-in-dedicated-window
+                ('nil (user-error
+                       "Cannot switch buffers in a dedicated window"))
+                ('prompt
+                 (if (y-or-n-p
+                      (format "Window is dedicated to %s; undedicate it?"
+                              (window-buffer)))
+                     (progn
+                       (set-window-dedicated-p nil nil)
+                       'force-same-window)
+                   (user-error
+                    "Cannot switch buffers in a dedicated window")))
+                ('pop nil)
+                (_ (set-window-dedicated-p nil nil) 'force-same-window))))))
+         (our-buffers (mapcar #'get-file-buffer (ezeka-visiting-files-list))))
+     (list (read-buffer "Switch to non-Zettel buffer: "
+                        (other-buffer (current-buffer))
+                        (confirm-nonexistent-file-or-buffer)
+                        (lambda (bname)
+                          "Return T if BNAME is not an Ezeka buffer."
+                          (let ((bname (if (stringp bname) bname (car bname))))
+                            (not (member (get-buffer bname) our-buffers)))))
+           nil force-same-window)))
+  (switch-to-buffer buffer-or-name norecord force-same-window))
+
 ;;;=============================================================================
 ;;; Labels
 ;;
