@@ -156,7 +156,7 @@ therefore, to split the operations into two commits."
   :group 'ezeka)
 
 (defcustom ezeka-time-stamp-formats
-  '("[%Y-%m-%d %a]" . "[%Y-%m-%d %a %H:%M]")
+  '("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")
   "A cons cell of date-only and full time stamp format.
 See `format-time-string' for details."
   :type 'cons
@@ -2272,12 +2272,17 @@ should consist of KEY and VALUE pairs.
           (unless already-open
             (kill-buffer-if-not-modified buf)))))))
 
-(defun ezeka--add-change-log-entry (filename entry &optional section)
-  "Make a change log ENTRY in FILENAME's SECTION.
+(defun ezeka-add-change-log-entry (filename entry &optional section)
+  "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
-  (save-excursion
-    (let* ((section (or section "Change Log"))
-           (headline (org-find-exact-headline-in-buffer section)))
+  (interactive
+   (list buffer-file-name
+         (prefix-numeric-value current-prefix-arg)
+         nil))
+  (let* ((section (or section "Change Log"))
+         (headline (org-find-exact-headline-in-buffer section))
+         entry-pos)
+    (save-excursion
       (if headline
           (progn
             (goto-char headline)
@@ -2285,13 +2290,14 @@ If SECTION is nil, default to `Change Log'."
         (goto-char (point-max))
         (org-insert-heading nil nil 'top)
         (insert section))
-      (insert "\n\n")
-      (org-insert-item)
-      (insert
-       (format "- %s :: %s"
-               (format-time-string (car ezeka-time-stamp-formats))
-               entry))
-      (org-fill-element))))
+      (insert "\n\n"
+              (format "- [%s] :: %s"
+                      (format-time-string (car ezeka-time-stamp-formats))
+                      (if (stringp entry) entry "")))
+      (setq entry-pos (point))
+      (org-fill-element))
+    (when (numberp entry)
+      (goto-char entry-pos))))
 
 (defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption)
   "Update the title in FILENAME's header to NEW-VAL.
