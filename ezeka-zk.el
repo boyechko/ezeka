@@ -752,28 +752,45 @@ the SOURCE is set to 'interactive."
         (if (y-or-n-p "No Zk-Desktop. Create one? ")
             (ezeka-zk-initialize-desktop)
           (user-error "Cannot drop breadcrumbs without active zk-desktop")))
-      (when (and (boundp 'zk-desktop-current)
-                 (buffer-live-p zk-desktop-current))
+      (when-let ((_ (and (boundp 'zk-desktop-current)
+                         (buffer-live-p zk-desktop-current)))
+                 (org-blank-before-new-entry '((heading . nil))))
         (with-current-buffer zk-desktop-current
-          (save-restriction
-            (when-let ((pos (org-find-exact-headline-in-buffer "Breadcrumbs")))
-              (goto-char pos)
-              (org-narrow-to-subtree))
-            (when (search-forward (format "[[%s]]" source) nil t)
-              (org-narrow-to-subtree))
-            (end-of-line)
-            (org-insert-subheading nil)
-            (insert (format "%s [[%s]] %s"
+          (goto-char (org-find-exact-headline-in-buffer "Breadcrumbs"))
+          (let ((headline (when (stringp source)
+                            (search-forward (ezeka--format-link source) nil t))))
+            (cond (headline
+                   (end-of-line)
+                   (org-insert-heading-after-current)
+                   (org-demote-subtree))
+                  (t
+                   (if (org-forward-heading-same-level 1)
+                       (org-previous-visible-heading 1)
+                     (goto-char (point-max)))
+                   (org-insert-heading-after-current)))
+            (insert (format "%s [[%s]] %s%s"
                             (ezeka-file-name-caption target)
                             (ezeka-file-name-id target)
-                            timestamp))))
-        (push (list (ezeka-file-link target) timestamp source)
-              ezeka-zk--breadcrumbs-stack)
-        (message "Dropped breadcrumbs for `%s'" (file-name-base target))))))
+                            timestamp
+                            (if (not headline)
+                                (format " (from %s)"
+                                        (cond ((symbolp source)
+                                               source)
+                                              ((ezeka-note-p source)
+                                               (ezeka--format-link source))
+                                              ((stringp source)
+                                               (file-name-base source))
+                                              (t
+                                               source)))
+                              "")))
+            (push (list (ezeka-file-link target) timestamp source)
+                  ezeka-zk--breadcrumbs-stack)
+            (message "Dropped breadcrumbs for `%s'" (file-name-base target))))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-zk-drop-breadcrumbs)
+(add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
 
 (defun ezeka-zk-stage-links-in-subtree (&optional start end)
   "Stage all links in the current `org-mode' subtree.
