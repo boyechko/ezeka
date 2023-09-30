@@ -2484,7 +2484,9 @@ CITEKEY."
                             (match-string 2 nondir))))))
      (list
       link
-      (or (alist-get :label mdata) (ezeka--read-label link))
+      (or (alist-get :label mdata)
+          (ezeka--get-new-child-metadata link :label)
+          (ezeka--read-label link))
       (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
                                  (alist-get :caption mdata)))
       (read-string "Parent? " (ezeka--get-new-child-metadata link :parent))
