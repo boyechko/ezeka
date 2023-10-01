@@ -968,27 +968,37 @@ troublesome characters."
                                             simple-replacements)
                                     title)))
 
-(defun ezeka--set-time-of-creation (metadata)
-  "Possibly update the time of creation in the METADATA.
-The creation time is updated if 1) the current time is at 00:00 or is
-missing and something else appears in the tempus currens, or 2) one of
-the old names is a tempus currens with time."
-  (let ((created
-         (org-timestamp-from-string
-          (concat "[" (alist-get :created metadata) "]"))))
-    (when (string= (org-timestamp-format created "%H:%M") "00:00")
-      ;; FIXME: Any way to use `ezeka-time-stamp-formats' here?
-      (setf (alist-get :created metadata)
-            (concat (org-timestamp-format created "%Y-%m-%d %a ")
-                    (format-time-string
-                     "%H:%M"
-                     (when-let ((tempus
-                                 (cl-find-if
-                                  (lambda (id)
-                                    (eq (ezeka-id-type id 'noerror) :tempus))
-                                  (cons (alist-get :id metadata)
-                                        (alist-get :oldnames metadata)))))
-                       (encode-time (iso8601-parse tempus)))))))
+(defun ezeka--normalize-metadata-timestamps (metadata)
+  "Normalize the creation and modification times in METADATA.
+The creation time is updated if 1) the current time is at
+00:00 or is missing and something else appears in the tempus
+currens, or 2) one of the old names is a tempus currens with
+time. The modification time is set to current time."
+  (let* ((decode-timestamp
+          (lambda (ts)
+            "Decode the timestamp string TS into decoded time."
+            (decode-time
+             (org-timestamp-to-time
+              (org-timestamp-from-string (format "[%s]" ts))))))
+         (full-timestamp
+          (lambda (dt1 &optional dt2)
+            "Complete decoded time in DT1 from DT2, returning full timestamp."
+            (let ((dt2 (if (stringp dt2) (iso8601-parse dt2) (decode-time))))
+              (when (and (zerop (decoded-time-hour dt1))
+                         (zerop (decoded-time-minute dt1)))
+                (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
+                      (decoded-time-minute dt1) (decoded-time-minute dt2)))
+              (format-time-string (cdr ezeka-time-stamp-formats)
+                                  (encode-time dt1)))))
+         (created  (funcall decode-timestamp (alist-get :created metadata)))
+         (modified (funcall decode-timestamp (alist-get :modified metadata)))
+         (tempus (cl-find-if
+                  (lambda (id)
+                    (eq (ezeka-id-type id 'noerror) :tempus))
+                  (cons (alist-get :id metadata)
+                        (alist-get :oldnames metadata)))))
+    (setf (alist-get :created metadata) (funcall full-timestamp created tempus)
+          (alist-get :modified metadata) (funcall full-timestamp modified))
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
@@ -1020,12 +1030,13 @@ With \\[universal-argument] ARG, show a list of options instead."
   "Maybe update the modification time in the METADATA.
 Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
-  (let* ((today (format-time-string (car ezeka-time-stamp-formats)))
+  (let* ((mdata (ezeka--normalize-metadata-timestamps metadata))
+         (today (format-time-string (car ezeka-time-stamp-formats)))
          (now (format-time-string (cdr ezeka-time-stamp-formats)))
-         (last-modified (or (alist-get :modified metadata)
-                            (alist-get :created metadata)
+         (last-modified (or (alist-get :modified mdata)
+                            (alist-get :created mdata)
                             (user-error "No created or modified time in %s"
-                                        (alist-get :link metadata)))))
+                                        (alist-get :link mdata)))))
     (unless (string-equal (or last-modified "") now)
       ;; FIXME: Probably better to convert modification times to Emacs's encoded
       ;; time rather than doing it with strings.
@@ -1036,11 +1047,11 @@ Return the new metadata."
                 (and (member ezeka-header-update-modified '(sameday confirm t))
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
-                              (ezeka-format-metadata "%i {%l} %t" metadata)
+                              (ezeka-format-metadata "%i {%l} %t" mdata)
                               last-modified))))
-        (setf (alist-get :modified metadata) now)
+        (setf (alist-get :modified mdata) now)
         (run-hooks 'ezeka-modified-updated-hook)))
-    metadata))
+    mdata))
 
 (defun ezeka-update-modified (file)
   "Update the modification time in the current Zettel FILE's header.
