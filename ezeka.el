@@ -2963,21 +2963,31 @@ different. With \\[universal-argument] ARG, forces update."
       (when-let ((pos (or (org-find-exact-headline-in-buffer "Snippet")
                           (org-find-exact-headline-in-buffer "Content"))))
         (goto-char pos)
-        (when-let ((used-in (org-entry-get (point) "USED_IN+"))
-                   (used-list
-                    (split-string
-                     (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
-                     nil t " \n")))
-          (when (y-or-n-p (format "%s\nAdd CHANGED tags in these files? "
-                                  (mapconcat (lambda (id)
-                                               (ezeka-file-name-caption
-                                                (car (org-id-find id))))
-                                    used-list
-                                    "\n")))
-            (dolist (org-id used-list)
-              (org-id-goto org-id)
-              (org-back-to-heading t)
-              (org-set-tags (cl-union '("CHANGED") (org-get-tags) :test #'string=))))))
+        (when-let* ((used-in (org-entry-get (point) "USED_IN+"))
+                    (used-list
+                     (split-string
+                      (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
+                      nil t " \n"))
+                    (not-tagged
+                     (save-excursion
+                       (cl-remove-if (lambda (org-id)
+                                       (org-id-goto org-id)
+                                       (member "CHANGED" (org-get-tags)))
+                                     used-list))))
+          (when (y-or-n-p "Did you modify the snippet text? ")
+            (org-entry-put (point) "MODIFIED"
+                           (format-time-string
+                            (concat "[" (cdr ezeka-time-stamp-formats) "]")))
+            (when (y-or-n-p (format "%s\nAdd CHANGED tags in these files? "
+                                    (mapconcat (lambda (id)
+                                                 (ezeka-file-name-caption
+                                                  (car (org-id-find id))))
+                                               not-tagged
+                                               "\n")))
+              (dolist (org-id not-tagged)
+                (org-id-goto org-id)
+                (org-back-to-heading t)
+                (org-set-tags (cl-union '("CHANGED") (org-get-tags) :test #'string=)))))))
       (switch-to-buffer current))))
 (add-hook 'ezeka-modified-updated-hook #'ezeka--update-inserted-snippet)
 
