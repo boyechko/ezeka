@@ -3059,6 +3059,34 @@ This is the Bookmark record function for Zettel files."
     (setq-local bookmark-make-record-function 'bookmark-make-record-ezeka)))
 
 ;;;=============================================================================
+;;; Searching
+;;;=============================================================================
+
+(defvar ezeka-regexp-history-variable nil
+  "History variable for `ezeka--read-regexp'.")
+
+(defun ezeka--read-regexp (&optional prompt)
+  "Interactively read a regexp with optional PROMPT."
+  (let ((sym (thing-at-point 'symbol t)))
+    (read-regexp (or prompt "Regexp ") (and sym (regexp-quote sym))
+                 ezeka-regexp-history-variable)))
+
+(defun ezeka-find-regexp (regexp &optional kasten)
+  "Find all matches of REGEXP in `ezeka-directory'.
+If KASTEN is non-nil (or with \\[universal-argument]
+prefix), limit to only that Kasten."
+  (interactive
+   (list (ezeka--read-regexp "Regexp to find")
+         (when current-prefix-arg
+           (ezeka--read-kasten "Kasten to search "))))
+  (require 'xref)
+  (xref--show-xrefs
+   (xref-matches-in-directory regexp
+                              (format "*.%s" ezeka-file-extension)
+                              ezeka-directory nil)
+   nil))
+
+;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
 
@@ -3197,6 +3225,10 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
             (insert s "\n"))
           (delete-dups ids))
     (delete-duplicate-lines (point-min) (point-max))))
+
+;;;=============================================================================
+;;; Mode Line
+;;;=============================================================================
 
 ;; Based on https://stackoverflow.com/a/30328255
 ;;
