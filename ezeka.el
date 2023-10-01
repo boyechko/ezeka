@@ -510,6 +510,7 @@ explicitly given."
 
 (defun ezeka-link-file (link &optional caption noerror)
   "Return a full file path to the Zettel LINK.
+If LINK is actually a filename, just return it. Otherwise,
 CAPTION can be a string (including an empty string), in
 which case return a filename consisting of LINK and CAPTION
 separated with `ezeka-file-name-separator'. Alternatively,
@@ -517,29 +518,32 @@ if CAPTION is anything else (e.g. 'wildcard or nil), try
 wildcard expansion for the file name beginning with the ID
 given in LINK. If NOERROR is non-nil, do not raise an error
 if file is not found."
-  (unless (ezeka-link-p link) (error "Link not valid: %s" link))
-  (let* ((id (ezeka-link-id link))
-         (basename (format "%s%s.%s"
-                           id
-                           (cond ((string-empty-p caption)
-                                  "")
-                                 ((stringp caption)
-                                  (concat ezeka-file-name-separator caption))
-                                 (t
-                                  "*"))
-                           ezeka-file-extension))
-         (dir (ezeka-id-directory id (ezeka-link-kasten link))))
-    (if (stringp caption)
-        (file-truename (expand-file-name basename dir))
-      (let ((matches (flatten-list
-                      (file-expand-wildcards
-                       (expand-file-name basename dir)))))
-        (cl-case (length matches)
-          (0 (if noerror
-                 nil
-               (error "No matching files found for link %s" link)))
-          (1 (file-truename (car matches)))
-          (t (error "Found multiple file matches: %s" matches)))))))
+  (if (file-exists-p link)
+      link
+    (save-match-data
+      (unless (ezeka-link-p link) (error "Link not valid: %s" link))
+      (let* ((id (ezeka-link-id link))
+             (basename (format "%s%s.%s"
+                               id
+                               (cond ((string-empty-p caption)
+                                      "")
+                                     ((stringp caption)
+                                      (concat ezeka-file-name-separator caption))
+                                     (t
+                                      "*"))
+                               ezeka-file-extension))
+             (dir (ezeka-id-directory id (ezeka-link-kasten link))))
+        (if (stringp caption)
+            (file-truename (expand-file-name basename dir))
+          (let ((matches (flatten-list
+                          (file-expand-wildcards
+                           (expand-file-name basename dir)))))
+            (cl-case (length matches)
+              (0 (if noerror
+                     nil
+                   (error "No matching files found for link %s" link)))
+              (1 (file-truename (car matches)))
+              (t (error "Found multiple file matches: %s" matches)))))))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
