@@ -2375,6 +2375,21 @@ SET-CAPTION determine which fields to change."
         (setf (alist-get :caption-stable mdata) nil))
       (ezeka--update-metadata-values filename mdata))))
 
+(defun ezeka-set-subtitle (filename subtitle)
+  "Set the SUBTITLE metadata in Zettel FILENAME."
+  (interactive (list (ezeka--grab-dwim-file-target) nil))
+  (when (ezeka-note-p filename)
+    (let* ((mdata (ezeka-file-metadata filename))
+           (subtitle (or subtitle
+                         (read-string
+                          (if (alist-get :subtitle mdata)
+                              (format "Change `%s' to what? "
+                                      (alist-get :subtitle mdata))
+                            "Subtitle: ")
+                          (alist-get :subtitle mdata)))))
+      (setf (alist-get :subtitle mdata) subtitle)
+      (ezeka--update-metadata-values filename mdata))))
+
 (defun ezeka-set-label (filename label arg)
   "Set LABEL (genus or category) in Zettel FILENAME.
 With \\[universal-argument], either show genera verbosely or type
