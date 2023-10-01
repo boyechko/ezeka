@@ -243,8 +243,8 @@ If LINK-AT-POINT is non-nil, prioritize such a link if exists."
         ((eq major-mode 'magit-status-mode) ; FIXME: magit
          (magit-file-at-point))
         ((eq major-mode 'zk-index-mode) ; FIXME: zk-index
-         (if-let ((button (button-at (point))))
-             (zk--triplet-file (button-get button 'zk-triplet))
+         (if-let* ((id (car (button-get (button-at (point)) 'button-data))))
+             (ezeka-link-file id)
            (zk--select-file)))
         ((eq major-mode 'deft-mode)     ; FIXME: deft
          (if-let ((button (button-at (point))))
