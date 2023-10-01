@@ -1092,31 +1092,33 @@ update it unconditionally."
 ;; 3) The title in the file header contains a nicely formatted version
 ;;    of the caption that is used when inserting links.
 
-(defun ezeka--reconcile-title-and-caption (metadata)
+(defun ezeka--reconcile-title-and-caption (metadata &optional force)
   "Interactively reconcile title and caption in given METADATA.
-Returns modifed metadata."
+Returns modifed metadata. If FORCE is non-nil, attempt
+reconciling even if :caption-stable is true."
   (let ((caption (or (alist-get :caption metadata) ""))
         (title (or (alist-get :title metadata) "")))
     (unless (or (string= title caption)
-                (alist-get :caption-stable metadata))
-      (let ((choice
-             (read-char-choice
+                (and (not force)
+                     (alist-get :caption-stable metadata)))
+      (pcase (read-char-choice
               (format (concat
                        "[C]aption: %s\n"
                        "  [T]itle: %s\n"
-                       "Press [c/u] or [t/l] to use that one; uppercase to edit beforehand,\n"
+                       "Press [c/u] or [t/l] to use that one; uppercase to skip editing,\n"
                        "      [n] or [q] to do noting: ")
                       (propertize caption 'face 'bold)
                       (propertize title 'face 'italic))
-              '(?c ?C ?u ?U ?t ?T ?l ?L ?n ?q))))
-        (pcase choice
-          ((or ?c ?u) (setf (alist-get :title metadata) caption))
-          ((or ?t ?l) (setf (alist-get :caption metadata) title))
-          ((or ?C ?U) (setf (alist-get :title metadata)
-                            (ezeka--minibuffer-edit-string caption)))
-          ((or ?T ?L) (setf (alist-get :caption metadata)
-                            (ezeka--minibuffer-edit-string title))))
-        (setf (alist-get :caption-stable metadata) t)))
+              '(?c ?C ?u ?U ?t ?T ?l ?L ?n ?q))
+        ((or ?C ?U) (setf (alist-get :title metadata) caption))
+        ((or ?T ?L) (setf (alist-get :caption metadata) title))
+        ((or ?c ?u) (setf (alist-get :title metadata)
+                          (ezeka--minibuffer-edit-string
+                           (ezeka--pasturize-for-filename caption))))
+        ((or ?t ?l) (setf (alist-get :caption metadata)
+                          (ezeka--minibuffer-edit-string
+                           (ezeka--pasturize-for-filename title)))))
+      (setf (alist-get :caption-stable metadata) t))
     (funcall clear-message-function)
     metadata))
 
