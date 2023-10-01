@@ -2757,13 +2757,13 @@ With \\[universal-argument], ask to select the KASTEN."
 
 (defun ezeka-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link.
-With \\[universal-argument] ARG, ignore `ezeka-number-of-frames' and
-open the link in the same window."
-  (interactive "P")
-  (when (or (ezeka-link-at-point-p)
-            (ezeka-link-at-point-p t))
-    ;; FIXME: Is it okay to check like this for prefix arg "upstream"?
-    (ezeka-find-link (ezeka-link-at-point) (or arg current-prefix-arg))
+If SAME-WINDOW is non-nil, or the command is called with \\[universal-argument],
+ignore `ezeka-number-of-frames' and open the link in the same window."
+  (interactive "p")
+  (when-let ((_ (or (ezeka-link-at-point-p)
+                    (ezeka-link-at-point-p t)))
+             (link (ezeka-link-at-point)))
+    (ezeka-find-link link same-window)
     ;; This function is later added to `org-open-at-point-functions', so "must
     ;; return t if they identify and follow a link at point. If they don’t find
     ;; anything interesting at point, they must return nil."
