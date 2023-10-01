@@ -1061,16 +1061,20 @@ treating it as if set to 'ALWAYS."
   (let ((ezeka-header-update-modified 'always))
     (ezeka--update-file-header file nil t)))
 
-(defun ezeka-force-save-buffer (&optional arg)
+(defun ezeka-force-save-buffer (&optional update-modified)
   "Save the current buffer, even if it's unmodified.
-With \\[universal-argument] ARG, don't update the modification date.
-With double \\[universal-argument], update it unconditionally."
-  (interactive "P")
-  (let ((ezeka-header-update-modified
-         (cond ((equal arg '(4)) 'never)
-               ((equal arg '(16)) 'always)
-               (t
-                ezeka-header-update-modified)))
+Unless specified with UPDATE-MODIFIED, respect the value of
+`ezeka-update-modified'. If called interactively with \\[universal-argument], however,
+don't update the modification date. With \\[universal-argument] \\[universal-argument],
+update it unconditionally."
+  (interactive
+   (let ((prefix (prefix-numeric-value current-prefix-arg)))
+     (list (cond ((= prefix 4) 'never)
+                 ((= prefix 16) 'always)
+                 (t ezeka-header-update-modified)))))
+  (let ((ezeka-header-update-modified update-modified)
+        (before-save-hook
+         (remove 'ezeka--update-file-header before-save-hook))
         (modified (buffer-modified-p)))
     (unwind-protect
         (when buffer-file-name
