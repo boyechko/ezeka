@@ -3060,7 +3060,10 @@ offer additional options."
               (org-footnote-auto-adjust 'sort)
               (context (org-context)))
           (org-element-cache-reset)
-          (kill-new (format-time-string "%H%M"))
+          (when-let ((it (cadr
+                          (split-string (ezeka-file-name-id buffer-file-name)
+                                        "-"))))
+            (kill-new it))
           (org-footnote-new))
       (org-footnote-action (equal arg '(16))))))
 
