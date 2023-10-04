@@ -1293,7 +1293,7 @@ offer to set metadata or rename the file even if they are in agreement."
                  nil)
            (ezeka--replace-file-header filename mdata)
            (ezeka--save-buffer-read-only filename)
-           (apply #'run-hooks ezeka-after-save-hook))
+           (run-hooks 'ezeka-after-save-hook))
           ((memq keep-which '(?m ?M ?l ?L))
            (setf (alist-get :keywords mdata)
                  (cl-remove ezeka-rename-note-keyword
@@ -1307,6 +1307,7 @@ offer to set metadata or rename the file even if they are in agreement."
                  (ezeka--minibuffer-edit-string pasteurized)
                pasteurized)
              ezeka-file-extension))
+           (run-hooks 'ezeka-after-save-hook)
            (when t                      ; TODO check if filename changed
              (message "You might want to do `ezeka-normalize-file-name' again"))))))
 
