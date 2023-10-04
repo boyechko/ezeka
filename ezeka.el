@@ -1232,12 +1232,12 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
 
 (defun ezeka-normalize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
-When called interactively or FORCE is non-nil, offer to set
-metadata or rename the file even if they are in agreement."
+When called interactively with \\[universal-argument], or FORCE is non-nil,
+offer to set metadata or rename the file even if they are in agreement."
   (interactive
    (list buffer-file-name
          nil
-         (prefix-numeric-value current-prefix-arg)))
+         current-prefix-arg))
   (let* ((filename (or filename buffer-file-name))
          (file-base (file-name-base filename))
          (mdata (if (null metadata)
@@ -1245,28 +1245,30 @@ metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-         (pasturized (ezeka--pasturize-for-filename mdata-base))
+         (pasteurized (ezeka--pasturize-for-filename mdata-base))
          (read-user-choice
-          (lambda (file-base mdata-base)
+          (lambda ()
             "Prompt the user about which name to use."
             (read-char-choice
              (format (concat "Caption in filename and metadata differ:\n"
                              "[F]ilename: %s\n"
                              "[M]etadata: %s\n"
+                             "           [%s -- pasteurized]\n"
                              "Press [f/u] to set metadata from filename (uppercase to edit),\n"
                              "      [m/l] to set filename from metadata (uppercase to edit),\n"
                              "      [r] to add %s keyword for renaming later, or\n"
                              "      [n] or [q] to do noting: ")
                      (propertize file-base 'face 'bold)
-                     (propertize pasturized 'face 'bold-italic)
+                     (propertize pasteurized 'face 'italic)
+                     (propertize pasteurized 'face 'italic)
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
           (unless (and (not force)
-                       (or (string= mdata-base file-base)
+                       (or (string= file-base mdata-base)
                            (member ezeka-rename-note-keyword
                                    (alist-get :keywords mdata))))
-            (funcall read-user-choice file-base mdata-base))))
+            (funcall read-user-choice))))
     (funcall clear-message-function)
     (cond ((memq keep-which '(nil ?n ?q))
            ;; do nothing
@@ -1301,9 +1303,9 @@ metadata or rename the file even if they are in agreement."
             filename
             (file-name-with-extension
              (if (or (member keep-which '(?M ?L))
-                     (not (string= pasturized mdata-base)))
-                 (ezeka--minibuffer-edit-string pasturized)
-               pasturized)
+                     (not (string= pasteurized mdata-base)))
+                 (ezeka--minibuffer-edit-string pasteurized)
+               pasteurized)
              ezeka-file-extension))
            (when t                      ; TODO check if filename changed
              (message "You might want to do `ezeka-normalize-file-name' again"))))))
