@@ -1163,24 +1163,26 @@ This is a an alist of (FILENAME . CHECKSUM METADATA). Used in
 If METADATA is not given, get it by parsing the FILENAME's existing
 header. If FORCE is non-nil, update the header even if the the file
 has not changed since last update."
-  (interactive (list buffer-file-name))
-  (let* ((filename (or filename buffer-file-name))
-         (metadata (or metadata (ezeka-file-metadata filename 'noerror)))
-         (previous (assoc-string filename ezeka--previously-updated))
+  (interactive (list buffer-file-name nil current-prefix-arg))
+  (let* ((fname (or filename buffer-file-name))
+         (mdata (or metadata (ezeka-file-metadata fname 'noerror)))
+         (force (or force current-prefix-arg))
+         (prev (assoc-string fname ezeka--previously-updated))
          (old-point (point))
          (inhibit-read-only t))
-    (if (and metadata
-             (or force
-                 (not (string= (buffer-hash) (cadr previous)))))
-        (progn
-          (setq metadata
-            (ezeka--set-time-of-creation
-             (ezeka--maybe-update-modified
-              (ezeka--reconcile-title-and-caption metadata))))
-          (ezeka--replace-file-header filename metadata)
-          (setf (alist-get filename ezeka--previously-updated nil nil #'string=)
-                (list (buffer-hash) metadata)))
-      (message "Cannot update header: can't parse metadata"))
+    (cond ((not mdata)
+           (error "Cannot update header: can't parse metadata"))
+          ((and (not force)
+                (string= (buffer-hash) (cadr prev)))
+           (message "The header is unchanged"))
+          (t
+           (setq mdata
+             (ezeka--normalize-metadata-timestamps
+              (ezeka--maybe-update-modified
+               (ezeka--reconcile-title-and-caption mdata force))))
+           (ezeka--replace-file-header fname mdata)
+           (setf (alist-get fname ezeka--previously-updated nil nil #'string=)
+                 (list (buffer-hash) mdata))))
     ;; `Save-excursion' doesn't seem to restore the point, possibly because the
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
