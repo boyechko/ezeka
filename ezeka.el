@@ -231,6 +231,14 @@ If ID-TYPE is not given, return a regexp that matches all known types."
   (when character
     (string-match-p "[[:space:][:punct:]]" (char-to-string character))))
 
+(defmacro ezeka--space-and (value)
+  "If VALUE is non-nil, return a string with space followed by it.
+If VALUE is nil, return an empty string. VALUE is evaluated
+only once."
+  (let ((sym (gensym)))
+    `(let ((,sym ,value))
+       (if ,sym (format " %s" ,sym) ""))))
+
 ;; TODO: More extensible way to do this without invoking other modes?
 (defun ezeka--grab-dwim-file-target (&optional link-at-point)
   "Return the do-what-I-mean Zettel file from a variety of modes.
