@@ -745,7 +745,10 @@ the SOURCE is set to 'interactive."
                    (not (cl-member (ezeka-file-link target)
                                    ezeka-zk--breadcrumbs-stack
                                    :key #'car
-                                   :test #'string=)))
+                                   :test #'string=))
+                   (not (and (boundp 'zk-desktop-current)
+                             (string= (buffer-file-name zk-desktop-current)
+                                      target))))
                (file-exists-p target)
                (ezeka-note-p target))
       (when (and (not (and (boundp 'zk-desktop-current) ; FIXME: Add our own variable?
@@ -768,9 +771,11 @@ the SOURCE is set to 'interactive."
                        (if (org-forward-heading-same-level 1)
                            (org-previous-visible-heading 1)
                          (goto-char (point-max)))
-                       (org-insert-heading-after-current)))
+                       (org-insert-subheading nil)))
                 (insert (format "%s [[%s]] %s%s"
-                                (ezeka-file-name-caption target)
+                                (if-let ((mdata (ezeka-file-metadata target)))
+                                    (alist-get :title mdata)
+                                  (ezeka-file-name-caption target))
                                 (ezeka-file-name-id target)
                                 timestamp
                                 (if (not headline)
