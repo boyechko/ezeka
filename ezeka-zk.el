@@ -114,7 +114,7 @@ is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually sw
   "Return alist of currently active Kasten and their Zk index buffers."
   (let ((regexp
          (string-replace "%k" "\\(.*\\)"
-          (regexp-quote ezeka-zk-index-buffer-format))))
+                         (regexp-quote ezeka-zk-index-buffer-format))))
     (delq nil
           (mapcar (lambda (buf)
                     (when (string-match regexp (buffer-name buf))
@@ -151,7 +151,7 @@ See `zk-index-button-display-action'."
 Control sequences %i (ID), %c (caption), and %l (link) are
 supported natively. For everything else, call
 `ezeka-format-metadata' instead."
-  (let ((title (string-trim title)))
+  (let ((title (string-trim (or title ""))))
     (if (not (string-match-p "%[^icl0-9-]" format))
         (format-spec format
                      `((?i . ,id)
