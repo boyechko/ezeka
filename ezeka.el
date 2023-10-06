@@ -1721,7 +1721,7 @@ If the file is not a Zettel note, return nil."
 
 (defun ezeka-insert-link-to-other-window (&optional link-only)
   "Insert the link to the Zettel note in the other window.
-With \\[universal-argument] LINK-ONLY, insert just the link, otherwise
+With LINK-ONLY (or \\[universal-argument]), insert just the link, otherwise
 also include the title."
   (interactive "P")
   (if link-only
@@ -2605,7 +2605,17 @@ CITEKEY."
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
     (insert "\n")
-    (insert content)))
+    (insert content)
+    ;; FIXME: Crossing package boundaries
+    (if (fboundp 'ezeka-zk-drop-breadcrumbs)
+        (add-hook 'after-save-hook
+          (lambda ()
+            (ezeka-zk-drop-breadcrumbs
+             buffer-file-name
+             (if (and parent (not (string-empty-p parent)))
+                 (ezeka-link-file parent)
+               this-command)))
+          nil 'local))))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
