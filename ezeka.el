@@ -1908,11 +1908,11 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
     (save-excursion
       (goto-char (or pos (point)))
       (when-let* ((_ (ezeka-link-at-point-p))
+                  (file (ezeka-link-file (ezeka-link-at-point) nil t))
                   (overlay (make-overlay (match-beginning 1) (match-end 1))))
         (overlay-put overlay 'type 'ezeka-help-echo)
         (overlay-put overlay 'face '((t (:underline "purple"))))
-        (overlay-put overlay 'help-echo
-                     (file-name-base (ezeka-link-file (ezeka-link-at-point))))))))
+        (overlay-put overlay 'help-echo (file-name-base file))))))
 
 (defun ezeka--make-help-echo-overlays (&optional buffer)
   "Make help echo overlays in BUFFER (or `current-buffer')."
