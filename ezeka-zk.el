@@ -823,41 +823,37 @@ This function is based on `diary-ordinal-suffix'."
       (aref ["th" "st" "nd" "rd"] (% n 10)))))
 
 ;;;###autoload
-(defun ezeka-zk-initialize-desktop (title)
+(defun ezeka-zk-initialize-desktop (&optional title)
   "Set `zk-desktop-current' to today's desktop with TITLE.
-If the current buffer looks like a Zk-Desktop file, use
+If the current buffer is a Zettel file, ask about using
 that; otherwise, create a new one."
-  (interactive
-   (list (read-string "Title: " (format "%s for %s%s"
-                                        zk-desktop-basename
-                                        (format-time-string "%A, %B %-d")
-                                        (ezeka-zk--ordinal-suffix
-                                         (decoded-time-day (decode-time)))))))
-  (let* ((buf-fname (or (buffer-file-name) ""))
-         (new-id (ezeka-format-tempus-currens))
-         (ezeka-create-nonexistent-links t)
-         (child-plist (list :title title
-                            :label "Journal"
-                            :category "Journal"))
-         desktop-file)
-    (cond ((and (string-match zk-desktop-basename buf-fname)
-                (y-or-n-p "Set this as the Zk-Desktop file? "))
-           (setq desktop-file buf-fname))
-          ((and (string-match zk-desktop-basename buf-fname)
-                (y-or-n-p "Treat current file as parent? "))
-           (ezeka--replace-file-header buf-fname
-                                       (ezeka-set-metadata-value
-                                        (ezeka-file-metadata buf-fname)
-                                        :firstborn new-id))
-           (apply #'ezeka--set-new-child-metadata
-                  new-id
-                  (append child-plist
-                          (list :parent (ezeka-file-link buf-fname))))
-           (ezeka-find-link new-id))
-          (t
-           (user-error "Don't know what to do then")))
-    (setq zk-desktop-current (current-buffer)
-          ezeka-zk--breadcrumbs-stack nil)
+  (interactive)
+  (let ((new-id (ezeka-format-tempus-currens))
+        (ezeka-create-nonexistent-links t)
+        desktop-file)
+    (if (and (ezeka-note-p buffer-file-name)
+             (y-or-n-p "Set this as the desktop file? "))
+        (setq zk-desktop-current (current-buffer))
+      (when (and (ezeka-note-p buffer-file-name)
+                 (y-or-n-p "Treat current file as parent? "))
+        (ezeka--replace-file-header buffer-file-name
+                                    (ezeka-set-metadata-value
+                                     (ezeka-file-metadata buffer-file-name)
+                                     :firstborn new-id))
+        (ezeka--set-new-child-metadata
+         new-id :parent (ezeka-file-link buffer-file-name)))
+      (ezeka--set-new-child-metadata
+       new-id
+       :label "Journal"
+       :title (read-string "Title for new desktop file: "
+                           (format "%s for %s%s"
+                                   zk-desktop-basename
+                                   (format-time-string "%A, %B %-d")
+                                   (ezeka-zk--ordinal-suffix
+                                    (decoded-time-day (decode-time))))))
+      (ezeka-find-link new-id)
+      (setq zk-desktop-current (current-buffer)))
+    (setq ezeka-zk--breadcrumbs-stack nil)
     (message "Zk-Desktop initialized to %s" (current-buffer))))
 
 (provide 'ezeka-zk)
