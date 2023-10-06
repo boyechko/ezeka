@@ -77,7 +77,7 @@ Group 2 is the title."
   (concat "\\(?1:"
           (ezeka--id-regexp)
           "\\)"
-          "\\(?2: [^.]+\\)*"
+          "\\(?2: .+\\)*"
           "\\."
           zk-file-extension
           "$"))
