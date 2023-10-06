@@ -389,14 +389,15 @@ minibuffer according to the value of `zk-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
   (interactive (list (zk--select-file "Insert link to: ")))
   (let ((link (ezeka-file-link file)))
-    (if-let ((_ (or (eq zk-link-and-title 't)
-                    (and (eq zk-link-and-title 'ask)
-                         (y-or-n-p "Include (edited) title? "))))
-             (mdata (ezeka-file-metadata file t)))
-        (zk--insert-link-and-title
-         link
-         (read-string "Title: " (alist-get :title mdata)))
-      (zk--insert-link file))))
+    (ezeka-zk-drop-breadcrumbs file buffer-file-name)
+    (zk--insert-link
+     link
+     (when-let ((_ (or (eq zk-link-and-title 't)
+                       (and (eq zk-link-and-title 'ask)
+                            (y-or-n-p "Include (edited) title? "))))
+                (mdata (ezeka-file-metadata file t)))
+       (read-string "Title: " (alist-get :title mdata))))
+    (ezeka--make-help-echo-overlay (point))))
 
 (defun ezeka-zk-insert-link-to-other-window ()
   "Insert the link to the Zettel note in the other window."
