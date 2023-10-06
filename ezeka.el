@@ -239,6 +239,16 @@ only once."
     `(let ((,sym ,value))
        (if ,sym (format " %s" ,sym) ""))))
 
+(defun ezeka--ordinal-suffix (n)
+  "Ordinal suffix for N, a number or string.
+\(That is, `st', `nd', `rd', or `th', as appropriate.)
+This function is based on `diary-ordinal-suffix'."
+  (let ((n (round (if (numberp n) n (string-to-number n)))))
+    (if (or (memq (% n 100) '(11 12 13))
+            (< 3 (% n 10)))
+        "th"
+      (aref ["th" "st" "nd" "rd"] (% n 10)))))
+
 ;; TODO: More extensible way to do this without invoking other modes?
 (defun ezeka--grab-dwim-file-target (&optional link-at-point)
   "Return the do-what-I-mean Zettel file from a variety of modes.
