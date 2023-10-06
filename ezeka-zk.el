@@ -684,7 +684,7 @@ before renaming If given, use the custom PROMPT."
             ((not (ezeka-file-name-valid-p newname))
              (user-error "New file name is not valid: %s" newname))
             (t
-             (rename-file-and-buffer    ; FIXME: Defined in init-utilities.el
+             (ezeka--rename-file
               file
               (expand-file-name
                (file-name-with-extension newname (file-name-extension entitled))
@@ -708,7 +708,7 @@ before renaming If given, use the custom PROMPT."
           (title (match-string-no-properties 2 file)))
       (if (string= "." title)
           (or (alist-get :title (ezeka-file-metadata file t))
-            "<no title>")
+              "<no title>")
         title))))
 
 ;;;=============================================================================
