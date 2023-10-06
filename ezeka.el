@@ -2379,10 +2379,15 @@ SET-CAPTION determine which fields to change."
                                                 mdata)))))
       (when (and set-title set-caption
                  (y-or-n-p "Record the change in the change log? "))
-        (ezeka--add-change-log-entry
+        (ezeka-add-change-log-entry
          filename
-         (format "Rename from \"%s\" to \"%s.\""
-                 (alist-get :title mdata) new-val)))
+         (format "Rename from \"{%s} %s%s\" to \"{%s} %s.\""
+                 (ezeka-file-name-label filename)
+                 (alist-get :title mdata)
+                 (ezeka--space-and (ezeka-file-name-citekey filename))
+                 (alist-get :label mdata)
+                 new-val
+                 (ezeka--space-and (alist-get :citekey mdata)))))
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
