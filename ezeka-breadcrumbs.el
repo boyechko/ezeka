@@ -31,23 +31,27 @@
 ;;; Code:
 
 (require 'ezeka)
+(require 'org)
 
-(defcustom ezeka-zk-drop-breadcrumbs t
-  "When non-nil, record visited notes into current Zk-Desktop.")
+(defvar ezeka-breadcrumb-trail-buffer nil
+  "Buffer where to record the breadcrumb trail.")
 
-(defvar ezeka-zk--breadcrumbs-stack nil
+(defcustom ezeka-leave-breadcrumb-trail t
+  "When non-nil, leave a trail of visited Zettel notes.")
+
+(defvar ezeka--breadcrumb-trail nil
   "Stack of breadcrumbs dropped.
-The variable is reset whenever `ezeka-zk-initialize-desktop'
-is executed.")
+The variable is reset whenever new trail is started with
+`ezeka-start-breadcrumb-trail'.")
 
-(defun ezeka-zk-breakcrumbs-reset-stack ()
+(defun ezeka-reset-breakcrumb-trail ()
   "Reset the breadcrumb stack."
-  (setq ezeka-zk--breadcrumbs-stack nil))
+  (setq ezeka--breadcrumb-trail nil))
 
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
-(defun ezeka-zk-drop-breadcrumbs (&optional target source)
-  "Add the Zettel TARGET to the current `zk-desktop'.
+(defun ezeka-breadcrumbs-drop (&optional target source)
+  "Add the Zettel TARGET to `ezeka-breadcrumb-trail-buffer'.
 SOURCE, if set, should be either a Zettel link for the
 source, or a symbol describing where the function is being
 called from. If the command is executed interactively,
@@ -57,26 +61,25 @@ the SOURCE is set to 'interactive."
                       ((ezeka-link-p target) (ezeka-link-file target))
                       (t (buffer-file-name (current-buffer)))))
         (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (when (and ezeka-zk-drop-breadcrumbs
+    (when (and ezeka-leave-breadcrumb-trail
                (or (eq source 'interactive)
                    (not (cl-member (ezeka-file-link target)
-                                   ezeka-zk--breadcrumbs-stack
+                                   ezeka--breadcrumb-trail
                                    :key #'car
                                    :test #'string=))
-                   (not (and (boundp 'zk-desktop-current)
-                             (string= (buffer-file-name zk-desktop-current)
+                   (not (and (boundp 'ezeka-breadcrumb-trail-buffer)
+                             (string= (buffer-file-name ezeka-breadcrumb-trail-buffer)
                                       target))))
                (file-exists-p target)
                (ezeka-note-p target))
-      (when (and (not (and (boundp 'zk-desktop-current) ; FIXME: Add our own variable?
-                           (buffer-live-p zk-desktop-current)))
-                 (y-or-n-p "No Zk-Desktop. Create one? "))
-        (ezeka-zk-initialize-desktop))
-      (if-let ((_ (and (boundp 'zk-desktop-current)
-                       (buffer-live-p zk-desktop-current)))
+      (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
+                 (y-or-n-p "There is no breadcrumb trail. Start one? "))
+        (call-interactively #'ezeka-start-breadcrumb-trail))
+      (if-let ((_ (and (boundp 'ezeka-breadcrumb-trail-buffer)
+                       (buffer-live-p ezeka-breadcrumb-trail-buffer)))
                (org-blank-before-new-entry '((heading . nil))))
           (save-excursion
-            (with-current-buffer zk-desktop-current
+            (with-current-buffer ezeka-breadcrumb-trail-buffer
               (goto-char (org-find-exact-headline-in-buffer "Breadcrumbs"))
               (let ((headline (when (stringp source)
                                 (search-forward (ezeka--format-link source) nil t))))
@@ -107,48 +110,26 @@ the SOURCE is set to 'interactive."
                                                    source)))
                                   "")))
                 (push (list (ezeka-file-link target) timestamp source)
-                      ezeka-zk--breadcrumbs-stack)
+                      ezeka--breadcrumb-trail)
                 (message "Dropped breadcrumbs for `%s'" (file-name-base target)))))
         (message "Did not drop breadcrumbs for `%s'" (file-name-base target))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
-(add-hook 'ezeka-find-file-functions #'ezeka-zk-drop-breadcrumbs)
-(add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
+(add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
+(add-hook 'ezeka-mode-hook #'ezeka-breadcrumbs-drop)
 
 ;;;###autoload
-(defun ezeka-zk-initialize-desktop (&optional title)
-  "Set `zk-desktop-current' to today's desktop with TITLE.
-If the current buffer is a Zettel file, ask about using
-that; otherwise, create a new one."
-  (interactive)
-  (let ((new-id (ezeka-format-tempus-currens))
-        (ezeka-create-nonexistent-links t)
-        desktop-file)
-    (if (and (ezeka-note-p buffer-file-name)
-             (y-or-n-p "Set this as the desktop file? "))
-        (setq zk-desktop-current (current-buffer))
-      (when (and (ezeka-note-p buffer-file-name)
-                 (y-or-n-p "Treat current file as parent? "))
-        (ezeka--replace-file-header buffer-file-name
-                                    (ezeka-set-metadata-value
-                                     (ezeka-file-metadata buffer-file-name)
-                                     :firstborn new-id))
-        (ezeka--set-new-child-metadata
-         new-id :parent (ezeka-file-link buffer-file-name)))
-      (ezeka--set-new-child-metadata
-       new-id
-       :label "Journal"
-       :title (read-string "Title for new desktop file: "
-                           (format "%s for %s%s"
-                                   zk-desktop-basename
-                                   (format-time-string "%A, %B %-d")
-                                   (ezeka--ordinal-suffix
-                                    (decoded-time-day (decode-time))))))
-      (ezeka-find-link new-id)
-      (setq zk-desktop-current (current-buffer)))
-    (setq ezeka-zk--breadcrumbs-stack nil)
-    (message "Zk-Desktop initialized to %s" (current-buffer))))
+(defun ezeka-start-breadcrumb-trail (file)
+  "Start a new breadcrumb trail in Zettel FILE.
+If called interactively, use the current file."
+  (interactive
+   (list (let ((ezeka-leave-breadcrumb-trail nil))
+           (ezeka-zk-find-note-in-tempus 'other-window)
+           buffer-file-name)))
+  (setq ezeka--breadcrumb-trail nil
+        ezeka-breadcrumb-trail-buffer (find-file-noselect file))
+  (set-buffer ezeka-breadcrumb-trail-buffer))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
