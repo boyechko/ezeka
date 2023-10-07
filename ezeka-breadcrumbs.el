@@ -39,15 +39,6 @@
 (defcustom ezeka-leave-breadcrumb-trail t
   "When non-nil, leave a trail of visited Zettel notes.")
 
-(defvar ezeka--breadcrumb-trail nil
-  "Stack of breadcrumbs dropped.
-The variable is reset whenever new trail is started with
-`ezeka-start-breadcrumb-trail'.")
-
-(defun ezeka-reset-breakcrumb-trail ()
-  "Reset the breadcrumb stack."
-  (setq ezeka--breadcrumb-trail nil))
-
 ;;; FIXME: Why does this stop working after midnight?!
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
@@ -63,10 +54,6 @@ the SOURCE is set to 'interactive."
         (timestamp (format-time-string (cdr org-time-stamp-formats))))
     (when (and ezeka-leave-breadcrumb-trail
                (or (eq source 'interactive)
-                   (not (cl-member (ezeka-file-link target)
-                                   ezeka--breadcrumb-trail
-                                   :key #'car
-                                   :test #'string=))
                    (not (and (boundp 'ezeka-breadcrumb-trail-buffer)
                              (string= (buffer-file-name ezeka-breadcrumb-trail-buffer)
                                       target))))
@@ -109,8 +96,6 @@ the SOURCE is set to 'interactive."
                                                   (t
                                                    source)))
                                   "")))
-                (push (list (ezeka-file-link target) timestamp source)
-                      ezeka--breadcrumb-trail)
                 (message "Dropped breadcrumbs for `%s'" (file-name-base target)))))
         (message "Did not drop breadcrumbs for `%s'" (file-name-base target))))))
 
@@ -127,8 +112,7 @@ If called interactively, use the current file."
    (list (let ((ezeka-leave-breadcrumb-trail nil))
            (ezeka-zk-find-note-in-tempus 'other-window)
            buffer-file-name)))
-  (setq ezeka--breadcrumb-trail nil
-        ezeka-breadcrumb-trail-buffer (find-file-noselect file))
+  (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file))
   (with-current-buffer ezeka-breadcrumb-trail-buffer
    (if-let ((head (org-find-exact-headline-in-buffer "Breadcrumbs")))
        (goto-char head)
