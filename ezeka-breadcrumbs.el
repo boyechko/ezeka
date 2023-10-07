@@ -116,25 +116,6 @@ the SOURCE is set to 'interactive."
 (add-hook 'ezeka-find-file-functions #'ezeka-zk-drop-breadcrumbs)
 (add-hook 'ezeka-mode-hook #'ezeka-zk-drop-breadcrumbs)
 
-(defun ezeka-zk-stage-links-in-subtree (&optional start end)
-  "Stage all links in the current `org-mode' subtree.
-If region is active, only do so for links between START and
-END."
-  (interactive
-   (when (use-region-p)
-     (list (region-beginning) (region-end))))
-  (save-restriction
-    (if start
-        (narrow-to-region start end)
-      (org-narrow-to-subtree))
-    (goto-char (point-min))
-    (while (re-search-forward (concat "\\[\\[" (ezeka-link-regexp) "]]") nil t)
-      (let ((file (ezeka-link-file (match-string 1))))
-        (message "Staging %s %s..."
-                 (ezeka-file-name-id file) (ezeka-file-name-caption file))
-        (magit-stage-file file))))
-  (magit-stage-file buffer-file-name))
-
 ;;;###autoload
 (defun ezeka-zk-initialize-desktop (&optional title)
   "Set `zk-desktop-current' to today's desktop with TITLE.
