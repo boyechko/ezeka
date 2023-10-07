@@ -129,7 +129,12 @@ If called interactively, use the current file."
            buffer-file-name)))
   (setq ezeka--breadcrumb-trail nil
         ezeka-breadcrumb-trail-buffer (find-file-noselect file))
-  (set-buffer ezeka-breadcrumb-trail-buffer))
+  (with-current-buffer ezeka-breadcrumb-trail-buffer
+   (if-let ((head (org-find-exact-headline-in-buffer "Breadcrumbs")))
+       (goto-char head)
+     (goto-char (point-max))
+     (org-insert-heading nil nil 'top)
+     (insert "Breadcrumbs"))))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
