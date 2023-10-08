@@ -39,7 +39,42 @@
 (defcustom ezeka-leave-breadcrumb-trail t
   "When non-nil, leave a trail of visited Zettel notes.")
 
-;;; FIXME: Why does this stop working after midnight?!
+(defun ezeka--breadcrumb-trail-end (source)
+  "Find the place in the current buffer where to drop breadcrumbs.
+SOURCE is passed from `ezeka-breadcrumbs-drop'. Return non-
+nil if an existing SOURCE headline was found, and nil
+otherwise."
+  (save-restriction
+    (when-let ((org-blank-before-new-entry '((heading . nil)))
+               (heading (org-find-exact-headline-in-buffer "Breadcrumbs")))
+      (goto-char heading)
+      (org-narrow-to-subtree)
+      (org-back-to-heading)
+      (if (and (stringp source)
+               (search-forward (ezeka--format-link source) nil t))
+          (progn
+            (end-of-line)
+            (org-insert-heading-after-current)
+            (org-demote-subtree)
+            t)
+        (org-end-of-subtree)
+        (org-insert-heading nil nil 'top)
+        (org-demote-subtree)
+        nil))))
+
+(defun ezeka--breadcrumb-string (target source)
+  "Return a breadcrumb string for TARGET from SOURCE."
+  (let ((mdata (ezeka-file-metadata target 'noerror))
+        (timestamp (format-time-string (cdr org-time-stamp-formats))))
+    (concat (or (alist-get :title mdata)
+                (ezeka-file-name-caption target))
+            " "
+            (ezeka--format-link (ezeka-file-name-id target))
+            (when source (format " (%s)"
+                                 (if (stringp source)
+                                     (ezeka-file-name-id source)
+                                   source))))))
+
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
   "Add the Zettel TARGET to `ezeka-breadcrumb-trail-buffer'.
@@ -48,56 +83,29 @@ source, or a symbol describing where the function is being
 called from. If the command is executed interactively,
 the SOURCE is set to 'interactive."
   (interactive (list buffer-file-name 'interactive))
-  (let ((target (cond ((ezeka-file-p target) target)
-                      ((ezeka-link-p target) (ezeka-link-file target))
-                      (t (buffer-file-name (current-buffer)))))
-        (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (when (and ezeka-leave-breadcrumb-trail
-               (or (eq source 'interactive)
-                   (not (and (boundp 'ezeka-breadcrumb-trail-buffer)
-                             (string= (buffer-file-name ezeka-breadcrumb-trail-buffer)
-                                      target))))
-               (file-exists-p target)
-               (ezeka-file-p target))
+  (let ((t-file (pcase target
+                  ('nil                buffer-file-name)
+                  ((pred ezeka-file-p) target)
+                  ((pred ezeka-link-p) (ezeka-link-file target))
+                  (_                    nil)))
+        (s-file (pcase source
+                  ((pred ezeka-file-p) source)
+                  ((pred ezeka-link-p) (ezeka-link-file source))
+                  (_                    nil))))
+    (when ezeka-leave-breadcrumb-trail
       (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
-      (if-let ((_ (and (boundp 'ezeka-breadcrumb-trail-buffer)
-                       (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-               (org-blank-before-new-entry '((heading . nil))))
+      (if (or (null t-file)
+              (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
+          (message "Could not drop breadcrumbs for `%s'" (file-name-base target))
+        (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
-            (with-current-buffer ezeka-breadcrumb-trail-buffer
-              (goto-char (org-find-exact-headline-in-buffer "Breadcrumbs"))
-              (let ((headline (when (stringp source)
-                                (search-forward (ezeka--format-link source) nil t))))
-                (cond (headline
-                       (end-of-line)
-                       (org-insert-heading-after-current)
-                       (org-demote-subtree))
-                      (t
-                       (if (org-forward-heading-same-level 1)
-                           (org-previous-visible-heading 1)
-                         (goto-char (point-max)))
-                       (org-insert-subheading nil)))
-                (insert (format "%s [[%s]] %s%s"
-                                (if-let ((mdata (ezeka-file-metadata target)))
-                                    (alist-get :title mdata)
-                                  (ezeka-file-name-caption target))
-                                (ezeka-file-name-id target)
-                                timestamp
-                                (if (not headline)
-                                    (format " (from %s)"
-                                            (cond ((symbolp source)
-                                                   source)
-                                                  ((ezeka-file-p source)
-                                                   (ezeka--format-link source))
-                                                  ((stringp source)
-                                                   (file-name-base source))
-                                                  (t
-                                                   source)))
-                                  "")))
-                (message "Dropped breadcrumbs for `%s'" (file-name-base target)))))
-        (message "Did not drop breadcrumbs for `%s'" (file-name-base target))))))
+            (let ((trail-end (ezeka--breadcrumb-trail-end source)))
+              ;; FIXME: What happens when trail-end can't be found?
+              (insert (ezeka--breadcrumb-string t-file (unless trail-end source)))
+              (message "Dropped breadcrumbs for `%s'"
+                       (ezeka-file-name-id t-file)))))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
