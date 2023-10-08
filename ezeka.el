@@ -452,6 +452,13 @@ It is a Zettel if all of these conditions are met:
         (ezeka-make-link kasten id)
       (error "Can't get id or kasten for file %s" (file-name-base file)))))
 
+(defun ezeka-same-file-p (file1 file2)
+  "Return non-nil if FILE1 and FILE2 point to same Zettel."
+  (cond ((eq file1 file2) t)
+        ((or (symbolp file1) (symbolp file2)) nil)
+        ((string= (ezeka-file-link file1)
+                  (ezeka-file-link file2)))))
+
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (and (stringp string)
