@@ -256,7 +256,7 @@ If LINK-AT-POINT is non-nil, prioritize such a link if exists."
   (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point)))
         ((and buffer-file-name
-              (or ezeka-mode (ezeka-note-p buffer-file-name t)))
+              (or ezeka-mode (ezeka-file-p buffer-file-name t)))
          buffer-file-name)
         ((eq major-mode 'magit-status-mode) ; FIXME: magit
          (magit-file-at-point))
@@ -374,7 +374,7 @@ FORMAT."
 ;;; Fundamental Functions
 ;;;=============================================================================
 
-(defun ezeka-note-p (file-or-buffer &optional strict)
+(defun ezeka-file-p (file-or-buffer &optional strict)
   "Return non-NIL if the FILE-OR-BUFFER is a Zettel.
 It is a Zettel if all of these conditions are met:
 1) its extension is `ezeka-file-extension';
@@ -845,7 +845,7 @@ signal an error when encountering malformed header lines."
 
 (defun ezeka--header-region (buffer)
   "Return a tuple of (START. END) for the header in Ezeka BUFFER."
-  (if (ezeka-note-p buffer)
+  (if (ezeka-file-p buffer)
       (save-excursion
         (with-current-buffer buffer
           (goto-char (point-min))
@@ -1570,13 +1570,13 @@ If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
     (let ((existing-file (ignore-errors (ezeka-link-file link))))
-      (cond ((ezeka-note-p existing-file)
+      (cond ((ezeka-file-p existing-file)
              (ezeka-find-file existing-file same-window))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
                        (format "Link `%s' doesn't exist. Create? " link))))
-             (when-let ((_ (ezeka-note-p buffer-file-name))
+             (when-let ((_ (ezeka-file-p buffer-file-name))
                         (parent (ezeka-file-link buffer-file-name)))
                (ezeka--set-new-child-metadata link :parent parent))
              (ezeka-find-file (ezeka-link-file link "") same-window)
@@ -1726,7 +1726,7 @@ If the file is not a Zettel note, return nil."
               (file (or (buffer-file-name other-buf)
                         (with-current-buffer other-buf
                           (ezeka--grab-dwim-file-target))))
-              (_ (ezeka-note-p file)))
+              (_ (ezeka-file-p file)))
     file))
 
 (defun ezeka-insert-link-to-other-window (&optional link-only)
@@ -1858,7 +1858,7 @@ Called interactively, get the LINK at point or to current Zettel."
 (defun ezeka-show-title-in-mode-line ()
   "Change `mode-line-misc-info' to show Zettel's title from metadata."
   (interactive)
-  (when (and (ezeka-note-p buffer-file-name)
+  (when (and (ezeka-file-p buffer-file-name)
              (not (zerop (buffer-size))))
     (save-excursion
       (save-restriction
@@ -1967,7 +1967,7 @@ window."
                          current-prefix-arg
                        1)
                      (equal current-prefix-arg '(4))))
-  (when (ezeka-note-p buffer-file-name)
+  (when (ezeka-file-p buffer-file-name)
     (let ((ancestor (ezeka-trace-genealogy buffer-file-name n)))
       (if ancestor
           (ezeka-find-link ancestor same-window)
@@ -1977,7 +1977,7 @@ window."
   "Open the current Zettel's immediate descendant.
 With a prefix argument, try to find the Nth ancestor."
   (interactive "p")
-  (when (ezeka-note-p buffer-file-name)
+  (when (ezeka-file-p buffer-file-name)
     (let ((descendant (ezeka-trace-genealogy buffer-file-name (- n))))
       (if descendant
           (ezeka-find-link descendant)
@@ -2014,7 +2014,7 @@ given, allow the user to enter the ID manually. Return link to the
 note."
   (interactive
    (list (ezeka--read-kasten)
-         (when (ezeka-note-p buffer-file-name t)
+         (when (ezeka-file-p buffer-file-name t)
            (ezeka-file-link buffer-file-name))
          (equal current-prefix-arg '(4))
          (when (equal current-prefix-arg '(16))
@@ -2084,7 +2084,7 @@ MODIFIED-ONLY is non-nil, only list modified buffers."
   (nreverse
    (mapcar #'buffer-file-name
            (cl-remove-if-not (lambda (buf)
-                               (and (ezeka-note-p (buffer-file-name buf))
+                               (and (ezeka-file-p (buffer-file-name buf))
                                     (or (not modified-only)
                                         (buffer-modified-p buf))))
                              (remove (when skip-current
@@ -2112,7 +2112,7 @@ With \\[universal-argument] ARG, just kill all visiting Zettel."
 This is a way to consistently format the frame title with useful
 information for Zettelkasten work."
   (interactive)
-  (concat (if (ezeka-note-p buffer-file-name)
+  (concat (if (ezeka-file-p buffer-file-name)
               (let ((metadata (ezeka-file-metadata buffer-file-name)))
                 (format "%s §%s@%s"
                         (alist-get :title metadata)
@@ -2166,7 +2166,7 @@ information for Zettelkasten work."
          (tw (- (frame-width) (+ iw lw kw 5)))
          (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw lw tw kw)))
     (mapcar (lambda (file)
-              (when (ezeka-note-p file)
+              (when (ezeka-file-p file)
                 (let* ((metadata (ezeka-file-metadata file t))
                        (title (alist-get :title metadata))
                        (buf (get-file-buffer file)))
@@ -2377,7 +2377,7 @@ SET-CAPTION determine which fields to change."
                       (set-title (not (eq arg 4)))
                       (set-caption (member arg '(4 16))))
                  (list (buffer-file-name) nil set-title set-caption)))
-  (when (ezeka-note-p filename)
+  (when (ezeka-file-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
            (change-what (cond ((and (not set-title) set-caption) "the caption")
                               ((and set-title (not set-caption)) "the title")
@@ -2408,7 +2408,7 @@ SET-CAPTION determine which fields to change."
 (defun ezeka-set-subtitle (filename subtitle)
   "Set the SUBTITLE metadata in Zettel FILENAME."
   (interactive (list (ezeka--grab-dwim-file-target) nil))
-  (when (ezeka-note-p filename)
+  (when (ezeka-file-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
            (subtitle (or subtitle
                          (read-string
@@ -2429,7 +2429,7 @@ custom category."
      (list target
            (ezeka--read-label target current-prefix-arg)
            current-prefix-arg)))
-  (if (not (ezeka-note-p filename))
+  (if (not (ezeka-file-p filename))
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :label label)
     (when (eq :tempus (ezeka-id-type filename))
@@ -2445,7 +2445,7 @@ no matter what. With DEGREE, traces genealogy further than parent."
                      (if (integerp current-prefix-arg)
                          current-prefix-arg
                        1)))
-  (if (not (ezeka-note-p filename))
+  (if (not (ezeka-file-p filename))
       (error "Not a Zettel note")
     (let* ((ancestor (ezeka-trace-genealogy filename degree))
            (citekey (or (and (equal citekey '(4))
@@ -2471,7 +2471,7 @@ argument), trace genealogy farther than parent."
                      (if (integerp current-prefix-arg)
                          current-prefix-arg
                        1)))
-  (unless (ezeka-note-p filename)
+  (unless (ezeka-file-p filename)
     (user-error "Not a Zettel note"))
   (let* ((ancestor (ezeka-trace-genealogy filename degree))
          (initial
@@ -2494,7 +2494,7 @@ argument), trace genealogy farther than parent."
      (list target
            (read-string "Set author (family, given) to: "
                         (ezeka-file-name-citekey target)))))
-  (if (not (ezeka-note-p filename))
+  (if (not (ezeka-file-p filename))
       (error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :author author)))
 
@@ -2534,7 +2534,7 @@ that."
                         (concat "#" keyword))
                        (t
                         (user-error "Keywords must consist of \\w characters")))))
-    (if (not (ezeka-note-p filename))
+    (if (not (ezeka-file-p filename))
         (user-error "This command can only be used on Zettel notes")
       (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
@@ -3264,7 +3264,7 @@ Open (unless NOSELECT is non-nil) the target link and returns it."
                 (ezeka--generate-id kasten 'confirm)))))
     (if (not target-link)
         (error "Don't know where to move %s" source-link)
-      (save-some-buffers nil (lambda () (ezeka-note-p buffer-file-name t)))
+      (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
       (ezeka--move-note source-link target-link)
       (cond ((string= source-file buffer-file-name)
              (kill-this-buffer)
@@ -3417,7 +3417,7 @@ END."
             ("C-c C-x z" . ezeka-move-to-another-kasten)
             ))                          ; end of :keymap
   (cond (ezeka-mode
-         (when (or (ezeka-note-p (current-buffer))
+         (when (or (ezeka-file-p (current-buffer))
                    (y-or-n-p "This doesn't look like an Ezeka note. Still enable `ezeka-mode'? "))
            (ezeka--make-header-read-only (current-buffer))
 

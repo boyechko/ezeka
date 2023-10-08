@@ -73,7 +73,7 @@ Zettelkasten, and also handling 'subkasten:' notation."
 
 (add-hook 'markdown-mode-hook
   (lambda ()
-    (when (ezeka-note-p buffer-file-name)
+    (when (ezeka-file-p buffer-file-name)
       (ezeka-mode 1))))
 
 (provide 'ezeka-md)

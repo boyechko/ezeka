@@ -50,7 +50,7 @@ See `zk--group-function' for details."
 
 (defun ezeka-zk--file-id (file)
   "Replace `zk--file-id' for the given FILE."
-  (when (ezeka-note-p file)
+  (when (ezeka-file-p file)
     (ezeka-file-name-id file)))
 
 (defun ezeka-zk-backlinks ()

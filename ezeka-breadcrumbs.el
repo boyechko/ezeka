@@ -48,7 +48,7 @@ source, or a symbol describing where the function is being
 called from. If the command is executed interactively,
 the SOURCE is set to 'interactive."
   (interactive (list buffer-file-name 'interactive))
-  (let ((target (cond ((ezeka-note-p target) target)
+  (let ((target (cond ((ezeka-file-p target) target)
                       ((ezeka-link-p target) (ezeka-link-file target))
                       (t (buffer-file-name (current-buffer)))))
         (timestamp (format-time-string (cdr org-time-stamp-formats))))
@@ -58,7 +58,7 @@ the SOURCE is set to 'interactive."
                              (string= (buffer-file-name ezeka-breadcrumb-trail-buffer)
                                       target))))
                (file-exists-p target)
-               (ezeka-note-p target))
+               (ezeka-file-p target))
       (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
@@ -89,7 +89,7 @@ the SOURCE is set to 'interactive."
                                     (format " (from %s)"
                                             (cond ((symbolp source)
                                                    source)
-                                                  ((ezeka-note-p source)
+                                                  ((ezeka-file-p source)
                                                    (ezeka--format-link source))
                                                   ((stringp source)
                                                    (file-name-base source))

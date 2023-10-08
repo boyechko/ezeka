@@ -193,7 +193,7 @@ Return `ezeka-zk-metadata-alist'."
   (setq ezeka-zk-metadata-alist
     (mapcar
      (lambda (file)
-       (when (ezeka-note-p file)
+       (when (ezeka-file-p file)
          (let ((metadata (ezeka-file-metadata file)))
            (list (ezeka-file-name-id file)
                  (alist-get :title metadata)
@@ -345,7 +345,7 @@ files without asking.")
   "Entitle all files in the currently active region of Zk-Index
 buffer. With \\[universal-argument], don't bother editing each new
 name."
-  (when (ezeka-note-p (current-buffer))
+  (when (ezeka-file-p (current-buffer))
     (ezeka-entitle-file-name (buffer-file-name) current-prefix-arg)
     (save-buffer)
     (user-error "Use `ezeka-entitle-file-name' for singe files")))
@@ -547,7 +547,7 @@ non-nil, check with user before replacing."
             (with-current-buffer (or open-buffer
                                      (find-file-noselect f))
               (when confirm (switch-to-buffer (current-buffer)))
-              (when-let ((_ (ezeka-note-p f t))
+              (when-let ((_ (ezeka-file-p f t))
                          (f-mdata (ezeka-file-metadata f))
                          (_ (and (ezeka--parent-of-p f bf-id f-mdata)
                                  (or (not confirm)
