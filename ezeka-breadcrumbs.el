@@ -37,30 +37,45 @@
   "Buffer where to record the breadcrumb trail.")
 
 (defcustom ezeka-leave-breadcrumb-trail t
-  "When non-nil, leave a trail of visited Zettel notes.")
+  "When non-nil, leave a trail of visited Zettel notes."
+  :type 'boolean
+  :group 'ezeka)
 
-(defun ezeka--breadcrumb-trail-end (source)
+(defcustom ezeka-breadcrumb-trail-headline "Breadcrumbs"
+  "Exact name of the breadcrumb trail headline."
+  :type 'string
+  :group 'ezeka)
+
+(defun ezeka--find-breadcrumb-trail (source)
   "Find the place in the current buffer where to drop breadcrumbs.
-SOURCE is passed from `ezeka-breadcrumbs-drop'. Return non-
-nil if an existing SOURCE headline was found, and nil
-otherwise."
+SOURCE should be a filename. Return T if an existing heading
+exists for SOURCE, and nil otherwise."
   (save-restriction
-    (when-let ((org-blank-before-new-entry '((heading . nil)))
-               (heading (org-find-exact-headline-in-buffer "Breadcrumbs")))
-      (goto-char heading)
-      (org-narrow-to-subtree)
-      (org-back-to-heading)
-      (if (and (stringp source)
-               (search-forward (ezeka--format-link source) nil t))
-          (progn
-            (end-of-line)
-            (org-insert-heading-after-current)
-            (org-demote-subtree)
-            t)
-        (org-end-of-subtree)
-        (org-insert-heading nil nil 'top)
-        (org-demote-subtree)
-        nil))))
+    (let ((org-blank-before-new-entry '((heading . nil)))
+          (headline (org-find-exact-headline-in-buffer
+                     ezeka-breadcrumb-trail-headline)))
+      ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
+      (cond (headline
+             (goto-char headline)
+             (org-narrow-to-subtree)
+             (org-back-to-heading))
+            (t
+             (goto-char (point-max))
+             (org-insert-heading-after-current)
+             (insert ezeka-breadcrumb-trail-headline)))
+      ;; 2) Try to find an existing SOURCE headline
+      (cond ((and source
+                  (search-forward (ezeka--format-link source) nil t)
+                  (eq 'headline (car (org-element-at-point))))
+             (end-of-line)
+             (org-insert-heading-after-current)
+             (org-demote-subtree)
+             t)
+            (t
+             (org-end-of-subtree)
+             (org-insert-heading nil nil 'top)
+             (org-demote-subtree)
+             nil)))))
 
 (defun ezeka--breadcrumb-string (target source)
   "Return a breadcrumb string for TARGET from SOURCE."
@@ -78,32 +93,39 @@ otherwise."
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
   "Add the Zettel TARGET to `ezeka-breadcrumb-trail-buffer'.
-SOURCE, if set, should be either a Zettel link for the
-source, or a symbol describing where the function is being
-called from. If the command is executed interactively,
-the SOURCE is set to 'interactive."
+TARGET should be a Zettel filename; SOURCE can be one too,
+or a symbol describing where the function is being called
+from."
   (interactive (list buffer-file-name 'interactive))
-  (let ((t-file (pcase target
-                  ('nil                buffer-file-name)
-                  ((pred ezeka-file-p) target)
-                  ((pred ezeka-link-p) (ezeka-link-file target))
-                  (_                    nil)))
-        (s-file (pcase source
-                  ((pred ezeka-file-p) source)
-                  ((pred ezeka-link-p) (ezeka-link-file source))
-                  (_                    nil))))
-    (when ezeka-leave-breadcrumb-trail
+  (when ezeka-leave-breadcrumb-trail
+    (let* ((problem nil)
+           (t-file (cond ((and (null target) (ezeka-file-p buffer-file-name))
+                          buffer-file-name)
+                         ((ezeka-link-p target) (ezeka-link-file target))
+                         ((ezeka-file-p target) target)
+                         (t
+                          (setq problem "target is not a Zettel file"))))
+           (s-file (cond ((ezeka-link-p source) (ezeka-link-file source))
+                         ((ezeka-file-p source) source)
+                         (t                     nil))))
       (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
-      (if (or (null t-file)
-              (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-          (message "Could not drop breadcrumbs for `%s'" (file-name-base target))
+      (unless (buffer-live-p ezeka-breadcrumb-trail-buffer)
+        (setq problem "No active breadcrumb trail"))
+      (if problem
+          (message "Could not drop breadcrumbs for `%s' (from %s):"
+                   (file-name-base target)
+                   source
+                   problem)
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
-            (let ((trail-end (ezeka--breadcrumb-trail-end source)))
-              ;; FIXME: What happens when trail-end can't be found?
-              (insert (ezeka--breadcrumb-string t-file (unless trail-end source)))
+            (let ((s-head (unless
+                              (ezeka-same-file-p s-file
+                                                 (buffer-file-name
+                                                  ezeka-breadcrumb-trail-buffer))
+                            (ezeka--find-breadcrumb-trail s-file))))
+              (insert (ezeka--breadcrumb-string t-file (unless s-head source)))
               (message "Dropped breadcrumbs for `%s'"
                        (ezeka-file-name-id t-file)))))))))
 
@@ -122,11 +144,11 @@ If called interactively, use the current file."
            buffer-file-name)))
   (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file))
   (with-current-buffer ezeka-breadcrumb-trail-buffer
-   (if-let ((head (org-find-exact-headline-in-buffer "Breadcrumbs")))
+   (if-let ((head (org-find-exact-headline-in-buffer ezeka-breadcrumb-trail-headline)))
        (goto-char head)
      (goto-char (point-max))
      (org-insert-heading nil nil 'top)
-     (insert "Breadcrumbs"))))
+     (insert ezeka-breadcrumb-trail-headline))))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
