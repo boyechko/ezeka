@@ -2376,18 +2376,20 @@ If SECTION is nil, default to `Change Log'."
     (when (numberp entry)
       (goto-char entry-pos))))
 
-(defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption)
+(defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption metadata)
   "Update the title in FILENAME's header to NEW-VAL.
 With \\[universal-argument], change the caption instead;
 with double \\[universal-argument], change both the title
 and the caption. Non-interactively, non-nil SET-TITLE and
-SET-CAPTION determine which fields to change."
+SET-CAPTION determine which fields to change. METADATA
+allows working with different metadata values than currently
+exist in FILENAME."
   (interactive (let* ((arg (prefix-numeric-value current-prefix-arg))
                       (set-title (not (eq arg 4)))
                       (set-caption (member arg '(4 16))))
                  (list (buffer-file-name) nil set-title set-caption)))
   (when (ezeka-file-p filename)
-    (let* ((mdata (ezeka-file-metadata filename))
+    (let* ((mdata (or metadata (ezeka-file-metadata filename)))
            (change-what (cond ((and (not set-title) set-caption) "the caption")
                               ((and set-title (not set-caption)) "the title")
                               ((and set-title set-caption) "both title and caption")
@@ -2400,10 +2402,19 @@ SET-CAPTION determine which fields to change."
                  (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
          filename
-         (format "Rename from \"{%s} %s%s\" to \"{%s} %s.\""
+         (format "Rename from \"%s{%s} %s%s\" to \"%s{%s} %s%s.\""
+                 (if (string= (ezeka-file-name-id filename)
+                              (alist-get :id mdata))
+                     ""
+                   (concat (ezeka-file-name-id filename) " "))
                  (ezeka-file-name-label filename)
                  (alist-get :title mdata)
-                 (ezeka--space-and (ezeka-file-name-citekey filename))
+                 (ezeka--with-space (ezeka-file-name-citekey filename))
+
+                 (if (string= (ezeka-file-name-id filename)
+                              (alist-get :id mdata))
+                     ""
+                   (concat (alist-get :id mdata) " "))
                  (alist-get :label mdata)
                  new-val
                  (ezeka--space-and (alist-get :citekey mdata)))))
