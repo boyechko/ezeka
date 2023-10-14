@@ -1023,7 +1023,8 @@ time. The modification time is set to current time."
                   (cons (alist-get :id metadata)
                         (alist-get :oldnames metadata)))))
     (setf (alist-get :created metadata) (funcall full-timestamp created tempus)
-          (alist-get :modified metadata) (funcall full-timestamp modified))
+          (alist-get :modified metadata) (when modified
+                                           (funcall full-timestamp modified)))
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
