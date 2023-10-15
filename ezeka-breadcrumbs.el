@@ -46,10 +46,12 @@
   :type 'string
   :group 'ezeka)
 
-(defun ezeka--find-breadcrumb-trail (source)
+(defun ezeka--find-breadcrumb-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
-SOURCE should be a filename. Return T if an existing heading
-exists for SOURCE, and nil otherwise."
+TARGET and SOURCE should be filenames. Return 'primary or
+'secondary if the trail was found (i.e. drop breadcrumbs
+here), or nil if can't locate trail (i.e. don't drop
+breadcrumbs)."
   (save-restriction
     (let ((org-blank-before-new-entry '((heading . nil)))
           (headline (org-find-exact-headline-in-buffer
@@ -67,15 +69,19 @@ exists for SOURCE, and nil otherwise."
       (cond ((and source
                   (search-forward (ezeka--format-link source) nil t)
                   (eq 'headline (car (org-element-at-point))))
-             (end-of-line)
-             (org-insert-heading-after-current)
-             (org-demote-subtree)
-             t)
+             (org-narrow-to-subtree)
+             (unless (search-forward (ezeka--format-link target) nil t)
+               (end-of-line)
+               (org-insert-heading-after-current)
+               (org-demote-subtree)
+               'secondary))
+            ((search-forward (ezeka--format-link target) nil t)
+             nil)
             (t
              (org-end-of-subtree)
              (org-insert-heading nil nil 'top)
              (org-demote-subtree)
-             nil)))))
+             'primary)))))
 
 (defun ezeka--breadcrumb-string (target source)
   "Return a breadcrumb string for TARGET from SOURCE."
@@ -123,8 +129,11 @@ from."
                    problem)
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
-            (let ((s-head (ezeka--find-breadcrumb-trail s-file)))
-              (insert (ezeka--breadcrumb-string t-file (unless s-head source)))
+            (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
+              (insert
+               (ezeka--breadcrumb-string
+                t-file
+                (unless (eq status 'secondary) source)))
               (message "Dropped breadcrumbs for `%s'"
                        (ezeka-file-name-id t-file)))))))))
 
