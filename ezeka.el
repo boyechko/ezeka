@@ -2303,12 +2303,13 @@ presses [return]."
               ((not item) (setq prompt "No such genus; try again. ")))))
     (cadr item)))
 
-(defun ezeka--read-label (file-or-link &optional arg prompt default)
+(defun ezeka--read-label (file-or-link &optional special prompt default)
   "Interactively read label for the given FILE-OR-LINK.
-Pass ARG, PROMPT, and DEFAULT to the appropriate function."
+Pass SPECIAL, PROMPT, and DEFAULT to the appropriate
+function."
   (if (eq :numerus (ezeka-id-type file-or-link))
-      (ezeka--read-genus prompt arg default)
-    (ezeka--read-category prompt arg)))
+      (ezeka--read-genus prompt special default)
+    (ezeka--read-category prompt special)))
 
 (defun ezeka--update-metadata-values (filename metadata &rest args)
   "Update FILENAME's header, replacing METADATA values with new ones.
@@ -2430,10 +2431,10 @@ exist in FILENAME."
       (setf (alist-get :subtitle mdata) subtitle)
       (ezeka--update-metadata-values filename mdata))))
 
-(defun ezeka-set-label (filename label arg)
+(defun ezeka-set-label (filename label &optional special)
   "Set LABEL (genus or category) in Zettel FILENAME.
-With \\[universal-argument], either show genera verbosely or type
-custom category."
+With non-nil SPECIAL (or \\[universal-argument]), either
+show genera verbosely or type custom category."
   (interactive
    (let ((target (ezeka--grab-dwim-file-target)))
      (list target
@@ -2441,9 +2442,14 @@ custom category."
            current-prefix-arg)))
   (if (not (ezeka-file-p filename))
       (error "Not a Zettel note")
-    (ezeka--update-metadata-values filename nil :label label)
-    (when (eq :tempus (ezeka-id-type filename))
-      (cl-pushnew label ezeka-categories))))
+    (let ((old-val (ezeka-file-name-label filename)))
+      (ezeka--update-metadata-values filename nil :label label)
+      (when (eq :tempus (ezeka-id-type filename))
+        (cl-pushnew label ezeka-categories))
+      (when (y-or-n-p "Add a change log entry? ")
+        (ezeka-add-change-log-entry
+         filename
+         (format "Change label from {%s} to {%s}." old-val label))))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
