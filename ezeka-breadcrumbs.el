@@ -118,14 +118,14 @@ from."
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
       (cond ((not (buffer-live-p ezeka-breadcrumb-trail-buffer))
-             (setq problem "No active breadcrumb trail"))
+             (setq problem "no active breadcrumb trail"))
             ((ezeka-same-file-p
-              s-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-             (setq problem "Same Zettel")))
+              t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
+             (setq problem "same Zettel")))
       (if problem
-          (message "Could not drop breadcrumbs for `%s' (from %s):"
-                   (file-name-base target)
-                   source
+          (message "Could not drop breadcrumbs for `%s' (from %s): %s"
+                   (ezeka-file-link t-file)
+                   (if s-file (ezeka-file-link s-file) source)
                    problem)
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
