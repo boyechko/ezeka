@@ -1249,7 +1249,7 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
            (message "Rename failed")))))
    ezeka--unnormalized-files-to-move))
 
-(defun ezeka-normalize-file-name (&optional filename metadata force)
+(defun ezeka-harmonize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
 When called interactively with \\[universal-argument], or FORCE is non-nil,
 offer to set metadata or rename the file even if they are in agreement."
@@ -1272,13 +1272,11 @@ offer to set metadata or rename the file even if they are in agreement."
              (format (concat "Caption in filename and metadata differ:\n"
                              "[F]ilename: %s\n"
                              "[M]etadata: %s\n"
-                             "           [%s -- pasteurized]\n"
                              "Press [f/u] to set metadata from filename (uppercase to edit),\n"
                              "      [m/l] to set filename from metadata (uppercase to edit),\n"
                              "      [r] to add %s keyword for renaming later, or\n"
                              "      [n] or [q] to do noting: ")
                      (propertize file-base 'face 'bold)
-                     (propertize pasteurized 'face 'italic)
                      (propertize pasteurized 'face 'italic)
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
@@ -1328,7 +1326,7 @@ offer to set metadata or rename the file even if they are in agreement."
              ezeka-file-extension))
            (run-hooks 'ezeka-after-save-hook)
            (when t                      ; TODO check if filename changed
-             (message "You might want to do `ezeka-normalize-file-name' again"))))))
+             (message "You might want to do `ezeka-harmonize-file-name' again"))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
@@ -3397,7 +3395,7 @@ END."
             ("C-c ^" . ezeka-find-ancestor)
             ;; ("C-c &" . ) ; yasnippet
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
-            ("C-c (" . ezeka-normalize-file-name)
+            ("C-c (" . ezeka-harmonize-file-name)
             ("C-c )" . ezeka-set-title-or-caption)
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
@@ -3434,14 +3432,14 @@ END."
            (ezeka--make-header-read-only (current-buffer))
 
            (add-hook 'before-save-hook 'ezeka--update-file-header nil t)
-           (add-hook 'before-save-hook 'ezeka-normalize-file-name nil t)
+           (add-hook 'before-save-hook 'ezeka-harmonize-file-name nil t)
 
            ;; Treat : (colon) as part of the word, allowing
            ;; forward/backward-word over full Zettel links.
            (modify-syntax-entry ?: "w")))
         (t
          (remove-hook 'before-save-hook 'ezeka--update-file-header t)
-         (remove-hook 'before-save-hook 'ezeka-normalize-file-name t)
+         (remove-hook 'before-save-hook 'ezeka-harmonize-file-name t)
 
          (modify-syntax-entry ?: "."))))
 
