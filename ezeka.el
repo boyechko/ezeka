@@ -939,7 +939,7 @@ Return the original METADATA with the field changed."
   metadata)
 
 ;; See https://help.dropbox.com/organize/file-names
-(defun ezeka--pasturize-for-filename (title)
+(defun ezeka--pasteurize-file-name (title)
   "Return TITLE after making it safe to use as file caption.
 The function attemps to shorten the title, and strip or replace
 troublesome characters."
@@ -1140,10 +1140,10 @@ reconciling even if :caption-stable is true."
         ((or ?T ?L) (setf (alist-get :caption metadata) title))
         ((or ?c ?u) (setf (alist-get :title metadata)
                           (ezeka--minibuffer-edit-string
-                           (ezeka--pasturize-for-filename caption))))
+                           (ezeka--pasteurize-file-name caption))))
         ((or ?t ?l) (setf (alist-get :caption metadata)
                           (ezeka--minibuffer-edit-string
-                           (ezeka--pasturize-for-filename title)))))
+                           (ezeka--pasteurize-file-name title)))))
       (setf (alist-get :caption-stable metadata) t))
     (funcall clear-message-function)
     metadata))
@@ -1213,13 +1213,6 @@ has not changed since last update."
     ;; file is changed, so need to do it manually.
     (goto-char old-point)))
 
-(defun ezeka--invalid-filename-p (filename)
-  "Return non-nil if FILENAME is valid (on macOS).
-A valid caption is one that doesn't contain resticted characters
-like slash (/) or colon (:), and is less than 255 characters long."
-  (or (string-match-p "[/:*]" filename)
-      (> (length filename) 255)))
-
 (defvar ezeka--unnormalized-files-to-move nil
   "An alist of file names to rename with the caption inside metadata.
 Each element should consist of the key (full file name), what it
@@ -1271,7 +1264,7 @@ offer to set metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-         (pasteurized (ezeka--pasturize-for-filename mdata-base))
+         (pasteurized (ezeka--pasteurize-file-name mdata-base))
          (read-user-choice
           (lambda ()
             "Prompt the user about which name to use."
@@ -2421,7 +2414,7 @@ exist in FILENAME."
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
-        (setf (alist-get :caption mdata) (ezeka--pasturize-for-filename new-val))
+        (setf (alist-get :caption mdata) (ezeka--pasteurize-file-name new-val))
         (setf (alist-get :caption-stable mdata) nil))
       (ezeka--update-metadata-values filename mdata))))
 
@@ -2605,7 +2598,7 @@ CITEKEY."
                          (match-string 0 (file-name-base buffer-file-name))))
        'ezeka--citekey-history))))
   (let* ((id (ezeka-link-id link))
-         (caption (ezeka--pasturize-for-filename title))
+         (caption (ezeka--pasteurize-file-name title))
          (inhibit-read-only t)
          (content (buffer-substring-no-properties (point-min) (point-max))))
     (erase-buffer)
