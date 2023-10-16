@@ -3230,7 +3230,13 @@ With CONFIRM, confirm before move."
         ;; link2 from oldnames just in case we're resurrecting an oldname.
         (unless (string= (ezeka-link-id link1) (ezeka-link-id link2))
           (setf (alist-get :oldnames mdata)
-                (cl-union (list link1) (remove link2 oldnames))))
+                (cl-union (list link1) (remove link2 oldnames)))
+          (setf (alist-get :id mdata)
+                (ezeka-link-id link2)))
+        ;; Check about updating title and label
+        (setf (alist-get :label mdata)
+              (ezeka--read-label path2 nil nil (alist-get :label mdata)))
+        (ezeka-set-title-or-caption path2 nil 'set-title 'set-caption mdata)
         (ezeka--update-file-header path2 mdata t)
         (when-let ((buf (get-file-buffer path2)))
           (with-current-buffer buf
