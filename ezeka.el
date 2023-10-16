@@ -1810,11 +1810,10 @@ With double \\[universal-argument], save caption."
                             (ezeka-format-metadata "%i {%l} %t" mdata)))))
         (ezeka--kill-ring-clipboard-save result)))))
 
-(defun ezeka-kill-ring-save-link-or-filename (arg)
+(defun ezeka-kill-ring-save-link (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
-With \\[universal-argument] ARG, save the file name relative to
-`ezeka-directory' instead. With two prefix arguments, open the file in
-Finder with it selected."
+With \\[universal-argument] ARG, save the file name relative to `ezeka-directory'.
+With \\[universal-argument] \\[universal-argument], open the file in Finder with it selected."
   (interactive "p")
   (let ((file (ezeka--grab-dwim-file-target t)))
     (when file
@@ -3394,7 +3393,7 @@ END."
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-add-keyword)
             ("C-c $" . ezeka-kill-ring-save-link-at-point)
-            ("C-c %" . ezeka-kill-ring-save-link-or-filename)
+            ("C-c %" . ezeka-kill-ring-save-link)
             ("C-c ^" . ezeka-find-ancestor)
             ;; ("C-c &" . ) ; yasnippet
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
