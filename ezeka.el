@@ -2637,16 +2637,14 @@ CITEKEY."
       (insert "parent: " (ezeka--format-link parent) "\n"))
     (insert "\n")
     (insert content)
-    ;; FIXME: Crossing package boundaries
-    (if (fboundp 'ezeka-zk-drop-breadcrumbs)
-        (add-hook 'after-save-hook
-          (lambda ()
-            (ezeka-zk-drop-breadcrumbs
-             buffer-file-name
-             (if (and parent (not (string-empty-p parent)))
-                 (ezeka-link-file parent)
-               this-command)))
-          nil 'local))))
+    (add-hook 'after-save-hook
+      (lambda ()
+        (run-hook-with-args 'ezeka-find-file-functions
+                            buffer-file-name
+                            (if (and parent (not (string-empty-p parent)))
+                                (ezeka-link-file parent)
+                              this-command)))
+      nil 'local)))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
