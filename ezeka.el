@@ -231,13 +231,17 @@ If ID-TYPE is not given, return a regexp that matches all known types."
   (when character
     (string-match-p "[[:space:][:punct:]]" (char-to-string character))))
 
-(defmacro ezeka--space-and (value)
-  "If VALUE is non-nil, return a string with space followed by it.
+(defmacro ezeka--with-space (value &optional where)
+  "If VALUE is non-nil, return a string with specified space.
 If VALUE is nil, return an empty string. VALUE is evaluated
-only once."
+only once. WHERE can be 'before, 'after, or 'both."
   (let ((sym (gensym)))
     `(let ((,sym ,value))
-       (if ,sym (format " %s" ,sym) ""))))
+       (if ,sym
+           (concat (if (member ,where '(before both)) " " "")
+                   ,sym
+                   (if (member ,where '(after both)) " " ""))
+         ""))))
 
 (defun ezeka--ordinal-suffix (n)
   "Ordinal suffix for N, a number or string.
