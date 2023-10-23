@@ -1006,9 +1006,10 @@ time. The modification time is set to current time."
   (let* ((decode-timestamp
           (lambda (ts)
             "Decode the timestamp string TS into decoded time."
-            (decode-time
-             (org-timestamp-to-time
-              (org-timestamp-from-string (format "[%s]" ts))))))
+            (when ts
+              (decode-time
+               (org-timestamp-to-time
+                (org-timestamp-from-string (format "[%s]" ts)))))))
          (full-timestamp
           (lambda (dt1 &optional dt2)
             "Complete decoded time in DT1 from DT2, returning full timestamp."
