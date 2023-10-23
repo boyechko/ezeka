@@ -1554,7 +1554,9 @@ If SAME-WINDOW is non-NIL, open the buffer visiting the file in the
 same window."
   (run-hook-with-args 'ezeka-find-file-functions
                       file
-                      buffer-file-name)
+                      (if (ezeka-file-p buffer-file-name)
+                          buffer-file-name
+                        'find-file))
   (if same-window
       (find-file file)
     (cl-case ezeka-number-of-frames
