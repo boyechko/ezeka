@@ -70,6 +70,27 @@ Groups 4-5 are hour and minute.")
 (defvar ezeka-pregenerated-numeri-file "auto/unused-numeri.dat"
   "File containing a list of unused numeri currentes.")
 
+(defvar ezeka-genus-regexp "[α-ω]"
+  "Regexp matching genus.")
+
+(defun ezeka-file-name-regexp ()
+  "Return regexp matching numerus currens note file names.
+
+Group 1 is the ID.
+Group 2 is the kasten.
+Group 3 is the label (genus or category).
+Group 4 is the caption (i.e. short title).
+Group 5 is the citation key.
+Group 6 is the stable caption mark."
+  (concat (ezeka-link-regexp)             ; \1 and \2
+          "\\(?:"                         ; everything else is optional
+          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
+          "\\(?: {\\(?3:[^}]+\\)}\\)*"    ; \3
+          "\\(?4:.+?\\)"                  ; \4
+          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
+          "\\)*"                          ; end of everything else
+          ))
+
 ;;;=============================================================================
 ;;; User Variables
 ;;;=============================================================================
@@ -155,12 +176,79 @@ therefore, to split the operations into two commits."
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-find-file-functions '()
+  "List of functions to call when finding Ezeka files.
+Each function should accept two arguments: the file to find,
+and optionally, the source from where the function was
+called. TARGET should be a filename; SOURCE can be either a
+filename or a symbol describing the source."
+  :type 'list
+  :group 'ezeka)
+
 (defcustom ezeka-time-stamp-formats
   '("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")
   "A cons cell of date-only and full time stamp format.
 See `format-time-string' for details."
   :type 'cons
   :group 'ezeka)
+
+;;------------------------------------------------------------------------------
+;; Metadata and Headers
+;;
+;; Metadata refers to the information about the Zettel note, like its created or
+;; midified time, and so on. Header, on the other hand, is the actual
+;; representation of that metadata inside the Zettel note.
+;;
+;; Rubric is the compressed metadata information that is added to the file name
+;; in numerus currens notes. Caption is the shortened title, matching the file
+;; name, that is included in the rubric for redundancy.
+;;------------------------------------------------------------------------------
+
+(defvar ezeka-header-line-regexp
+  "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
+  "The regular expression that matches a line of YAML metadata.
+Group 1 is the key.
+Group 2 is the value.")
+
+(defcustom ezeka-header-separator-regexp "^$"
+  "Regexp that matches the separator line between header and the note text."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-header-rubric-key "rubric"
+  "The header metadata key for the rubric."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-header-stable-caption-mark "§"
+  "Mark that signifies stable caption.
+The mark is used in the rubric value to show that any differences
+between caption and title values should be ignored as long as filename
+and header match."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
+  "The `format-spec' string for generating the note's rubric.
+See `ezeka-format-metadata' for details.
+This should match `ezeka-header-rubric-regexp'."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-file-name-format "%i {%l} %c %k"
+  "The `format-spec' string for generating a note's file name.
+See `ezeka-format-metadata' for details. This should match
+`ezeka-file-name-regexp'."
+  :type 'string
+  :group 'ezeka)
+
+(defun ezeka-header-rubric-regexp ()
+  "Regular expression for the rubric string as found in the header.
+
+Groups 1-5 see `ezeka-file-name-regexp'.
+Group 6 is the stable caption mark."
+  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
+          (ezeka-file-name-regexp)))
 
 ;;;=============================================================================
 ;;; Kaesten
@@ -640,84 +728,7 @@ content. If HEADER-ONLY is non-nil, only get the header."
 
 ;;;=============================================================================
 ;;; Metadata: Internal
-;;
-;; Note on terminology:
-;;
-;; Metadata refers to the information about the Zettel note, like its created or
-;; midified time, and so on. Header, on the other hand, is the actual
-;; representation of that metadata inside the Zettel note.
-;;
-;; Rubric is the compressed metadata information that is added to the file name
-;; in numerus currens notes. Caption is the shortened title, matching the file
-;; name, that is included in the rubric for redundancy.
 ;;;=============================================================================
-
-(defvar ezeka-header-line-regexp
-  "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
-  "The regular expression that matches a line of YAML metadata.
-Group 1 is the key.
-Group 2 is the value.")
-
-(defcustom ezeka-header-separator-regexp "^$"
-  "Regexp that matches the separator line between header and the note text."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-header-rubric-key "rubric"
-  "The header metadata key for the rubric."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-header-stable-caption-mark "§"
-  "Mark that signifies stable caption.
-The mark is used in the rubric value to show that any differences
-between caption and title values should be ignored as long as filename
-and header match."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
-  "The `format-spec' string for generating the note's rubric.
-See `ezeka-format-metadata' for details.
-This should match `ezeka-header-rubric-regexp'."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-file-name-format "%i {%l} %c %k"
-  "The `format-spec' string for generating a note's file name.
-See `ezeka-format-metadata' for details. This should match
-`ezeka-file-name-regexp'."
-  :type 'string
-  :group 'ezeka)
-
-(defun ezeka-file-name-regexp ()
-  "Return regexp matching numerus currens note file names.
-
-Group 1 is the ID.
-Group 2 is the kasten.
-Group 3 is the label (genus or category).
-Group 4 is the caption (i.e. short title).
-Group 5 is the citation key.
-Group 6 is the stable caption mark."
-  (concat (ezeka-link-regexp)             ; \1 and \2
-          "\\(?:"                         ; everything else is optional
-          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
-          "\\(?: {\\(?3:[^}]+\\)}\\)*"    ; \3
-          "\\(?4:.+?\\)"                  ; \4
-          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
-          "\\)*"                          ; end of everything else
-          ))
-
-(defun ezeka-header-rubric-regexp ()
-  "Regular expression for the rubric string as found in the header.
-
-Groups 1-5 see `ezeka-file-name-regexp'.
-Group 6 is the stable caption mark."
-  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
-          (ezeka-file-name-regexp)))
-
-(defvar ezeka-genus-regexp "[α-ω]"
-  "Regexp matching genus.")
 
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."
@@ -1539,13 +1550,6 @@ consider Zettel links that are not enclosed in square brackets."
   "Return the Zettel link at point.
 Needs to be called after `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
-
-(defvar ezeka-find-file-functions nil
-  "List of functions to call when finding Ezeka files.
-Each function should accept two arguments: the file to find,
-and optionally, the source from where the function was
-called. TARGET should be a filename; SOURCE can be either a
-filename or a symbol describing the source.")
 
 ;; FIXME: Relies on ace-window
 (defun ezeka-find-file (file &optional same-window)
