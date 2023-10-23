@@ -386,21 +386,21 @@ It is a Zettel if all of these conditions are met:
 3) the file exists;
 4) the file is inside `ezeka-directory'."
   (interactive "f")
-  (when file-or-buffer
-    (let ((file (cl-typecase file-or-buffer
-                  (buffer (buffer-file-name file-or-buffer))
-                  (string (expand-file-name file-or-buffer))
-                  (t
-                   (signal 'type-error
-                           '("FILE-OR-BUFFER can only be file or buffer"))))))
-      (when file
-        (and (string-equal (file-name-extension file) ezeka-file-extension)
-             (string-match (concat "^" (ezeka-file-name-regexp) "$")
-                           (file-name-base file))
-             (if strict
-                 (and (file-exists-p file)
-                      (string-prefix-p ezeka-directory file)) ; FIXME: Hack
-               t))))))
+  (when-let ((_ file-or-buffer)
+             (file (cond ((bufferp file-or-buffer)
+                          (buffer-file-name file-or-buffer))
+                         ((stringp file-or-buffer)
+                          (expand-file-name file-or-buffer))
+                         (strict
+                          (signal 'type-error
+                                  '("FILE-OR-BUFFER can only be file or buffer")))
+                         (t nil))))
+    (and (string-equal (file-name-extension file) ezeka-file-extension)
+         (string-match (concat "^" (ezeka-file-name-regexp) "$")
+                       (file-name-base file))
+         (or (not strict)
+             (and (file-exists-p file)
+                  (string-prefix-p ezeka-directory file)))))) ; FIXME: Hack
 
 (defun ezeka-directory-kasten (directory)
   "Return the kasten name of the given Zettel DIRECTORY."
