@@ -2386,34 +2386,21 @@ exist in FILENAME."
                  (list (buffer-file-name) nil set-title set-caption)))
   (when (ezeka-file-p filename)
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
-           (change-what (cond ((and (not set-title) set-caption) "the caption")
-                              ((and set-title (not set-caption)) "the title")
+           (change-what (cond ((and (not set-title) set-caption) "caption")
+                              ((and set-title (not set-caption)) "title")
                               ((and set-title set-caption) "both title and caption")
                               (t "nothing (huh?)")))
            (new-val (or new-val
                         (read-string (format "Change %s to what? " change-what)
                                      (alist-get (if set-title :title :caption)
                                                 mdata)))))
-      (when (and set-title set-caption
-                 (y-or-n-p "Record the change in the change log? "))
+      (when (and set-caption (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
          filename
-         (format "Rename from \"%s{%s} %s%s\" to \"%s{%s} %s%s.\""
-                 (if (string= (ezeka-file-name-id filename)
-                              (alist-get :id mdata))
-                     ""
-                   (concat (ezeka-file-name-id filename) " "))
-                 (ezeka-file-name-label filename)
-                 (alist-get :title mdata)
-                 (ezeka--with-space (ezeka-file-name-citekey filename))
-
-                 (if (string= (ezeka-file-name-id filename)
-                              (alist-get :id mdata))
-                     ""
-                   (concat (alist-get :id mdata) " "))
-                 (alist-get :label mdata)
-                 new-val
-                 (ezeka--space-and (alist-get :citekey mdata)))))
+         (format "Change %s from \"%s\" to \"%s.\""
+                 change-what
+                 (alist-get :caption mdata)
+                 new-val)))
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
