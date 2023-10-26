@@ -178,23 +178,25 @@ from."
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
-(add-hook 'ezeka-mode-hook #'ezeka-breadcrumbs-drop)
 
 ;;;###autoload
 (defun ezeka-start-breadcrumb-trail (file)
   "Start a new breadcrumb trail in Zettel FILE.
-If called interactively, use the current file."
+If called interactively with \\[universal-argument], use the current file."
   (interactive
    (list (let ((ezeka-leave-breadcrumb-trail nil))
-           (ezeka-zk-find-note-in-tempus 'other-window)
-           buffer-file-name)))
+           (if current-prefix-arg
+               buffer-file-name
+             (ezeka-zk-select-file "tempus"
+                                   "Select Zettel for breadcrumb trail: ")))))
   (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file))
   (with-current-buffer ezeka-breadcrumb-trail-buffer
-   (if-let ((head (org-find-exact-headline-in-buffer ezeka-breadcrumb-trail-headline)))
-       (goto-char head)
-     (goto-char (point-max))
-     (org-insert-heading nil nil 'top)
-     (insert ezeka-breadcrumb-trail-headline))))
+    (if-let ((head (org-find-exact-headline-in-buffer ezeka-breadcrumb-trail-headline)))
+        (goto-char head)
+      (goto-char (point-max))
+      (org-insert-heading nil nil 'top)
+      (insert ezeka-breadcrumb-trail-headline)))
+  (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
