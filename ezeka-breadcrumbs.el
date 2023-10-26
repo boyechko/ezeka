@@ -69,23 +69,35 @@ TARGET and SOURCE should be filenames. Return 'primary or
 here), or nil if can't locate trail (i.e. don't drop
 breadcrumbs)."
   (save-restriction
-    (let ((org-blank-before-new-entry '((heading . nil)))
-          (headline (org-find-exact-headline-in-buffer
-                     ezeka-breadcrumb-trail-headline)))
-      ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
-      (ezeka--goto-breadcrumb-headline)
-      ;; 2) Try to find an existing SOURCE headline
+    (let ((org-blank-before-new-entry '((heading . nil))))
       (cond ((and source
+                  (ezeka--goto-breadcrumb-headline)
                   (search-forward (ezeka--format-link source) nil t)
                   (eq 'headline (car (org-element-at-point))))
-             (org-narrow-to-subtree)
-             (unless (search-forward (ezeka--format-link target) nil t)
-               (end-of-line)
-               (org-insert-heading-after-current)
-               (org-demote-subtree)
-               'secondary))
-            ((search-forward (ezeka--format-link target) nil t)
+             ;; Breadcrumb for SOURCE found, so add one for TARGET
+             (let ((src-level (car (org-heading-components)))
+                   (src-head (point)))
+               (org-narrow-to-subtree)
+               (if (and (search-forward (ezeka--format-link target) nil t)
+                        (= (1+ src-level)
+                           (car (org-heading-components))))
+                   (progn
+                     (message "Breadcrumb for %s already exists under %s"
+                              (ezeka-file-link target)
+                              (ezeka-file-link source))
+                     nil)
+                 (goto-char src-head)
+                 (end-of-line)
+                 (org-insert-heading-after-current)
+                 (org-demote-subtree)
+                 'secondary)))
+            ((and target
+                  (ezeka--goto-breadcrumb-headline)
+                  (search-forward (ezeka--format-link target) nil t))
+             ;; Breadcrumbs already dropped for TARGET
              nil)
+            (source
+             (ezeka-breadcrumbs-drop source 'find-breadcrumb-trail))
             (t
              (org-end-of-subtree)
              (org-insert-heading nil nil 'top)
