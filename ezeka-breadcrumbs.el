@@ -89,6 +89,35 @@ breadcrumbs)."
              (org-demote-subtree)
              'primary)))))
 
+(defun ezeka--find-linear-trail (target source)
+  "Find the place in the current buffer where to drop breadcrumbs.
+TARGET and SOURCE are file names. Return either 'primary to
+mark trail being found or nil if can't locate trail."
+  (save-restriction
+    (let ((org-blank-before-new-entry '((heading . nil))))
+      ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
+      (ezeka--locate-breadcrumb-headline)
+      ;; 2) Try to find an existing SOURCE headline
+      (cond ((and (search-forward (ezeka--format-link target) nil t)
+                  (eq 'headline (car (org-element-at-point))))
+             (goto-char (org-element-property :begin (org-element-at-point)))
+             (skip-chars-forward "* " (point-at-eol))
+             (ezeka-update-link-prefix-title))
+            ((and source
+                  (search-forward (ezeka--format-link source) nil t)
+                  (eq 'headline (car (org-element-at-point))))
+             (org-narrow-to-subtree)
+             (unless (search-forward (ezeka--format-link target) nil t)
+               (end-of-line)
+               (org-insert-heading-after-current)
+               (org-demote-subtree)
+               'secondary))
+            (t
+             (org-end-of-subtree)
+             (org-insert-heading-after-current)
+             (org-demote-subtree)
+             'primary)))))
+
 (defun ezeka--breadcrumb-string (target source)
   "Return a breadcrumb string for TARGET from SOURCE."
   (let ((mdata (ezeka-file-metadata target 'noerror))
@@ -135,7 +164,7 @@ from."
                    problem)
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
-            (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
+            (when-let ((status (ezeka--find-linear-trail t-file s-file)))
               (insert
                (ezeka--breadcrumb-string
                 t-file
