@@ -36,6 +36,9 @@
 (defvar ezeka-breadcrumb-trail-buffer nil
   "Buffer where to record the breadcrumb trail.")
 
+(defvar ezeka-breadcrumb-trail-id nil
+  "Org ID of the current breadcrumb head.")
+
 (defcustom ezeka-leave-breadcrumb-trail t
   "When non-nil, leave a trail of visited Zettel notes."
   :type 'boolean
@@ -46,21 +49,22 @@
   :type 'string
   :group 'ezeka)
 
-(defun ezeka--goto-breadcrumb-headline ()
-  "Find or create `ezeka-breadcrumb-trail-headline'.
-Return 'found or 'created, respectively."
-  (let ((headline (org-find-exact-headline-in-buffer
+(defun ezeka--goto-breadcrumb-head ()
+  "Go to the head of the current breadcrumb.
+Return NIL if the breadcrumb head could not be found."
+  (let ((id (org-id-find ezeka-breadcrumb-trail-id 'marker))
+        (headline (org-find-exact-headline-in-buffer
                    ezeka-breadcrumb-trail-headline)))
-    (cond (headline
+    (cond (id
+           (goto-char id)
+           (move-marker id nil)
+           'found)
+          (headline
            (goto-char headline)
-           (org-narrow-to-subtree)
            (org-back-to-heading)
            'found)
           (t
-           (goto-char (point-max))
-           (org-insert-heading-after-current)
-           (insert ezeka-breadcrumb-trail-headline)
-           'created))))
+           nil))))
 
 (defun ezeka--find-breadcrumb-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
@@ -70,8 +74,9 @@ here), or nil if can't locate trail (i.e. don't drop
 breadcrumbs)."
   (save-restriction
     (let ((org-blank-before-new-entry '((heading . nil))))
+      (ezeka--goto-breadcrumb-head)
+      (org-narrow-to-subtree)
       (cond ((and source
-                  (ezeka--goto-breadcrumb-headline)
                   (search-forward (ezeka--format-link source) nil t)
                   (eq 'headline (car (org-element-at-point))))
              ;; Breadcrumb for SOURCE found, so add one for TARGET
@@ -92,11 +97,12 @@ breadcrumbs)."
                  (org-demote-subtree)
                  'secondary)))
             ((and target
-                  (ezeka--goto-breadcrumb-headline)
+                  (goto-char (point-min))
                   (search-forward (ezeka--format-link target) nil t))
              ;; Breadcrumbs already dropped for TARGET
              nil)
             (source
+             ;; There is no breadcrumb for source somehow
              (ezeka-breadcrumbs-drop source 'find-breadcrumb-trail))
             (t
              (org-end-of-subtree)
@@ -111,7 +117,8 @@ mark trail being found or nil if can't locate trail."
   (save-restriction
     (let ((org-blank-before-new-entry '((heading . nil))))
       ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
-      (ezeka--goto-breadcrumb-headline)
+      (ezeka--goto-breadcrumb-head)
+      (org-narrow-to-subtree)
       ;; 2) Try to find an existing SOURCE headline
       (cond ((and (search-forward (ezeka--format-link target) nil t)
                   (eq 'headline (car (org-element-at-point))))
@@ -201,13 +208,14 @@ If called interactively with \\[universal-argument], use the current file."
                buffer-file-name
              (ezeka-zk-select-file "tempus"
                                    "Select Zettel for breadcrumb trail: ")))))
-  (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file))
+  (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file)
+        ezeka-breadcrumb-trail-id    nil)
   (with-current-buffer ezeka-breadcrumb-trail-buffer
-    (if-let ((head (org-find-exact-headline-in-buffer ezeka-breadcrumb-trail-headline)))
-        (goto-char head)
+    (unless (ezeka--goto-breadcrumb-head)
       (goto-char (point-max))
       (org-insert-heading nil nil 'top)
-      (insert ezeka-breadcrumb-trail-headline)))
+      (insert ezeka-breadcrumb-trail-headline))
+    (setq ezeka-breadcrumb-trail-id (org-id-get-create)))
   (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
 
 (provide 'ezeka-breadcrumbs)
