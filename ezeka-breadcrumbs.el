@@ -46,6 +46,19 @@
   :type 'string
   :group 'ezeka)
 
+(defun ezeka--locate-breadcrumb-headline ()
+  "Find or create `ezeka-breadcrumb-trail-headline'."
+  (let ((headline (org-find-exact-headline-in-buffer
+                   ezeka-breadcrumb-trail-headline)))
+    (cond (headline
+           (goto-char headline)
+           (org-narrow-to-subtree)
+           (org-back-to-heading))
+          (t
+           (goto-char (point-max))
+           (org-insert-heading-after-current)
+           (insert ezeka-breadcrumb-trail-headline)))))
+
 (defun ezeka--find-breadcrumb-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
 TARGET and SOURCE should be filenames. Return 'primary or
@@ -57,14 +70,7 @@ breadcrumbs)."
           (headline (org-find-exact-headline-in-buffer
                      ezeka-breadcrumb-trail-headline)))
       ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
-      (cond (headline
-             (goto-char headline)
-             (org-narrow-to-subtree)
-             (org-back-to-heading))
-            (t
-             (goto-char (point-max))
-             (org-insert-heading-after-current)
-             (insert ezeka-breadcrumb-trail-headline)))
+      (ezeka--locate-breadcrumb-headline)
       ;; 2) Try to find an existing SOURCE headline
       (cond ((and source
                   (search-forward (ezeka--format-link source) nil t)
