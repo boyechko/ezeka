@@ -1134,35 +1134,34 @@ update it unconditionally."
 ;; 3) The title in the file header contains a nicely formatted version
 ;;    of the caption that is used when inserting links.
 
-(defun ezeka--reconcile-title-and-caption (metadata &optional force)
-  "Interactively reconcile title and caption in given METADATA.
+(defun ezeka--reconcile-title-and-caption (file &optional metadata force)
+  "Interactively reconcile title and caption in FILE's METADATA.
 Returns modifed metadata. If FORCE is non-nil, attempt
 reconciling even if :caption-stable is true."
-  (let ((caption (or (alist-get :caption metadata) ""))
-        (title (or (alist-get :title metadata) "")))
+  (let* ((mdata (or metadata (ezeka-file-metadata file)))
+         (caption (or (alist-get :caption mdata) ""))
+         (title (or (alist-get :title mdata) "")))
     (unless (or (string= title caption)
                 (and (not force)
-                     (alist-get :caption-stable metadata)))
-      (pcase (read-char-choice
-              (format (concat
-                       "[C]aption: %s\n"
-                       "  [T]itle: %s\n"
-                       "Press [c/u] or [t/l] to use that one; uppercase to skip editing,\n"
-                       "      [n] or [q] to do noting: ")
-                      (propertize caption 'face 'bold)
-                      (propertize title 'face 'italic))
-              '(?c ?C ?u ?U ?t ?T ?l ?L ?n ?q))
-        ((or ?C ?U) (setf (alist-get :title metadata) caption))
-        ((or ?T ?L) (setf (alist-get :caption metadata) title))
-        ((or ?c ?u) (setf (alist-get :title metadata)
+                     (alist-get :caption-stable mdata)))
+      (pcase (downcase
+              (read-char-choice
+               (format (concat
+                        "Caption: %s\n"
+                        "  Title: %s\n"
+                        "Press [c/u] to edit caption, [t/l] to edit title;\n"
+                        "      [n] or [q] to leave alone as is.")
+                       (propertize caption 'face 'bold)
+                       (propertize title 'face 'italic))
+               '(?c ?u ?t ?l ?C ?U ?T ?L ?n ?q)))
+        ((or ?c ?u) (setf (alist-get :caption mdata)
                           (ezeka--minibuffer-edit-string
                            (ezeka--pasteurize-file-name caption))))
-        ((or ?t ?l) (setf (alist-get :caption metadata)
-                          (ezeka--minibuffer-edit-string
-                           (ezeka--pasteurize-file-name title)))))
-      (setf (alist-get :caption-stable metadata) t))
+        ((or ?t ?l) (setf (alist-get :title mdata)
+                          (ezeka--minibuffer-edit-string title))))
+      (setf (alist-get :caption-stable mdata) t))
     (funcall clear-message-function)
-    metadata))
+    mdata))
 
 (defun ezeka--replace-file-header (filename metadata)
   "Replace FILENAME's file header with METADATA."
@@ -1221,7 +1220,7 @@ has not changed since last update."
            (setq mdata
              (ezeka--normalize-metadata-timestamps
               (ezeka--maybe-update-modified
-               (ezeka--reconcile-title-and-caption mdata force))))
+               (ezeka--reconcile-title-and-caption fname mdata force))))
            (ezeka--replace-file-header fname mdata)
            (setf (alist-get fname ezeka--previously-updated nil nil #'string=)
                  (list (buffer-hash) mdata))))
