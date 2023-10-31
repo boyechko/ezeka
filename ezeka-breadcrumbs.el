@@ -52,19 +52,11 @@
 (defun ezeka--goto-breadcrumb-head ()
   "Go to the head of the current breadcrumb.
 Return NIL if the breadcrumb head could not be found."
-  (let ((id (org-id-find ezeka-breadcrumb-trail-id 'marker))
-        (headline (org-find-exact-headline-in-buffer
-                   ezeka-breadcrumb-trail-headline)))
-    (cond (id
-           (goto-char id)
-           (move-marker id nil)
-           'found)
-          (headline
-           (goto-char headline)
-           (org-back-to-heading)
-           'found)
-          (t
-           nil))))
+  (let ((id (org-id-find ezeka-breadcrumb-trail-id 'marker)))
+    (when id
+      (goto-char id)
+      (move-marker id nil)
+      id)))
 
 (defun ezeka--find-breadcrumb-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
@@ -174,11 +166,15 @@ from."
       (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
-      (cond ((not (buffer-live-p ezeka-breadcrumb-trail-buffer))
+      (cond ((null ezeka-breadcrumb-trail-id)
              (setq problem "no active breadcrumb trail"))
             ((ezeka-same-file-p
               t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-             (setq problem "same Zettel")))
+             (setq problem "same Zettel"))
+            ((ezeka-same-file-p
+              s-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
+             ;; FIXME: There has to be a better way to do this
+             (setq s-file nil)))
       (if problem
           (message "Could not drop breadcrumbs for `%s' (from %s): %s"
                    (ezeka-file-link t-file)
@@ -186,11 +182,13 @@ from."
                    problem)
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
-            (when-let ((status (ezeka--find-linear-trail t-file s-file)))
+            (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
+              (end-of-line)
+              (org-insert-heading-respect-content)
               (insert
                (ezeka--breadcrumb-string
                 t-file
-                (unless (eq status 'secondary) source)))
+                (when (and source (symbolp source)) source)))
               (message "Dropped breadcrumbs for `%s'"
                        (ezeka-file-name-id t-file)))))))))
 
