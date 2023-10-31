@@ -65,9 +65,10 @@ TARGET and SOURCE should be filenames. Return 'primary or
 here), or nil if can't locate trail (i.e. don't drop
 breadcrumbs)."
   (save-restriction
-    (let ((org-blank-before-new-entry '((heading . nil))))
-      (ezeka--goto-breadcrumb-head)
-      (org-narrow-to-subtree)
+    (ezeka--goto-breadcrumb-head)
+    (org-narrow-to-subtree)
+    (let ((org-blank-before-new-entry '((heading . nil)))
+          (head-level (org-current-level)))
       (cond ((and source
                   (search-forward (ezeka--format-link source) nil t)
                   (eq 'headline (car (org-element-at-point))))
@@ -86,20 +87,22 @@ breadcrumbs)."
                  (goto-char src-head)
                  (end-of-line)
                  (org-insert-heading-after-current)
-                 (org-demote-subtree)
+                 (while (< (org-current-level) head-level)
+                   (org-demote-subtree))
                  'secondary)))
             ((and target
                   (goto-char (point-min))
                   (search-forward (ezeka--format-link target) nil t))
              ;; Breadcrumbs already dropped for TARGET
              nil)
-            (source
+            ((stringp source)
              ;; There is no breadcrumb for source somehow
-             (ezeka-breadcrumbs-drop source 'find-breadcrumb-trail))
+             (error "No breadcrumb for source: " (ezeka-file-link source)))
             (t
              (org-end-of-subtree)
-             (org-insert-heading nil nil 'top)
-             (org-demote-subtree)
+             (org-insert-heading-after-current)
+             (while (< (org-current-level) head-level)
+               (org-demote-subtree))
              'primary)))))
 
 (defun ezeka--find-linear-trail (target source)
@@ -183,14 +186,12 @@ from."
         (with-current-buffer ezeka-breadcrumb-trail-buffer
           (save-excursion
             (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
-              (end-of-line)
-              (org-insert-heading-respect-content)
-              (insert
-               (ezeka--breadcrumb-string
-                t-file
-                (when (and source (symbolp source)) source)))
-              (message "Dropped breadcrumbs for `%s'"
-                       (ezeka-file-name-id t-file)))))))))
+              (insert (ezeka--breadcrumb-string
+                       t-file
+                       (when (and source (symbolp source)) source)))
+              (message "Dropped breadcrumbs for `%s' as %s"
+                       (ezeka-file-name-id t-file)
+                       status))))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
