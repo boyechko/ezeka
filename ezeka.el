@@ -2203,21 +2203,22 @@ modified buffers. If OTHER-WINDOW is non-nil (or double
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?
          (vertico-sort-function nil))
-    (if (null buffers)
-        (read-buffer-to-switch
-         (format "No %sZettel buffers. Switch to regular buffer: "
-                 (if modified-only "modified " " ")))
-      (funcall (if other-window
-                   'switch-to-buffer-other-window
-                 'switch-to-buffer)
+    (funcall (if other-window
+                 'switch-to-buffer-other-window
+               'switch-to-buffer)
+             (if (null buffers)
+                 (read-buffer-to-switch
+                  (format "No %sZettel buffers. Switch to regular buffer: "
+                          (if modified-only "modified " " ")))
                (get-file-buffer
                 (cdr (assoc-string
                       (completing-read "Visit Zettel buffer: " table nil t)
                       table)))))))
 
 (defun ezeka-switch-to-other-buffer (buffer-or-name &optional norecord force-same-window)
-  "Wrapper around `switch-to-buffer' that skips Zettel buffers.
-See `switch-to-buffer' for details about "
+  "Like `switch-to-buffer', but only list non-Zettel buffers.
+See `switch-to-buffer' for details about BUFFER-OR-NAME,
+NORECORD, and FORCE-SAME-WINDOW."
   (interactive
    (let ((force-same-window
           (unless switch-to-buffer-obey-display-actions
