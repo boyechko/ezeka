@@ -200,23 +200,22 @@ from."
 
 ;;;###autoload
 (defun ezeka-start-breadcrumb-trail (file)
-  "Start a new breadcrumb trail in Zettel FILE.
-If called interactively with \\[universal-argument], use the current file."
+  "Start a new breadcrumb trail in FILE at the current heading."
   (interactive
    (list (let ((ezeka-leave-breadcrumb-trail nil))
-           (if current-prefix-arg
+           (if ezeka-mode
                buffer-file-name
-             (ezeka-zk-select-file "tempus"
-                                   "Select Zettel for breadcrumb trail: ")))))
+             (ezeka-zk-select-file
+              "tempus"
+              "Select Zettel for breadcrumb trail: ")))))
   (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file)
-        ezeka-breadcrumb-trail-id    nil)
-  (with-current-buffer ezeka-breadcrumb-trail-buffer
-    (unless (ezeka--goto-breadcrumb-head)
-      (goto-char (point-max))
-      (org-insert-heading nil nil 'top)
-      (insert ezeka-breadcrumb-trail-headline))
-    (setq ezeka-breadcrumb-trail-id (org-id-get-create)))
-  (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
+        ezeka-breadcrumb-trail-id     nil)
+  (set-buffer ezeka-breadcrumb-trail-buffer)
+  (if (not (org-at-heading-p))
+      (user-error "Move to desired heading first")
+    (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
+    (message "Breadcrumbs will be dropped under heading `%s'"
+             (nth 4 (org-heading-components)))))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
