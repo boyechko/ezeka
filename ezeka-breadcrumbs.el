@@ -208,6 +208,16 @@ from."
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
 
+(defun ezeka--breadcrumbs-elisp-target ()
+  "Return a breadcrumbs target for the current Emacs Lisp function."
+  (let ((defname (rb-kill-ring-save-def-name)))
+    (if defname
+        (format "[[elisp:(find-function '%s)][%s]]" defname defname)
+      (org-store-link nil)
+      (format "[[%s][%s]]"
+              (substring-no-properties (car (car org-stored-links)))
+              "<some file>"))))
+
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop-elisp (source)
   "Drop breadcrumbs for the current Emacs function.
@@ -217,9 +227,7 @@ SOURCE should be a string or symbol."
           (get-buffer (read-buffer "How did you get here? " nil t)))))
   (unless (or (null ezeka-breadcrumb-trail-id)
               (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-    (let* ((defname (rb-kill-ring-save-def-name))
-           (target (format "[[elisp:(find-function '%s)][%s]]"
-                           defname defname)))
+    (let ((target (ezeka--breadcrumbs-elisp-target)))
       (with-current-buffer ezeka-breadcrumb-trail-buffer
         (save-excursion
           (when-let ((status (ezeka--find-breadcrumb-trail target source)))
