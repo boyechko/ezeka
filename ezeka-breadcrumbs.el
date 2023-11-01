@@ -60,50 +60,56 @@ Return NIL if the breadcrumb head could not be found."
 
 (defun ezeka--find-breadcrumb-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
-TARGET and SOURCE should be filenames. Return 'primary or
-'secondary if the trail was found (i.e. drop breadcrumbs
-here), or nil if can't locate trail (i.e. don't drop
-breadcrumbs)."
-  (save-restriction
-    (ezeka--goto-breadcrumb-head)
-    (org-narrow-to-subtree)
-    (let ((org-blank-before-new-entry '((heading . nil)))
-          (head-level (org-current-level)))
-      (cond ((and source
-                  (search-forward (ezeka--format-link source) nil t)
-                  (eq 'headline (car (org-element-at-point))))
-             ;; Breadcrumb for SOURCE found, so add one for TARGET
-             (let ((src-level (car (org-heading-components)))
-                   (src-head (point)))
-               (org-narrow-to-subtree)
-               (if (and (search-forward (ezeka--format-link target) nil t)
-                        (= (1+ src-level)
-                           (car (org-heading-components))))
-                   (progn
-                     (message "Breadcrumb for %s already exists under %s"
-                              (ezeka-file-link target)
-                              (ezeka-file-link source))
-                     nil)
-                 (goto-char src-head)
-                 (end-of-line)
-                 (org-insert-heading-after-current)
-                 (while (< (org-current-level) head-level)
-                   (org-demote-subtree))
-                 'secondary)))
-            ((and target
-                  (goto-char (point-min))
-                  (search-forward (ezeka--format-link target) nil t))
-             ;; Breadcrumbs already dropped for TARGET
-             nil)
-            ((stringp source)
-             ;; There is no breadcrumb for source somehow
-             (error "No breadcrumb for source: " (ezeka-file-link source)))
-            (t
-             (org-end-of-subtree)
-             (org-insert-heading-after-current)
-             (while (< (org-current-level) head-level)
-               (org-demote-subtree))
-             'primary)))))
+TARGET and SOURCE should be strings or symbols. Return
+'primary or 'secondary if the trail was found (i.e. drop
+breadcrumbs here), or nil if can't locate trail (i.e. don't
+drop breadcrumbs)."
+  (let ((target (cond ((null target) (error "Target is null"))
+                      ((ezeka-file-p target) (ezeka-file-link target))
+                      ((ezeka-link-p target) target)
+                      ((symbolp target) (symbol-name target))
+                      (t target)))
+        (source (cond ((ezeka-file-p source) (ezeka-file-link source))
+                      ((ezeka-link-p source) source)
+                      ((symbolp source) (symbol-name source))
+                      (t source))))
+    (save-restriction
+      (ezeka--goto-breadcrumb-head)
+      (org-narrow-to-subtree)
+      (let ((org-blank-before-new-entry '((heading . nil)))
+            (head-level (org-current-level)))
+        (cond ((and (stringp source)
+                    (search-forward source nil t)
+                    (eq 'headline (car (org-element-at-point))))
+               ;; Breadcrumb for SOURCE found, so add one for TARGET
+               (let ((src-level (car (org-heading-components)))
+                     (src-head (point)))
+                 (org-narrow-to-subtree)
+                 (if (and (search-forward target nil t)
+                          (= (1+ src-level)
+                             (car (org-heading-components))))
+                     (progn
+                       (message "Breadcrumb for %s already exists under %s"
+                                target
+                                source)
+                       nil)
+                   (goto-char src-head)
+                   (end-of-line)
+                   (org-insert-heading-after-current)
+                   (while (< (org-current-level) head-level)
+                     (org-demote-subtree))
+                   'secondary)))
+              ((and (goto-char (point-min))
+                    (search-forward target nil t))
+               ;; Breadcrumbs already dropped for TARGET
+               (message "Breadcrumbs already exist for %s" target)
+               nil)
+              (t
+               (org-end-of-subtree)
+               (org-insert-heading-after-current)
+               (while (< (org-current-level) head-level)
+                 (org-demote-subtree))
+               'primary))))))
 
 (defun ezeka--find-linear-trail (target source)
   "Find the place in the current buffer where to drop breadcrumbs.
@@ -137,16 +143,20 @@ mark trail being found or nil if can't locate trail."
 
 (defun ezeka--breadcrumb-string (target source)
   "Return a breadcrumb string for TARGET from SOURCE."
-  (let ((mdata (ezeka-file-metadata target 'noerror))
-        (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (concat (or (alist-get :title mdata)
-                (ezeka-file-name-caption target))
-            " "
-            (ezeka--format-link (ezeka-file-name-id target))
-            (when source (format " (%s)"
-                                 (if (stringp source)
-                                     (ezeka-file-name-id source)
-                                   source))))))
+  (let* ((t-file (cond ((ezeka-file-p target) target)
+                       ((ezeka-link-p target) (ezeka-link-file target))))
+         (s-file (cond ((ezeka-file-p source) source)
+                       ((ezeka-link-p source) (ezeka-link-file source))))
+         (timestamp (format-time-string (cdr org-time-stamp-formats))))
+    (concat (if t-file
+                (or (alist-get :title (ezeka-file-metadata t-file 'noerror))
+                    (ezeka-file-name-caption t-file))
+              (format "%s" target))
+            (when source
+              (format " (%s)"
+                      (if s-file
+                          (ezeka-file-name-id s-file)
+                        source))))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
@@ -197,6 +207,26 @@ from."
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
+
+;;;###autoload
+(defun ezeka-breadcrumbs-drop-elisp (source)
+  "Drop breadcrumbs for the current Emacs function.
+SOURCE should be a string or symbol."
+  (interactive
+   (list (buffer-file-name
+          (get-buffer (read-buffer "How did you get here? " nil t)))))
+  (unless (or (null ezeka-breadcrumb-trail-id)
+              (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
+    (let* ((defname (rb-kill-ring-save-def-name))
+           (target (format "[[elisp:(find-function '%s)][%s]]"
+                           defname defname)))
+      (with-current-buffer ezeka-breadcrumb-trail-buffer
+        (save-excursion
+          (when-let ((status (ezeka--find-breadcrumb-trail target source)))
+            (insert (ezeka--breadcrumb-string target source))
+            (message "Dropped breadcrumbs for `%s' as %s"
+                     (ezeka-file-name-id target)
+                     status)))))))
 
 ;;;###autoload
 (defun ezeka-start-breadcrumb-trail (file)
