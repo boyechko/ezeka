@@ -1119,11 +1119,14 @@ update it unconditionally."
          (remove 'ezeka--update-file-header before-save-hook))
         (modified (buffer-modified-p)))
     (unwind-protect
-        (when buffer-file-name
+        (when (ezeka-file-p buffer-file-name)
           (set-buffer-modified-p t)
           (ezeka--update-file-header nil nil
                                      (eq ezeka-header-update-modified 'always))
-          (save-buffer))
+          (save-buffer)
+          (run-hook-with-args 'ezeka-find-file-functions
+                              buffer-file-name
+                              'save-buffer))
       (set-buffer-modified-p modified))
     (set-buffer-modified-p nil)))
 
