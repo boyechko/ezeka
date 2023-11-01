@@ -169,7 +169,8 @@ from."
       (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
                  (y-or-n-p "There is no breadcrumb trail. Start one? "))
         (call-interactively #'ezeka-start-breadcrumb-trail))
-      (cond ((null ezeka-breadcrumb-trail-id)
+      (cond ((or (null ezeka-breadcrumb-trail-id)
+                 (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
              (setq problem "no active breadcrumb trail"))
             ((ezeka-same-file-p
               t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
