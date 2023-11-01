@@ -2363,22 +2363,32 @@ If SECTION is nil, default to `Change Log'."
          nil))
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
+         (date-item
+          (format "- [%s] :: "
+                  (format-time-string (car ezeka-time-stamp-formats))))
          entry-pos)
-    (save-excursion
-      (if headline
-          (progn
-            (goto-char headline)
-            (end-of-line))
-        (goto-char (point-max))
-        (org-insert-heading nil nil 'top)
-        (insert section))
-      (insert "\n\n"
-              (format "- [%s] :: %s"
-                      (format-time-string (car ezeka-time-stamp-formats))
-                      (if (stringp entry) entry "")))
-      (setq entry-pos (point))
-      (org-fill-element))
-    (when (numberp entry)
+    (save-restriction
+      (save-excursion
+        (if headline
+            (progn
+              (goto-char headline)
+              (end-of-line))
+          (goto-char (point-max))
+          (org-insert-heading nil nil 'top)
+          (insert section))
+        (org-narrow-to-subtree)
+        (org-back-to-heading-or-point-min)
+        (if (search-forward date-item nil 'noerror)
+            (progn
+              (org-end-of-item)
+              (insert "; "))
+          (forward-line 1)
+          (insert "\n\n" date-item))
+        (when (stringp entry)
+          (insert entry))
+        (setq entry-pos (point))
+        (org-fill-element)))
+    (when (numberp entry-pos)
       (goto-char entry-pos))))
 
 (defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption metadata)
