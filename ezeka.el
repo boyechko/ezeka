@@ -2900,12 +2900,14 @@ return NIL."
     (cl-pushnew file org-id-extra-files)))
 
 (defun ezeka--org-move-after-properties ()
-  "Move point after the properties drawer, if any."
+  "Move point after the properties drawer, if any.
+Return the resulting point."
   (when (org-get-property-block)
     (goto-char (cdr (org-get-property-block)))
     ;; `org-get-property-block' ends on :END:
     (unless (zerop (forward-line 2))
-      (insert "\n\n"))))
+      (insert "\n\n"))
+    (point)))
 
 ;;; TODO:
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
