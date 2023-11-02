@@ -148,15 +148,19 @@ mark trail being found or nil if can't locate trail."
          (s-file (cond ((ezeka-file-p source) source)
                        ((ezeka-link-p source) (ezeka-link-file source))))
          (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (concat (if t-file
-                (or (alist-get :title (ezeka-file-metadata t-file 'noerror))
-                    (ezeka-file-name-caption t-file))
-              (format "%s" target))
-            (when source
-              (format " (%s)"
-                      (if s-file
-                          (ezeka-file-name-id s-file)
-                        source))))))
+    (concat
+     (if t-file
+         (ezeka-zk-format-function "%t [[%i]]"
+                                   (ezeka-file-name-id t-file)
+                                   (or (alist-get :title
+                                         (ezeka-file-metadata t-file 'noerror))
+                                       (ezeka-file-name-caption t-file)))
+       (format "%s" target))
+     (when source
+       (format " (%s)"
+               (cond (s-file (ezeka-file-name-id s-file))
+                     ((stringp source) (file-name-nondirectory source))
+                     (t source)))))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
@@ -210,30 +214,37 @@ from."
 
 (defun ezeka--breadcrumbs-elisp-target ()
   "Return a breadcrumbs target for the current Emacs Lisp function."
-  (let ((defname (rb-kill-ring-save-def-name)))
-    (if defname
-        (format "[[elisp:(find-function '%s)][%s]]" defname defname)
-      (org-store-link nil)
-      (format "[[%s][%s]]"
-              (substring-no-properties (car (car org-stored-links)))
-              "<some file>"))))
+  (when-let ((defname (rb-kill-ring-save-def-name)))
+    (format "[[elisp:(find-function '%s)][%s]]" defname defname)))
+
+(defun ezeka--breadcrumbs-buffer-target ()
+  "Return a breadcrumbs target for the current buffer."
+  (if buffer-file-name
+      (format "[[file:%s::%s][%s]]"
+              buffer-file-name
+              (string-trim
+               (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+              (file-name-nondirectory buffer-file-name))
+    (format "\"%s\"" (buffer-name))))
 
 ;;;###autoload
-(defun ezeka-breadcrumbs-drop-elisp (source)
-  "Drop breadcrumbs for the current Emacs function.
+(defun ezeka-breadcrumbs-drop-external (source)
+  "Drop breadcrumbs for the current external location.
 SOURCE should be a string or symbol."
   (interactive
-   (list (buffer-file-name
-          (get-buffer (read-buffer "How did you get here? " nil t)))))
+   (list (file-name-nondirectory
+          (buffer-file-name
+           (get-buffer (read-buffer "How did you get here? " nil t))))))
   (unless (or (null ezeka-breadcrumb-trail-id)
               (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-    (let ((target (ezeka--breadcrumbs-elisp-target)))
+    (let ((target (or (ezeka--breadcrumbs-elisp-target)
+                      (ezeka--breadcrumbs-buffer-target))))
       (with-current-buffer ezeka-breadcrumb-trail-buffer
         (save-excursion
           (when-let ((status (ezeka--find-breadcrumb-trail target source)))
             (insert (ezeka--breadcrumb-string target source))
-            (message "Dropped breadcrumbs for `%s' as %s"
-                     (ezeka-file-name-id target)
+            (message "Dropped breadcrumbs from `%s' as %s"
+                     source
                      status)))))))
 
 ;;;###autoload
