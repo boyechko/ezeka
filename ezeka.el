@@ -2272,19 +2272,20 @@ NORECORD, and FORCE-SAME-WINDOW."
 ;; {...} in the note's rubric.
 ;;;=============================================================================
 
-(defun ezeka--read-category (&optional prompt custom sort-fn)
+(defun ezeka--read-category (&optional prompt custom default sort-fn)
   "Use `completing-read' to select a category from `ezeka-categories'.
-Optional PROMPT allows customizing the prompt. If CUSTOM is non-nil,
-asks the user to type in the category directly. If SORT-FN is given,
-use that to sort the list first."
+Optional PROMPT allows customizing the prompt, while DEFAULT
+specifies initial input. If CUSTOM is non-nil, asks the user
+to type in the category directly. If SORT-FN is given, use
+that to sort the list first."
   (let ((prompt (or prompt "Category: "))
         (categories (if (not (functionp sort-fn))
                         ezeka-categories
                       (let ((cats-copy (cl-copy-list ezeka-categories)))
                         (cl-sort cats-copy sort-fn)))))
     (if custom
-        (read-string prompt)
-      (completing-read prompt categories))))
+        (read-string prompt default)
+      (completing-read prompt categories nil nil default))))
 
 (defun ezeka--read-genus (&optional prompt verbose default)
   "Read a genus as defined in `ezeka-genera'.
@@ -2334,7 +2335,7 @@ Pass SPECIAL, PROMPT, and DEFAULT to the appropriate
 function."
   (if (eq :numerus (ezeka-id-type file-or-link))
       (ezeka--read-genus prompt special default)
-    (ezeka--read-category prompt special)))
+    (ezeka--read-category prompt special default)))
 
 (defun ezeka--update-metadata-values (filename metadata &rest args)
   "Update FILENAME's header, replacing METADATA values with new ones.
