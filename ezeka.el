@@ -1409,6 +1409,8 @@ abase26 equivalent of 0, namely 'a'."
     total))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
+;; TODO: Rename, since timestamped tempus and numerical order scriptum are not
+;;       random.
 (defun ezeka--random-id (type)
   "Generate a random new ID of the given TYPE."
   (cl-case type
@@ -1417,7 +1419,10 @@ abase26 equivalent of 0, namely 'a'."
                       (abase26-encode (random 26))
                       (random 10000)))
     (:scriptum
-     (let (project)
+     (let ((scriptum-id (lambda (project n)
+                          "Return scriptum ID as a string based on PROJECT and N."
+                          (format "%s~%02d" project n)))
+           project)
        (while (not project)
          ;; FIXME: Do I need a native function for this?
          (setq project
@@ -1427,9 +1432,15 @@ abase26 equivalent of 0, namely 'a'."
              (read-string "Scriptum project (numerus currens): ")))
          (unless (ezeka-link-file project)
            (setq project nil)))
-       (format "%s~%02d"
-               project
-               (random 100))))
+       ;; TODO: If this is first entry in scriptum project, create a project
+       ;; heading <numerus>~00 with caption for the project? Or a symbolic link
+       ;; to numerus?
+       (funcall scriptum-id
+                project
+                (cl-find-if-not (lambda (n)
+                                  (ezeka-link-file
+                                   (funcall scriptum-id project n) nil 'noerror))
+                                (number-sequence 1 99)))))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
 (defun ezeka--generate-id (kasten &optional confirm)
