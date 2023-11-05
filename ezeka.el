@@ -2781,16 +2781,17 @@ With \\[universal-argument], ask to select the KASTEN."
       (save-restriction
         (org-narrow-to-subtree)
         (goto-char (point-min))
-        (let ((title (nth 4 (org-heading-components)))
-              timestamp)
-          (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" title)
-                 (list (match-string 1 title) (match-string 2 title))
+        (let* ((head-level (nth 1 (org-heading-components)))
+               (head-title (nth 4 (org-heading-components)))
+               timestamp)
+          (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" head-title)
+                 (list (match-string 1 head-title) (match-string 2 head-title))
                  (setq timestamp
                    (save-match-data
-                     (org-timestamp-from-string (match-string 2 title))))
+                     (org-timestamp-from-string (match-string 2 head-title))))
                  (setq new-title
                    (ezeka--minibuffer-edit-string
-                    (match-string 1 title)
+                    (match-string 1 head-title)
                     nil
                     "Title for new note: ")))
                 ((org-get-scheduled-time nil)
@@ -2807,16 +2808,19 @@ With \\[universal-argument], ask to select the KASTEN."
                     (read-string "No timestamp found. Enter it here: ")))))
           (setq new-link (ezeka-make-link
                           kasten
-                          (if (eq (ezeka-kasten-id-type kstruct) :numerus)
-                              (ezeka--random-id :numerus)
-                            (if (org-timestamp-has-time-p timestamp)
-                                (org-timestamp-format timestamp "%Y%m%dT%H%M")
-                              (concat (org-timestamp-format timestamp "%Y%m%dT")
-                                      (format-time-string "%H%M")))))
+                          (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
+                                      (org-timestamp-has-time-p timestamp))
+                                 (org-timestamp-format timestamp "%Y%m%dT%H%M"))
+                                ((eq (ezeka-kasten-id-type kstruct) :tempus)
+                                 (concat (org-timestamp-format timestamp "%Y%m%dT")
+                                         (format-time-string "%H%M")))
+                                (t
+                                 (ezeka--random-id (ezeka-kasten-id-type kstruct)))))
                 new-file (ezeka-link-file new-link ""))
-          (let* ((content (org-get-entry)))
-            (if (file-exists-p new-file)
-                (message "Aborting, file already exists: %s" new-file)
+          (if (file-exists-p new-file)
+              (user-error "Aborting, file already exists: %s" new-file)
+            (let ((entry-pt (point))
+                  (content (org-get-entry)))
               ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
                 (ezeka-insert-header-template new-link
@@ -2827,10 +2831,13 @@ With \\[universal-argument], ask to select the KASTEN."
                 (basic-save-buffer))
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
+                (goto-char entry-pt)
                 (org-cut-subtree)
-                (insert (ezeka--format-link new-link)
+                (insert (make-string head-level ?*)
                         " "
-                        (alist-get :title (ezeka-file-metadata new-file)))))))))))
+                        head-title
+                        " "
+                        (ezeka--format-link new-link))))))))))
 
 (defun ezeka-open-link-at-point (&optional arg)
   "Open a Zettel link at point even if it's not formatted as a link.
