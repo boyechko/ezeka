@@ -528,6 +528,22 @@ It is a Zettel if all of these conditions are met:
   "Return the citekey part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :citekey))
 
+(defun ezeka-format-file-name (format-string filename)
+  "Format FILENAME according to FORMAT-STRING.
+The format control string can contain the following %-sequences:
+
+%c means caption (i.e. short title).
+%i means ID or link.
+%k means citation key.
+%K means kasten.
+%l means label (genus or category)."
+  (format-spec format-string
+               `((?i . ,(ezeka-file-name-id filename))
+                 (?K . ,(ezeka-file-kasten filename))
+                 (?l . ,(ezeka-file-name-label filename))
+                 (?c . ,(ezeka-file-name-caption filename))
+                 (?k . ,(ezeka-file-name-citekey filename)))))
+
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
   (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
