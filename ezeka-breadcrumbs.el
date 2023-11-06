@@ -169,44 +169,46 @@ TARGET should be a Zettel filename; SOURCE can be one too,
 or a symbol describing where the function is being called
 from."
   (interactive (list buffer-file-name 'interactive))
-  (when ezeka-leave-breadcrumb-trail
-    (let* ((problem nil)
-           (t-file (cond ((ezeka-file-p target) target)
-                         ((ezeka-link-p target) (ezeka-link-file target))
-                         ((and (null target) (ezeka-file-p buffer-file-name))
-                          buffer-file-name)
-                         (t
-                          (setq problem "target is not a Zettel file"))))
-           (s-file (cond ((ezeka-file-p source) source)
-                         ((ezeka-link-p source) (ezeka-link-file source))
-                         (t                     nil))))
-      (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
-                 (y-or-n-p "There is no breadcrumb trail. Start one? "))
-        (call-interactively #'ezeka-start-breadcrumb-trail))
-      (cond ((or (null ezeka-breadcrumb-trail-id)
-                 (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-             (setq problem "no active breadcrumb trail"))
-            ((ezeka-same-file-p
-              t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-             (setq problem "same Zettel"))
-            ((ezeka-same-file-p
-              s-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-             ;; FIXME: There has to be a better way to do this
-             (setq s-file nil)))
-      (if problem
-          (message "Could not drop breadcrumbs for `%s' (from %s): %s"
-                   (ezeka-file-link t-file)
-                   (if s-file (ezeka-file-link s-file) source)
-                   problem)
-        (with-current-buffer ezeka-breadcrumb-trail-buffer
-          (save-excursion
-            (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
-              (insert (ezeka--breadcrumb-string
-                       t-file
-                       (when (and source (symbolp source)) source)))
-              (message "Dropped breadcrumbs for `%s' as %s"
-                       (ezeka-file-name-id t-file)
-                       status))))))))
+  (save-excursion
+    (when ezeka-leave-breadcrumb-trail
+      (let* ((inhibit-read-only t)
+             (problem nil)
+             (t-file (cond ((ezeka-file-p target) target)
+                           ((ezeka-link-p target) (ezeka-link-file target))
+                           ((and (null target) (ezeka-file-p buffer-file-name))
+                            buffer-file-name)
+                           (t
+                            (setq problem "target is not a Zettel file"))))
+             (s-file (cond ((ezeka-file-p source) source)
+                           ((ezeka-link-p source) (ezeka-link-file source))
+                           (t nil))))
+        (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
+                   (y-or-n-p "There is no breadcrumb trail. Start one? "))
+          (call-interactively #'ezeka-start-breadcrumb-trail))
+        (cond ((or (null ezeka-breadcrumb-trail-id)
+                   (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
+               (setq problem "no active breadcrumb trail"))
+              ((ezeka-same-file-p
+                t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
+               (setq problem "same Zettel"))
+              ((ezeka-same-file-p
+                s-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
+               ;; FIXME: There has to be a better way to do this
+               (setq s-file nil)))
+        (if problem
+            (message "Could not drop breadcrumbs for `%s' (from %s): %s"
+                     (ezeka-file-link t-file)
+                     (if s-file (ezeka-file-link s-file) source)
+                     problem)
+          (with-current-buffer ezeka-breadcrumb-trail-buffer
+            (save-excursion
+              (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
+                (insert (ezeka--breadcrumb-string
+                         t-file
+                         (when (and source (symbolp source)) source)))
+                (message "Dropped breadcrumbs for `%s' as %s"
+                         (ezeka-file-name-id t-file)
+                         status)))))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
