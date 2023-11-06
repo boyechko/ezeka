@@ -146,11 +146,12 @@ See `zk-index-button-display-action'."
              (find-file file))
             (t (find-file-other-window file))))))
 
-(defun ezeka-zk-format-function (format id title)
+(defun ezeka-zk-format-function (format id title &optional noerror)
   "Format given ID and TITLE according to FORMAT.
-Control sequences %i (ID), %c (caption), and %l (link) are
-supported natively. For everything else, call
-`ezeka-format-metadata' instead."
+Control sequences %i (ID), %c (caption), and %l (label) are
+parsed from the filename. For everything else, call
+`ezeka-format-metadata' instead. If NOERROR is non-nil, just
+return nil if FORMAT cannot be rendered from ID and TITLE."
   (let ((title (string-trim (or title ""))))
     (if (not (string-match-p "%[^icl0-9-]" format))
         (format-spec format
@@ -159,12 +160,18 @@ supported natively. For everything else, call
                              `((?c . ,(match-string 2 title))
                                (?l . ,(match-string 1 title)))
                            `((?c . ,title)
-                             (?l . ,id)))))
-      (let ((mdata (ezeka-file-metadata (ezeka-link-file id))))
-        ;; FIXME: Hackish way to catch hand-edited TITLE
-        (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-          (setf (alist-get :title mdata) title))
-        (ezeka-format-metadata format mdata)))))
+                             (?l . "Unknown")))))
+      ;; FIXME: Hackish way to catch hand-edited TITLE
+      (warn "ezeka-zk-format-function: format = %s, id = %s, title = %s"
+            format id title)
+      (if-let* ((file (ezeka-link-file id nil 'noerror))
+                (mdata (ezeka-file-metadata file 'noerror)))
+          (progn
+            (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+              (setf (alist-get :title mdata) title))
+            (ezeka-format-metadata format mdata))
+        (unless noerror
+          (error "Cannot retrieve metadata for `%s'" id))))))
 
 (defun ezeka-zk-parse-file (target files)
   "Parse FILES for TARGET.
