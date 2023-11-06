@@ -91,6 +91,9 @@ Group 6 is the stable caption mark."
           "\\)*"                          ; end of everything else
           ))
 
+(defvar ezeka--read-id-history nil
+  "History of IDs that the user entered manually.")
+
 ;;;=============================================================================
 ;;; User Variables
 ;;;=============================================================================
@@ -1445,7 +1448,8 @@ abase26 equivalent of 0, namely 'a'."
            (if (fboundp #'zk--select-file)
                (ezeka-zk-with-kasten "numerus"
                  (ezeka-file-link (zk--select-file "Select project: ")))
-             (read-string "Scriptum project (numerus currens): ")))
+             (read-string "Scriptum project (numerus currens): "
+                          nil ezeka--read-id-history)))
          (unless (ezeka-link-file project)
            (setq project nil)))
        ;; TODO: If this is first entry in scriptum project, create a project
@@ -1537,7 +1541,8 @@ If TIME is nil, default to current time."
             (t
              ;; Can't figure out automatically; ask the user
              (read-string "No created metadata; make up your own name: "
-                          (ezeka--generate-id (ezeka-link-kasten link))))))))
+                          (ezeka--generate-id (ezeka-link-kasten link))
+                          ezeka--read-id-history))))))
 
 ;;;=============================================================================
 ;;; Zettel Links
@@ -2056,7 +2061,7 @@ note."
            (ezeka-file-link buffer-file-name))
          (equal current-prefix-arg '(4))
          (when (equal current-prefix-arg '(16))
-           (read-string "ID for the new note: "))))
+           (read-string "ID for the new note: " nil ezeka--read-id-history))))
   (let ((link (if parent
                   (ezeka--generate-new-child parent kasten manual)
                 (ezeka-make-link kasten (or manual
@@ -2288,6 +2293,9 @@ NORECORD, and FORCE-SAME-WINDOW."
 ;; {...} in the note's rubric.
 ;;;=============================================================================
 
+(defvar ezeka--read-category-history nil
+  "History of manually entered categories.")
+
 (defun ezeka--read-category (&optional prompt custom default sort-fn)
   "Use `completing-read' to select a category from `ezeka-categories'.
 Optional PROMPT allows customizing the prompt, while DEFAULT
@@ -2300,7 +2308,7 @@ that to sort the list first."
                       (let ((cats-copy (cl-copy-list ezeka-categories)))
                         (cl-sort cats-copy sort-fn)))))
     (if custom
-        (read-string prompt default)
+        (read-string prompt default ezeka--read-category-history)
       (completing-read prompt categories nil nil default))))
 
 (defun ezeka--read-genus (&optional prompt verbose default)
@@ -2619,7 +2627,8 @@ CITEKEY."
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
                   ;; FIXME: Rewrite with completing-read
-                  (read-string "Insert template into note with this link: ")))
+                  (read-string "Insert template into note with this link: "
+                               nil ezeka--read-id-history)))
           (nondir (file-name-nondirectory buffer-file-name))
           (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
                    (ezeka-decode-rubric
@@ -2632,7 +2641,9 @@ CITEKEY."
           (ezeka--read-label link))
       (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
                                  (alist-get :caption mdata)))
-      (read-string "Parent? " (ezeka--get-new-child-metadata link :parent))
+      (read-string "Parent? "
+                   (ezeka--get-new-child-metadata link :parent)
+                   ezeka--read-id-history)
       (read-string
        "Citekey? " (or (ezeka--get-new-child-metadata link :citekey)
                        (when (string-match "[@&][^\\s]+$"
@@ -3192,14 +3203,14 @@ This is the Bookmark record function for Zettel files."
 ;;; Searching
 ;;;=============================================================================
 
-(defvar ezeka-regexp-history-variable nil
+(defvar ezeka--read-regexp-history nil
   "History variable for `ezeka--read-regexp'.")
 
 (defun ezeka--read-regexp (&optional prompt)
   "Interactively read a regexp with optional PROMPT."
   (let ((sym (thing-at-point 'symbol t)))
     (read-regexp (or prompt "Regexp ") (and sym (regexp-quote sym))
-                 ezeka-regexp-history-variable)))
+                 ezeka--read-regexp-history)))
 
 (defun ezeka-find-regexp (regexp &optional kasten)
   "Find all matches of REGEXP in `ezeka-directory'.
@@ -3239,7 +3250,7 @@ If CONFIRM is non-nil, confirm the link to check."
    (let ((link (when (ezeka-link-at-point-p t)
                  (ezeka-link-at-point))))
      (list (if (or current-prefix-arg (null link))
-               (read-string "Check which link? " link)
+               (read-string "Check which link? " link ezeka--read-id-history)
              link))))
   (let (records
         message)
@@ -3310,11 +3321,11 @@ appropriate oldname."
 
 (defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
   "Move SOURCE-FILE Zettel to a generated link in KASTEN.
-With \\[universal-argument], asks for an explicit TARGET-LINK instead.
-Open (unless NOSELECT is non-nil) the target link and returns it."
+With \\[universal-argument], ask for an explicit TARGET-LINK instead.
+Return the target link and open it (unless NOSELECT is non-nil)."
   (interactive
    (let ((target (when (equal current-prefix-arg '(4))
-                   (read-string "Enter target link: "))))
+                   (read-string "Enter target link: " nil ezeka--read-id-history))))
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
