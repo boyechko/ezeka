@@ -49,6 +49,17 @@
   :type 'string
   :group 'ezeka)
 
+(defcustom ezeka-breadcrumb-find-trail-function #'ezeka-breadcrumb-find-linear-trail
+  "Function called with TARGET and SROUCE to find the trail.
+TARGET and SOURCE should be strings or symbols. Return
+'primary or 'secondary if the trail was found (i.e. drop
+breadcrumbs here), or nil if can't locate trail (i.e. don't
+drop breadcrumbs).")
+
+(defun ezeka-breadcrumb-find-trail (target source)
+  "Call `ezeka-breadcrumb-find-trail-function' on TARGET and SOURCE."
+  (funcall ezeka-breadcrumb-find-trail-function target source))
+
 (defun ezeka--goto-breadcrumb-head ()
   "Go to the head of the current breadcrumb.
 Return NIL if the breadcrumb head could not be found."
@@ -58,12 +69,10 @@ Return NIL if the breadcrumb head could not be found."
       (move-marker id nil)
       id)))
 
-(defun ezeka--find-breadcrumb-trail (target source)
-  "Find the place in the current buffer where to drop breadcrumbs.
-TARGET and SOURCE should be strings or symbols. Return
-'primary or 'secondary if the trail was found (i.e. drop
-breadcrumbs here), or nil if can't locate trail (i.e. don't
-drop breadcrumbs)."
+(defun ezeka-breadcrumb-find-arboreal-trail (target source)
+  "Find where to drop breadcrumbs in an arboreal trail.
+See `ezeka-breadcrumb-find-trail-function' for details about
+TARGET and SOURCE."
   (let ((target (cond ((null target) (error "Target is null"))
                       ((ezeka-file-p target) (ezeka-file-link target))
                       ((ezeka-link-p target) target)
@@ -111,13 +120,13 @@ drop breadcrumbs)."
                  (org-demote-subtree))
                'primary))))))
 
-(defun ezeka--find-linear-trail (target source)
-  "Find the place in the current buffer where to drop breadcrumbs.
-TARGET and SOURCE are file names. Return either 'primary to
-mark trail being found or nil if can't locate trail."
   (save-restriction
     (let ((org-blank-before-new-entry '((heading . nil))))
       ;; 1) Get positioned in the ezeka-breadcrumb-trail-headline subtree
+(defun ezeka-breadcrumb-find-linear-trail (target source)
+  "Find where to drop breadcrumbs on a linear trail.
+See `ezeka-breadcrumb-find-trail-function' for details about
+TARGET and SOURCE."
       (ezeka--goto-breadcrumb-head)
       (org-narrow-to-subtree)
       ;; 2) Try to find an existing SOURCE headline
@@ -202,7 +211,7 @@ from."
                      problem)
           (with-current-buffer ezeka-breadcrumb-trail-buffer
             (save-excursion
-              (when-let ((status (ezeka--find-breadcrumb-trail t-file s-file)))
+              (when-let ((status (ezeka-breadcrumb-find-trail t-file s-file)))
                 (insert (ezeka--breadcrumb-string
                          t-file
                          (when (and source (symbolp source)) source)))
@@ -243,7 +252,7 @@ SOURCE should be a string or symbol."
                       (ezeka--breadcrumbs-buffer-target))))
       (with-current-buffer ezeka-breadcrumb-trail-buffer
         (save-excursion
-          (when-let ((status (ezeka--find-breadcrumb-trail target source)))
+          (when-let ((status (ezeka-breadcrumb-find-trail target source)))
             (insert (ezeka--breadcrumb-string target source))
             (message "Dropped breadcrumbs from `%s' as %s"
                      source
