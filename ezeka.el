@@ -434,13 +434,18 @@ case-insensitive file systems."
 
 (defun ezeka--read-only-region (begin end)
   "Make the marked region between BEGIN and END read-only.
+The text property is nonsticky in the front and the rear.
 See also `ezeka--writeable-region'.
 
 Read-only text is given the face `ezeka-read-only'."
   (interactive "r")
   (let ((inhibit-read-only t))
     (with-silent-modifications
-      (add-text-properties begin end '(read-only t))
+      (add-text-properties begin end
+                           ;; If the ‘rear-nonsticky’ property is a list,
+                           ;; properties are rear-sticky _unless_ their names
+                           ;; are in the list.
+                           '(read-only t rear-nonsticky (read-only)))
       (let ((overlay (make-overlay begin end)))
         (overlay-put overlay 'ezeka-text-type 'read-only)
         (overlay-put overlay 'face 'ezeka-read-only)))))
