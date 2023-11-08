@@ -290,8 +290,18 @@ SOURCE should be a string or symbol."
   (if (not (org-at-heading-p))
       (user-error "Move to desired heading first")
     (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
+    (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
     (message "Breadcrumbs will be dropped under heading `%s'"
              (nth 4 (org-heading-components)))))
+
+;; TODO: Any way to mark the breadcrumb heading and buffer?
+(defun ezeka-reset-breadcrumb-trail ()
+  "Stop dropping breadcrumbs on this trail."
+  (interactive)
+  (message "Breadcrumbs will no longer be dropped in %s"
+           ezeka-breadcrumb-trail-buffer)
+  (setq ezeka-breadcrumb-trail-buffer nil
+        ezeka-breadcrumb-trail-id nil))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
