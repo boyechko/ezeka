@@ -253,20 +253,26 @@ from."
   "Drop breadcrumbs for the current external location.
 SOURCE should be a string or symbol."
   (interactive
-   (list (file-name-nondirectory
-          (buffer-file-name
-           (get-buffer (read-buffer "How did you get here? " nil t))))))
+   (list (buffer-file-name
+          (get-buffer (read-buffer "How did you get here? " nil t)))))
   (unless (or (null ezeka-breadcrumb-trail-id)
               (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-    (let ((target (or (ezeka--breadcrumbs-elisp-target)
+    (let ((inhibit-read-only t)
+          (target (or (ezeka--breadcrumbs-elisp-target)
                       (ezeka--breadcrumbs-buffer-target))))
       (with-current-buffer ezeka-breadcrumb-trail-buffer
         (save-excursion
           (when-let ((status (ezeka-breadcrumb-find-trail target source)))
             (insert (ezeka--breadcrumb-string target source))
             (message "Dropped breadcrumbs from `%s' as %s"
-                     source
+                     (file-name-nondirectory source)
                      status)))))))
+
+(defun ezeka--find-function-drop-breadcrumbs (&rest _)
+  "After advice for `find-function' to drop breadcrumbs."
+  (ezeka-breadcrumbs-drop-external (buffer-name (current-buffer))))
+;; (advice-add 'find-function :after 'ezeka--find-function-drop-breadcrumbs)
+;; (advice-remove 'find-function 'ezeka--find-function-drop-breadcrumbs)
 
 ;;;###autoload
 (defun ezeka-start-breadcrumb-trail (file)
