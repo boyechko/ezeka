@@ -173,13 +173,8 @@ TARGET and SOURCE."
                        ((ezeka-link-p source) (ezeka-link-file source))))
          (timestamp (format-time-string (cdr org-time-stamp-formats))))
     (concat
-     (if t-file
-         (ezeka-zk-format-function "%t [[%i]]"
-                                   (ezeka-file-name-id t-file)
-                                   (or (alist-get :title
-                                         (ezeka-file-metadata t-file 'noerror))
-                                       (ezeka-file-name-caption t-file)))
-       (format "%s" target))
+     (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
+         (format "%s" (file-name-nondirectory target)))
      (when source
        (format " (%s)"
                (cond (s-file (ezeka-file-name-id s-file))
