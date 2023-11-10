@@ -1448,30 +1448,7 @@ abase26 equivalent of 0, namely 'a'."
     (:numerus (format "%s-%04d"
                       (abase26-encode (random 26))
                       (random 10000)))
-    (:scriptum
-     (let ((scriptum-id (lambda (project n)
-                          "Return scriptum ID as a string based on PROJECT and N."
-                          (format "%s~%02d" project n)))
-           project)
-       (while (not project)
-         ;; FIXME: Do I need a native function for this?
-         (setq project
-           (if (fboundp #'zk--select-file)
-               (ezeka-zk-with-kasten "numerus"
-                 (ezeka-file-link (zk--select-file "Select project: ")))
-             (read-string "Scriptum project (numerus currens): "
-                          nil ezeka--read-id-history)))
-         (unless (ezeka-link-file project)
-           (setq project nil)))
-       ;; TODO: If this is first entry in scriptum project, create a project
-       ;; heading <numerus>~00 with caption for the project? Or a symbolic link
-       ;; to numerus?
-       (funcall scriptum-id
-                project
-                (cl-find-if-not (lambda (n)
-                                  (ezeka-link-file
-                                   (funcall scriptum-id project n) nil 'noerror))
-                                (number-sequence 1 99)))))
+    (:scriptum (ezeka-scriptum-id))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
 (defun ezeka--generate-id (kasten &optional confirm)
@@ -1554,6 +1531,36 @@ If TIME is nil, default to current time."
              (read-string "No created metadata; make up your own name: "
                           (ezeka--generate-id (ezeka-link-kasten link))
                           ezeka--read-id-history))))))
+
+;;;=============================================================================
+;;; Scriptum
+;;;=============================================================================
+
+(defun ezeka-scriptum-id (project &optional time)
+  "Return a scriptum ID based on PROJECT and Emacs TIME object.
+If TIME is nil, default to current time."
+  (let ((scriptum-id (lambda (project n)
+                       "Return scriptum ID as a string based on PROJECT and N."
+                       (format "%s~%02d" project n))))
+    (while (not project)
+      ;; FIXME: Do I need a native function for this?
+      (setq project
+        (if (fboundp #'zk--select-file)
+            (ezeka-zk-with-kasten "numerus"
+              (ezeka-file-link (zk--select-file "Select project: ")))
+          (read-string "Scriptum project (numerus currens): "
+                       nil ezeka--read-id-history)))
+      (unless (ezeka-link-file project)
+        (setq project nil)))
+    ;; TODO: If this is first entry in scriptum project, create a project
+    ;; heading <numerus>~00 with caption for the project? Or a symbolic link
+    ;; to numerus?
+    (funcall scriptum-id
+             project
+             (cl-find-if-not (lambda (n)
+                               (ezeka-link-file
+                                (funcall scriptum-id project n) nil 'noerror))
+                             (number-sequence 1 99)))))
 
 ;;;=============================================================================
 ;;; Zettel Links
