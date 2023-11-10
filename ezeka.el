@@ -1034,39 +1034,42 @@ troublesome characters."
                                             simple-replacements)
                                     title)))
 
+(defun ezeka--decode-timestamp-time (ts)
+  "Decode the `org-mode' timestamp string TS into decoded time."
+  (when ts
+    (decode-time
+     (org-timestamp-to-time
+      (org-timestamp-from-string (format "[%s]" ts))))))
+
+(defun ezeka--supplement-timestamp (dt1 &optional dt2)
+  "Complete decoded time in DT1 from DT2, returning full timestamp.
+If DT2 is not given, use current time."
+  (let ((dt2 (if (stringp dt2) (iso8601-parse dt2) (decode-time))))
+    (when (and (zerop (decoded-time-hour dt1))
+               (zerop (decoded-time-minute dt1)))
+      (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
+            (decoded-time-minute dt1) (decoded-time-minute dt2)))
+    (format-time-string (cdr ezeka-time-stamp-formats)
+                        (encode-time dt1))))
+
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
 The creation time is updated if 1) the current time is at
 00:00 or is missing and something else appears in the tempus
 currens, or 2) one of the old names is a tempus currens with
 time. The modification time is set to current time."
-  (let* ((decode-timestamp
-          (lambda (ts)
-            "Decode the timestamp string TS into decoded time."
-            (when ts
-              (decode-time
-               (org-timestamp-to-time
-                (org-timestamp-from-string (format "[%s]" ts)))))))
-         (full-timestamp
-          (lambda (dt1 &optional dt2)
-            "Complete decoded time in DT1 from DT2, returning full timestamp."
-            (let ((dt2 (if (stringp dt2) (iso8601-parse dt2) (decode-time))))
-              (when (and (zerop (decoded-time-hour dt1))
-                         (zerop (decoded-time-minute dt1)))
-                (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
-                      (decoded-time-minute dt1) (decoded-time-minute dt2)))
-              (format-time-string (cdr ezeka-time-stamp-formats)
-                                  (encode-time dt1)))))
-         (created  (funcall decode-timestamp (alist-get :created metadata)))
-         (modified (funcall decode-timestamp (alist-get :modified metadata)))
+  (let* ((created  (ezeka--decode-timestamp-time (alist-get :created metadata)))
+         (modified (ezeka--decode-timestamp-time (alist-get :modified metadata)))
          (tempus (cl-find-if
                   (lambda (id)
                     (eq (ezeka-id-type id 'noerror) :tempus))
                   (cons (alist-get :id metadata)
                         (alist-get :oldnames metadata)))))
-    (setf (alist-get :created metadata) (funcall full-timestamp created tempus)
-          (alist-get :modified metadata) (when modified
-                                           (funcall full-timestamp modified)))
+    (setf (alist-get :created metadata)
+          (ezeka--supplement-timestamp created tempus))
+    (setf (alist-get :modified metadata)
+          (when modified
+            (ezeka--supplement-timestamp modified)))
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
