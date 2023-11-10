@@ -388,11 +388,13 @@ REGEXP is non-nil, FROM should be a regexp string."
   "Edit NEW-STRING in minibuffer, showing it parallel to OLD-STRING.
 If NEW-STRING is nil, default to OLD-STRING. If given, PROMPT is shown
 as the first line."
-  (let ((new-string (or new-string old-string)))
+  (let ((new-string (or new-string old-string))
+        (prompt (or prompt "Original: ")))
     (read-string
-     (concat prompt
-             " Original: " (propertize old-string 'face 'italic) "\n"
-             "Change to: ")
+     (format (format "%%s%%s\n%%%-ds" (length prompt))
+             prompt
+             (propertize old-string 'face 'italic)
+             "Edited: ")
      new-string nil new-string)))
 
 ;; See https://stackoverflow.com/a/65685019
