@@ -702,18 +702,19 @@ known type."
       (unless noerror
         (error "ID does not match any Kasten's ID pattern")))))
 
-(defun ezeka-encode-iso8601-datetime (string)
+(defun ezeka--encode-time (timestamp)
   "Return the internal encoded time corresponding to STRING.
-STRING should be an ISO8601 date/time expression, with or without time."
+TIMESTAMP should be an ISO8601 date/time expression or an `org-mode'
+timestamp, with or without time."
   (let ((second 0) (minute 0) (hour 0) day month year)
-    (when (string-match (concat "^" ezeka-iso8601-date-regexp) string)
-      (setq year  (string-to-number (match-string 1 string))
-            month (string-to-number (match-string 2 string))
-            day   (string-to-number (match-string 3 string)))
-      (when (string-match ezeka-iso8601-time-regexp string
+    (when (string-match (concat "^" ezeka-iso8601-date-regexp) timestamp)
+      (setq year  (string-to-number (match-string 1 timestamp))
+            month (string-to-number (match-string 2 timestamp))
+            day   (string-to-number (match-string 3 timestamp)))
+      (when (string-match ezeka-iso8601-time-regexp timestamp
                           (match-end 0))
-        (setq hour   (string-to-number (match-string 1 string))
-              minute (string-to-number (match-string 2 string))))
+        (setq hour   (string-to-number (match-string 1 timestamp))
+              minute (string-to-number (match-string 2 timestamp))))
       (encode-time second minute hour day month year))))
 
 (defun ezeka-file-content (file &optional header-only noerror)
@@ -1546,7 +1547,7 @@ If TIME is nil, default to current time."
              (string-replace "T0000"    ; FIXME: A bit hacky?
                              (format-time-string "T%H%M")
                              (ezeka-format-tempus-currens
-                              (ezeka-encode-iso8601-datetime
+                              (ezeka--encode-time
                                (alist-get :created mdata)))))
             (t
              ;; Can't figure out automatically; ask the user
@@ -2716,15 +2717,9 @@ CITEKEY."
             ;; Insert creation time, making it match a tempus currens filename
             (format-time-string
              (cdr ezeka-time-stamp-formats)
-             (let ((today (format-time-string "%Y%m%d")))
-               (if (and (eq :tempus (ezeka-id-type id))
-                        (not (string-match-p (regexp-quote today) id))
-                        (not
-                         (when (called-interactively-p 'any)
-                           (y-or-n-p "Past tempus currens; set created time to now? "))))
-                   (ezeka-encode-iso8601-datetime id)
-                 nil)))
-            "\n")                       ; i.e. current time
+             (when (eq :tempus (ezeka-id-type id))
+               (ezeka--encode-time id)))
+            "\n")
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
     (insert "\n")
