@@ -2627,6 +2627,28 @@ that."
                           (keyword (cons keyword (alist-get :keywords mdata)))
                           (t nil)))))))
 
+(defun ezeka-edit-keywords (filename &optional metadata clear)
+  "Interactively edit FILENAME's keywords.
+If given, use METADATA, otherwise read it from the file. If
+CLEAR is non-nil (or called interactively with \\[universal-argument]), simply
+clear the keywords without attempting to edit them."
+  (interactive (list (ezeka--grab-dwim-file-target)
+                     nil
+                     current-prefix-arg))
+  (if (not (ezeka-file-p filename))
+      (user-error "This command can only be used on Zettel notes")
+    (let ((mdata (or metadata (ezeka-file-metadata filename))))
+      ;; TODO: Make sure the keywords are valid
+      (ezeka--update-metadata-values filename mdata
+        :keywords
+        (unless clear
+          (split-string (ezeka--minibuffer-edit-string
+                         (mapconcat #'identity (alist-get :keywords mdata) " ")
+                         nil
+                         "Edit keywords: ")
+                        " "
+                        'omit-nulls))))))
+
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
   (interactive (list (ezeka--grab-dwim-file-target)
@@ -3480,7 +3502,7 @@ END."
             ("C-c ~" . ezeka-set-title-or-caption) ; `org-table-create-with-table\.el'
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
-            ("C-c #" . ezeka-add-keyword)
+            ("C-c #" . ezeka-edit-keywords)
             ("C-c $" . ezeka-kill-ring-save-link-at-point)
             ("C-c %" . ezeka-kill-ring-save-link)
             ("C-c ^" . ezeka-find-ancestor)
