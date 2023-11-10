@@ -1438,39 +1438,27 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-;; TODO: Somehow make this part of `ezeka-kasten'. Function?
-;; TODO: Rename, since timestamped tempus and numerical order scriptum are not
-;;       random.
-(defun ezeka--random-id (type)
-  "Generate a random new ID of the given TYPE."
-  (cl-case type
-    (:tempus  (format-time-string "%Y%m%dT%H%M"))
-    (:numerus (format "%s-%04d"
-                      (abase26-encode (random 26))
-                      (random 10000)))
-    (:scriptum (ezeka-scriptum-id))
-    (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
-
-(defun ezeka--generate-id (kasten &optional confirm)
-  "Return the next unused ID for the given KASTEN.
-If CONFIRM is non-nil, interactively confirm that the generated ID is
-acceptable."
-  (let ((type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
+(defun ezeka-numerus-currens (&optional confirm)
+  "Return the next unused numerus currens.
+If CONFIRM is non-nil, interactively confirm that the
+generated ID is acceptable.)"
+  (let ((random-numerus
+         (lambda ()
+           "Generate a random numerus currens."
+           (format "%s-%04d" (abase26-encode (random 26)) (random 10000))))
         (keep-checking-p
          (lambda (candidate)
            "Checks if CANDIDATE is either NIL or exists."
            (or (null candidate)
                (ignore-errors
-                 (ezeka-link-file (ezeka-make-link kasten candidate))))))
+                 (ezeka-link-file (ezeka-make-link "numerus" candidate))))))
         (acceptablep
          (lambda (id)
            "Check if the ID is acceptable to the user."
            (or (not confirm)
                (y-or-n-p (format "Is %s acceptable? " id)))))
         id)
-    ;; TODO: Extract to a separate function
-    (if (and (eq type :numerus)
-             (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file)))
+    (if (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file))
         (unwind-protect
             (with-current-buffer
                 (find-file-noselect
@@ -1493,10 +1481,21 @@ acceptable."
                          left
                          (if (= left 1) "us" "i")))))
       (while (funcall keep-checking-p id)
-        (setq id (ezeka--random-id type))
+        (setq id (funcall random-numerus))
         (unless (funcall acceptablep id)
-          (setq id nil))))
-    id))
+          (setq id nil)))
+      id)))
+
+;; TODO: Somehow make this part of `ezeka-kasten'. Function?
+(defun ezeka--generate-id (kasten &optional confirm)
+  "Return the next unused ID for the given KASTEN.
+If CONFIRM is non-nil, interactively confirm that the generated ID is
+acceptable."
+  (cl-case (ezeka-kasten-id-type (ezeka-kasten-named kasten))
+    (:tempus  (ezeka-tempus-currens))
+    (:numerus (ezeka-numerus-currens confirm))
+    (:scriptum (ezeka-scriptum-id))
+    (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
 ;;;=============================================================================
 ;;; Tempus Currens
