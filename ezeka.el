@@ -2509,31 +2509,42 @@ show genera verbosely or type custom category."
          filename
          (format "Change label from {%s} to {%s}." old-val label))))))
 
+(defun ezeka--set-citekey (filename citekey)
+  "Set the FILENAME's citekey to CITEKEY.
+If CITEKEY is a string that does not start with @ or &,
+prepend a @ to it before setting."
+  (ezeka--update-metadata-values
+      filename nil
+    :citekey (if (and (stringp citekey)
+                      (string-match-p "^[^@&]" citekey))
+                 (concat "@" citekey)
+               citekey)))
+
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
-If CITEKEY is not given, get it from the parent unless it's
-\\[universal-argument], in which case let the user enter the citekey
+If CITEKEY is not given, get it from the parent, or if
+called with \\[universal-argument], let the user enter the citekey
 no matter what. With DEGREE, traces genealogy further than parent."
   (interactive (list (buffer-file-name)
-                     current-prefix-arg
+                     (equal current-prefix-arg '(4))
                      (if (integerp current-prefix-arg)
                          current-prefix-arg
                        1)))
   (if (not (ezeka-file-p filename))
-      (error "Not a Zettel note")
+      (user-error "Not a Zettel note")
     (let* ((ancestor (ezeka-trace-genealogy filename degree))
-           (citekey (or (and (equal citekey '(4))
-                             (read-string "New citekey: "))
-                        (and ancestor
-                             (alist-get :citekey
-                               (ezeka-file-metadata (ezeka-link-file ancestor) t)))
-                        (read-string "New citekey: "))))
-      (ezeka--update-metadata-values
-          filename nil
-        :citekey (if (and citekey
-                          (string-match-p "^[^@&]" citekey))
-                     (concat "@" citekey)
-                   citekey)))))
+           (old-citekey (ezeka-file-name-citekey filename))
+           (citekey (or (and (null citekey)
+                             ancestor
+                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))
+                        (read-string "New citekey: " old-citekey))))
+      (ezeka--set-citekey filename citekey)
+      (when (y-or-n-p "Record the change in the change log? ")
+        (ezeka-add-change-log-entry
+         filename
+         (if old-citekey
+             (format "Change citekey from %s to %s." old-citekey citekey)
+           (format "Add citekey %s.")))))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
