@@ -2422,7 +2422,11 @@ If SECTION is nil, default to `Change Log'."
         (if (search-forward date-item nil 'noerror)
             (progn
               (org-end-of-item)
-              (insert "; "))
+              (when (re-search-backward "\\.\\(?1:\"\\)*" (point-at-bol) t)
+                (replace-match "\\1"))
+              (insert "; ")
+              (setq entry (concat (downcase (cl-subseq entry 0 1))
+                                  (cl-subseq entry 1))))
           (forward-line 1)
           (insert "\n\n" date-item))
         (when (stringp entry)
@@ -2459,7 +2463,7 @@ exist in FILENAME."
          filename
          (format "Change %s from \"%s\" to \"%s.\""
                  change-what
-                 (alist-get :caption mdata)
+                 (string-replace "\"" "'" (alist-get :caption mdata))
                  new-val)))
       (when set-title
         (setf (alist-get :title mdata) new-val))
