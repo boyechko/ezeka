@@ -2799,7 +2799,7 @@ org-time-stamp. Return the result of the conversion."
           (thing-at-point-looking-at ezeka-iso8601-date-regexp))
       (setq beg (match-beginning 0)
             end (match-end 0))
-    (error "Can't find any time strings here"))
+    (user-error "Can't figure out time string; maybe try selecting region?"))
   (let* ((text (buffer-substring-no-properties beg end))
          timestamp)
     ;; if the region was surrounded by parentheses, remove those
@@ -2839,6 +2839,23 @@ org-time-stamp. Return the result of the conversion."
                timestamp)))
           (t
            (signal 'wrong-type-argument (list text))))))
+
+(defun ezeka-insert-or-convert-timestamp (&optional beg end)
+  "Insert or convert timestamp at point or between BEG and END.
+If the timestring is IS8601, make it into an org-time-stamp, and
+vice-versa. If it's something else, try to make it into
+org-time-stamp. Return the result of the conversion."
+  (interactive (if (region-active-p)
+                   (list (region-beginning) (region-end))
+                 (list)))
+  (when beg (goto-char beg))
+  (if (not (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
+               (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
+               (thing-at-point-looking-at ezeka-iso8601-date-regexp)))
+      (org-insert-time-stamp nil 'full 'inactive)
+    (setq beg (match-beginning 0)
+          end (match-end 0))
+    (ezeka-dwim-with-this-timestring beg end)))
 
 (defun ezeka-org-export-as-new-note (&optional kasten)
   "Create new Zettel in KASTEN (a string) from the current org subtree.
@@ -3524,7 +3541,7 @@ END."
             ("C-c '" . ezeka-set-label)                     ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
-            ("C-c ." . ezeka-insert-link-from-clipboard) ; `org-table-eval-formula'
+            ("C-c ." . ezeka-insert-or-convert-timestamp) ; `org-table-eval-formula'
             ("C-c /" . ezeka-set-author)                 ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
 
