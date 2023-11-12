@@ -951,6 +951,15 @@ converted to keywords."
     (unless noerror
       (error "Cannot retrieve %s's header" file))))
 
+(defun ezeka-point-at-bob ()
+  "Return point at the beginning of the body (BoB)."
+  (save-excursion
+    (save-match-data
+      (goto-char (point-min))
+      (if (re-search-forward ezeka-header-separator-regexp nil t)
+          (1+ (match-end 0))
+        (error "Cannot find where the body begins")))))
+
 ;;;=============================================================================
 ;;; Metadata Commands
 ;;;=============================================================================
