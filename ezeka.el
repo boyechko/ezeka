@@ -188,9 +188,9 @@ filename or a symbol describing the source."
   :type 'list
   :group 'ezeka)
 
-(defcustom ezeka-time-stamp-formats
+(defcustom ezeka-timestamp-formats
   '("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")
-  "A cons cell of date-only and full time stamp format.
+  "A cons cell of date-only and full timestamp format.
 See `format-time-string' for details."
   :type 'cons
   :group 'ezeka)
@@ -861,9 +861,8 @@ The produced string is based on `ezeka-header-rubric-format'."
 (defun ezeka--header-normalize-readings (readings)
   "Normalize the value of READINGS list, returning the normalized list."
   (mapcar (lambda (instance)
-            (if (string-match org-ts-regexp3 instance)
-                (org-timestamp-format
-                 (org-timestamp-from-string instance) "%F")
+            (if (ezeka--encode-time instance)
+                (ezeka-timestamp (ezeka--encode-time instance))
               instance))
           readings))
 
@@ -1044,6 +1043,15 @@ troublesome characters."
                                             simple-replacements)
                                     title)))
 
+(defun ezeka-timestamp (&optional time full brackets)
+  "Return Emacs TIME formatted according to `ezeka-timestamp-formats'.
+If FULL is non-nil, include hour and minute. If BRACKETS is
+non-nil, surround the timestamp with square brackets."
+  (format (if brackets "[%s]" "%s")
+          (format-time-string (funcall (if full #'cdr #'car)
+                                       ezeka-timestamp-formats)
+                              time)))
+
 (defun ezeka--decode-timestamp-time (ts)
   "Decode the `org-mode' timestamp string TS into decoded time."
   (when ts
@@ -1059,8 +1067,7 @@ If DT2 is not given, use current time."
                (zerop (decoded-time-minute dt1)))
       (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
             (decoded-time-minute dt1) (decoded-time-minute dt2)))
-    (format-time-string (cdr ezeka-time-stamp-formats)
-                        (encode-time dt1))))
+    (ezeka-timestamp (encode-time dt1) 'full)))
 
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
@@ -1112,8 +1119,8 @@ With \\[universal-argument] ARG, show a list of options instead."
 Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
   (let* ((mdata (ezeka--normalize-metadata-timestamps metadata))
-         (today (format-time-string (car ezeka-time-stamp-formats)))
-         (now (format-time-string (cdr ezeka-time-stamp-formats)))
+         (today (format-time-string (car ezeka-timestamp-formats)))
+         (now (format-time-string (cdr ezeka-timestamp-formats)))
          (last-modified (or (alist-get :modified mdata)
                             (alist-get :created mdata)
                             (user-error "No created or modified time in %s"
@@ -2426,8 +2433,7 @@ If SECTION is nil, default to `Change Log'."
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
          (date-item
-          (format "- [%s] :: "
-                  (format-time-string (car ezeka-time-stamp-formats))))
+          (format "- [%s] :: " (ezeka-timestamp)))
          entry-pos)
     (save-restriction
       (save-excursion
@@ -2728,13 +2734,11 @@ CITEKEY."
                                       (:label . ,label)
                                       (:citekey . ,citekey)))))
     (insert "\ntitle: " title)
-    (insert "\ncreated: "
-            ;; Insert creation time, making it match a tempus currens filename
-            (format-time-string
-             (cdr ezeka-time-stamp-formats)
-             (when (eq :tempus (ezeka-id-type id))
-               (ezeka--encode-time id)))
-            "\n")
+    (insert (format "\ncreated: %s\n"
+             ;; Insert creation time, making it match a tempus currens filename
+             (ezeka-timestamp (when (eq :tempus (ezeka-id-type id))
+                                (ezeka--encode-time id))
+                              'full)))
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
     (insert "\n")
@@ -2773,9 +2777,7 @@ With \\[universal-argument] ARG, asks for a different name."
                     (ezeka-insert-link-with-metadata
                      buffer-file-name '(:title) :after))
   (org-set-property "CREATED"
-                    (format-time-string
-                     (format "[%s]"
-                             (cdr ezeka-time-stamp-formats)))))
+                    (ezeka-timestamp nil 'full 'brackets)))
 
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
@@ -3163,8 +3165,7 @@ different. With \\[universal-argument] ARG, forces update."
                                      used-list))))
           (when (y-or-n-p "Did you modify the snippet text? ")
             (org-entry-put (point) "MODIFIED"
-                           (format-time-string
-                            (concat "[" (cdr ezeka-time-stamp-formats) "]")))
+                           (ezeka-timestamp nil 'full 'brackets))
             (when (y-or-n-p (format "%s\nAdd CHANGED tags in these files? "
                                     (mapconcat (lambda (id)
                                                  (ezeka-file-name-caption
