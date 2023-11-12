@@ -188,10 +188,15 @@ filename or a symbol describing the source."
   :type 'list
   :group 'ezeka)
 
+;; For our purposes, a "timestamp" is a string representation of "time," the
+;; default Emacs time value.
 (defcustom ezeka-timestamp-formats
   '("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")
-  "A cons cell of date-only and full timestamp format.
-See `format-time-string' for details."
+  "A cons cell of date-only and full timestamp formats.
+These timestamps are used for created and modified metadata,
+reading dates, and change log entries.
+
+See `format-time-string' for details about format string."
   :type 'cons
   :group 'ezeka)
 
@@ -1052,22 +1057,16 @@ non-nil, surround the timestamp with square brackets."
                                        ezeka-timestamp-formats)
                               time)))
 
-(defun ezeka--decode-timestamp-time (ts)
-  "Decode the `org-mode' timestamp string TS into decoded time."
-  (when ts
-    (decode-time
-     (org-timestamp-to-time
-      (org-timestamp-from-string (format "[%s]" ts))))))
-
-(defun ezeka--supplement-timestamp (dt1 &optional dt2)
-  "Complete decoded time in DT1 from DT2, returning full timestamp.
-If DT2 is not given, use current time."
-  (let ((dt2 (if (stringp dt2) (iso8601-parse dt2) (decode-time))))
+(defun ezeka--complete-time (time1 &optional time2)
+  "Complete TIME1 from TIME2, returning time value.
+If TIME2 is not given, use current time."
+  (let* ((dt1 (decode-time time1))
+         (dt2 (decode-time time2)))
     (when (and (zerop (decoded-time-hour dt1))
                (zerop (decoded-time-minute dt1)))
       (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
             (decoded-time-minute dt1) (decoded-time-minute dt2)))
-    (ezeka-timestamp (encode-time dt1) 'full)))
+    (encode-time dt1)))
 
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
@@ -1075,8 +1074,8 @@ The creation time is updated if 1) the current time is at
 00:00 or is missing and something else appears in the tempus
 currens, or 2) one of the old names is a tempus currens with
 time. The modification time is set to current time."
-  (let* ((created  (ezeka--decode-timestamp-time (alist-get :created metadata)))
-         (modified (ezeka--decode-timestamp-time (alist-get :modified metadata)))
+  (let* ((created  (ezeka--encode-time (alist-get :created metadata)))
+         (modified (ezeka--encode-time (alist-get :modified metadata)))
          (tempus (cl-find-if
                   (lambda (id)
                     (eq (ezeka-id-type id 'noerror) :tempus))
@@ -1086,7 +1085,7 @@ time. The modification time is set to current time."
           (ezeka--supplement-timestamp created tempus))
     (setf (alist-get :modified metadata)
           (when modified
-            (ezeka--supplement-timestamp modified)))
+            (ezeka--complete-time modified)))
     metadata))
 
 (defun ezeka-toggle-update-header-modified (arg)
