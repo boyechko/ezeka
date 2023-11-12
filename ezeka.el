@@ -46,27 +46,6 @@ Group 1 is the ID.
 Group 2 is the kasten, if specified."
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" "\\(?1:" (ezeka--id-regexp) "\\)"))
 
-(defvar ezeka-iso8601-date-regexp
-  (rx word-boundary
-    (group (repeat 4 digit))
-    (* "-")
-    (group (repeat 2 digit))
-    (* "-")
-    (group (repeat 2 digit)))
-  "The regular expression that matches ISO 8601-like date.
-Groups 1-3 are year, month, day.")
-
-(defvar ezeka-iso8601-time-regexp
-  "T*\\([0-9]\\{2\\}\\):*\\([0-9]\\{2\\}\\)\\>"
-  "The regular expression that matches ISO 8601-like time.
-Groups 1-2 are hour and minute.")
-
-(defvar ezeka-iso8601-datetime-regexp
-  (concat ezeka-iso8601-date-regexp ezeka-iso8601-time-regexp)
-  "The regular expression that matches ISO 8601 date and time separate with T.
-Groups 1-3 are year, month, day.
-Groups 4-5 are hour and minute.")
-
 (defvar ezeka-pregenerated-numeri-file "auto/unused-numeri.dat"
   "File containing a list of unused numeri currentes.")
 
@@ -707,21 +686,6 @@ known type."
       (unless noerror
         (error "ID does not match any Kasten's ID pattern")))))
 
-(defun ezeka--encode-time (timestamp)
-  "Return the internal encoded time corresponding to STRING.
-TIMESTAMP should be an ISO8601 date/time expression or an `org-mode'
-timestamp, with or without time."
-  (let ((second 0) (minute 0) (hour 0) day month year)
-    (when (string-match (concat "^" ezeka-iso8601-date-regexp) timestamp)
-      (setq year  (string-to-number (match-string 1 timestamp))
-            month (string-to-number (match-string 2 timestamp))
-            day   (string-to-number (match-string 3 timestamp)))
-      (when (string-match ezeka-iso8601-time-regexp timestamp
-                          (match-end 0))
-        (setq hour   (string-to-number (match-string 1 timestamp))
-              minute (string-to-number (match-string 2 timestamp))))
-      (encode-time second minute hour day month year))))
-
 (defun ezeka-file-content (file &optional header-only noerror)
   "Return content of FILE, getting it first from opened buffer.
 If NOERROR is non-NIL, don't signal an error if cannot get the
@@ -757,6 +721,139 @@ content. If HEADER-ONLY is non-nil, only get the header."
           (t
            (unless noerror
              (error "Cannot get content for %s" file))))))
+
+;;;=============================================================================
+;;; Parsing and Manipulating Time
+;;;=============================================================================
+
+(defvar ezeka-iso8601-date-regexp
+  (rx word-boundary
+    (group (repeat 4 digit))
+    (* "-")
+    (group (repeat 2 digit))
+    (* "-")
+    (group (repeat 2 digit)))
+  "The regular expression that matches ISO 8601-like date.
+Groups 1-3 are year, month, day.")
+
+(defvar ezeka-iso8601-time-regexp
+  "T*\\([0-9]\\{2\\}\\):*\\([0-9]\\{2\\}\\)\\>"
+  "The regular expression that matches ISO 8601-like time.
+Groups 1-2 are hour and minute.")
+
+(defvar ezeka-iso8601-datetime-regexp
+  (concat ezeka-iso8601-date-regexp ezeka-iso8601-time-regexp)
+  "The regular expression that matches ISO 8601 date and time separate with T.
+Groups 1-3 are year, month, day.
+Groups 4-5 are hour and minute.")
+
+(defun ezeka--encode-time (timestamp)
+  "Return the internal encoded time corresponding to STRING.
+TIMESTAMP should be an ISO8601 date/time expression or an `org-mode'
+timestamp, with or without time."
+  (let ((second 0) (minute 0) (hour 0) day month year)
+    (when (string-match (concat "^" ezeka-iso8601-date-regexp) timestamp)
+      (setq year  (string-to-number (match-string 1 timestamp))
+            month (string-to-number (match-string 2 timestamp))
+            day   (string-to-number (match-string 3 timestamp)))
+      (when (string-match ezeka-iso8601-time-regexp timestamp
+                          (match-end 0))
+        (setq hour   (string-to-number (match-string 1 timestamp))
+              minute (string-to-number (match-string 2 timestamp))))
+      (encode-time second minute hour day month year))))
+
+(defun ezeka--complete-time (time1 &optional time2)
+  "Complete TIME1 from TIME2, returning time value.
+If TIME2 is not given, use current time."
+  (let* ((dt1 (decode-time time1))
+         (dt2 (decode-time time2)))
+    (when (and (zerop (decoded-time-hour dt1))
+               (zerop (decoded-time-minute dt1)))
+      (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
+            (decoded-time-minute dt1) (decoded-time-minute dt2)))
+    (encode-time dt1)))
+
+(defun ezeka-timestamp (&optional time full brackets)
+  "Return Emacs TIME formatted according to `ezeka-timestamp-formats'.
+If FULL is non-nil, include hour and minute. If BRACKETS is
+non-nil, surround the timestamp with square brackets."
+  (format (if brackets "[%s]" "%s")
+          (format-time-string (funcall (if full #'cdr #'car)
+                                       ezeka-timestamp-formats)
+                              time)))
+
+(defun ezeka-dwim-with-this-timestring (&optional beg end)
+  "Do What I Mean with the timestring at point or between BEG and END.
+If the timestring is IS8601, make it into an org-time-stamp, and
+vice-versa. If it's something else, try to make it into
+org-time-stamp. Return the result of the conversion."
+  (interactive (if (region-active-p)
+                   (list (region-beginning) (region-end))
+                 (list)))
+  (when beg (goto-char beg))
+  (if (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
+          (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
+          (thing-at-point-looking-at ezeka-iso8601-date-regexp))
+      (setq beg (match-beginning 0)
+            end (match-end 0))
+    (user-error "Can't figure out time string; maybe try selecting region?"))
+  (let* ((text (buffer-substring-no-properties beg end))
+         timestamp)
+    ;; if the region was surrounded by parentheses, remove those
+    (save-excursion
+      (goto-char (1- beg))
+      (when (re-search-forward (format "(%s)" text) (point-at-eol) t)
+        (replace-match text)
+        (setq beg (- beg 1)
+              end (- end 1))))
+    (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
+           (let ((timestamp (iso8601-parse text)))
+             (delete-region beg end)
+             (org-insert-time-stamp (iso8601--encode-time timestamp)
+                                    (integerp (car timestamp)) t)
+             org-last-inserted-timestamp))
+          ((setq timestamp              ; org timestamp -> ISO-8601
+             (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
+                                            text
+                                          (format "[%s]" text))))
+           (let ((iso8601 (org-timestamp-format timestamp "%Y%m%dT%H%M")))
+             (delete-region beg end)
+             (insert iso8601)
+             iso8601))
+          ((integerp (car (parse-time-string text))) ; datetime -> org timestamp
+           (delete-region beg end)
+           (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
+           org-last-inserted-timestamp)
+          ((integerp (nth 4 (setq parsed (parse-time-string text)))) ; date -> ISO-8601
+           (setf (decoded-time-second parsed) 0
+                 (decoded-time-minute parsed) 0
+                 (decoded-time-hour   parsed) 0)
+           (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
+             (when (y-or-n-p
+                    (format "Is %s same as %s? " text timestamp))
+               (delete-region beg end)
+               (insert timestamp)
+               timestamp)))
+          (t
+           (signal 'wrong-type-argument (list text))))))
+
+(defun ezeka-insert-or-convert-timestamp (&optional beg end)
+  "Insert or convert timestamp at point or between BEG and END.
+If there is no timestamp at point, insert one. Otherwise, if
+it's IS8601, make it into an org-time-stamp, and vice-versa.
+If it's something else, try to make it into org-time-stamp.
+Return the result of the conversion."
+  (interactive (if (region-active-p)
+                   (list (region-beginning) (region-end))
+                 (list)))
+  (cond ((and beg end)
+         (ezeka-dwim-with-this-timestring beg end))
+        ((or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
+             (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
+             (thing-at-point-looking-at ezeka-iso8601-date-regexp))
+         (ezeka-dwim-with-this-timestring (match-beginning 0) (match-end 0)))
+        (t
+         (insert (ezeka-timestamp nil 'full 'brackets)))))
 
 ;;;=============================================================================
 ;;; Metadata: Internal
@@ -1047,26 +1144,6 @@ troublesome characters."
     (ezeka--replace-pairs-in-string (append rubric-replacements
                                             simple-replacements)
                                     title)))
-
-(defun ezeka-timestamp (&optional time full brackets)
-  "Return Emacs TIME formatted according to `ezeka-timestamp-formats'.
-If FULL is non-nil, include hour and minute. If BRACKETS is
-non-nil, surround the timestamp with square brackets."
-  (format (if brackets "[%s]" "%s")
-          (format-time-string (funcall (if full #'cdr #'car)
-                                       ezeka-timestamp-formats)
-                              time)))
-
-(defun ezeka--complete-time (time1 &optional time2)
-  "Complete TIME1 from TIME2, returning time value.
-If TIME2 is not given, use current time."
-  (let* ((dt1 (decode-time time1))
-         (dt2 (decode-time time2)))
-    (when (and (zerop (decoded-time-hour dt1))
-               (zerop (decoded-time-minute dt1)))
-      (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
-            (decoded-time-minute dt1) (decoded-time-minute dt2)))
-    (encode-time dt1)))
 
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
@@ -2799,78 +2876,6 @@ With \\[universal-argument] ARG, asks for a different name."
        (optional (or "]" ">"))))
   "Regexp matching Org timestamp, either with or without time.")
 
-(defun ezeka-dwim-with-this-timestring (&optional beg end)
-  "Do What I Mean with the timestring at point or between BEG and END.
-If the timestring is IS8601, make it into an org-time-stamp, and
-vice-versa. If it's something else, try to make it into
-org-time-stamp. Return the result of the conversion."
-  (interactive (if (region-active-p)
-                   (list (region-beginning) (region-end))
-                 (list)))
-  (when beg (goto-char beg))
-  (if (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
-          (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
-          (thing-at-point-looking-at ezeka-iso8601-date-regexp))
-      (setq beg (match-beginning 0)
-            end (match-end 0))
-    (user-error "Can't figure out time string; maybe try selecting region?"))
-  (let* ((text (buffer-substring-no-properties beg end))
-         timestamp)
-    ;; if the region was surrounded by parentheses, remove those
-    (save-excursion
-      (goto-char (1- beg))
-      (when (re-search-forward (format "(%s)" text) (point-at-eol) t)
-        (replace-match text)
-        (setq beg (- beg 1)
-              end (- end 1))))
-    (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
-           (let ((timestamp (iso8601-parse text)))
-             (delete-region beg end)
-             (org-insert-time-stamp (iso8601--encode-time timestamp)
-                                    (integerp (car timestamp)) t)
-             org-last-inserted-timestamp))
-          ((setq timestamp              ; org timestamp -> ISO-8601
-             (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
-                                            text
-                                          (format "[%s]" text))))
-           (let ((iso8601 (org-timestamp-format timestamp "%Y%m%dT%H%M")))
-             (delete-region beg end)
-             (insert iso8601)
-             iso8601))
-          ((integerp (car (parse-time-string text))) ; datetime -> org timestamp
-           (delete-region beg end)
-           (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
-           org-last-inserted-timestamp)
-          ((integerp (nth 4 (setq parsed (parse-time-string text)))) ; date -> ISO-8601
-           (setf (decoded-time-second parsed) 0
-                 (decoded-time-minute parsed) 0
-                 (decoded-time-hour   parsed) 0)
-           (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
-             (when (y-or-n-p
-                    (format "Is %s same as %s? " text timestamp))
-               (delete-region beg end)
-               (insert timestamp)
-               timestamp)))
-          (t
-           (signal 'wrong-type-argument (list text))))))
-
-(defun ezeka-insert-or-convert-timestamp (&optional beg end)
-  "Insert or convert timestamp at point or between BEG and END.
-If the timestring is IS8601, make it into an org-time-stamp, and
-vice-versa. If it's something else, try to make it into
-org-time-stamp. Return the result of the conversion."
-  (interactive (if (region-active-p)
-                   (list (region-beginning) (region-end))
-                 (list)))
-  (when beg (goto-char beg))
-  (if (not (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
-               (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
-               (thing-at-point-looking-at ezeka-iso8601-date-regexp)))
-      (org-insert-time-stamp nil 'full 'inactive)
-    (setq beg (match-beginning 0)
-          end (match-end 0))
-    (ezeka-dwim-with-this-timestring beg end)))
-
 (defun ezeka-org-export-as-new-note (&optional kasten)
   "Create new Zettel in KASTEN (a string) from the current org subtree.
 With \\[universal-argument], ask to select the KASTEN."
@@ -3547,7 +3552,7 @@ END."
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
             ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
-            ("C-c +" . ezeka-dwim-with-this-timestring)
+            ("C-c +" . ezeka-insert-link-from-clipboard)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
