@@ -1070,10 +1070,11 @@ If TIME2 is not given, use current time."
 
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
-The creation time is updated if 1) the current time is at
-00:00 or is missing and something else appears in the tempus
-currens, or 2) one of the old names is a tempus currens with
-time. The modification time is set to current time."
+The times are modified if either is missing time value (i.e.
+just has date) or the time is 00:00. The created time is
+taken from tempus currens, if there is a record of one.
+Otherwise, use current time. The modification time is set to
+current time."
   (let* ((created  (ezeka--encode-time (alist-get :created metadata)))
          (modified (ezeka--encode-time (alist-get :modified metadata)))
          (tempus (cl-find-if
@@ -1082,7 +1083,10 @@ time. The modification time is set to current time."
                   (cons (alist-get :id metadata)
                         (alist-get :oldnames metadata)))))
     (setf (alist-get :created metadata)
-          (ezeka--supplement-timestamp created tempus))
+          (ezeka--complete-time created
+                                (if tempus
+                                    (ezeka--encode-time tempus)
+                                  (current-time))))
     (setf (alist-get :modified metadata)
           (when modified
             (ezeka--complete-time modified)))
