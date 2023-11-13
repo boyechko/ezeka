@@ -222,30 +222,25 @@ Return `ezeka-zk-metadata-alist'."
 (defun ezeka-zk-set-parent (filename &optional new-parent other-window)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel, unless
-\\[universal-argument] OTHER-WINDOW is non-nil and there is something
-usable in the other window, in which case set that as the new parent.
-With double \\[universal-argument], clear parent metadata."
+OTHER-WINDOW (or \\[universal-argument]) is non-nil and there is something usable
+in the other window, in which case set that as the new parent.
+With double \\[universal-argument], ask the user to enter the link manually."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     nil
                      (cond ((equal current-prefix-arg '(16))
-                            :none)
+                            (read-string "Parent ID: "))
                            (current-prefix-arg
-                            (ezeka-file-link
-                             (ezeka--note-in-other-window)))
+                            (when-let ((file (ezeka--note-in-other-window)))
+                              (ezeka-file-link file)))
                            (t
-                            nil))))
-  (let ((new-parent
-         (or new-parent
-             other-window
-             (let ((kasten (ezeka--read-kasten "Parent's Kasten? ")))
-               (ezeka-file-link
-                (ezeka-zk-with-kasten kasten
-                  (zk--select-file "Set parent to: ")))))))
-    (ezeka--update-metadata-values filename nil
-      :parent (if (not (eq new-parent :none))
-                  new-parent
-                (message "Parent metadata cleared")
-                nil))))
+                            (let ((kasten (ezeka--read-kasten "Which Kasten? ")))
+                              (ezeka-file-link
+                               (ezeka-zk-with-kasten kasten
+                                 (zk--select-file "Set parent to: "))))))))
+  (ezeka--update-metadata-values filename nil
+    :parent (if new-parent
+                new-parent
+              (message "Parent metadata cleared")
+              nil)))
 
 ;;;=============================================================================
 ;;; Mapping Across Zk-Index Buttons
