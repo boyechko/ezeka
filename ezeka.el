@@ -773,14 +773,19 @@ If TIME2 is not given, use current time."
             (decoded-time-minute dt1) (decoded-time-minute dt2)))
     (encode-time dt1)))
 
-(defun ezeka-timestamp (&optional time full brackets)
+(defun ezeka-timestamp (&optional time full brackets noweekday)
   "Return Emacs TIME formatted according to `ezeka-timestamp-formats'.
 If FULL is non-nil, include hour and minute. If BRACKETS is
-non-nil, surround the timestamp with square brackets."
-  (format (if brackets "[%s]" "%s")
-          (format-time-string (funcall (if full #'cdr #'car)
-                                       ezeka-timestamp-formats)
-                              time)))
+non-nil, surround the timestamp with square brackets. If
+NOWEEKDAY is non-nil, do not include the abbreviated weekday
+in date-only timestamp."
+  (let ((fmt (funcall (if full #'cdr #'car)
+                      ezeka-timestamp-formats)))
+    (format (if brackets "[%s]" "%s")
+            (format-time-string (if (and (not full) noweekday)
+                                    (string-replace " %a" "" fmt)
+                                  fmt)
+                                time))))
 
 (defun ezeka-dwim-with-this-timestring (&optional beg end)
   "Do What I Mean with the timestring at point or between BEG and END.
