@@ -942,12 +942,35 @@ The produced string is based on `ezeka-header-rubric-format'."
   "Return a YAML-formatted string name of the KEYWORD symbol."
   (cl-subseq (symbol-name keyword) 1))
 
+(defun ezeka--timep (time)
+  "If TIME is a Lisp time value then return TIME, else return nil.
+This is a copy of `timep' from `type-break'."
+  (condition-case nil
+      (and (float-time time) time)
+    (error nil)))
+
+(defun ezeka--full-time-p (time)
+  "Return non-NIL if TIME contains non-zero hour, minute, or second."
+  (cl-notevery (lambda (x) (or (null x) (zerop x)))
+               (cl-subseq (decode-time time) 0 3)))
+
 (defun ezeka--header-yamlify-value (value)
   "Return a YAML-formatted string for the given metadata VALUE."
-  (cl-typecase value
-    (string value)
-    (list (concat "[ " (mapconcat #'identity value ", ") " ]"))
-    (t
+  (pcase value
+    ((pred stringp)
+     value)
+    ((and (pred ezeka--timep)
+          (pred ezeka--full-time-p))
+     (ezeka-timestamp value 'full))
+    ((pred ezeka--timep)
+     (ezeka-timestamp value nil nil 'noweekday))
+    ((pred listp)
+     (concat "[ "
+             (mapconcat #'ezeka--header-yamlify-value
+                        value
+                        ", ")
+             " ]"))
+    (_
      (error "Not implemented for type %s" (type-of value)))))
 
 (defun ezeka--header-deyamlify-value (value)
@@ -956,29 +979,20 @@ The produced string is based on `ezeka-header-rubric-format'."
     ;; strip [[ ]] in wiki links
     ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
      inside)
-    ;; strip [ ] in org-style timestamps
-    ((rx bol "[" (let inside (seq digit (1+ anychar) digit)) "]" eol)
-     inside)
+    ;; convert timestamps to time values
+    ((rx bol
+         (* "[")
+         (let timestamp
+           (seq (= 4 digit) "-" (= 2 digit) "-" (= 2 digit) (* anychar)))
+         (* "]")
+         eol)
+     (ezeka--encode-time timestamp))
     ;; remaining [ ] should be lists
     ((rx bol "[ " (let inside (1+ anychar)) " ]" eol)
-     (split-string inside "," t "[[:space:]]+"))
+     (mapcar #'ezeka--header-deyamlify-value
+             (split-string inside "," t "[[:space:]]+")))
     (_
      (string-trim value))))
-
-(defun ezeka--header-normalize-readings (readings)
-  "Normalize the value of READINGS list, returning the normalized list."
-  (mapcar (lambda (instance)
-            (if (ezeka--encode-time instance)
-                (ezeka-timestamp (ezeka--encode-time instance))
-              instance))
-          readings))
-
-(defun ezeka--decode-header-make-tuple (key value)
-  "Decodes the given KEY and VALUE as strings, returning a tuple."
-  (cons key
-        (if (eq key :readings)
-            (ezeka--header-normalize-readings value)
-          value)))
 
 (defun ezeka--decode-header (header file &optional noerror)
   "Return metadata alist decoded from FILE's YAML HEADER.
@@ -989,9 +1003,8 @@ signal an error when encountering malformed header lines."
            (lambda (line)
              (when (> (length line) 0)
                (if (string-match ezeka-header-line-regexp line)
-                   (ezeka--decode-header-make-tuple
-                    (intern (concat ":" (match-string 1 line)))
-                    (ezeka--header-deyamlify-value (match-string 2 line)))
+                   (cons (intern (concat ":" (match-string 1 line)))
+                         (ezeka--header-deyamlify-value (match-string 2 line)))
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
            (split-string header "\n")))
@@ -1157,8 +1170,8 @@ just has date) or the time is 00:00. The created time is
 taken from tempus currens, if there is a record of one.
 Otherwise, use current time. The modification time is set to
 current time."
-  (let* ((created  (ezeka--encode-time (alist-get :created metadata)))
-         (modified (ezeka--encode-time (alist-get :modified metadata)))
+  (let* ((created  (alist-get :created metadata))
+         (modified (alist-get :modified metadata))
          (tempus (cl-find-if
                   (lambda (id)
                     (eq (ezeka-id-type id 'noerror) :tempus))
@@ -1204,24 +1217,23 @@ With \\[universal-argument] ARG, show a list of options instead."
 Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
   (let* ((mdata (ezeka--normalize-metadata-timestamps metadata))
-         (today (format-time-string (car ezeka-timestamp-formats)))
-         (now (format-time-string (cdr ezeka-timestamp-formats)))
+         (now (current-time))
          (last-modified (or (alist-get :modified mdata)
                             (alist-get :created mdata)
                             (user-error "No created or modified time in %s"
-                                        (alist-get :link mdata)))))
-    (unless (string-equal (or last-modified "") now)
-      ;; FIXME: Probably better to convert modification times to Emacs's encoded
-      ;; time rather than doing it with strings.
-      (when (or (equal ezeka-header-update-modified 'always)
-                (and (equal ezeka-header-update-modified 'sameday)
-                     (string= (cl-subseq last-modified 0 (length today)) today))
+                                        (alist-get :link mdata))))
+         (elapsed (- (time-to-seconds now) (time-to-seconds last-modified))))
+    (unless (<= elapsed 60)             ; less than a minute
+      (when (or (eq ezeka-header-update-modified 'always)
+                (and (eq ezeka-header-update-modified 'sameday)
+                     (= (time-to-days last-modified)
+                        (time-to-days (current-time))))
                 ;; Automatic updating conditions not met; need to confirm
                 (and (member ezeka-header-update-modified '(sameday confirm t))
                      (y-or-n-p
                       (format "%s was last modified at %s. Update to now? "
                               (ezeka-format-metadata "%i {%l} %t" mdata)
-                              last-modified))))
+                              (ezeka-timestamp last-modified 'full 'brackets)))))
         (setf (alist-get :modified mdata) now)
         (run-hooks 'ezeka-modified-updated-hook)))
     mdata))
@@ -3071,11 +3083,11 @@ different. With \\[universal-argument] ARG, forces update."
       (let* ((snip-file (ezeka-link-file link))
              ;; Get the metadata and most recent modification
              (snip-mdata (ezeka-file-metadata snip-file))
-             (modified-mdata (format "[%s]"
-                                     (or (alist-get :modified snip-mdata)
-                                         (alist-get :created snip-mdata))))
-             (our-modified (org-entry-get (point) "SNIP_MODIFIED"))
-             (current? (string= modified-mdata our-modified))
+             (their-modified (or (alist-get :modified snip-mdata)
+                                 (alist-get :created snip-mdata)))
+             (our-modified (ezeka--encode-time
+                            (org-entry-get (point) "SNIP_MODIFIED")))
+             (current? (time-equal-p their-modified our-modified))
              (local? (string-match-p "local"
                                      (or (org-entry-get nil "TAGS")
                                          "")))
@@ -3091,7 +3103,9 @@ different. With \\[universal-argument] ARG, forces update."
         (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
         (if (and current? (null arg))
             (message "Snippet is up to date; leaving alone")
-          (org-entry-put (point) "SNIP_MODIFIED" modified-mdata)
+          (org-entry-put (point)
+                         "SNIP_MODIFIED"
+                         (ezeka-timestamp their-modified 'full 'brackets))
           (when (or t (y-or-n-p "Update the text? "))
             ;; If current line is a comment, create a heading after it
             (when (org-at-comment-p)
