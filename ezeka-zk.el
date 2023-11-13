@@ -40,6 +40,14 @@
 (defvar zk-id-regexp)
 (defvar zk-id-format)
 
+(defmacro cmd-named (name &rest body)
+  "Wrap the BODY inside an interactive defun form for NAME."
+  (declare (indent 1))
+  `(defun ,name ()
+     (interactive)
+     ,@body))
+(put 'cmd-named 'lisp-indent-function 1)
+
 (defmacro ezeka-zk-with-kasten (kasten &rest body)
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
@@ -133,8 +141,7 @@ If \\[universal-argument] SAME-WINDOW is non-nil, use same window.
 See `zk-index-button-display-action'."
   (let ((buffer (or buffer (find-file-noselect file))))
     (with-current-buffer buffer
-      (ezeka-zk-breakcrumbs-reset-stack)
-      (ezeka-zk-drop-breadcrumbs "index"))
+      (ezeka-breadcrumbs-drop buffer-file-name 'index))
     (let ((same-window (or same-window current-prefix-arg)))
       (cond ((one-window-p)
              (pop-to-buffer buffer
@@ -162,8 +169,6 @@ return nil if FORMAT cannot be rendered from ID and TITLE."
                            `((?c . ,title)
                              (?l . "Unknown")))))
       ;; FIXME: Hackish way to catch hand-edited TITLE
-      (warn "ezeka-zk-format-function: format = %s, id = %s, title = %s"
-            format id title)
       (if-let* ((file (ezeka-link-file id nil 'noerror))
                 (mdata (ezeka-file-metadata file 'noerror)))
           (progn
@@ -396,7 +401,6 @@ minibuffer according to the value of `zk-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
   (interactive (list (zk--select-file "Insert link to: ")))
   (let ((link (ezeka-file-link file)))
-    (ezeka-zk-drop-breadcrumbs file buffer-file-name)
     (zk--insert-link
      link
      (when-let ((_ (or (eq zk-link-and-title 't)
@@ -406,41 +410,18 @@ minibuffer according to the value of `zk-link-and-title': if it's
        (read-string "Title: " (alist-get :title mdata))))
     (ezeka--make-help-echo-overlay (point))))
 
-(defun ezeka-zk-insert-link-to-other-window ()
-  "Insert the link to the Zettel note in the other window."
-  (interactive)
-  (ezeka-zk-insert-link (ezeka--note-in-other-window)))
-
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten)
   "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Kasten: "
-                              (mapcar #'ezeka-kasten-name ezeka-kaesten))
-           (ezeka-kasten-name
-            (cl-find (cl-reduce #'min ezeka-kaesten :key #'ezeka-kasten-order)
-                     ezeka-kaesten
-                     :key #'ezeka-kasten-order)))))
+  (interactive (list (ezeka--read-kasten)))
   (ezeka-zk-with-kasten kasten
     (call-interactively 'ezeka-zk-insert-link)))
 
-(defun ezeka-zk-insert-link-to-numerus ()
-  "Temporarily set zk variables for numerus and call `zk-insert-link'."
-  (interactive)
-  (ezeka-zk-with-kasten "numerus"
-    (call-interactively 'ezeka-zk-insert-link)))
-
-(defun ezeka-zk-insert-link-to-tempus ()
-  "Temporarily set zk variables for tempus and call `zk-insert-link'."
-  (interactive)
-  (ezeka-zk-with-kasten "tempus"
-    (call-interactively 'ezeka-zk-insert-link)))
-
-(defun ezeka-zk-insert-link-to-scriptum ()
-  "Temporarily set zk variables for tempus and call `zk-insert-link'."
-  (interactive)
-  (ezeka-zk-with-kasten "scriptum"
-    (call-interactively 'ezeka-zk-insert-link)))
+(cmd-named ezeka-zk-insert-link-to-numerus
+  (ezeka-zk-insert-link-to-kasten "numerus"))
+(cmd-named ezeka-zk-insert-link-to-tempus
+  (ezeka-zk-insert-link-to-kasten "tempus"))
+(cmd-named ezeka-zk-insert-link-to-scriptum
+  (ezeka-zk-insert-link-to-kasten "scriptum"))
 
 (defun ezeka-zk-find-note-in-kasten (kasten &optional other-window)
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
@@ -532,7 +513,7 @@ non-nil, check with user before replacing."
        (list before after nil
              (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
-         (ezeka-zk-drop-breadcrumbs nil)
+         (ezeka-breadcrumbs-leave-trail nil)
          (bf-id (ezeka-link-id before))
          (with-links
           (let ((zk-directory (or directory ezeka-directory)))
