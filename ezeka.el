@@ -2568,6 +2568,13 @@ If SECTION is nil, default to `Change Log'."
     (when (numberp entry-pos)
       (goto-char entry-pos))))
 
+(defun ezeka--demote-quotes (string)
+  "Demote double quotes in STRING to single quotes.
+Only ASCII double and single quotes are touched."
+  (string-replace "\"" "'" string))
+
+;; TODO: Rewrite into two separate functions! title-and-caption could be
+;; separate function.
 (defun ezeka-set-title-or-caption (filename &optional new-val set-title set-caption metadata)
   "Update the title in FILENAME's header to NEW-VAL.
 With \\[universal-argument], change the caption instead;
@@ -2582,21 +2589,27 @@ exist in FILENAME."
                  (list (buffer-file-name) nil set-title set-caption)))
   (when (ezeka-file-p filename)
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
+           (caption (alist-get :caption mdata))
            (change-what (cond ((and (not set-title) set-caption) "caption")
                               ((and set-title (not set-caption)) "title")
                               ((and set-title set-caption) "both title and caption")
                               (t "nothing (huh?)")))
            (new-val (or new-val
-                        (read-string (format "Change %s to what? " change-what)
-                                     (alist-get (if set-title :title :caption)
-                                                mdata)))))
+                        (read-string (format "Change \"%s\" to what? " change-what)
+                                     (if set-title
+                                         (alist-get :title mdata)
+                                       caption)))))
       (when (and set-caption (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
          filename
-         (format "Change %s from \"%s\" to \"%s.\""
-                 change-what
-                 (string-replace "\"" "'" (alist-get :caption mdata))
-                 new-val)))
+         (if (string-match (regexp-quote caption) new-val)
+             (format "Add \"%s\" to %s."
+                     (ezeka--demote-quotes (replace-match "" nil nil new-val))
+                     change-what)
+           (format "Change %s from \"%s\" to \"%s.\""
+                   change-what
+                   (ezeka--demote-quotes (alist-get :caption mdata))
+                   new-val))))
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
