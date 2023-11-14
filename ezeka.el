@@ -2533,7 +2533,7 @@ should consist of KEY and VALUE pairs.
 If SECTION is nil, default to `Change Log'."
   (interactive
    (list buffer-file-name
-         (prefix-numeric-value current-prefix-arg)
+         (read-string "Log entry: ")
          nil))
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
@@ -2552,9 +2552,9 @@ If SECTION is nil, default to `Change Log'."
         (org-narrow-to-subtree)
         (org-back-to-heading-or-point-min)
         (if (search-forward date-item nil 'noerror)
-            (progn
-              (org-end-of-item)
-              (when (re-search-backward "\\.\\(?1:\"\\)*" (point-at-bol) t)
+            (let ((item-start (match-beginning 0)))
+              (org-end-of-item)         ; actually moves pt to next item
+              (when (re-search-backward "\\.\\(?1:\"\\)*" item-start t)
                 (replace-match "\\1"))
               (insert "; ")
               (setq entry (concat (downcase (cl-subseq entry 0 1))
