@@ -2639,6 +2639,7 @@ show genera verbosely or type custom category."
          filename
          (format "Change label from {%s} to {%s}." old-val label))))))
 
+;; TODO: Write similar setters for other fields?
 (defun ezeka--set-citekey (filename citekey)
   "Set the FILENAME's citekey to CITEKEY.
 If CITEKEY is a string that does not start with @ or &,
@@ -2672,9 +2673,12 @@ no matter what. With DEGREE, traces genealogy further than parent."
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
          filename
-         (if old-citekey
-             (format "Change citekey from %s to %s." old-citekey citekey)
-           (format "Add citekey %s.")))))))
+         (cond ((and old-citekey citekey)
+                (format "Change citekey from %s to %s." old-citekey citekey))
+               (citekey
+                (format "Add citekey %s." citekey))
+               (t
+                (format "Remove citekey %s." old-citekey))))))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
