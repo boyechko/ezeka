@@ -1561,6 +1561,31 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
+(defvar ezeka--numerus-notes-in-subdirs nil
+  "Alist of numerus subdirectories with respective note counts.")
+
+(defun ezeka--numerus-scantest-subdir ()
+  "Return the subdirectory (as a string) with fewest existing notes."
+  (unless ezeka--numerus-notes-in-subdirs
+    (setq ezeka--numerus-notes-in-subdirs (ezeka--numerus-subdir-counts)))
+  (string
+   (car (rassq (cl-reduce #'min ezeka--numerus-notes-in-subdirs :key #'cdr)
+               ezeka--numerus-notes-in-subdirs))))
+
+(defun ezeka--numerus-subdir-counts ()
+  "Return an alist of numerus subdirs and number of notes in each."
+  (let ((letters (number-sequence ?a ?z)))
+    (mapcar
+     (lambda (letter)
+       (cons letter (length
+                     (directory-files
+                      (ezeka-id-directory
+                       (ezeka-make-numerus (string letter) "0000")
+                       "numerus")
+                      nil
+                      (concat "\\." ezeka-file-extension "$")))))
+     letters)))
+
 (defun ezeka-new-numerus-currens (&optional confirm)
   "Return the next unused numerus currens.
 If CONFIRM is non-nil, interactively confirm that the
