@@ -1501,27 +1501,29 @@ offer to set metadata or rename the file even if they are in agreement."
 ;;; Numerus Currens
 ;;;=============================================================================
 
-(defun ezeka-make-numerus (number letters)
-  "Return new numerus currens ID based on NUMBER and LETTERS.
-Both NUMBER and LETTERS are strings."
-  (concat number "-" letters))
+(defun ezeka-make-numerus (letter numbers)
+  "Return new numerus currens ID based on LETTER and NUMBERS.
+Both LETTER and NUMBERS are strings."
+  (let ((result (concat letter "-" numbers)))
+    (if (string-match-p (ezeka--id-regexp :numerus) result)
+        result
+      (error "Resulting numerus currens doesn't match ID regexp: %s" result))))
 
-(defun ezeka-numerus-number (id)
-  "Return the number part of the ID as a string."
-  (when (string-match ezeka-numerus-currens-regexp id)
-    (match-string 1 id)))
+(defun ezeka-numerus-letter (id)
+  "Return the letter part of the ID as a string."
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (cl-subseq id 2)))
 
-(defun ezeka-numerus-letters (id)
-  "Return the letters part of the ID as a string."
-  (when (string-match ezeka-numerus-currens-regexp id)
-    (match-string 3 id)))
+(defun ezeka-numerus-numbers (id)
+  "Return the numbers part of the ID as a string."
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (cl-subseq id 0 1)))
 
 (defun ezeka-numerus-parts (id)
-  "Return a list of two elements: the number and letters parts of ID.
+  "Return a list of two elements: the letter and numbers parts of ID.
 Return NIL if the ID is not a numerus currens ID."
-  (when (and (stringp id)
-             (string-match ezeka-numerus-currens-regexp id))
-    (list (match-string 1 id) (match-string 3 id))))
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (split-string id "-")))
 
 (defun abase26-letter-to-decimal (letter)
   "Return the decimal number corresponding to LETTER, a string.
@@ -1603,7 +1605,8 @@ generated ID is acceptable.)"
                          left
                          (if (= left 1) "us" "i"))))))
       (while (or (null id) (already-exists-p id))
-        (funcall acceptablep (setq id (funcall random-numerus)))))
+        (funcall acceptablep
+                 (setq id (funcall random-numerus)))))
     id))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
