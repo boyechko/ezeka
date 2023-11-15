@@ -1559,7 +1559,7 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defun ezeka-numerus-currens (&optional confirm)
+(defun ezeka-new-numerus-currens (&optional confirm)
   "Return the next unused numerus currens.
 If CONFIRM is non-nil, interactively confirm that the
 generated ID is acceptable.)"
@@ -1567,45 +1567,44 @@ generated ID is acceptable.)"
          (lambda ()
            "Generate a random numerus currens."
            (format "%s-%04d" (abase26-encode (random 26)) (random 10000))))
-        (keep-checking-p
+        (already-exists-p
          (lambda (candidate)
-           "Checks if CANDIDATE is either NIL or exists."
-           (or (null candidate)
-               (ignore-errors
-                 (ezeka-link-file (ezeka-make-link "numerus" candidate))))))
+           "Checks if CANDIDATE already exists."
+           (ignore-errors
+             (ezeka-link-file (ezeka-make-link "numerus" candidate)))))
         (acceptablep
          (lambda (id)
            "Check if the ID is acceptable to the user."
            (or (not confirm)
-               (y-or-n-p (format "Is %s acceptable? " id)))))
+               (let ((y-or-n-p-use-read-key t))
+                 (y-or-n-p (format "Is %s acceptable? " id))))))
         id)
     (if (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file))
-        (unwind-protect
-            (with-current-buffer
+        (let* ((numeri-buf
                 (find-file-noselect
-                 (in-ezeka-dir ezeka-pregenerated-numeri-file))
-              (let ((left (count-lines (point-min) (point-max))))
-                (unwind-protect
-                    (while (and (> left 0)
-                                (funcall keep-checking-p id))
-                      (setq id
-                        (string-trim
-                         (delete-and-extract-region
-                          (point-min)
-                          (search-forward-regexp "[[:space:]]" nil t))))
-                      (unless (funcall acceptablep id)
-                        (setq id nil)))
-                  (cl-decf left)
-                  (let ((inhibit-message t))
-                    (basic-save-buffer)))
+                 (in-ezeka-dir ezeka-pregenerated-numeri-file))))
+          (with-current-buffer numeri-buf
+            (let ((left (count-lines (point-min) (point-max))))
+              (unwind-protect
+                  (while (and (> left 0)
+                              (or (null id)
+                                  (funcall already-exists-p id)))
+                    (setq id
+                      (string-trim
+                       (delete-and-extract-region
+                        (point-min)
+                        (search-forward-regexp "[[:space:]]" nil t))))
+                    (cl-decf left)
+                    (unless (funcall acceptablep id)
+                      (setq id nil)))
+                (let ((inhibit-message t))
+                  (basic-save-buffer))
                 (message "%d pregenerated numer%s left"
                          left
-                         (if (= left 1) "us" "i")))))
-      (while (funcall keep-checking-p id)
-        (setq id (funcall random-numerus))
-        (unless (funcall acceptablep id)
-          (setq id nil)))
-      id)))
+                         (if (= left 1) "us" "i"))))))
+      (while (or (null id) (already-exists-p id))
+        (funcall acceptablep (setq id (funcall random-numerus)))))
+    id))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
 (defun ezeka--generate-id (kasten &optional confirm)
@@ -1614,7 +1613,7 @@ If CONFIRM is non-nil, interactively confirm that the generated ID is
 acceptable."
   (cl-case (ezeka-kasten-id-type (ezeka-kasten-named kasten))
     (:tempus  (ezeka-tempus-currens))
-    (:numerus (ezeka-numerus-currens confirm))
+    (:numerus (ezeka-new-numerus-currens confirm))
     (:scriptum (ezeka-scriptum-id))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
