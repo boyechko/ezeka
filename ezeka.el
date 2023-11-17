@@ -46,9 +46,6 @@ Group 1 is the ID.
 Group 2 is the kasten, if specified."
   (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" "\\(?1:" (ezeka--id-regexp) "\\)"))
 
-(defvar ezeka-pregenerated-numeri-file "auto/unused-numeri.dat"
-  "File containing a list of unused numeri currentes.")
-
 (defvar ezeka-genus-regexp "[α-ω]"
   "Regexp matching genus.")
 
@@ -177,6 +174,19 @@ reading dates, and change log entries.
 
 See `format-time-string' for details about format string."
   :type 'cons
+  :group 'ezeka)
+
+(defcustom ezeka-distribute-numeri-currentes t
+  "When non-nil, new numeri currentes will be evenly distributed.
+That is, they will be placed in subdirectories with fewest
+existing notes."
+  :type 'boolean
+  :group 'ezeka)
+
+(defcustom ezeka-pregenerated-numeri-file nil
+  "File containing a list of unused numeri currentes.
+Each line should contain a numerus currens and nothing else."
+  :type 'file
   :group 'ezeka)
 
 ;;------------------------------------------------------------------------------
@@ -1586,15 +1596,38 @@ abase26 equivalent of 0, namely 'a'."
                       (concat "\\." ezeka-file-extension "$")))))
      letters)))
 
+(defun ezeka--random-numerus (&optional distribute)
+  "Generate a random numerus currens.
+If `ezeka-distribute-numeri-currentes' or DISTRIBUTE is non-
+nil, try to evenly distribute numeri."
+  (ezeka-make-numerus (if (or ezeka-distribute-numeri-currentes distribute)
+                          (ezeka--numerus-scantest-subdir)
+                        (abase26-encode (random 26)))
+                      (format "%04d" (random 10000))))
+
+(defun ezeka--pregenerated-numerus ()
+  "Retrieve next numerus from `ezeka-pregenerated-numeri-file'."
+  (when ezeka-pregenerated-numeri-file
+    (with-current-buffer (find-file-noselect ezeka-pregenerated-numeri-file)
+      (let ((left (count-lines (point-min) (point-max)))
+            result)
+        (unwind-protect
+            (string-trim
+             (delete-and-extract-region
+              (point-min)
+              (search-forward-regexp "[[:space:]]" nil t)))
+          (let ((inhibit-message t))
+            (basic-save-buffer))
+          (message "%d pregenerated numer%s left"
+                   left
+                   (if (= left 1) "us" "i"))
+          nil)))))
+
 (defun ezeka-new-numerus-currens (&optional confirm)
   "Return the next unused numerus currens.
 If CONFIRM is non-nil, interactively confirm that the
 generated ID is acceptable.)"
-  (let ((random-numerus
-         (lambda ()
-           "Generate a random numerus currens."
-           (format "%s-%04d" (abase26-encode (random 26)) (random 10000))))
-        (already-exists-p
+  (let ((already-exists-p
          (lambda (candidate)
            "Checks if CANDIDATE already exists."
            (ignore-errors
@@ -1606,32 +1639,13 @@ generated ID is acceptable.)"
                (let ((y-or-n-p-use-read-key t))
                  (y-or-n-p (format "Is %s acceptable? " id))))))
         id)
-    (if (file-exists-p (in-ezeka-dir ezeka-pregenerated-numeri-file))
-        (let* ((numeri-buf
-                (find-file-noselect
-                 (in-ezeka-dir ezeka-pregenerated-numeri-file))))
-          (with-current-buffer numeri-buf
-            (let ((left (count-lines (point-min) (point-max))))
-              (unwind-protect
-                  (while (and (> left 0)
-                              (or (null id)
-                                  (funcall already-exists-p id)))
-                    (setq id
-                      (string-trim
-                       (delete-and-extract-region
-                        (point-min)
-                        (search-forward-regexp "[[:space:]]" nil t))))
-                    (cl-decf left)
-                    (unless (funcall acceptablep id)
-                      (setq id nil)))
-                (let ((inhibit-message t))
-                  (basic-save-buffer))
-                (message "%d pregenerated numer%s left"
-                         left
-                         (if (= left 1) "us" "i"))))))
-      (while (or (null id) (already-exists-p id))
-        (funcall acceptablep
-                 (setq id (funcall random-numerus)))))
+    (while (or (null id) (funcall already-exists-p id))
+      (setq id (if (and ezeka-pregenerated-numeri-file
+                        (file-exists-p ezeka-pregenerated-numeri-file))
+                   (ezeka--pregenerated-numerus)
+                 (ezeka--random-numerus)))
+      (unless (funcall acceptablep id)
+        (setq id nil)))
     id))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
