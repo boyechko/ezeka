@@ -389,53 +389,58 @@ destination kasten."
 ;;; Other
 ;;;=============================================================================
 
+(require 'vertico)
+(unless (fboundp 'vertico-sort-reverse-alpha)
+  (vertico--define-sort (reverse-alpha)
+    32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
+  (put 'vertico--define-sort 'lisp-indent-function 1))
+
 (defun ezeka-zk-insert-link (file)
   "Insert link to the Zettel FILE.
-Unlike `zk-insert-link', allows editing the title in the
+Unlike `zk-insert-link', allow editing the title in the
 minibuffer according to the value of `zk-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
   (interactive (list (zk--select-file "Insert link to: ")))
   (let ((link (ezeka-file-link file)))
-    (zk--insert-link
-     link
-     (when-let ((_ (or (eq zk-link-and-title 't)
-                       (and (eq zk-link-and-title 'ask)
-                            (y-or-n-p "Include (edited) title? "))))
-                (mdata (ezeka-file-metadata file t)))
-       (read-string "Title: " (alist-get :title mdata))))
+    (ezeka-insert-link-with-metadata
+     link '(:title) :before
+     (or (eq zk-link-and-title 't)
+         (and (eq zk-link-and-title 'ask)
+              (y-or-n-p "Include (edited) title? "))))
     (ezeka--make-help-echo-overlay (point))))
 
-(defun ezeka-zk-insert-link-to-kasten (&optional kasten)
-  "Temporarily set zk variables for KASTEN and call `zk-insert-link'."
+(defun ezeka-zk-insert-link-to-kasten (&optional kasten sort)
+  "Temporarily set zk variables for KASTEN and call `zk-insert-link'.
+If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive (list (ezeka--read-kasten)))
-  (ezeka-zk-with-kasten kasten
-    (call-interactively 'ezeka-zk-insert-link)))
+  (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha)))
+    (ezeka-zk-with-kasten kasten
+      (call-interactively 'ezeka-zk-insert-link))))
 
 (cmd-named ezeka-zk-insert-link-to-numerus
   (ezeka-zk-insert-link-to-kasten "numerus"))
 (cmd-named ezeka-zk-insert-link-to-tempus
-  (ezeka-zk-insert-link-to-kasten "tempus"))
+  (ezeka-zk-insert-link-to-kasten "tempus" 'vertico-sort-reverse-alpha))
 (cmd-named ezeka-zk-insert-link-to-scriptum
   (ezeka-zk-insert-link-to-kasten "scriptum"))
 
-(defun ezeka-zk-find-note-in-kasten (kasten &optional other-window)
+(defun ezeka-zk-find-note-in-kasten (kasten &optional other-window sort)
   "Temporarily set zk variables for KASTEN and call `zk-find-file'.
-With \\[universal-argument] OTHER-WINDOW, open in other
-window."
+With \\[universal-argument] OTHER-WINDOW, open in other window.
+If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive
    (list (if-let ((kasten
                    (and zk-directory
                         (not current-prefix-arg)
                         (ezeka-directory-kasten zk-directory))))
              kasten
-           (completing-read "Kasten: "
-                            (mapcar #'ezeka-kasten-name ezeka-kaesten)))
+           (ezeka--read-kasten))
          current-prefix-arg))
   (ezeka-zk-with-kasten kasten
-    (let ((file (funcall zk-select-file-function
-                         (if other-window
-                             "Find note in other window: "
-                           "Find note: "))))
+    (let* ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
+           (file (zk--select-file (if other-window
+                                      "Find note in other window: "
+                                    "Find note: "))))
       (ezeka-find-file file (not other-window)))))
 
 (defun ezeka-zk-find-note-in-numerus (&optional other-window)
@@ -448,13 +453,9 @@ If OTHER-WINDOW is non-nil, find in other window."
   "Find zk note in tempus currens Kasten.
 If OTHER-WINDOW is non-nil, find in other window."
   (interactive "P")
-  (require 'vertico)
-  (unless (fboundp 'vertico-sort-reverse-alpha)
-    (vertico--define-sort (reverse-alpha)
-      32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
-    (put 'vertico--define-sort 'lisp-indent-function 1))
-  (let ((vertico-sort-function #'vertico-sort-reverse-alpha))
-    (ezeka-zk-find-note-in-kasten "tempus" other-window)))
+  (ezeka-zk-find-note-in-kasten "tempus"
+                                other-window
+                                'vertico-sort-reverse-alpha))
 
 (defun ezeka-zk-find-note-in-scriptum (&optional other-window)
   "Find zk note in scriptum Kasten.
