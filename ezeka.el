@@ -1866,40 +1866,24 @@ FIELDS defaults to :title, WHERE to :before. If WHERE is
 (defun ezeka-insert-link-with-metadata (link &optional fields where confirm)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
-the fields are added. FIELDS can be a list. If CONFIRM is
-non-NIL, ask for confirmation before inserting metadata."
-  (let* ((fields (or fields
-                     (when (called-interactively-p 'any)
-                       (list
-                        (intern-soft
-                         (completing-read
-                          "Which metadata field? "
-                          '(":none" ":title" ":citekey" ":label")))))))
-         (where (or where
-                    (when fields
-                      (intern-soft
-                       (completing-read "Where? "
-                                        '(":before" ":after"))))))
-         (file (or (ezeka-link-file link nil t)
-                   (when (cl-find-if #'(lambda (buf)
-                                         (string-match link (buffer-name buf)))
-                                     (buffer-list))))))
-    (ezeka-insert-with-spaces
-     (cond ((not file)
-            (ezeka--format-link link))
-           ((or (not confirm)
-                (progn
-                  ;; Pressing return just defaults to NO rather than quit
-                  (define-key query-replace-map [return] 'act)
-                  (y-or-n-p (format (if (eq where :description)
-                                        "Insert [%s] in the link %s? "
-                                      "Insert [%s] %s the link? ")
-                                    (mapconcat #'symbol-name fields ", ")
-                                    where))))
-            (let ((mdata (ezeka-file-metadata file)))
-              (ezeka--link-with-metadata link fields where mdata)))
-           (t
-            (ezeka--format-link link))))))
+the fields are added. FIELDS can be a list. If EDIT is
+non-NIL, allow the user to interactively edit the result."
+  (interactive
+   (list (read-string "Insert link: " nil 'ezeka--read-id-history)
+         (list (intern-soft
+                (completing-read
+                 "Which metadata field? "
+                 '(":none" ":title" ":citekey" ":label"))))
+         (intern-soft (completing-read "Where? " '(":before" ":after")))))
+  (if-let* ((_ edit)
+            (file (or (ezeka-link-file link nil t)
+                      (cl-find-if #'(lambda (buf)
+                                      (string-match link (buffer-name buf)))
+                                  (buffer-list))))
+            (mdata (ezeka-file-metadata file))
+            (result (ezeka--link-with-metadata link fields where mdata)))
+      (ezeka-insert-with-spaces (read-string "Insert: " result))
+    (ezeka-insert-with-spaces (ezeka--format-link link))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
