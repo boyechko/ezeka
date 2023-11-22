@@ -1296,7 +1296,8 @@ Returns modifed metadata. If FORCE is non-nil, attempt
 reconciling even if :caption-stable is true."
   (let* ((mdata (or metadata (ezeka-file-metadata file)))
          (caption (or (alist-get :caption mdata) ""))
-         (title (or (alist-get :title mdata) "")))
+         (title (or (alist-get :title mdata) ""))
+         (capitalp (lambda (c) (and (= ?w (char-syntax c)) (= c (upcase c))))))
     (unless (or (string= title caption)
                 (and (not force)
                      (alist-get :caption-stable mdata)))
@@ -1306,19 +1307,19 @@ reconciling even if :caption-stable is true."
                        "Caption: %s\n"
                        "  Title: %s\n"
                        "Press [c/u] to edit caption, [t/l] to edit title;\n"
-                       "      [C/U] and [T/L] to do that with copy of the other;\n"
+                       "      [C/U] and [T/L] to use that one for the other;\n"
                        "      [n] or [q] to leave alone as is.")
                       (propertize caption 'face 'bold)
                       (propertize title 'face 'italic))
                      '(?c ?u ?t ?l ?C ?U ?T ?L ?n ?q))))
         (pcase choice
-          ((or ?c ?C ?u ?U) (setf (alist-get :caption mdata)
+          ((or ?c ?u ?T ?L) (setf (alist-get :caption mdata)
                                   (ezeka--minibuffer-edit-string
                                    (ezeka--pasteurize-file-name
                                     (if (funcall capitalp choice)
                                         title
                                       caption)))))
-          ((or ?t ?T ?l ?L) (setf (alist-get :title mdata)
+          ((or ?t ?l ?C ?U) (setf (alist-get :title mdata)
                                   (ezeka--minibuffer-edit-string
                                    (if (funcall capitalp choice)
                                        caption
