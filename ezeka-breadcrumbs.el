@@ -62,7 +62,8 @@ drop breadcrumbs).")
 
 (defun ezeka--goto-breadcrumb-head ()
   "Go to the head of the current breadcrumb.
-Return NIL if the breadcrumb head could not be found."
+Return NIL if the breadcrumb head could not be found,
+otherwise return the Org-ID."
   (let ((id (org-id-find ezeka-breadcrumb-trail-id 'marker)))
     (when id
       (goto-char id)
@@ -152,7 +153,7 @@ TARGET and SOURCE."
                        nil)
                    (goto-char src-head)
                    (end-of-line)
-                   (org-insert-heading-after-current)
+                   (insert (make-string (1+ src-level) "*") " ")
                    'secondary)))
               ((and (goto-char (point-min))
                     (search-forward target nil t))
@@ -162,7 +163,7 @@ TARGET and SOURCE."
               (t
                ;; No breadcrumbs dropped for TARGET
                (org-end-of-subtree)
-               (org-insert-subheading nil)
+               (insert (make-string (1+ head-level) "*") " ")
                'primary))))))
 
 (defun ezeka--breadcrumb-string (target source)
