@@ -225,7 +225,8 @@ from."
               (when-let ((status (ezeka-breadcrumb-find-trail t-file s-file)))
                 (insert (ezeka--breadcrumb-string
                          t-file
-                         (when (and source (symbolp source)) source)))
+                         source ; or (when (and source (symbolp source)) source)
+                         ))
                 (message "Dropped breadcrumbs for `%s' as %s"
                          (ezeka-file-name-id t-file)
                          status)))))))))
@@ -288,15 +289,19 @@ SOURCE should be a string or symbol."
   (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file)
         ezeka-breadcrumb-trail-id     nil)
   (set-buffer ezeka-breadcrumb-trail-buffer)
-  (if (not (org-at-heading-p))
-      (user-error "Move to desired heading first")
-    (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
-    (ezeka--read-only-region
-     (save-excursion (org-back-to-heading) (point))
-     (save-excursion (ezeka--org-move-after-properties)))
-    (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
-    (message "Breadcrumbs will be dropped under heading `%s'"
-             (nth 4 (org-heading-components)))))
+  (unless (org-at-heading-p)
+    (if (not (y-or-n-p (format "Insert `%s' heading here? "
+                               ezeka-breadcrumb-trail-headline)))
+        (user-error "Move to desired heading first")
+      (org-insert-heading-respect-content)
+      (insert ezeka-breadcrumb-trail-headline)))
+  (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
+  ;; (ezeka--read-only-region
+  ;;  (save-excursion (org-back-to-heading) (point))
+  ;;  (save-excursion (ezeka--org-move-after-properties)))
+  (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
+  (message "Breadcrumbs will be dropped under heading `%s'"
+           (nth 4 (org-heading-components))))
 
 ;; TODO: Any way to mark the breadcrumb heading and buffer?
 (defun ezeka-reset-breadcrumb-trail ()
