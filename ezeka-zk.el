@@ -443,25 +443,22 @@ If SORT is non-nil, set `vertico-sort-function' to it."
                                     "Find note: "))))
       (ezeka-find-file file (not other-window)))))
 
-(defun ezeka-zk-find-note-in-numerus (&optional other-window)
-  "Find zk note in numerus currens Kasten.
-If OTHER-WINDOW is non-nil, find in other window."
-  (interactive "P")
-  (ezeka-zk-find-note-in-kasten "numerus" other-window))
+(defmacro ezeka-zk--define-kasten-finders (kasten &optional sort)
+  "Define a set of new commands for finding notes in KASTEN.
+SORT is the function that vertico uses to sort the results."
+  `(progn
+     (defun ,(intern (concat "ezeka-zk-find-in-" kasten)) ()
+       ,(format "Find a note in %s kasten." kasten)
+       (interactive)
+       (ezeka-zk-find-note-in-kasten ,kasten nil ,sort))
+     (defun ,(intern (concat "ezeka-zk-find-in-" kasten "-other-window")) ()
+       ,(format "Find a note in %s kasten in other window." kasten)
+       (interactive)
+       (ezeka-zk-find-note-in-kasten ,kasten 'other-window ,sort))))
 
-(defun ezeka-zk-find-note-in-tempus (&optional other-window)
-  "Find zk note in tempus currens Kasten.
-If OTHER-WINDOW is non-nil, find in other window."
-  (interactive "P")
-  (ezeka-zk-find-note-in-kasten "tempus"
-                                other-window
-                                'vertico-sort-reverse-alpha))
-
-(defun ezeka-zk-find-note-in-scriptum (&optional other-window)
-  "Find zk note in scriptum Kasten.
-If OTHER-WINDOW is non-nil, find in other window."
-  (interactive "P")
-  (ezeka-zk-find-note-in-kasten "scriptum" other-window))
+(ezeka-zk--define-kasten-finders "numerus")
+(ezeka-zk--define-kasten-finders "tempus" 'vertico-sort-reverse-alpha)
+(ezeka-zk--define-kasten-finders "scriptum")
 
 (defun ezeka-rgrep-link-at-point (link)
   "Execute recursive grep for the ezeka LINK at point."
