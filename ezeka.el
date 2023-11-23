@@ -2389,35 +2389,42 @@ information for Zettelkasten work."
                         file))))
             files)))
 
-(defun ezeka-switch-to-buffer (&optional modified-only other-window)
-  "Quickly switch to other open Zettel buffers.
-If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
-modified buffers. If OTHER-WINDOW is non-nil (or double
-\\[universal-argument]), open buffer in other window."
-  (interactive
-   (list (equal current-prefix-arg '(4))
-         (equal current-prefix-arg '(16))))
-  (let* ((buffers (nreverse (ezeka-visiting-files-list t modified-only)))
+(defun ezeka--select-buffer (&optional skip-current modified-only prompt)
+  "Select an open Zettel buffer, returning its filename.
+If SKIP-CURRENT is non-nil, skip current buffer. If
+MODIFIED-ONLY is non-nil, show only modified buffers.
+PROMPT, if specified, replaces the default one."
+  (let* ((buffers (nreverse (ezeka-visiting-files-list skip-current modified-only)))
          (table (ezeka-completion-table buffers))
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?
          (vertico-sort-function nil))
-    (funcall (if other-window
-                 'switch-to-buffer-other-window
-               'switch-to-buffer)
-             (if (null buffers)
-                 (read-buffer-to-switch
-                  (format "No %sZettel buffers. Switch to regular buffer: "
-                          (if modified-only "modified " " ")))
-               (get-file-buffer
-                (cdr (assoc-string
-                      (completing-read "Visit Zettel buffer: " table nil t)
-                      table)))))))
+    (when buffers
+      (get-file-buffer
+       (cdr (assoc-string
+             (completing-read (or prompt "Select Zettel buffer: ") table nil t)
+             table))))))
+
+(defun ezeka-switch-to-buffer (&optional modified-only)
+  "Select and switch to another open Zettel buffer.
+If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
+modified buffers."
+  (interactive "P")
+  (switch-to-buffer (ezeka--select-buffer 'skip-current modified-only)))
+
+(defun ezeka-switch-to-buffer-other-window (&optional modified-only)
+  "Select and switch to another open Zettel buffer in the other window.
+If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
+modified buffers."
+  (interactive "P")
+  (switch-to-buffer-other-window
+   (ezeka--select-buffer 'skip-current modified-only)))
 
 (defun ezeka-switch-to-other-buffer (buffer-or-name &optional norecord force-same-window)
   "Like `switch-to-buffer', but only list non-Zettel buffers.
 See `switch-to-buffer' for details about BUFFER-OR-NAME,
-NORECORD, and FORCE-SAME-WINDOW."
+NORECORD, and FORCE-SAME-WINDOW. With \\[universal-argument], switch only
+to buffers visiting files."
   (interactive
    (let ((force-same-window
           (unless switch-to-buffer-obey-display-actions
@@ -2445,7 +2452,8 @@ NORECORD, and FORCE-SAME-WINDOW."
                         (lambda (bname)
                           "Return T if BNAME is not an Ezeka buffer."
                           (let ((bname (if (stringp bname) bname (car bname))))
-                            (not (member (get-buffer bname) our-buffers)))))
+                            (and (not (member (get-buffer bname) our-buffers))
+                                 (buffer-file-name (get-buffer bname))))))
            nil force-same-window)))
   (switch-to-buffer buffer-or-name norecord force-same-window))
 
