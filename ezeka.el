@@ -293,9 +293,28 @@ If ID-TYPE is not given, return a regexp that matches all known types."
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
               (mapconcat (lambda (k) (ezeka-kasten-id-regexp k))
-                ezeka-kaesten
-                "\\|"))
+                         ezeka-kaesten
+                         "\\|"))
             "\\)")))
+
+(defun ezeka-id-valid-p (id &optional id-type)
+  "Return non-nil if ID matches the ID-TYPE.
+If ID-TYPE is not given, check ID against all known types."
+  (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
+    (and (stringp id)
+         (string-match-p (ezeka--match-entire (ezeka--id-regexp id-type)) id))))
+
+(defun ezeka--read-id (prompt &optional id-type initial-input)
+  "Use `read-string' with PROMPT to read an ID.
+If ID-TYPE is given, make sure the entered ID is valid for
+that specific type. INITIAL-INPUT is passed to `read-
+string', which see."
+  (catch 'success
+    (while t
+      (let ((id (read-string prompt initial-input 'ezeka--read-id-history)))
+        (if (ezeka-id-valid-p id id-type)
+            (throw 'success id)
+          (read-key "That is not a valid ID. Press any key to try again..."))))))
 
 ;;;=============================================================================
 ;;; General Functions
@@ -1710,8 +1729,7 @@ If TIME is nil, default to current time."
         (if (fboundp #'zk--select-file)
             (ezeka-zk-with-kasten "numerus"
               (ezeka-file-link (zk--select-file "Select project: ")))
-          (read-string "Scriptum project (numerus currens): "
-                       nil ezeka--read-id-history)))
+          (ezeka--read-id "Scriptum project (numerus currens): " :numerus)))
       (unless (ezeka-link-file project)
         (setq project nil)))
     ;; TODO: If this is first entry in scriptum project, create a project
@@ -2225,7 +2243,7 @@ note."
            (ezeka-file-link buffer-file-name))
          (equal current-prefix-arg '(4))
          (when (equal current-prefix-arg '(16))
-           (read-string "ID for the new note: " nil ezeka--read-id-history))))
+           (ezeka--read-id "ID for the new note: "))))
   (let ((link (if parent
                   (ezeka--generate-new-child parent kasten manual)
                 (ezeka-make-link kasten (or manual
@@ -2852,8 +2870,7 @@ CITEKEY."
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
                   ;; FIXME: Rewrite with completing-read
-                  (read-string "Insert template into note with this link: "
-                               nil ezeka--read-id-history)))
+                  (ezeka--read-id "Insert template into note with this link: ")))
           (nondir (file-name-nondirectory buffer-file-name))
           (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
                    (ezeka-decode-rubric
@@ -2866,9 +2883,8 @@ CITEKEY."
           (ezeka--read-label link))
       (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
                                  (alist-get :caption mdata)))
-      (read-string "Parent? "
-                   (ezeka--get-new-child-metadata link :parent)
-                   ezeka--read-id-history)
+      (ezeka--read-id "Parent: "
+                      nil (ezeka--get-new-child-metadata link :parent))
       (read-string
        "Citekey? " (or (ezeka--get-new-child-metadata link :citekey)
                        (when (string-match "[@&][^\\s]+$"
@@ -3486,7 +3502,7 @@ With \\[universal-argument], ask for an explicit TARGET-LINK instead.
 Return the target link and open it (unless NOSELECT is non-nil)."
   (interactive
    (let ((target (when (equal current-prefix-arg '(4))
-                   (read-string "Enter target link: " nil ezeka--read-id-history))))
+                   (ezeka--read-id "Target link: "))))
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
