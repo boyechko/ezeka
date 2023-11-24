@@ -176,17 +176,18 @@ See `format-time-string' for details about format string."
   :type 'cons
   :group 'ezeka)
 
-(defcustom ezeka-distribute-numeri-currentes t
-  "When non-nil, new numeri currentes will be evenly distributed.
-That is, they will be placed in subdirectories with fewest
-existing notes."
-  :type 'boolean
-  :group 'ezeka)
+(defcustom ezeka-new-numerus-currens-method 'auto
+  "Method for generating new numeri currentes.
+Possible choices:
+- 'ASK           = ask the user every time
+- 'AUTO (or NIL) = distribute evenly among subdirectories
+- 'RANDOM        = randomly
+- 'SELECTIVE     = ask for the letter
+- string         = get from file of pregenerated IDs
 
-(defcustom ezeka-pregenerated-numeri-file nil
-  "File containing a list of unused numeri currentes.
-Each line should contain a numerus currens and nothing else."
-  :type 'file
+If the value is a string, it should be a file name composed
+of pregenerated numeri currentes, one per line."
+  :type '(or symbol string)
   :group 'ezeka)
 
 ;;------------------------------------------------------------------------------
