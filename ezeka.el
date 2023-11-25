@@ -970,7 +970,7 @@ If cannot decode, return NIL."
 (defmacro ezeka-encode-rubric (metadata)
   "Return a string that encodes the given METADATA into the rubric.
 The produced string is based on `ezeka-header-rubric-format'."
-  (ezeka-format-metadata ezeka-header-rubric-format metadata))
+  `(ezeka-format-metadata ezeka-header-rubric-format ,metadata))
 
 (defun ezeka--header-yamlify-key (keyword)
   "Return a YAML-formatted string name of the KEYWORD symbol."
@@ -1954,7 +1954,7 @@ the fields are added. FIELDS can be a list. If NOEDIT is
 non-NIL, insert the link without allowing the user to
 interactively edit the text."
   (interactive
-   (list (read-string "Insert link: " nil 'ezeka--read-id-history)
+   (list (ezeka--read-id "Link to insert: ")
          (list (intern-soft
                 (completing-read
                  "Which metadata field? "

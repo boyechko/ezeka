@@ -337,7 +337,7 @@ asking.")
       (let* ((metadata (ezeka-file-metadata file))
              (updated (ezeka-decode-rubric
                        (read-string "Change rubric to what? "
-                                    (car (ezeka-encode-rubric metadata))))))
+                                    (ezeka-encode-rubric metadata)))))
         (while updated
           (setf (alist-get (pop updated) metadata) (pop updated)))
         (ezeka--update-metadata-values file metadata)))
@@ -646,7 +646,7 @@ before renaming If given, use the custom PROMPT."
                      current-prefix-arg))
   (let* ((link (ezeka-file-link file))
          (metadata (ezeka-file-metadata file))
-         (rubric (car (ezeka-encode-rubric metadata)))
+         (rubric (ezeka-encode-rubric metadata))
          (title (cl-subseq rubric
                            (1+
                             (cl-position (string-to-char ezeka-file-name-separator)
