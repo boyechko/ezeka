@@ -187,7 +187,11 @@ Possible choices:
 
 If the value is a string, it should be a file name composed
 of pregenerated numeri currentes, one per line."
-  :type '(or symbol string)
+  :type '(choice (const :tag "Distribute" auto)
+                 (const :tag "Fully random" random)
+                 (const :tag "Select letter" selective)
+                 (const :tag "Ask" ask)
+                 (file :tag "Pregenerated numeri currentes"))
   :group 'ezeka)
 
 ;;------------------------------------------------------------------------------
@@ -1617,66 +1621,113 @@ abase26 equivalent of 0, namely 'a'."
                       (concat "\\." ezeka-file-extension "$")))))
      letters)))
 
-(defun ezeka--random-numerus (&optional distribute)
+(defun ezeka--random-numerus (&optional method)
   "Generate a random numerus currens.
-If `ezeka-distribute-numeri-currentes' or DISTRIBUTE is non-
-nil, try to evenly distribute numeri."
-  (ezeka-make-numerus (if (or ezeka-distribute-numeri-currentes distribute)
-                          (ezeka--numerus-scantest-subdir)
-                        (abase26-encode (random 26)))
-                      (format "%04d" (random 10000))))
+METHOD overrides `ezeka-new-numerus-currens-method', which
+see."
+  (let* ((_read-letter
+          (lambda ()
+            "Read a Latin letter."
+            (let (candidate)
+              (while (null candidate)
+                (setq candidate
+                  (downcase (read-string "Starting letter (a-z): "
+                                         (ezeka--numerus-scantest-subdir))))
+                (unless (string-match-p "[a-z]" candidate)
+                  (setq candidate nil)))
+              candidate)))
+         (method (or method ezeka-new-numerus-currens-method))
+         (letter (pcase method
+                   ('auto (ezeka--numerus-scantest-subdir))
+                   ('selective (funcall _read-letter))
+                   ((or 'nil 'random) (abase26-encode (random 26)))
+                   (_
+                    (error "Don't know how to handle METHOD: %s" method)))))
+    (ezeka-make-numerus letter (format "%04d" (random 10000)))))
 
-(defun ezeka--pregenerated-numerus ()
-  "Retrieve next numerus from `ezeka-pregenerated-numeri-file'."
-  (when ezeka-pregenerated-numeri-file
-    (with-current-buffer (find-file-noselect ezeka-pregenerated-numeri-file)
-      (let ((left (count-lines (point-min) (point-max)))
-            result)
-        (unwind-protect
-            (string-trim
-             (delete-and-extract-region
-              (point-min)
-              (search-forward-regexp "[[:space:]]" nil t)))
-          (let ((inhibit-message t))
-            (basic-save-buffer))
-          (message "%d pregenerated numer%s left"
-                   left
-                   (if (= left 1) "us" "i"))
-          nil)))))
+(defun ezeka--pregenerated-numerus (filename)
+  "Retrieve next numerus from FILENAME."
+  (with-current-buffer (find-file-noselect filename)
+    (let ((left (count-lines (point-min) (point-max)))
+          result)
+      (unwind-protect
+          (string-trim
+           (delete-and-extract-region
+            (point-min)
+            (search-forward-regexp "[[:space:]]" nil t)))
+        (let ((inhibit-message t))
+          (basic-save-buffer))
+        (message "%d pregenerated numer%s left"
+                 left
+                 (if (= left 1) "us" "i"))
+        nil))))
 
-(defun ezeka-new-numerus-currens (&optional confirm)
+(defun ezeka--read-new-numerus-currens-method ()
+  "Ask the user how to generate the new numeri currentes."
+  (pcase (completing-read "Generate a new numerus currens ..."
+                          '("automatically" "manually" "randomly" "selectively")
+                          nil
+                          t)
+    ("automatically" 'auto)
+    ("randomly" 'random)
+    ("manually" 'manual)
+    ("selectively" 'selective)))
+
+(defun ezeka-new-numerus-currens (&optional method)
   "Return the next unused numerus currens.
-If CONFIRM is non-nil, interactively confirm that the
-generated ID is acceptable.)"
-  (let ((already-exists-p
-         (lambda (candidate)
-           "Checks if CANDIDATE already exists."
-           (ignore-errors
-             (ezeka-link-file (ezeka-make-link "numerus" candidate)))))
-        (acceptablep
-         (lambda (id)
-           "Check if the ID is acceptable to the user."
-           (or (not confirm)
-               (let ((y-or-n-p-use-read-key t))
-                 (y-or-n-p (format "Is %s acceptable? " id))))))
-        id)
-    (while (or (null id) (funcall already-exists-p id))
-      (setq id (if (and ezeka-pregenerated-numeri-file
-                        (file-exists-p ezeka-pregenerated-numeri-file))
-                   (ezeka--pregenerated-numerus)
-                 (ezeka--random-numerus)))
-      (unless (funcall acceptablep id)
-        (setq id nil)))
-    id))
+METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
+  (interactive (list (ezeka--read-new-numerus-currens-method)))
+  (let* ((method (or method ezeka-new-numerus-currens-method))
+         (method (if (eq method 'ask)
+                     (ezeka--read-new-numerus-currens-method)
+                   method))
+         (already-exists-p
+          (lambda (candidate)
+            "Returns non-nil if CANDIDATE does not already exists."
+            (ignore-errors
+              (ezeka-link-file (ezeka-make-link "numerus" candidate)))))
+         (acceptablep
+          (lambda (candidate)
+            "Check if the CANDIDATE is unique and acceptable to the user."
+            (let ((y-or-n-p-use-read-key t))
+              (and (ezeka-id-valid-p candidate :numerus)
+                   (not (funcall already-exists-p candidate))
+                   (y-or-n-p (format "Is %s acceptable (method: %s)? "
+                                     candidate
+                                     method))))))
+         error-msg)
+    (catch 'success
+      (while t
+        (if (eq method 'manual)
+            (let* ((prompt
+                    (ezeka--concat-strings "\n" error-msg "New numerus currens: "))
+                   (id (ezeka--read-id prompt :numerus)))
+              (cond ((funcall already-exists-p id)
+                     (setq error-msg
+                       (format "A file with ID %s already exists." id)))
+                    ((not (ezeka-id-valid-p id :numerus))
+                     (setq error-msg
+                       (format "`%s' is not a valid numerus currens ID." id)))
+                    (t
+                     (throw 'success id))))
+          (let ((id (if (stringp method)
+                        (ezeka--pregenerated-numerus method)
+                      (ezeka--random-numerus method))))
+            (when (funcall acceptablep id)
+              (throw 'success id))))))))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
-(defun ezeka--generate-id (kasten &optional confirm)
+(defun ezeka--generate-id (kasten &optional batch)
   "Return the next unused ID for the given KASTEN.
-If CONFIRM is non-nil, interactively confirm that the generated ID is
-acceptable."
+If BATCH is non-nil, assume that the user cannot respond to
+interactive prompts."
   (cl-case (ezeka-kasten-id-type (ezeka-kasten-named kasten))
     (:tempus  (ezeka-tempus-currens))
-    (:numerus (ezeka-new-numerus-currens confirm))
+    (:numerus (ezeka-new-numerus-currens
+               (when (and batch
+                          (member ezeka-new-numerus-currens-method
+                                  '(ask selective)))
+                 'auto)))
     (:scriptum (ezeka-scriptum-id))
     (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
 
@@ -1689,36 +1740,47 @@ acceptable."
 If TIME is nil, default to current time."
   (format-time-string "%Y%m%dT%H%M" time))
 
-(defun ezeka-tempus-currens-id-for (link)
-  "Return a suitable tempus currens ID for the given Zettel LINK."
-  (if (eq (ezeka-kasten-id-type (ezeka-kasten-named (ezeka-link-kasten link)))
-          :tempus)
-      ;; If already tempus currens, just return that id
-      (ezeka-link-id link)
-    ;; Otherwise come up with an appropriate ID based on the metadata
-    (let* ((file (ezeka-link-file link))
-           (mdata (ezeka-file-metadata file))
-           oldname)
-      (cond ((setq oldname (ezeka--resurrectable-oldname file :tempus mdata))
-             ;; One of the old names was a tempus currens; just use that
-             (ezeka-link-id oldname))
-            ((alist-get :created mdata)
-             (string-replace "T0000"    ; FIXME: A bit hacky?
-                             (format-time-string "T%H%M")
-                             (ezeka-tempus-currens
-                              (ezeka--encode-time
-                               (alist-get :created mdata)))))
-            (t
-             ;; Can't figure out automatically; ask the user
-             (read-string "No created metadata; make up your own name: "
-                          (ezeka--generate-id (ezeka-link-kasten link))
-                          ezeka--read-id-history))))))
+(defun ezeka-tempus-currens-id-for (link-or-file &optional interactive)
+  "Return tempus currens ID for the given Zettel LINK-OR-FILE.
+INTERACTIVE is non-NIL when called interactively."
+  (interactive
+   (list (ezeka-file-link (ezeka--grab-dwim-file-target))
+         (prefix-numeric-value current-prefix-arg)))
+  (let ((link (if (ezeka-link-p link-or-file)
+                  link-or-file
+                (ezeka-file-link link-or-file)))
+        (file (if (file-exists-p link-or-file)
+                  link-or-file
+                (ezeka-link-file link-or-file))))
+    (if (eq (ezeka-kasten-id-type (ezeka-kasten-named (ezeka-link-kasten link)))
+            :tempus)
+        ;; If already tempus currens, just return that id
+        (ezeka-link-id link)
+      ;; Otherwise come up with an appropriate ID based on the metadata
+      (let* ((file (ezeka-link-file link))
+             (mdata (ezeka-file-metadata file))
+             oldname)
+        (cond ((setq oldname (ezeka--resurrectable-oldname file :tempus mdata))
+               ;; One of the old names was a tempus currens; just use that
+               (ezeka-link-id oldname))
+              ((alist-get :created mdata)
+               (error "WIP: Needs to use time values")
+               (string-replace "T0000"  ; FIXME: A bit hacky?
+                               (format-time-string "T%H%M")
+                               (ezeka-tempus-currens
+                                (ezeka--encode-time
+                                 (alist-get :created mdata)))))
+              (t
+               ;; Can't figure out automatically; ask the user
+               (ezeka--read-id "No created metadata; make up your own name: "
+                               (ezeka--generate-id (ezeka-link-kasten link)
+                                                   interactive))))))))
 
 ;;;=============================================================================
 ;;; Scriptum
 ;;;=============================================================================
 
-(defun ezeka-scriptum-id (project &optional time)
+(defun ezeka-scriptum-id (&optional project time)
   "Return a scriptum ID based on PROJECT and Emacs TIME object.
 If TIME is nil, default to current time."
   (let ((scriptum-id (lambda (project n)
@@ -2226,8 +2288,9 @@ If KASTEN is given, use that kasten instead. Return a fully qualified
 link to the new child. If ID is non-nil, use that instead of
 generating one."
   (let* ((kasten (or kasten (ezeka-link-kasten parent)))
-         (child-link (ezeka-make-link
-                      kasten (or id (ezeka--generate-id kasten 'confirm)))))
+         (child-link
+          (ezeka-make-link kasten
+                           (or id (ezeka--generate-id kasten)))))
     (when parent
       (ezeka--set-new-child-metadata child-link :parent parent))
     child-link))
@@ -2247,8 +2310,9 @@ note."
            (ezeka--read-id "ID for the new note: "))))
   (let ((link (if parent
                   (ezeka--generate-new-child parent kasten manual)
-                (ezeka-make-link kasten (or manual
-                                            (ezeka--generate-id kasten))))))
+                (ezeka-make-link kasten
+                                 (or manual
+                                     (ezeka--generate-id kasten))))))
     (unless noselect
       (ezeka-find-link link))
     link))
@@ -3019,7 +3083,7 @@ With \\[universal-argument], ask to select the KASTEN."
                                  (concat (org-timestamp-format timestamp "%Y%m%dT")
                                          (format-time-string "%H%M")))
                                 (t
-                                 (ezeka--random-id (ezeka-kasten-id-type kstruct)))))
+                                 (ezeka--generate-id kasten))))
                 new-file (ezeka-link-file new-link ""))
           (if (file-exists-p new-file)
               (user-error "Aborting, file already exists: %s" new-file)
@@ -3510,19 +3574,18 @@ Return the target link and open it (unless NOSELECT is non-nil)."
              (completing-read "Which kasten to move to? "
                               (mapcar #'ezeka-kasten-name ezeka-kaesten)))
            target)))
-  (let* ((ezeka-header-update-modified 'never)  ; FIXME: Hardcoded
-         (source-link (ezeka-file-link source-file))
+  (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (id-type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
          (target-link
           (or target-link
               (ezeka--resurrectable-oldname source-file id-type)
-              (if (eq id-type :tempus)          ; FIXME: Hardcoded
-                  (ezeka-tempus-currens-id-for source-link)
-                (ezeka--generate-id kasten 'confirm)))))
+              (if (eq id-type :tempus)  ; FIXME: Hardcoded
+                  (ezeka-tempus-currens-id-for source-file)
+                (ezeka--generate-id kasten)))))
     (if (not target-link)
-        (error "Don't know where to move %s" source-link)
+        (error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (ezeka--move-note source-link target-link)
+      (ezeka--move-note source-file target-link)
       (cond ((string= source-file buffer-file-name)
              (kill-this-buffer)
              (unless (> (length (frame-list))
@@ -3554,17 +3617,15 @@ END."
         (magit-stage-file file))))
   (magit-stage-file buffer-file-name))
 
-(defun ezeka-generate-n-new-ids (how-many type)
-  "Generate HOW-MANY new IDs of TYPE, making sure there are no dulicates."
+(defun ezeka-generate-n-new-ids (how-many kasten)
+  "Generate HOW-MANY new IDs for KASTEN, making sure there are no dulicates."
   (interactive
    (list (read-number "How many? " 10)
-         (completing-read "Which type? "
-                          (mapcar #'ezeka-kasten-type
-                                  ezeka-kaesten))))
+         (ezeka--read-kasten "Which kasten? ")))
   (goto-char (point-max))
   (let (ids)
     (dotimes (n how-many)
-      (push (ezeka--random-id type) ids))
+      (push (ezeka--generate-id kasten 'batch) ids))
     (mapc (lambda (s)
             (insert s "\n"))
           (delete-dups ids))
