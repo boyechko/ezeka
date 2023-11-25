@@ -1919,8 +1919,9 @@ TARGET can be either a link or a filepath."
 
 (defun ezeka--link-with-metadata (link &optional fields where metadata)
   "Return a string with metadata FIELD(S) at place WHERE (relative to LINK).
-FIELDS defaults to :title, WHERE to :before. If WHERE is
-:instead, do not include the LINK."
+WHERE can be any of :before (default), :after, :instead, and
+:description. FIELDS defaults to :title, WHERE to :before.
+If WHERE is :instead, do not include the LINK."
   (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
          (fields (or fields '(:title)))
          (where (or where :before))
@@ -1939,17 +1940,19 @@ FIELDS defaults to :title, WHERE to :before. If WHERE is
                 (concat " " value)
               ""))))
 
-(defun ezeka-insert-with-spaces (str)
-  "Insert STR at point surrounded by spaces as appropriate."
+(defun ezeka-insert-with-spaces (&rest strings)
+  "Insert STRINGS at point surrounded by spaces as appropriate.
+STRINGS are themselves concatenated with spaces in between."
   (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
-          (string-trim str)
+          (string-trim (mapconcat #'identity strings " "))
           (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))
 
-(defun ezeka-insert-link-with-metadata (link &optional fields where confirm)
+(defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
-the fields are added. FIELDS can be a list. If EDIT is
-non-NIL, allow the user to interactively edit the result."
+the fields are added. FIELDS can be a list. If NOEDIT is
+non-NIL, insert the link without allowing the user to
+interactively edit the text."
   (interactive
    (list (read-string "Insert link: " nil 'ezeka--read-id-history)
          (list (intern-soft
@@ -1957,15 +1960,21 @@ non-NIL, allow the user to interactively edit the result."
                  "Which metadata field? "
                  '(":none" ":title" ":citekey" ":label"))))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (if-let* ((_ edit)
-            (file (or (ezeka-link-file link nil t)
-                      (cl-find-if #'(lambda (buf)
-                                      (string-match link (buffer-name buf)))
-                                  (buffer-list))))
-            (mdata (ezeka-file-metadata file))
-            (result (ezeka--link-with-metadata link fields where mdata)))
-      (ezeka-insert-with-spaces (read-string "Insert: " result))
-    (ezeka-insert-with-spaces (ezeka--format-link link))))
+  (let ((result
+         (if-let* ((file (or (ezeka-link-file link nil t)
+                             (cl-find-if #'(lambda (buf)
+                                             (string-match link (buffer-name buf)))
+                                         (buffer-list))))
+                   (mdata (ezeka-file-metadata file))
+                   ;; HARDCODED
+                   (fmt "%t"))
+             (ezeka-format-metadata fmt mdata)
+           "")))
+    ;; HARDCODED
+    (ezeka-insert-with-spaces (if noedit
+                                  result
+                                (read-string "Insert: " result))
+                              (ezeka--format-link link))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
@@ -2165,7 +2174,7 @@ Called interactively, get the LINK at point or to current Zettel."
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
 
-(defun ezeka-update-link-prefix-title (&optional delete-title)
+(defun ezeka-update-link-prefix-title (&optional use-caption delete)
   "Replace text from point to next Zettel link with that Zettel's title.
 With \\[universal-argument] DELETE-TITLE, delete the text instead."
   (interactive "P")
