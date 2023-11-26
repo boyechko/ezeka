@@ -256,6 +256,9 @@ Group 6 is the stable caption mark."
 ;;; Kaesten
 ;;;=============================================================================
 
+;; TODO Add constructor methods
+;; TODO Add field for subdirs?
+;; TODO Rewrite the whole shebang in OOP?
 (cl-defstruct (ezeka-kasten (:constructor ezeka-kasten--create)
                             (:copier nil))
   name id-type id-example id-regexp default order)
@@ -642,7 +645,7 @@ explicitly given."
   "Return the subdirectory relative to Kasten for the given ID, a string."
   (file-name-as-directory
    (cl-case (ezeka-id-type id)
-    ;; FIXME: Hardcoded
+    ;; HARDCODED
     (:numerus (cl-subseq id 0 1)) ; first letter
     (:tempus (cl-subseq id 0 4))  ; YYYY
     (:scriptum                    ; numerus
@@ -1596,30 +1599,26 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defvar ezeka--numerus-notes-in-subdirs nil
-  "Alist of numerus subdirectories with respective note counts.")
-
-(defun ezeka--numerus-scantest-subdir ()
-  "Return the subdirectory (as a string) with fewest existing notes."
-  (unless ezeka--numerus-notes-in-subdirs
-    (setq ezeka--numerus-notes-in-subdirs (ezeka--numerus-subdir-counts)))
-  (string
-   (car (rassq (cl-reduce #'min ezeka--numerus-notes-in-subdirs :key #'cdr)
-               ezeka--numerus-notes-in-subdirs))))
-
 (defun ezeka--numerus-subdir-counts ()
   "Return an alist of numerus subdirs and number of notes in each."
   (let ((letters (number-sequence ?a ?z)))
     (mapcar
      (lambda (letter)
-       (cons letter (length
-                     (directory-files
-                      (ezeka-id-directory
-                       (ezeka-make-numerus (string letter) "0000")
-                       "numerus")
-                      nil
-                      (concat "\\." ezeka-file-extension "$")))))
+       (cons (string letter)
+             (length
+              (directory-files
+               (ezeka-id-directory
+                (ezeka-make-numerus (string letter) "0000")
+                "numerus")
+               nil
+               (concat "\\." ezeka-file-extension "$")))))
      letters)))
+
+(defun ezeka-numerus-subdir-counts (&optional sort)
+  "Return count of notes in numerus subdirs, sorted with SORT.
+The result is a list of (SUBDIR . COUNT) tuples for each
+subdir. SORT can be 'ASCENDING-COUNT (default)."
+  (cl-sort (ezeka--numerus-subdir-counts) #'< :key #'cdr))
 
 (defun ezeka--random-numerus (&optional method)
   "Generate a random numerus currens.
@@ -1628,13 +1627,15 @@ see."
   (let* ((_read-letter
           (lambda ()
             "Read a Latin letter."
-            (let (candidate)
+            (let (candidate
+                  (subdirs (ezeka-numerus-subdir-counts)))
               (while (null candidate)
                 (setq candidate
                   (downcase (read-string "Starting letter (a-z): "
-                                         (ezeka--numerus-scantest-subdir))))
+                                         (caar subdirs))))
                 (unless (string-match-p "[a-z]" candidate)
-                  (setq candidate nil)))
+                  (setq candidate nil
+                        subdirs (cdr subdirs))))
               candidate)))
          (method (or method ezeka-new-numerus-currens-method))
          (letter (pcase method
