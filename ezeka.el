@@ -3522,39 +3522,48 @@ If CONFIRM is non-nil, confirm the link to check."
         (when (y-or-n-p (concat message (format "Visit %s? " (cadr (car records)))))
           (ezeka-find-link (cadr (car records))))))))
 
-(defun ezeka--move-note (link1 link2 &optional confirm)
-  "Move Zettel note from LINK1 to LINK2.
-With CONFIRM, confirm before move."
-  (let ((path1 (ezeka-link-file link1 'try-wild))
-        (path2 (ezeka-link-file link2 "")))
+(defun ezeka--move-note (source target-link &optional confirm)
+  "Move Zettel note from SOURCE to TARGET-LINK.
+SOURCE can be a link or a file. With CONFIRM, confirm before
+move."
+  (let* ((source-file (if (file-exists-p source)
+                          source
+                        (ezeka-link-file source 'try-wild)))
+         (source-link (ezeka-file-link source-file))
+         (target-file (ezeka-link-file target-link "")))
     (when (or (not confirm)
-              (y-or-n-p (format "Move %s to %s? " link1 link2)))
-      (unless (file-exists-p (file-name-directory path2))
-        (make-directory (file-name-directory path2)))
-      (ezeka--rename-file path1 path2)
-      (let* ((mdata (ezeka-file-metadata path2))
+              (y-or-n-p (format "Move %s to %s? " source-link target-link)))
+      (unless (file-exists-p (file-name-directory target-file))
+        (make-directory (file-name-directory target-file)))
+      (ezeka--rename-file source-file target-file)
+      (let* ((mdata (ezeka-file-metadata target-file))
              (oldnames (alist-get :oldnames mdata)))
-        (ezeka--add-to-move-log link1 link2)
-        ;; Put original name in oldnames, unless link1 == link2, and remove
-        ;; link2 from oldnames just in case we're resurrecting an oldname.
-        (unless (string= (ezeka-link-id link1) (ezeka-link-id link2))
+        (ezeka--add-to-move-log source-link target-link)
+        ;; Put original name in oldnames, unless source-link == target-link, and
+        ;; remove target-link from oldnames just in case we're resurrecting an
+        ;; oldname.
+        (unless (string= (ezeka-link-id source-link) (ezeka-link-id target-link))
           (setf (alist-get :oldnames mdata)
-                (cl-union (list link1) (remove link2 oldnames)))
+                (cl-union (list source-link) (remove target-link oldnames)))
           (setf (alist-get :id mdata)
-                (ezeka-link-id link2)))
+                (ezeka-link-id target-link)))
+        (ezeka-add-change-log-entry
+         target-file (format "Move +%s+ to %s." source-link target-link))
         ;; Check about updating title and label
         (setf (alist-get :label mdata)
-              (ezeka--read-label path2 nil nil (alist-get :label mdata)))
-        (ezeka-set-title-or-caption path2 nil 'set-title 'set-caption mdata)
-        (ezeka--update-file-header path2 mdata t)
-        (when-let ((buf (get-file-buffer path2)))
+              (ezeka--read-label target-file nil nil (alist-get :label mdata)))
+        (when (y-or-n-p "Modify caption and title? ")
+          (ezeka-set-title-or-caption target-file nil 'set-title 'set-caption mdata))
+        (setq target-file (ezeka-link-file target-link))
+        (ezeka--update-file-header target-file mdata t)
+        (when-let ((buf (get-file-buffer target-file)))
           (with-current-buffer buf
             (save-buffer)))
         ;; Replace links
-        (message "Replacing links: %s with %s" link1 link2)
-        (let ((replaced (ezeka-zk-replace-links link1 link2)))
+        (message "Replacing links: %s with %s" source-link target-link)
+        (let ((replaced (ezeka-zk-replace-links source-link target-link)))
           (message "Moved %s to %s, replacing %d links in %d files"
-                   link1 link2
+                   source-link target-link
                    (or (car replaced) 0) (or (cdr replaced) 0)))))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
