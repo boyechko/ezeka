@@ -3495,32 +3495,48 @@ prefix), limit to only that Kasten."
                 (expand-file-name ezeka--move-log-file ezeka-directory)
                 'append))
 
-(defun ezeka-link-moved-p (link &optional confirm)
-  "Check whether LINK appears in the `ezeka--move-log-file'.
-If CONFIRM is non-nil, confirm the link to check."
+(defun ezeka-note-moved-p (note &optional confirm visit)
+  "Check whether NOTE appears in the `ezeka--move-log-file'.
+If CONFIRM is non-nil, confirm the note to check. If VISIT
+is 'VISIT, visit the new note; if 'ASK or T, ask the user
+whether to visit; if NIL, do not visit."
   (interactive
-   (let ((link (when (ezeka-link-at-point-p t)
-                 (ezeka-link-at-point))))
-     (list (if (or current-prefix-arg (null link))
-               (read-string "Check which link? " link ezeka--read-id-history)
-             link))))
-  (let (records
-        message)
+   (let ((file (ezeka--grab-dwim-file-target 'link-at-point)))
+     (list (if (or current-prefix-arg (null file))
+               (ezeka--read-id "Link of note to check: " (ezeka-file-link file))
+             file)
+           nil
+           'ask)))
+  (let ((link (ezeka-file-link note))
+        trail)
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
       (goto-char (point-min))
       (while (re-search-forward (concat ".*" link ".*") nil t)
-        (push (read (match-string 0)) records))
-      (if (null records)
-          (message "No record of moving %s" link)
-        (dolist (rec records)
-          (cl-destructuring-bind (source target time)
-              rec
-            (setq message
-              (concat message
-                      (format "%s moved to %s on %s\n" source target time)))))
-        (when (y-or-n-p (concat message (format "Visit %s? " (cadr (car records)))))
-          (ezeka-find-link (cadr (car records))))))))
+        (push (read (match-string 0)) trail))
+      (if (null trail)
+          (prog1 nil (message "No record of moving %s" link))
+        ;; TODO Rewrite with `pcase-let'?
+        (cl-flet* ((_source (r) (car r))
+                   (_target (r) (cadr r))
+                   (_time (r) (encode-time (parse-time-string (caddr r))))
+                   (_pprint (log)
+                     (mapconcat (lambda (rec)
+                                  (format "%s moved to `%s' on %s"
+                                          (_source rec)
+                                          (propertize
+                                           (file-name-base (ezeka-link-file (_target rec)))
+                                           'face 'bold)
+                                          (format-time-string "%F %a %R" (_time rec))))
+                                log "\n")))
+          (cond ((not visit)
+                 (message (_pprint trail)))
+                ((or (eq visit 'visit)
+                     (y-or-n-p
+                      (format "%s\nVisit %s? "
+                              (_pprint trail)
+                              (propertize (_target (car trail)) 'face 'bold))))
+                 (ezeka-find-link (_target (car trail))))))))))
 
 (defun ezeka--move-note (source target-link &optional confirm)
   "Move Zettel note from SOURCE to TARGET-LINK.
