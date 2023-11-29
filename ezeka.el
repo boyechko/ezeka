@@ -318,8 +318,8 @@ If ID-TYPE is given, make sure the entered ID is valid for
 that specific type. INITIAL-INPUT is passed to `read-
 string', which see."
   (catch 'success
-    (while t
-      (let ((id (read-string prompt initial-input 'ezeka--read-id-history)))
+    (let ((id (read-string prompt initial-input 'ezeka--read-id-history)))
+      (while (not (string-empty-p id))
         (if (ezeka-id-valid-p id id-type)
             (throw 'success id)
           (read-key "That is not a valid ID. Press any key to try again..."))))))
