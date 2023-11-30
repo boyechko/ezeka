@@ -226,9 +226,9 @@ Group 2 is the value.")
 
 (defcustom ezeka-header-stable-caption-mark "§"
   "Mark that signifies stable caption.
-The mark is used in the rubric value to show that any differences
-between caption and title values should be ignored as long as filename
-and header match."
+The mark is used in the rubric value to show that any
+differences between caption and title values should be
+ignored as long as filename and header match."
   :type 'string
   :group 'ezeka)
 
@@ -396,12 +396,12 @@ REGEXP is non-nil, FROM should be a regexp string."
   (save-match-data
     (dolist (recipe replacements string)
       (setq string
-       (funcall (if (caddr recipe)
-                    #'replace-regexp-in-string
-                  #'string-replace)
-                (car recipe)
-                (cadr recipe)
-                string)))))
+        (funcall (if (caddr recipe)
+                     #'replace-regexp-in-string
+                   #'string-replace)
+                 (car recipe)
+                 (cadr recipe)
+                 string)))))
 
 (defun ezeka--regexp-strip-named-groups (regexp)
   "Strip the named groups in the given REGEXP."
@@ -418,7 +418,7 @@ as the first line."
              prompt
              (propertize old-string 'face 'italic)
              "Edited: ")
-     new-string nil new-string)))
+     new-string)))
 
 ;; See https://stackoverflow.com/a/65685019
 (defun ezeka--save-buffer-read-only (file)
@@ -532,7 +532,7 @@ It is a Zettel if all of these conditions are met:
 (defun ezeka-file-name-valid-p (filename)
   "Return non-nil if FILENAME is a valid Zettel filename."
   (save-match-data
-   (string-match (ezeka-file-name-regexp) (file-name-base filename))))
+    (string-match (ezeka-file-name-regexp) (file-name-base filename))))
 
 (defun ezeka--file-name-part (filename part)
   "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
@@ -586,12 +586,13 @@ The format control string can contain the following %-sequences:
         (error "Can't figure out kasten for %s" file))))
 
 (defun ezeka-file-link (file)
-  "Return a fully qualified link to FILE."
-  (let ((kasten (ezeka-file-kasten file))
-        (id (ezeka-file-name-id file)))
-    (if (and id kasten)
-        (ezeka-make-link kasten id)
-      (error "Can't get id or kasten for file %s" (file-name-base file)))))
+  "Return a fully qualified link to FILE or nil."
+  (when (stringp file)
+    (if (ezeka-link-p file)
+        file
+      (when-let ((kasten (ezeka-file-kasten file))
+                 (id (ezeka-file-name-id file)))
+        (ezeka-make-link kasten id)))))
 
 (defun ezeka-same-file-p (file1 file2)
   "Return non-nil if FILE1 and FILE2 point to same Zettel."
@@ -2042,10 +2043,12 @@ If the file is not a Zettel note, return nil."
 With LINK-ONLY (or \\[universal-argument]), insert just the link, otherwise
 also include the title."
   (interactive "P")
-  (if link-only
-      (ezeka-insert-link-with-metadata (ezeka--note-in-other-window))
-    (ezeka-insert-link-with-metadata (ezeka--note-in-other-window)
-                                     '(:author :title) :before t)))
+  (ezeka-insert-with-spaces
+   (if link-only
+       (ezeka--format-link (ezeka--note-in-other-window))
+     (ezeka-insert-link-with-metadata
+      (ezeka--note-in-other-window)
+      '(:author :title) :before))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
@@ -2228,7 +2231,7 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
                   (file (ezeka-link-file (ezeka-link-at-point) nil t))
                   (overlay (make-overlay (match-beginning 1) (match-end 1))))
         (overlay-put overlay 'type 'ezeka-help-echo)
-        (overlay-put overlay 'face '((t (:underline "purple"))))
+        (overlay-put overlay 'face '(:underline "purple"))
         (overlay-put overlay 'help-echo (file-name-base file))))))
 
 (defun ezeka--make-help-echo-overlays (&optional buffer)
@@ -2496,12 +2499,12 @@ information for Zettelkasten work."
 If SKIP-CURRENT is non-nil, skip current buffer. If
 MODIFIED-ONLY is non-nil, show only modified buffers.
 PROMPT, if specified, replaces the default one."
-  (let* ((buffers (nreverse (ezeka-visiting-files-list skip-current modified-only)))
-         (table (ezeka-completion-table buffers))
+  (let* ((files (nreverse (ezeka-visiting-files-list skip-current modified-only)))
+         (table (ezeka-completion-table files))
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?
          (vertico-sort-function nil))
-    (when buffers
+    (when files
       (get-file-buffer
        (cdr (assoc-string
              (completing-read (or prompt "Select Zettel buffer: ") table nil t)
