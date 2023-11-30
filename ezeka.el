@@ -182,6 +182,7 @@ Possible choices:
 - 'ASK           = ask the user every time
 - 'AUTO (or NIL) = distribute evenly among subdirectories
 - 'RANDOM        = randomly
+- 'WEIGHTED      = randomly, but weighted toward least used
 - 'SELECTIVE     = ask for the letter
 - string         = get from file of pregenerated IDs
 
@@ -189,6 +190,7 @@ If the value is a string, it should be a file name composed
 of pregenerated numeri currentes, one per line."
   :type '(choice (const :tag "Distribute" auto)
                  (const :tag "Fully random" random)
+                 (const :tag "Weighted random" weighted)
                  (const :tag "Select letter" selective)
                  (const :tag "Ask" ask)
                  (file :tag "Pregenerated numeri currentes"))
@@ -1624,11 +1626,11 @@ subdir. SORT can be 'ASCENDING-COUNT (default)."
   "Generate a random numerus currens.
 METHOD overrides `ezeka-new-numerus-currens-method', which
 see."
-  (let* ((_read-letter
+  (let* ((subdirs (ezeka-numerus-subdir-counts))
+         (_read-letter
           (lambda ()
             "Read a Latin letter."
-            (let (candidate
-                  (subdirs (ezeka-numerus-subdir-counts)))
+            (let (candidate)
               (while (null candidate)
                 (setq candidate
                   (downcase (read-string "Starting letter (a-z): "
@@ -1641,6 +1643,13 @@ see."
          (letter (pcase method
                    ('auto (ezeka--numerus-scantest-subdir))
                    ('selective (funcall _read-letter))
+                   ('weighted
+                    (let* ((top-five (cl-subseq subdirs 0 5))
+                           (subdirs (append (copy-sequence subdirs)
+                                            top-five
+                                            top-five
+                                            top-five)))
+                      (car (elt subdirs (random (length subdirs))))))
                    ((or 'nil 'random) (abase26-encode (random 26)))
                    (_
                     (error "Don't know how to handle METHOD: %s" method)))))
