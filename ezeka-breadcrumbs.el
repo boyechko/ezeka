@@ -70,6 +70,12 @@ otherwise return the Org-ID."
       (move-marker id nil)
       id)))
 
+(defun ezeka--insert-heading-after-current (level)
+  "Insert `org-mode' heading of LEVEL after the current one."
+  (end-of-line)
+  (newline)
+  (insert (make-string level ?*) " "))
+
 (defun ezeka-breadcrumb-find-arboreal-trail (target source)
   "Find where to drop breadcrumbs in an arboreal trail.
 See `ezeka-breadcrumb-find-trail-function' for details about
@@ -104,8 +110,7 @@ TARGET and SOURCE."
                                 source)
                        nil)
                    (goto-char src-head)
-                   (end-of-line)
-                   (org-insert-heading-after-current)
+                   (ezeka--insert-heading-after-current (1+ src-level))
                    (while (< (org-current-level) head-level)
                      (org-demote-subtree))
                    'secondary)))
@@ -117,7 +122,7 @@ TARGET and SOURCE."
               (t
                ;; No breadcrumbs dropped for TARGET
                (org-end-of-subtree)
-               (org-insert-subheading nil)
+               (ezeka--insert-heading-after-current (1+ head-level))
                'primary))))))
 
 (defun ezeka-breadcrumb-find-linear-trail (target source)
@@ -152,8 +157,7 @@ TARGET and SOURCE."
                                 source)
                        nil)
                    (goto-char src-head)
-                   (end-of-line)
-                   (insert (make-string (1+ src-level) "*") " ")
+                   (ezeka--insert-heading-after-current (1+ src-level))
                    'secondary)))
               ((and (goto-char (point-min))
                     (search-forward target nil t))
@@ -163,7 +167,7 @@ TARGET and SOURCE."
               (t
                ;; No breadcrumbs dropped for TARGET
                (org-end-of-subtree)
-               (insert (make-string (1+ head-level) "*") " ")
+               (ezeka--insert-heading-after-current (1+ head-level))
                'primary))))))
 
 (defun ezeka--breadcrumb-string (target source)
@@ -293,12 +297,9 @@ SOURCE should be a string or symbol."
     (if (not (y-or-n-p (format "Insert `%s' heading here? "
                                ezeka-breadcrumb-trail-headline)))
         (user-error "Move to desired heading first")
-      (org-insert-heading-respect-content)
+      (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
       (insert ezeka-breadcrumb-trail-headline)))
   (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
-  ;; (ezeka--read-only-region
-  ;;  (save-excursion (org-back-to-heading) (point))
-  ;;  (save-excursion (ezeka--org-move-after-properties)))
   (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
   (message "Breadcrumbs will be dropped under heading `%s'"
            (nth 4 (org-heading-components))))
