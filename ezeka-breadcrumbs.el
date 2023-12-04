@@ -100,10 +100,8 @@ TARGET and SOURCE."
                ;; Breadcrumb for SOURCE found, so add one for TARGET
                (let ((src-level (car (org-heading-components)))
                      (src-head (point)))
-                 (org-narrow-to-subtree)
                  (if (and (search-forward target nil t)
-                          (= (1+ src-level)
-                             (car (org-heading-components))))
+                          (eq 'headline (car (org-element-at-point))))
                      (progn
                        (message "Breadcrumb for %s already exists under %s"
                                 target
@@ -111,8 +109,6 @@ TARGET and SOURCE."
                        nil)
                    (goto-char src-head)
                    (ezeka--insert-heading-after-current (1+ src-level))
-                   (while (< (org-current-level) head-level)
-                     (org-demote-subtree))
                    'secondary)))
               ((and (goto-char (point-min))
                     (search-forward target nil t))
