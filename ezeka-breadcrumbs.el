@@ -318,5 +318,21 @@ SOURCE should be a string or symbol."
   (setq ezeka-breadcrumb-trail-buffer nil
         ezeka-breadcrumb-trail-id nil))
 
+(defun ezeka-switch-to-breadcrumb-trail ()
+  "Switch to the buffer of the current breadcrumb trail."
+  (interactive)
+  (when ezeka-breadcrumb-trail-buffer
+    (pop-to-buffer ezeka-breadcrumb-trail-buffer)
+    (ezeka--goto-breadcrumb-head)))
+
+(defun ezeka-breadcrumb-trail-dispatch (arg)
+  "Start, switch to, or reset breadcrumb trail based on ARG."
+  (interactive "p")
+  (pcase arg
+    (1 (or (ezeka-switch-to-breadcrumb-trail)
+           (call-interactively 'ezeka-start-breadcrumb-trail)))
+    (4 (ezeka-reset-breadcrumb-trail))
+    (_ (user-error "Not a valid option"))))
+
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
