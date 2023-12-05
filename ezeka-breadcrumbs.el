@@ -49,6 +49,11 @@
   :type 'string
   :group 'ezeka)
 
+(defcustom ezeka-breadcrumb-record-source nil
+  "If non-nil, include the breadcrumb source in parentheses."
+  :type 'boolean
+  :group 'ezeka)
+
 (defcustom ezeka-breadcrumb-find-trail-function #'ezeka-breadcrumb-find-linear-trail
   "Function called with TARGET and SROUCE to find the trail.
 TARGET and SOURCE should be strings or symbols. Return
@@ -173,14 +178,18 @@ TARGET and SOURCE."
          (s-file (cond ((ezeka-file-p source) source)
                        ((ezeka-link-p source) (ezeka-link-file source))))
          (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (concat
-     (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
-         (format "%s" (file-name-nondirectory target)))
-     (when source
-       (format " (%s)"
-               (cond (s-file (ezeka-file-name-id s-file))
-                     ((stringp source) (file-name-nondirectory source))
-                     (t source)))))))
+    (ezeka--concat-strings " "
+      (if t-file
+          (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
+              (format "%s" (file-name-nondirectory target)))
+        target)
+      ;; TODO Implement `format-spec' for breadcrumb strings?
+      ;; Perhaps having different entries for ezeka and non-ezeka targets?
+      (when (and source ezeka-breadcrumb-record-source)
+        (format "(%s)"
+                (cond (s-file (ezeka-file-name-id s-file))
+                      ((stringp source) (file-name-nondirectory source))
+                      (t source)))))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
