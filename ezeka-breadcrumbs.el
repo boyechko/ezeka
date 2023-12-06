@@ -206,8 +206,7 @@ from."
                            ((ezeka-link-p target) (ezeka-link-file target))
                            ((and (null target) (ezeka-file-p buffer-file-name))
                             buffer-file-name)
-                           (t
-                            (setq problem "target is not a Zettel file"))))
+                           (t nil)))
              (s-file (cond ((ezeka-file-p source) source)
                            ((ezeka-link-p source) (ezeka-link-file source))
                            (t nil))))
@@ -226,16 +225,13 @@ from."
                (setq s-file nil)))
         (if problem
             (message "Could not drop breadcrumbs for `%s' (from %s): %s"
-                     (ezeka-file-link t-file)
+                     (if t-file (ezeka-file-link t-file) target)
                      (if s-file (ezeka-file-link s-file) source)
                      problem)
           (with-current-buffer ezeka-breadcrumb-trail-buffer
             (save-excursion
-              (when-let ((status (ezeka-breadcrumb-find-trail t-file s-file)))
-                (insert (ezeka--breadcrumb-string
-                         t-file
-                         source ; or (when (and source (symbolp source)) source)
-                         ))
+              (when-let ((status (ezeka-breadcrumb-find-trail target source)))
+                (insert (ezeka--breadcrumb-string target source))
                 (message "Dropped breadcrumbs for `%s' as %s"
                          (ezeka-file-name-id t-file)
                          status)))))))))
