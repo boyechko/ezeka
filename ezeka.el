@@ -1606,32 +1606,37 @@ abase26 equivalent of 0, namely 'a'."
       (setq n (1- n)))
     total))
 
-(defun ezeka--numerus-subdir-counts ()
-  "Return an alist of numerus subdirs and number of notes in each."
-  (let ((letters (number-sequence ?a ?z)))
-    (mapcar
-     (lambda (letter)
-       (cons (string letter)
-             (length
-              (directory-files
-               (ezeka-id-directory
-                (ezeka-make-numerus (string letter) "0000")
-                "numerus")
-               nil
-               (concat "\\." ezeka-file-extension "$")))))
-     letters)))
+(defun ezeka--numerus-subdir-counts (&optional sort-test sort-key)
+  "Return an alist of numerus subdirs and number of notes in each.
+SORT-TEST is the predicate for sorting based on that SORT-
+KEY; the default is #'> (i.e. ascending). SORT-KEY is a
+function to access either `car' (the default) or `cdr' of
+the tuples in the form (LETTER . COUNT)."
+  (let ((letters (mapcar (lambda (letter)
+                           (cons letter
+                                 (length
+                                  (directory-files
+                                   (ezeka-id-directory
+                                    (ezeka-make-numerus (string letter) "0000")
+                                    "numerus")
+                                   nil
+                                   (concat "\\." ezeka-file-extension "$")))))
+                         (number-sequence ?a ?z))))
+    (cl-sort letters (or sort-test #'<) :key (or sort-key #'car))))
 
-(defun ezeka-numerus-subdir-counts (&optional sort)
-  "Return count of notes in numerus subdirs, sorted with SORT.
-The result is a list of (SUBDIR . COUNT) tuples for each
-subdir. SORT can be 'ASCENDING-COUNT (default)."
-  (cl-sort (ezeka--numerus-subdir-counts) #'< :key #'cdr))
+;; TODO Extend to allow returning some N of scantest ones?
+(defun ezeka--scantest-numerus-subdirs ()
+  "Return a list of numerus subdirs with fewest number of notes."
+  (let* ((counts (ezeka--numerus-subdir-counts '< 'cdr))
+         (scantest (cl-remove-if-not
+                    (lambda (x) (= (cdar counts) (cdr x))) counts)))
+    scantest))
 
 (defun ezeka--random-numerus (&optional method)
   "Generate a random numerus currens.
 METHOD overrides `ezeka-new-numerus-currens-method', which
 see."
-  (let* ((subdirs (ezeka-numerus-subdir-counts))
+  (let* ((subdirs (ezeka--numerus-subdir-counts))
          (_read-letter
           (lambda ()
             "Read a Latin letter."
@@ -1646,7 +1651,9 @@ see."
               candidate)))
          (method (or method ezeka-new-numerus-currens-method))
          (letter (pcase method
-                   ('auto (ezeka--numerus-scantest-subdir))
+                   ('auto
+                    (let ((scantest (ezeka--scantest-numerus-subdirs)))
+                      (car (elt scantest (random (length scantest))))))
                    ('selective (funcall _read-letter))
                    ('weighted
                     (let* ((top-five (cl-subseq subdirs 0 5))
@@ -1658,7 +1665,7 @@ see."
                    ((or 'nil 'random) (abase26-encode (random 26)))
                    (_
                     (error "Don't know how to handle METHOD: %s" method)))))
-    (ezeka-make-numerus letter (format "%04d" (random 10000)))))
+    (ezeka-make-numerus (string letter) (format "%04d" (random 10000)))))
 
 (defun ezeka--pregenerated-numerus (filename)
   "Retrieve next numerus from FILENAME."
