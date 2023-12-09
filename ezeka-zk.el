@@ -402,11 +402,12 @@ minibuffer according to the value of `zk-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
   (interactive (list (zk--select-file "Insert link to: ")))
   (let ((link (ezeka-file-link file)))
-    (ezeka-insert-link-with-metadata
-     link '(:title) :before
-     (or (eq zk-link-and-title 't)
-         (and (eq zk-link-and-title 'ask)
-              (y-or-n-p "Include (edited) title? "))))
+    (if (or (eq zk-link-and-title 't)
+            (and (eq zk-link-and-title 'ask)
+                 ;; FIXME: Nonlocal function
+                 (rb-y-or-explicit-n-p "Include (edited) title? ")))
+        (ezeka-insert-link-with-metadata link '(:title) :before)
+      (ezeka-insert-with-spaces (ezeka--format-link link)))
     (ezeka--make-help-echo-overlay (point))))
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten sort)
