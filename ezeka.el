@@ -34,6 +34,7 @@
 (require 'format-spec)
 (require 'cl-lib)
 (require 'cl-generic)
+(require 'seq)
 
 ;;;=============================================================================
 ;;; Internal Variables
@@ -181,18 +182,18 @@ See `format-time-string' for details about format string."
 Possible choices:
 - 'ASK           = ask the user every time
 - 'AUTO (or NIL) = distribute evenly among subdirectories
+- 'MANUAL        = enter new ID manually
 - 'RANDOM        = randomly
-- 'WEIGHTED      = randomly, but weighted toward least used
-- 'SELECTIVE     = ask for the letter
+- 'SELECTIVE     = selected letter, random number
 - string         = get from file of pregenerated IDs
 
 If the value is a string, it should be a file name composed
 of pregenerated numeri currentes, one per line."
-  :type '(choice (const :tag "Distribute" auto)
-                 (const :tag "Fully random" random)
-                 (const :tag "Weighted random" weighted)
-                 (const :tag "Select letter" selective)
-                 (const :tag "Ask" ask)
+  :type '(choice (const :tag "Ask" ask)
+                 (const :tag "Automatic" auto)
+                 (const :tag "Manual" manual)
+                 (const :tag "Random" random)
+                 (const :tag "Selective" selective)
                  (file :tag "Pregenerated numeri currentes"))
   :group 'ezeka)
 
@@ -1646,32 +1647,20 @@ with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
 METHOD overrides `ezeka-new-numerus-currens-method', which
 see."
   (let* ((subdirs (ezeka--numerus-subdir-counts))
-         (_read-letter
-          (lambda ()
-            "Read a Latin letter."
-            (let (candidate)
-              (while (null candidate)
-                (setq candidate
-                  (downcase (read-string "Starting letter (a-z): "
-                                         (caar subdirs))))
-                (unless (string-match-p "[a-z]" candidate)
-                  (setq candidate nil
-                        subdirs (cdr subdirs))))
-              candidate)))
          (method (or method ezeka-new-numerus-currens-method))
          (letter (pcase method
+                   ('selective
+                    (read-char-choice "Starting letter (a-z): "
+                                      (number-sequence ?a ?z)))
                    ('auto
-                    (let ((scantest (ezeka--scantest-numerus-subdirs)))
+                    (let ((scantest
+                           (ezeka--scantest-numerus-subdirs
+                            (if (integerp current-prefix-arg)
+                                current-prefix-arg
+                              0))))
                       (car (elt scantest (random (length scantest))))))
-                   ('selective (funcall _read-letter))
-                   ('weighted
-                    (let* ((top-five (cl-subseq subdirs 0 5))
-                           (subdirs (append (copy-sequence subdirs)
-                                            top-five
-                                            top-five
-                                            top-five)))
-                      (car (elt subdirs (random (length subdirs))))))
-                   ((or 'nil 'random) (abase26-encode (random 26)))
+                   ((or 'nil 'random)
+                    (seq-random-elt (number-sequence ?a ?z)))
                    (_
                     (error "Don't know how to handle METHOD: %s" method)))))
     (ezeka-make-numerus (string letter) (format "%04d" (random 10000)))))
