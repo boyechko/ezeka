@@ -2599,47 +2599,59 @@ that to sort the list first."
         (read-string prompt default ezeka--read-category-history)
       (completing-read prompt categories nil nil default))))
 
-(defun ezeka--read-genus (&optional prompt verbose default)
+(defun ezeka--completing-read-char (prompt choices &optional choice-format)
+  "Use `completing-read' to read one of CHOICES after PROMPT.
+CHOICES should be an alist of (LETTER [ZERO-OR-MORE FIELDS])
+elements. CHOICE-FORMAT is `format' format string to
+generate strings from CHOICES. Input must match one of the
+letters."
+  (let ((table
+         (mapcar (lambda (c)
+                   (cons (apply #'format (or choice-format "%s") c)
+                         (pcase (car c)
+                           ((pred stringp) (car c))
+                           ((pred characterp) (string (car c)))
+                           (_
+                            (error "Wrong choice: %s" c)))))
+                 choices)))
+    (cdr
+     (assoc-string (completing-read prompt table nil t)
+                   table))))
+
+(defun ezeka--read-genus (&optional prompt verbose default require-match)
   "Read a genus as defined in `ezeka-genera'.
-Return a string containing the genus letter. If PROMPT is non-nil, use
-that prompt instead of the default. If VERBOSE is non-nil, show a list
-of choices with explantions. DEFAULT is the genus used if user just
-presses [return]."
-  (let (item
-        (--completing-read
-         (lambda ()
-           (let ((table (mapcar (lambda (genus)
-                                  (cl-destructuring-bind (lt gk desc)
-                                      genus
-                                    (cons
-                                     (format "%s (%s) ⇒ %s" lt gk desc)
-                                     lt)))
-                                ezeka-genera)))
-             (cdr (assoc-string (completing-read (or prompt "Genus: ")
-                                                 table nil t)
-                                table))))))
-    (while (null item)
+Return a string containing the genus letter or an empty
+string (unless REQUIRE-MATCH is non-nil). If PROMPT is non-
+nil, use that prompt instead of the default. If VERBOSE is
+non-nil, show a list of choices with explantions. DEFAULT is
+the genus used if user just presses [return]."
+  (catch 'done
+    (while t
       (let ((result
              (if verbose
-                 (funcall --completing-read)
+                 (ezeka--completing-read-char (or prompt "Genus: ")
+                                              ezeka-genera
+                                              "%s (%s) ⇒ %s")
                (read-char
-                (concat (or prompt "Genus")
-                        " (Latin character, or RETURN for \"" (or default "x")
-                        "\"): ")))))
-        (cond ((and (characterp result) (eq result ?\C-m))
-               (setq result
-                 (car (cl-rassoc default ezeka-genera
-                                 :key #'car :test #'string=))))
-              ((characterp result)
-               (setq result (char-to-string result)))
-              ((stringp result)
-               result)
+                (format "%s (Latin character, `?' for verbose%s): "
+                        (or prompt "Genus")
+                        (cond ((stringp default)
+                               (format ", or RETURN for \"%s\"" default))
+                              ((not require-match)
+                               ", or RETURN to leave blank")
+                              (t "")))))))
+        (when (characterp result)
+          (setq result (char-to-string result)))
+        (cond ((and (string= result "") require-match)
+               (setq verbose t))
+              ((string= result "?")
+               (setq verbose t))
+              ((string= result "")
+               (throw 'done default))
+              ((assoc result ezeka-genera)
+               (throw 'done (cadr (assoc result ezeka-genera))))
               (t
-               (signal 'wrong-type-argument '(or character string))))
-        (setq item (assoc-string result ezeka-genera))
-        (cond ((string= result "?") (setq verbose t))
-              ((not item) (setq prompt "No such genus; try again. ")))))
-    (cadr item)))
+               (setq prompt "No such genus; try again. ")))))))
 
 (defun ezeka--read-label (file-or-link &optional special prompt default)
   "Interactively read label for the given FILE-OR-LINK.
