@@ -1624,13 +1624,22 @@ the tuples in the form (LETTER . COUNT)."
                          (number-sequence ?a ?z))))
     (cl-sort letters (or sort-test #'<) :key (or sort-key #'car))))
 
-;; TODO Extend to allow returning some N of scantest ones?
-(defun ezeka--scantest-numerus-subdirs ()
-  "Return a list of numerus subdirs with fewest number of notes."
-  (let* ((counts (ezeka--numerus-subdir-counts '< 'cdr))
-         (scantest (cl-remove-if-not
-                    (lambda (x) (= (cdar counts) (cdr x))) counts)))
-    scantest))
+(defun ezeka--scantest-numerus-subdirs (&optional n counts)
+  "Return a list of numerus subdirs with Nth fewest number of notes.
+N can is an integer between 0 (fewest notes) and, depending
+on actual counts, some ceiling between 0 (every subdir has
+same number of notes) and M, total number of subdirs less
+one (every subdir has unique number of notes). If N is not
+an integer or is outside of 0..M range, return the subdirs
+with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
+  (let* ((counts (or counts (ezeka--numerus-subdir-counts)))
+         (unique (cl-remove-duplicates (mapcar 'cdr counts)))
+         (n (cond ((not n) 0)
+                  ((and (integerp n) (< -1 n (length unique))) n)
+                  (t (1- (length unique))))))
+    (cl-remove-if-not
+     (lambda (x) (= (nth n unique) (cdr x)))
+     counts)))
 
 (defun ezeka--random-numerus (&optional method)
   "Generate a random numerus currens.
@@ -1703,17 +1712,17 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
          (method (if (eq method 'ask)
                      (ezeka--read-new-numerus-currens-method)
                    method))
-         (already-exists-p
+         (_already-exists-p
           (lambda (candidate)
             "Returns non-nil if CANDIDATE does not already exists."
             (ignore-errors
               (ezeka-link-file (ezeka-make-link "numerus" candidate)))))
-         (acceptablep
+         (_acceptablep
           (lambda (candidate)
             "Check if the CANDIDATE is unique and acceptable to the user."
             (let ((y-or-n-p-use-read-key t))
               (and (ezeka-id-valid-p candidate :numerus)
-                   (not (funcall already-exists-p candidate))
+                   (not (funcall _already-exists-p candidate))
                    (y-or-n-p (format "Is %s acceptable (method: %s)? "
                                      candidate
                                      method))))))
@@ -1724,7 +1733,7 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
             (let* ((prompt
                     (ezeka--concat-strings "\n" error-msg "New numerus currens: "))
                    (id (ezeka--read-id prompt :numerus)))
-              (cond ((funcall already-exists-p id)
+              (cond ((funcall _already-exists-p id)
                      (setq error-msg
                        (format "A file with ID %s already exists." id)))
                     ((not (ezeka-id-valid-p id :numerus))
@@ -1735,7 +1744,7 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
           (let ((id (if (stringp method)
                         (ezeka--pregenerated-numerus method)
                       (ezeka--random-numerus method))))
-            (when (funcall acceptablep id)
+            (when (funcall _acceptablep id)
               (throw 'success id))))))))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
