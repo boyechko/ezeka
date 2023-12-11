@@ -284,7 +284,8 @@ order in various `completing-read' invocations."
                           :id-example id-example
                           :id-regexp id-regexp
                           :default default
-                          :order order)))
+                          :order order))
+  (setq ezeka-kaesten (seq-sort-by #'ezeka-kasten-order #'< ezeka-kaesten)))
 
 (ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" t 1)
 (ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
@@ -303,8 +304,10 @@ If ID-TYPE is not given, return a regexp that matches all known types."
     (concat "\\(?:"
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
-              (mapconcat (lambda (k) (ezeka-kasten-id-regexp k))
-                         ezeka-kaesten
+              (mapconcat #'ezeka-kasten-id-regexp
+                         (seq-sort-by (lambda (k) (length (ezeka-kasten-id-example k)))
+                                      #'>
+                                      ezeka-kaesten)
                          "\\|"))
             "\\)")))
 
@@ -605,7 +608,7 @@ The format control string can contain the following %-sequences:
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (and (stringp string)
-       (string-match (concat "^" (ezeka-link-regexp) "$") string)
+       (string-match (ezeka--match-entire (ezeka-link-regexp)) string)
        ;; If kasten is specified, make sure it's a valid one
        (if-let ((kasten (match-string-no-properties 2 string)))
            (ezeka-kasten-named kasten)
