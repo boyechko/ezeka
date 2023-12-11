@@ -1642,29 +1642,6 @@ with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
      (lambda (x) (= (nth n unique) (cdr x)))
      counts)))
 
-(defun ezeka--random-numerus (&optional method)
-  "Generate a random numerus currens.
-METHOD overrides `ezeka-new-numerus-currens-method', which
-see."
-  (let* ((subdirs (ezeka--numerus-subdir-counts))
-         (method (or method ezeka-new-numerus-currens-method))
-         (letter (pcase method
-                   ('selective
-                    (read-char-choice "Starting letter (a-z): "
-                                      (number-sequence ?a ?z)))
-                   ('auto
-                    (let ((scantest
-                           (ezeka--scantest-numerus-subdirs
-                            (if (integerp current-prefix-arg)
-                                current-prefix-arg
-                              0))))
-                      (car (elt scantest (random (length scantest))))))
-                   ((or 'nil 'random)
-                    (seq-random-elt (number-sequence ?a ?z)))
-                   (_
-                    (error "Don't know how to handle METHOD: %s" method)))))
-    (ezeka-make-numerus (string letter) (format "%04d" (random 10000)))))
-
 (defun ezeka--pregenerated-numerus (filename)
   "Retrieve next numerus from FILENAME."
   (with-current-buffer (find-file-noselect filename)
@@ -1701,6 +1678,17 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
          (method (if (eq method 'ask)
                      (ezeka--read-new-numerus-currens-method)
                    method))
+         (method-desc (format "%s" method))
+         (error-msg "")
+         (auto-elevate 0)
+         (auto-counts (when (eq method 'auto) (ezeka--numerus-subdir-counts)))
+         auto-scantest
+         (_prompt (lambda (prompt)
+                    "Assemble a full prompt based on PROMPT."
+                    (format "%s%sMethod: %s\n%s"
+                            error-msg
+                            (if (string-empty-p error-msg) "" "\n")
+                            method-desc prompt)))
          (_already-exists-p
           (lambda (candidate)
             "Returns non-nil if CANDIDATE does not already exists."
@@ -1709,32 +1697,60 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
          (_acceptablep
           (lambda (candidate)
             "Check if the CANDIDATE is unique and acceptable to the user."
-            (let ((y-or-n-p-use-read-key t))
-              (and (ezeka-id-valid-p candidate :numerus)
-                   (not (funcall _already-exists-p candidate))
-                   (y-or-n-p (format "Is %s acceptable (method: %s)? "
-                                     candidate
-                                     method))))))
-         error-msg)
+            (let ((choice
+                   (read-char-choice
+                    (funcall _prompt
+                             (format "Is %s acceptable? (y or n, N to elevate) "
+                                     candidate))
+                    '(?y ?Y ?n ?N))))
+              (cond ((member choice '(?y ?Y)) candidate)
+                    ((= choice ?N)
+                     (cl-incf auto-elevate)
+                     nil)
+                    (t nil)))))
+         (_random-numerus
+          (lambda (char)
+            "Generate a random numerus currens starting with CHAR."
+            (ezeka-make-numerus (string char) (format "%04d" (random 10000))))))
     (catch 'success
       (while t
-        (if (eq method 'manual)
-            (let* ((prompt
-                    (ezeka--concat-strings "\n" error-msg "New numerus currens: "))
-                   (id (ezeka--read-id prompt :numerus)))
-              (cond ((funcall _already-exists-p id)
-                     (setq error-msg
-                       (format "A file with ID %s already exists." id)))
-                    ((not (ezeka-id-valid-p id :numerus))
-                     (setq error-msg
-                       (format "`%s' is not a valid numerus currens ID." id)))
-                    (t
-                     (throw 'success id))))
-          (let ((id (if (stringp method)
-                        (ezeka--pregenerated-numerus method)
-                      (ezeka--random-numerus method))))
-            (when (funcall _acceptablep id)
-              (throw 'success id))))))))
+        (setq id (pcase method
+                   ((pred stringp)
+                    (setq method-desc "pregenerated")
+                    (ezeka--pregenerated-numerus method))
+                   ('manual
+                    (ezeka--read-id (funcall _prompt "New numerus currens: ")
+                                    :numerus))
+                   ('selective
+                    (funcall _random-numerus
+                             (read-char-choice (funcall _prompt "Starting letter (a-z): ")
+                                               (number-sequence ?a ?z))))
+                   ('auto
+                    (setq auto-scantest (cl-union
+                                         auto-scantest
+                                         (ezeka--scantest-numerus-subdirs
+                                          auto-elevate auto-counts))
+                          method-desc (format "auto [%s]"
+                                              (mapconcat (lambda (c)
+                                                           (string (car c)))
+                                                         auto-scantest
+                                                         ", ")))
+                    (funcall _random-numerus
+                             (car (elt auto-scantest
+                                       (random (length auto-scantest))))))
+                   ('random
+                    (funcall _random-numerus
+                             (seq-random-elt (number-sequence ?a ?z))))
+                   (_
+                    (error "Don't know how to handle METHOD: %s" method))))
+        (cond ((not (ezeka-id-valid-p id :numerus))
+               (setq error-msg
+                 (format "`%s' is not a valid numerus currens ID." id)))
+              ((funcall _already-exists-p id)
+               (setq error-msg
+                 (format "A file with ID `%s' already exists." id)))
+              ((funcall _acceptablep id)
+               (throw 'success id)))))))
 
 ;; TODO: Somehow make this part of `ezeka-kasten'. Function?
 (defun ezeka--generate-id (kasten &optional batch)
@@ -1803,7 +1819,7 @@ INTERACTIVE is non-NIL when called interactively."
 (defun ezeka-scriptum-id (&optional project time)
   "Return a scriptum ID based on PROJECT and Emacs TIME object.
 If TIME is nil, default to current time."
-  (let ((scriptum-id (lambda (project n)
+  (let ((_scriptum-id (lambda (project n)
                        "Return scriptum ID as a string based on PROJECT and N."
                        (format "%s~%02d" project n))))
     (while (not project)
@@ -1818,11 +1834,11 @@ If TIME is nil, default to current time."
     ;; TODO: If this is first entry in scriptum project, create a project
     ;; heading <numerus>~00 with caption for the project? Or a symbolic link
     ;; to numerus?
-    (funcall scriptum-id
+    (funcall _scriptum-id
              project
              (cl-find-if-not (lambda (n)
                                (ezeka-link-file
-                                (funcall scriptum-id project n) nil 'noerror))
+                                (funcall _scriptum-id project n) nil 'noerror))
                              (number-sequence 1 99)))))
 
 ;;;=============================================================================
