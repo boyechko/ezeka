@@ -2250,17 +2250,29 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
   :group 'ezeka
   :type 'boolean)
 
-(defun ezeka--make-help-echo-overlay (&optional pos)
-  "Make an overlay at POS (or `point') with help-echo."
+(defun ezeka--make-help-echo-overlay-at-pos (&optional pos)
+  "Make a help-echo overlay at POS (or `point')."
   (save-match-data
     (save-excursion
       (goto-char (or pos (point)))
-      (when-let* ((_ (ezeka-link-at-point-p))
-                  (file (ezeka-link-file (ezeka-link-at-point) nil t))
+      (when-let* ((_ (or (thing-at-point-looking-at (ezeka-link-regexp))
+                         (and (backward-to-word 1)
+                              (thing-at-point-looking-at (ezeka-link-regexp)))))
+                  (file (ezeka-link-file (match-string 1) nil t))
                   (overlay (make-overlay (match-beginning 1) (match-end 1))))
         (overlay-put overlay 'type 'ezeka-help-echo)
         (overlay-put overlay 'face '(:underline "purple"))
         (overlay-put overlay 'help-echo (file-name-base file))))))
+
+(defun ezeka--make-help-echo-overlay (match-data)
+  "Make a help-echo overlay for Zettel ID based on MATCH-DATA."
+  (save-match-data
+    (set-match-data match-data)
+    (when-let* ((file (ezeka-link-file (match-string 1) nil t))
+                (overlay (make-overlay (match-beginning 1) (match-end 1))))
+      (overlay-put overlay 'type 'ezeka-help-echo)
+      (overlay-put overlay 'face '(:underline "purple"))
+      (overlay-put overlay 'help-echo (file-name-base file)))))
 
 (defun ezeka--make-help-echo-overlays (&optional buffer)
   "Make help echo overlays in BUFFER (or `current-buffer')."
@@ -2269,9 +2281,12 @@ With \\[universal-argument] DELETE-TITLE, delete the text instead."
     (save-excursion
       (remove-overlays (point-min) (point-max) 'type 'ezeka-help-echo)
       (goto-char (point-min))
-      (when ezeka-make-help-echo-overlays
-        (while (re-search-forward (concat "\\[\\[" (ezeka-link-regexp) "]]") nil t)
-          (ezeka--make-help-echo-overlay (match-beginning 1)))))))
+      (let ((overlayable
+             (rx (or (group-n 5 (seq "[[" (regexp (ezeka-link-regexp)) "]]"))
+                     (group-n 5 (seq bol "parent: " (regexp (ezeka-link-regexp))))))))
+        (when ezeka-make-help-echo-overlays
+          (while (re-search-forward overlayable nil t)
+            (ezeka--make-help-echo-overlay (match-data))))))))
 
 ;;;=============================================================================
 ;;; Genealogical
