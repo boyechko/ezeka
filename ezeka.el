@@ -3300,8 +3300,9 @@ different. With \\[universal-argument] ARG, forces update."
              (snip-mdata (ezeka-file-metadata snip-file))
              (their-modified (or (alist-get :modified snip-mdata)
                                  (alist-get :created snip-mdata)))
-             (our-modified (ezeka--encode-time
-                            (org-entry-get (point) "SNIP_MODIFIED")))
+             (our-modified
+              (when-let ((snip-modified (org-entry-get (point) "SNIP_MODIFIED")))
+                (ezeka--encode-time snip-modified)))
              (current? (time-equal-p their-modified our-modified))
              (local? (string-match-p "local"
                                      (or (org-entry-get nil "TAGS")
@@ -3330,10 +3331,11 @@ different. With \\[universal-argument] ARG, forces update."
             (let ((start (point))
                   (comments-removed 0)
                   (footnotes-removed 0)
+                  (snip-buf (find-file-noselect snip-file))
                   (content '()))
               (delete-region start (point-max))
               ;; Get the Summary and Snippet subtrees from snippet snip-file
-              (with-current-buffer (find-file-noselect snip-file)
+              (with-current-buffer snip-buf
                 ;; Include Summary section if present
                 (when (and ezeka-insert-snippet-summary
                            (org-find-exact-headline-in-buffer "Summary"))
@@ -3399,23 +3401,30 @@ different. With \\[universal-argument] ARG, forces update."
   "Update the snippet in the current note wherever it is used."
   (let ((current (current-buffer)))
     (save-excursion
-      (when-let ((pos (or (org-find-exact-headline-in-buffer "Snippet")
+      (when-let ((label (string=
+                         "ν" (ezeka-file-name-label (buffer-file-name current))))
+                 (pos (or (org-find-exact-headline-in-buffer "Snippet")
                           (org-find-exact-headline-in-buffer "Content"))))
         (goto-char pos)
-        (when-let* ((used-in (org-entry-get (point) "USED_IN+"))
-                    (used-list
-                     (split-string
-                      (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
-                      nil t " \n"))
-                    (not-tagged
-                     (save-excursion
-                       (cl-remove-if (lambda (org-id)
-                                       (org-id-goto org-id)
-                                       (member "CHANGED" (org-get-tags)))
-                                     used-list))))
-          (when (y-or-n-p "Did you modify the snippet text? ")
-            (org-entry-put (point) "MODIFIED"
-                           (ezeka-timestamp nil 'full 'brackets))
+        (when (y-or-n-p "Did you modify the snippet text? ")
+          (org-entry-put (point) "MODIFIED"
+                         (ezeka-timestamp nil 'full 'brackets))
+          (when-let* ((used-in (org-entry-get (point) "USED_IN+"))
+                      (used-list
+                       (split-string
+                        (replace-regexp-in-string "\\(id:\\|\\[id:\\)" "" used-in)
+                        nil t " \n"))
+                      (not-tagged
+                       (save-excursion
+                         (cl-remove-if (lambda (org-id)
+                                         (if (not (org-id-find org-id))
+                                             (warn "Cannot find Org ID `%s' that uses snippet from `%s'"
+                                                   org-id
+                                                   (ezeka-file-name-id
+                                                    (buffer-file-name current)))
+                                           (org-id-goto org-id)
+                                           (member "CHANGED" (org-get-tags))))
+                                       used-list))))
             (when (y-or-n-p (format "%s\nAdd CHANGED tags in these files? "
                                     (mapconcat (lambda (id)
                                                  (ezeka-file-name-caption
