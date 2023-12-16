@@ -1356,8 +1356,8 @@ reconciling even if :caption-stable is true."
   (let* ((mdata (or metadata (ezeka-file-metadata file)))
          (caption (or (alist-get :caption mdata) ""))
          (title (or (alist-get :title mdata) ""))
-         (capitalp (lambda (c) (and (= ?w (char-syntax c)) (= c (upcase c))))))
-    (unless (or (string= title caption)
+         (_capitalp (lambda (c) (and (= ?w (char-syntax c)) (= c (upcase c))))))
+    (unless (or (string= (ezeka--pasteurize-file-name title) caption)
                 (and (not force)
                      (alist-get :caption-stable mdata)))
       (let ((choice (read-char-choice
@@ -1375,12 +1375,12 @@ reconciling even if :caption-stable is true."
           ((or ?c ?u ?T ?L) (setf (alist-get :caption mdata)
                                   (ezeka--minibuffer-edit-string
                                    (ezeka--pasteurize-file-name
-                                    (if (funcall capitalp choice)
+                                    (if (funcall _capitalp choice)
                                         title
                                       caption)))))
           ((or ?t ?l ?C ?U) (setf (alist-get :title mdata)
                                   (ezeka--minibuffer-edit-string
-                                   (if (funcall capitalp choice)
+                                   (if (funcall _capitalp choice)
                                        (ezeka--depasturize-for-title caption)
                                      title))))))
       (setf (alist-get :caption-stable mdata) t))
