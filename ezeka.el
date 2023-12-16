@@ -2655,55 +2655,58 @@ that to sort the list first."
 
 (defun ezeka--completing-read-char (prompt choices &optional choice-format)
   "Use `completing-read' to read one of CHOICES after PROMPT.
-CHOICES should be an alist of (LETTER [ZERO-OR-MORE FIELDS])
-elements. CHOICE-FORMAT is `format' format string to
-generate strings from CHOICES. Input must match one of the
-letters."
+CHOICES should be an alist of (CHARACTER [ZERO-OR-MORE
+FIELDS]) elements. CHOICE-FORMAT is applied to `format' with
+the full CHOICES element. Return one of the characters."
   (let ((table
-         (mapcar (lambda (c)
-                   (cons (apply #'format (or choice-format "%s") c)
-                         (pcase (car c)
-                           ((pred stringp) (car c))
-                           ((pred characterp) (string (car c)))
+         (mapcar (lambda (x)
+                   (cons (apply #'format (or choice-format "%s") x)
+                         (pcase (car x)
+                           ((pred stringp) (car x))
+                           ((pred characterp) (string (car x)))
                            (_
-                            (error "Wrong choice: %s" c)))))
+                            (error "Wrong choice: %s" x)))))
                  choices)))
-    (cdr
-     (assoc-string (completing-read prompt table nil t)
-                   table))))
+    (elt (cdr
+          (assoc-string (completing-read prompt table nil t)
+                        table))
+         0)))
 
 (defun ezeka--read-genus (&optional prompt verbose default require-match)
   "Read a genus as defined in `ezeka-genera'.
 Return a string containing the genus letter or an empty
 string (unless REQUIRE-MATCH is non-nil). If PROMPT is non-
 nil, use that prompt instead of the default. If VERBOSE is
-non-nil, show a list of choices with explantions. DEFAULT is
-the genus used if user just presses [return]."
+'CHOICES, show a list of choices with explantions, if T just
+offer basic info after PROMPT, and NIL not to show anything.
+DEFAULT is the genus used if user just presses [return]."
   (catch 'done
     (while t
       (let ((result
-             (if verbose
+             (if (eq verbose 'choices)
                  (ezeka--completing-read-char (or prompt "Genus: ")
                                               ezeka-genera
                                               "%s (%s) ⇒ %s")
-               (read-char
-                (format "%s (Latin character, `?' for verbose%s): "
-                        (or prompt "Genus")
-                        (cond ((stringp default)
-                               (format ", or RETURN for \"%s\"" default))
-                              ((not require-match)
-                               ", or RETURN to leave blank")
-                              (t "")))))))
-        (when (characterp result)
-          (setq result (char-to-string result)))
-        (cond ((and (string= result "") require-match)
-               (setq verbose t))
-              ((string= result "?")
-               (setq verbose t))
-              ((string= result "")
+               (read-char-choice
+                (concat (or prompt "Genus")
+                        (when verbose
+                          (format "%s (Latin character, `?' to list choices%s): "
+                                  (cond ((and verbose (stringp default))
+                                         (format ", or RETURN for \"%s\"" default))
+                                        ((and verbose (not require-match))
+                                         ", or RETURN to leave blank")
+                                        (t ""))))
+                        (unless prompt
+                          ": "))
+                (cons ? (mapcar #'car ezeka-genera))))))
+        (cond ((or (= result ??)
+                   (and (= result ?) require-match))
+               (setq verbose 'choices))
+              ((= result ?)
                (throw 'done default))
-              ((assoc result ezeka-genera)
-               (throw 'done (cadr (assoc result ezeka-genera))))
+              ((assq result ezeka-genera)
+               (throw 'done
+                      (char-to-string (cadr (assq result ezeka-genera)))))
               (t
                (setq prompt "No such genus; try again. ")))))))
 
