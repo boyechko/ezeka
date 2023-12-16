@@ -1156,25 +1156,45 @@ Return the original METADATA with the field changed."
   (setf (alist-get field metadata) value)
   metadata)
 
+;; See [[https://help.dropbox.com/organize/file-names]]
+(defvar ezeka--pasturize-characters
+  '(("/" "-")
+    ("\\" "-")
+    ("<" "[")
+    (">" "]")
+    (":" ",")
+    ("\"" "")
+    ("|" "-")
+    ("?" "¿")
+    ("*" "_")
+    ("." ""))
+  "A list of pasturizing replacements.
+This list is then passed to `ezeka--replace-pairs-in-string'.")
+
+;; by NickD [https://emacs.stackexchange.com/a/75531/41826]
+(defun ezeka--unaccent-string (s)
+  "Decomposes accented characters in S to produce an ASCII equivalent."
+  (mapconcat
+   (lambda (c)
+     (char-to-string
+      (let ((dec (get-char-code-property c 'decomposition)))
+        (while (cdr dec)
+          (setq dec (get-char-code-property (car dec) 'decomposition)))
+        (car dec))))
+   s ""))
+
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasteurize-file-name (title)
   "Return TITLE after making it safe to use as file caption.
 The function attemps to shorten the title, and strip or replace
 troublesome characters."
   (interactive (list (file-name-base buffer-file-name)))
-  '(("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1\\3\\)"
-     "{β} \\2 \\4" t)
-    ("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1.*\\)"
-     "{β} \\2 (\\3) \\4" t)
-    ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\))\\(?: [@&]\\1[0-9]+\\)"
-     "{π} \\2 &\\1\\3" t)
-    ("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) \\(?:(\\(?3:[0-9]\\{4\\}\\))\\)*\\(?: [@&]\\1[0-9]+\\)*"
-     "{π} \\2 &\\1\\3" t))
   (let* ((given-name '(in "A-Z" "a-z" "." "-" " "))
          (family-name '(in "A-Za-z-"))
          (title-delimiters '(in "/\"'_"))
-         (date '(in "0-9" "-" ","))
-         (one (list (rx-to-string `(seq (1+ ,given-name)
+         (date '(>= 4 (in "0-9" "-" ",")))
+         (citekey '(seq (any "&@") (1+ word) (1+ digit)))
+         (one (list (rx-to-string `(seq "{β}" (1+ ,given-name)
                                         " "
                                         (group-n 1 word-start (1+ ,family-name))
                                         "'s "
@@ -1182,34 +1202,35 @@ troublesome characters."
                                                         (1+ anychar)
                                                         ,title-delimiters))
                                         " "
-                                        (seq "(" (group-n 3 (>= 4 ,date)) ")")
-                                        (0+
-                                         " "
-                                         (group-n 4 (any "&@") (1+ word) (1+ digit))))
+                                        (seq "(" (group-n 3 ,date) ")")
+                                        (0+ " " (group-n 4 ,citekey)))
                                   'no-group)
                     ;; (rx-to-string `(seq (backref 2) (backref 4)))
                     " \\2 \\4"
-                    t))
+                    'regexp))
+         (two '("{β} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\)) \\(?4:@\\1.*\\)"
+                "{β} \\2 (\\3) \\4" 'regexp))
+         (three '("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) (\\(?3:[0-9]\\{4\\}\\))\\(?: [@&]\\1[0-9]+\\)"
+                  "{π} \\2 &\\1\\3" t))
+         (four '("{π} [A-Za-z. -]+ \\<\\(?1:[A-Za-z-]+\\)'s \\(?2:[/\"_][^/\"]+[/\"_]\\) \\(?:(\\(?3:[0-9]\\{4\\}\\))\\)*\\(?: [@&]\\1[0-9]+\\)*"
+                 "{π} \\2 &\\1\\3" t))
          (rubric-replacements
-          (list one))
+          (list one two three four))
          (simple-replacements
-          '(("\"\\([^\"]+\\)\"" "'\\1'" t)
-            ("/\\([^/]+\\)/" "_\\1_" t)
+          '(("\\<\"\\([^\"]+\\)\"\\>" "'\\1'" t)
+            ("\\</\\([^/]+\\)/\\>" "_\\1_" t)
             ("(\\(ß.+\\))" "[\\1]" t)
-            ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" t)
-            ("/" "-")
-            ("\\" "-")
-            ("<" "[")
-            (">" "]")
-            (":" ",")
-            ("\"" "")
-            ("|" "-")
-            ("?" "¿")
-            ("*" "_")
-            ("." ""))))
+            ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" t))))
     (ezeka--replace-pairs-in-string (append rubric-replacements
-                                            simple-replacements)
-                                    title)))
+                                            simple-replacements
+                                            ezeka--pasturize-characters)
+                                    (ezeka--unaccent-string title))))
+
+(defun ezeka--depasturize-for-title (caption)
+  "Return CAPTION after trying to reverse `ezeka--pasteurize-file-name'."
+  (ezeka--replace-pairs-in-string '(("\\<'\\(.*\\)'\\>" "\"\\1\"" t)
+                                    ("\\<_\\(.*\\)_\\>" "/\\1/" t))
+                                  caption))
 
 (defun ezeka--normalize-metadata-timestamps (metadata)
   "Normalize the creation and modification times in METADATA.
@@ -1360,7 +1381,7 @@ reconciling even if :caption-stable is true."
           ((or ?t ?l ?C ?U) (setf (alist-get :title mdata)
                                   (ezeka--minibuffer-edit-string
                                    (if (funcall capitalp choice)
-                                       caption
+                                       (ezeka--depasturize-for-title caption)
                                      title))))))
       (setf (alist-get :caption-stable mdata) t))
     (funcall clear-message-function)
