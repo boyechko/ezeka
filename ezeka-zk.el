@@ -222,20 +222,24 @@ Return `ezeka-zk-metadata-alist'."
 (defun ezeka-zk-set-parent (filename &optional new-parent other-window)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel, unless
-OTHER-WINDOW (or \\[universal-argument]) is non-nil and there is something usable
-in the other window, in which case set that as the new parent.
-With double \\[universal-argument], ask the user to enter the link manually."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (cond ((equal current-prefix-arg '(16))
-                            (read-string "Parent ID: "))
-                           (current-prefix-arg
-                            (when-let ((file (ezeka--note-in-other-window)))
-                              (ezeka-file-link file)))
-                           (t
-                            (let ((kasten (ezeka--read-kasten "Which Kasten? ")))
-                              (ezeka-file-link
-                               (ezeka-zk-with-kasten kasten
-                                 (zk--select-file "Set parent to: "))))))))
+OTHER-WINDOW (or \\[universal-argument] \\[universal-argument]) is non-nil and
+there is something usable in the other window,
+in which case offer that as the new parent.
+Otherwise, ask the user to enter the link manually."
+  (interactive
+   (let ((owin-file (ezeka--note-in-other-window)))
+     (list (ezeka--grab-dwim-file-target)
+           (if (equal current-prefix-arg '(16))
+               (ezeka--read-id "Parent ID: "
+                               nil
+                               (when owin-file
+                                 (ezeka-file-link owin-file)))
+             (let ((kasten (if current-prefix-arg
+                               (ezeka--read-kasten "Which Kasten? ")
+                             (ezeka-kasten-name (car ezeka-kaesten)))))
+               (ezeka-file-link
+                (ezeka-zk-with-kasten kasten
+                  (zk--select-file "Set parent to: "))))))))
   (ezeka--update-metadata-values filename nil
     :parent (if new-parent
                 new-parent
