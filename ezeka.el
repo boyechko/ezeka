@@ -2996,6 +2996,9 @@ that."
                           (keyword (cons keyword (alist-get :keywords mdata)))
                           (t nil)))))))
 
+(defvar ezeka--keyword-history nil
+  "History variable for entering keywords.")
+
 (defun ezeka-edit-keywords (filename &optional metadata clear)
   "Interactively edit FILENAME's keywords.
 If given, use METADATA, otherwise read it from the file. If
@@ -3006,17 +3009,19 @@ clear the keywords without attempting to edit them."
                      current-prefix-arg))
   (if (not (ezeka-file-p filename))
       (user-error "This command can only be used on Zettel notes")
-    (let ((mdata (or metadata (ezeka-file-metadata filename))))
-      ;; TODO: Make sure the keywords are valid
+    (let* ((mdata (or metadata (ezeka-file-metadata filename)))
+           (keywords (mapconcat #'identity (alist-get :keywords mdata) " "))
+           (_keywordify (lambda (s) (if (= ?# (elt s 0)) s (concat "#" s)))))
+      (push keywords ezeka--keyword-history)
       (ezeka--update-metadata-values filename mdata
         :keywords
         (unless clear
-          (split-string (ezeka--minibuffer-edit-string
-                         (mapconcat #'identity (alist-get :keywords mdata) " ")
-                         nil
-                         "Edit keywords: ")
-                        " "
-                        'omit-nulls))))))
+          (mapcar _keywordify
+                  (split-string (ezeka--minibuffer-edit-string
+                                 keywords keywords "Edit keywords: "
+                                 '(ezeka--keyword-history . 1))
+                                "[ ,]+"
+                                'omit-nulls)))))))
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
