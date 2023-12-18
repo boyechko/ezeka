@@ -2710,11 +2710,11 @@ DEFAULT is the genus used if user just presses [return]."
               (t
                (setq prompt "No such genus; try again. ")))))))
 
-(defun ezeka--read-label (file-or-link &optional special prompt default)
-  "Interactively read label for the given FILE-OR-LINK.
+(defun ezeka--read-label (kasten &optional special prompt default)
+  "Interactively read label for the given KASTEN.
 Pass SPECIAL, PROMPT, and DEFAULT to the appropriate
 function."
-  (if (eq :numerus (ezeka-id-type file-or-link))
+  (if (eq :numerus (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
       (ezeka--read-genus prompt special default)
     (ezeka--read-category prompt special default)))
 
@@ -2864,7 +2864,7 @@ show genera verbosely or type custom category."
   (interactive
    (let ((target (ezeka--grab-dwim-file-target)))
      (list target
-           (ezeka--read-label target current-prefix-arg)
+           (ezeka--read-label (ezeka-file-kasten target) current-prefix-arg)
            current-prefix-arg)))
   (if (not (ezeka-file-p filename))
       (error "Not a Zettel note")
@@ -3047,8 +3047,7 @@ CITEKEY."
   (interactive
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
-                  ;; FIXME: Rewrite with completing-read
-                  (ezeka--read-id "Insert template into note with this link: ")))
+                  (user-error "This command can only be called from a Zettel")))
           (nondir (file-name-nondirectory buffer-file-name))
           (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
                    (ezeka-decode-rubric
@@ -3058,7 +3057,7 @@ CITEKEY."
       link
       (or (alist-get :label mdata)
           (ezeka--get-new-child-metadata link :label)
-          (ezeka--read-label link))
+          (ezeka--read-label (ezeka-link-kasten link)))
       (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
                                  (alist-get :caption mdata)))
       (ezeka--read-id "Parent: "
@@ -3205,7 +3204,7 @@ With \\[universal-argument], ask to select the KASTEN."
               ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
                 (ezeka-insert-header-template new-link
-                                              (ezeka--read-label new-file)
+                                              (ezeka--read-label kasten)
                                               new-title parent-link)
                 (insert "\n" content)
                 (set-visited-file-name new-file t)
@@ -3679,7 +3678,10 @@ move."
          target-file (format "Move +%s+ to %s." source-link target-link))
         ;; Check about updating title and label
         (setf (alist-get :label mdata)
-              (ezeka--read-label target-file nil nil (alist-get :label mdata)))
+              (ezeka--read-label (alist-get :kasten mdata)
+                                 nil
+                                 nil
+                                 (alist-get :label mdata)))
         (when (y-or-n-p "Modify caption and title? ")
           (ezeka-set-title-or-caption target-file nil 'set-title 'set-caption mdata))
         (setq target-file (ezeka-link-file target-link))
