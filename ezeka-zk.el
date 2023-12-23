@@ -390,7 +390,7 @@ destination kasten."
           (cl-incf moved))))))
 
 ;;;=============================================================================
-;;; Other
+;;; Selecting notes
 ;;;=============================================================================
 
 (require 'vertico)
@@ -405,14 +405,14 @@ Unlike `zk-insert-link', allow editing the title in the
 minibuffer according to the value of `zk-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
   (interactive (list (zk--select-file "Insert link to: ")))
-  (let ((link (ezeka-file-link file)))
+  (when-let ((link (ezeka-file-link file)))
     (if (or (eq zk-link-and-title 't)
             (and (eq zk-link-and-title 'ask)
                  ;; FIXME: Nonlocal function
                  (rb-y-or-explicit-n-p "Include (edited) title? ")))
         (ezeka-insert-link-with-metadata link '(:title) :before)
       (ezeka-insert-with-spaces (ezeka--format-link link)))
-    (ezeka--make-help-echo-overlay (point))))
+    (ezeka--make-help-echo-overlay-at-pos (point))))
 
 (defun ezeka-zk-insert-link-to-kasten (&optional kasten sort)
   "Temporarily set zk variables for KASTEN and call `zk-insert-link'.

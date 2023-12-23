@@ -592,7 +592,8 @@ The format control string can contain the following %-sequences:
 
 (defun ezeka-file-link (file)
   "Return a fully qualified link to FILE or nil."
-  (when (stringp file)
+  (when (and (stringp file)
+             (not (string-empty-p file)))
     (if (ezeka-link-p file)
         file
       (when-let ((kasten (ezeka-file-kasten file))
