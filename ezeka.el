@@ -323,12 +323,13 @@ If ID-TYPE is not given, check ID against all known types."
 If ID-TYPE is given, make sure the entered ID is valid for
 that specific type. INITIAL-INPUT is passed to `read-
 string', which see."
-  (catch 'success
-    (let ((id (read-string prompt initial-input 'ezeka--read-id-history)))
-      (while (not (string-empty-p id))
-        (if (ezeka-id-valid-p id id-type)
-            (throw 'success id)
-          (read-key "That is not a valid ID. Press any key to try again..."))))))
+  (let (id)
+    (while (or (null id) (string-empty-p id))
+      (setq id (read-string prompt initial-input 'ezeka--read-id-history))
+      (unless (ezeka-id-valid-p id id-type)
+        (read-key "That is not a valid ID. Press any key to try again...")
+        (setq id nil)))
+    id))
 
 ;;;=============================================================================
 ;;; General Functions
