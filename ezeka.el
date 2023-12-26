@@ -411,10 +411,10 @@ REGEXP is non-nil, FROM should be a regexp string."
   "Strip the named groups in the given REGEXP."
   (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
 
-(defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt)
+(defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt history)
   "Edit NEW-STRING in minibuffer, showing it parallel to OLD-STRING.
 If NEW-STRING is nil, default to OLD-STRING. If given, PROMPT is shown
-as the first line."
+as the first line. HISTORY is passed to `read-string'."
   (let ((new-string (or new-string old-string))
         (prompt (or prompt "Original: ")))
     (read-string
@@ -422,7 +422,8 @@ as the first line."
              prompt
              (propertize old-string 'face 'italic)
              "Edited: ")
-     new-string)))
+     new-string
+     history)))
 
 ;; See https://stackoverflow.com/a/65685019
 (defun ezeka--save-buffer-read-only (file)
