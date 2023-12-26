@@ -144,24 +144,7 @@ TARGET and SOURCE."
       (org-narrow-to-subtree)
       (let ((org-blank-before-new-entry '((heading . nil)))
             (head-level (org-current-level)))
-        (cond ((and (stringp source)
-                    (search-forward source nil t)
-                    (eq 'headline (car (org-element-at-point))))
-               ;; Breadcrumb for SOURCE found, so add one for TARGET
-               (let ((src-level (car (org-heading-components)))
-                     (src-head (point)))
-                 (if (and (search-forward target nil t)
-                          (eq 'headline (car (org-element-at-point))))
-                     (progn
-                       (message "Breadcrumb for %s already exists under %s"
-                                target
-                                source)
-                       nil)
-                   (goto-char src-head)
-                   (ezeka--insert-heading-after-current (1+ src-level))
-                   'secondary)))
-              ((and (goto-char (point-min))
-                    (search-forward target nil t))
+        (cond ((search-forward target nil t)
                ;; Breadcrumbs already dropped for TARGET
                (message "Breadcrumbs already exist for %s" target)
                nil)
@@ -317,7 +300,7 @@ SOURCE should be a string or symbol."
 (defun ezeka-switch-to-breadcrumb-trail ()
   "Switch to the buffer of the current breadcrumb trail."
   (interactive)
-  (when ezeka-breadcrumb-trail-buffer
+  (when (buffer-live-p ezeka-breadcrumb-trail-buffer)
     (pop-to-buffer ezeka-breadcrumb-trail-buffer)
     (ezeka--goto-breadcrumb-head)))
 
