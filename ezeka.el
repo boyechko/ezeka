@@ -3729,10 +3729,16 @@ move."
                                  (alist-get :label mdata)))
         (when (y-or-n-p "Modify caption and title? ")
           (ezeka-set-title-or-caption target-file nil 'set-title 'set-caption mdata))
+        (when-let ((citekey (read-string (format "Title: %s\nCitekey: "
+                                                 (alist-get :title mdata)))))
+          (setf (alist-get :citekey mdata)
+                (unless (string-empty-p citekey)
+                  citekey)))
         (setq target-file (ezeka-link-file target-link))
         (ezeka--update-file-header target-file mdata t)
         (when-let ((buf (get-file-buffer target-file)))
           (with-current-buffer buf
+            (ezeka-harmonize-file-name target-file mdata t)
             (save-buffer)))
         ;; Replace links
         (message "Replacing links: %s with %s" source-link target-link)
