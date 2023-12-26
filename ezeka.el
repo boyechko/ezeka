@@ -373,9 +373,11 @@ This function is based on `diary-ordinal-suffix'."
       (aref ["th" "st" "nd" "rd"] (% n 10)))))
 
 ;; TODO: More extensible way to do this without invoking other modes?
-(defun ezeka--grab-dwim-file-target (&optional link-at-point)
+(defun ezeka--grab-dwim-file-target (&optional link-at-point interactive)
   "Return the do-what-I-mean Zettel file from a variety of modes.
-If LINK-AT-POINT is non-nil, prioritize such a link if exists."
+If LINK-AT-POINT is non-nil, prioritize such a link if
+exists. If INTERACTIVE is non-nil, have the user select a
+file interactively."
   (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point)))
         ((and buffer-file-name
@@ -391,7 +393,9 @@ If LINK-AT-POINT is non-nil, prioritize such a link if exists."
          (if-let ((button (button-at (point))))
              (button-get button 'tag)
            (ezeka-ivy-select-link)))
-        (t
+        (interactive
+         ;; FIXME Rather than calling `zk--select-file' directly, need a native
+         ;; function that would at least allow selecting Kasten.
          (zk--select-file))))           ; FIXME: zk
 
 (defun ezeka--replace-in-string (string &rest replacements)
