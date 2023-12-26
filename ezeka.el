@@ -946,33 +946,40 @@ The format control string may contain the following %-sequences:
 
 %a means list of cited authors.
 %c means caption (i.e. short title).
+%C means creation timestamp.
 %i means ID or link.
 %k means citation key.
 %K means kasten.
 %l means label (genus or category).
+%M means modification timestamp (empty if not set).
 %s means stable mark (see `ezeka-header-stable-caption-mark').
 %t means title."
-  (string-trim
-   (format-spec format-string
-                `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
-                             (format "%s's " (ezeka--citaton-key-authors ck))
-                           ""))
-                  (?i . ,(alist-get :id metadata))
-                  (?K . ,(alist-get :kasten metadata))
-                  (?l . ,(alist-get :label metadata))
-                  (?c . ,(alist-get :caption metadata))
-                  (?t . ,(alist-get :title metadata))
-                  (?k . ,(let ((citekey (alist-get :citekey metadata)))
-                           (cond ((or (not citekey)
-                                      (string-empty-p citekey))
-                                  "")
-                                 ((string-match-p "^[@&]" citekey)
-                                  citekey)
-                                 (t
-                                  (concat "@" citekey)))))
-                  (?s . ,(if (alist-get :caption-stable metadata)
-                             ezeka-header-stable-caption-mark
-                           ""))))))
+  (save-match-data
+    (string-trim
+     (format-spec format-string
+                  `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
+                               (format "%s's " (ezeka--citaton-key-authors ck))
+                             ""))
+                    (?c . ,(alist-get :caption metadata))
+                    (?C . ,(format-time-string (cdr ezeka-timestamp-formats)
+                                               (alist-get :created metadata)))
+                    (?i . ,(alist-get :id metadata))
+                    (?k . ,(let ((citekey (alist-get :citekey metadata)))
+                             (cond ((or (not citekey)
+                                        (string-empty-p citekey))
+                                    "")
+                                   ((string-match-p "^[@&]" citekey)
+                                    citekey)
+                                   (t
+                                    (concat "@" citekey)))))
+                    (?K . ,(alist-get :kasten metadata))
+                    (?l . ,(alist-get :label metadata))
+                    (?M . ,(format-time-string (cdr ezeka-timestamp-formats)
+                                               (alist-get :modified metadata)))
+                    (?s . ,(if (alist-get :caption-stable metadata)
+                               ezeka-header-stable-caption-mark
+                             ""))
+                    (?t . ,(alist-get :title metadata)))))))
 
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
@@ -1103,31 +1110,32 @@ signal an error when encountering malformed header lines."
   "Return an alist of metadata for FILE.
 If NOERROR is non-nil, do not signal errors. The keys are
 converted to keywords."
-  (if-let* ((file (expand-file-name file ezeka-directory))
-            (header (ezeka-file-content file t noerror)))
-      (let* ((mdata  (ezeka--decode-header header file noerror))
-             ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
-             (id     (or (ezeka-file-name-id file)
-                         (alist-get :id mdata)))
-             (type   (or (alist-get :type mdata)
-                         (ezeka-id-type file)))
-             (kasten (or (alist-get :kasten mdata)
-                         (ezeka-file-kasten file)))
-             (link   (or (ignore-errors (ezeka-file-link file))
-                         (ezeka-make-link kasten id)))
-             ;; TODO: Remove after full transition from v0.1 to v0.2
-             (title   (or (alist-get :title mdata)
-                          (alist-get :caption mdata)))
-             (caption (or (alist-get :caption mdata)
-                          (ezeka-file-name-caption file)
-                          title)))
-        (cl-mapc (lambda (key val)
-                   (setf (alist-get key mdata) val))
-                 '(:id :type :kasten :link :title :caption)
-                 `(,id ,type ,kasten ,link ,title ,caption))
-        mdata)
-    (unless noerror
-      (error "Cannot retrieve %s's header" file))))
+  (save-match-data
+    (if-let* ((file (expand-file-name file ezeka-directory))
+              (header (ezeka-file-content file t noerror)))
+        (let* ((mdata  (ezeka--decode-header header file noerror))
+               ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
+               (id     (or (ezeka-file-name-id file)
+                           (alist-get :id mdata)))
+               (type   (or (alist-get :type mdata)
+                           (ezeka-id-type file)))
+               (kasten (or (alist-get :kasten mdata)
+                           (ezeka-file-kasten file)))
+               (link   (or (ignore-errors (ezeka-file-link file))
+                           (ezeka-make-link kasten id)))
+               ;; TODO: Remove after full transition from v0.1 to v0.2
+               (title   (or (alist-get :title mdata)
+                            (alist-get :caption mdata)))
+               (caption (or (alist-get :caption mdata)
+                            (ezeka-file-name-caption file)
+                            title)))
+          (cl-mapc (lambda (key val)
+                     (setf (alist-get key mdata) val))
+                   '(:id :type :kasten :link :title :caption)
+                   `(,id ,type ,kasten ,link ,title ,caption))
+          mdata)
+      (unless noerror
+        (error "Cannot retrieve %s's header" file)))))
 
 (defun ezeka-point-at-bob ()
   "Return point at the beginning of the body (BoB)."
