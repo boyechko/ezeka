@@ -3596,12 +3596,15 @@ prefix), limit to only that Kasten."
    (list (ezeka--read-regexp "Regexp to find")
          (when current-prefix-arg
            (ezeka--read-kasten "Kasten to search "))))
+  (ezeka-breadcrumbs-drop (format ezeka--breadcrumbs-xref-format regexp)
+                          (buffer-file-name))
   (require 'xref)
   (xref--show-xrefs
    (xref-matches-in-directory regexp
                               (format "*.%s" ezeka-file-extension)
                               ezeka-directory nil)
-   nil))
+   nil)
+  (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice))
 
 ;;;=============================================================================
 ;;; Maintenance

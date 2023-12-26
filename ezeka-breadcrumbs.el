@@ -223,6 +223,27 @@ from."
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
 
+(defvar ezeka--breadcrumbs-xref-format "Find Regexp: %s"
+  "Format-like string for dropping bookmarks from *xref* buffer.
+The control sequence %s is replaced with the xref search string.")
+
+(defun ezeka--breadcrumbs-xref-advice (&rest _)
+  "Before advice for `xref-goto-xref' to drop breadcrumbs from xref buffer."
+  (when-let* ((xref (xref--item-at-point))
+              (file (xref-file-location-file (xref-item-location xref)))
+              (_ (ezeka-file-p file)))
+    (ezeka-breadcrumbs-drop file
+                            (format ezeka--breadcrumbs-xref-format
+                                    (ezeka--breadcrumbs-xref-search-string)))))
+
+(defun ezeka--breadcrumbs-xref-search-string ()
+  "Return xref search string."
+  (save-excursion
+    (goto-char (point-min))
+    (when-let ((match (text-property-search-forward 'face 'xref-match t)))
+      (downcase (buffer-substring-no-properties
+                 (prop-match-beginning match) (prop-match-end match))))))
+
 (defun ezeka--breadcrumbs-elisp-target ()
   "Return a breadcrumbs target for the current Emacs Lisp function."
   (when-let ((defname (rb-kill-ring-save-def-name)))
