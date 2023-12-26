@@ -1676,6 +1676,20 @@ the tuples in the form (LETTER . COUNT)."
                          (number-sequence ?a ?z))))
     (cl-sort letters (or sort-test #'<) :key (or sort-key #'car))))
 
+(defun ezeka-numerus-subdirectory-distribution (&optional sort-by-count)
+  "Displays distribution of notes in the numerus Kasten.
+With SORT-BY-COUNT (or \\[universal-argument]), sort by number of notes
+in ascending order."
+  (interactive "P")
+  (with-current-buffer (get-buffer-create "*Numerus Distribution*")
+    (erase-buffer)
+    (apply 'insert (mapcar (lambda (x) (format "%c: %d note(s)\n" (car x) (cdr x)))
+                           (ezeka--numerus-subdir-counts
+                            (when sort-by-count '<)
+                            (when sort-by-count 'cdr))))
+    (view-mode))
+  (pop-to-buffer "*Numerus Distribution*"))
+
 (defun ezeka--scantest-numerus-subdirs (&optional n counts)
   "Return a list of numerus subdirs with Nth fewest number of notes.
 N can is an integer between 0 (fewest notes) and, depending
@@ -1684,7 +1698,9 @@ same number of notes) and M, total number of subdirs less
 one (every subdir has unique number of notes). If N is not
 an integer or is outside of 0..M range, return the subdirs
 with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
-  (let* ((counts (or counts (ezeka--numerus-subdir-counts)))
+  (let* ((counts (if counts
+                     (cl-sort counts #'< :key #'cdr)
+                   (ezeka--numerus-subdir-counts #'< #'cdr)))
          (unique (cl-remove-duplicates (mapcar 'cdr counts)))
          (n (cond ((not n) 0)
                   ((and (integerp n) (< -1 n (length unique))) n)
