@@ -393,19 +393,23 @@ If LINK-AT-POINT is non-nil, prioritize such a link if exists."
         (t
          (zk--select-file))))           ; FIXME: zk
 
-(defun ezeka--replace-pairs-in-string (replacements string)
-  "Replace pairs in the REPLACEMENTS alist in STRING.
-Each item in REPLACEMENTS should have the form (FROM TO REGEXP). If
-REGEXP is non-nil, FROM should be a regexp string."
+(defun ezeka--replace-in-string (string &rest replacements)
+  "Replace in STRING all the regexp/replacement pairs in REPLACEMENTS.
+Each item in REPLACEMENTS is in the form (FROM TO) for simple
+string replacements or (FROM TO 'regexp [&rest ARGS]) for regexp,
+where ARGS is the argument list to `replace-regexp-in-string'
+ after STRING. Each replacement pair is processed in turn."
+  (declare (indent 1))
   (save-match-data
     (dolist (recipe replacements string)
       (setq string
-        (funcall (if (caddr recipe)
-                     #'replace-regexp-in-string
-                   #'string-replace)
-                 (car recipe)
-                 (cadr recipe)
-                 string)))))
+        (if (memq 'regexp recipe)
+            (apply #'replace-regexp-in-string
+                   (car recipe)
+                   (cadr recipe)
+                   string
+                   (cdr (memq 'regexp recipe)))
+          (string-replace (car recipe) (cadr recipe) string))))))
 
 (defun ezeka--regexp-strip-named-groups (regexp)
   "Strip the named groups in the given REGEXP."
@@ -1171,7 +1175,7 @@ Return the original METADATA with the field changed."
     ("*" "_")
     ("." ""))
   "A list of pasturizing replacements.
-This list is then passed to `ezeka--replace-pairs-in-string'.")
+This list is then passed to `ezeka--replace-in-string'.")
 
 ;; by NickD [https://emacs.stackexchange.com/a/75531/41826]
 (defun ezeka--unaccent-string (s)
