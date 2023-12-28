@@ -57,7 +57,7 @@
      (cl-progv '(zk-id-time-string-format
                  zk-file-name-id-only)
          (if (eq (ezeka-kasten-id-type ezeka-kasten) :numerus)
-             '(,(concat (cl-subseq (downcase (format-time-string "%a")) 0 1)
+             '(,(concat (string (seq-random-elt (number-sequence ?a ?z)))
                         "-%H%M")
                nil)
            '("%Y%m%dT%H%M"
@@ -107,7 +107,9 @@ is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually sw
                                        (if (assoc-string name active)
                                            (propertize name 'face 'bold-italic)
                                          name)))
-                                   ezeka-kaesten))
+                                   ezeka-kaesten)
+                           nil
+                           t)           ; = user cannot exit without selecting
         (caar active))
       (= prefix 4)
       (= prefix 16))))
@@ -159,7 +161,8 @@ Control sequences %i (ID), %c (caption), and %l (label) are
 parsed from the filename. For everything else, call
 `ezeka-format-metadata' instead. If NOERROR is non-nil, just
 return nil if FORMAT cannot be rendered from ID and TITLE."
-  (let ((title (string-trim (or title ""))))
+  (let ((title (string-trim (or title "")))
+        (case-fold-search nil))
     (if (not (string-match-p "%[^icl0-9-]" format))
         (format-spec format
                      `((?i . ,id)
@@ -490,6 +493,10 @@ SORT is the function that vertico uses to sort the results."
 (ezeka-zk--define-kasten-finders "numerus")
 (ezeka-zk--define-kasten-finders "tempus" 'vertico-sort-reverse-alpha)
 (ezeka-zk--define-kasten-finders "scriptum")
+
+;;;=============================================================================
+;;; Maintenance
+;;;=============================================================================
 
 (defun ezeka-rgrep-link-at-point (link)
   "Execute recursive grep for the ezeka LINK at point."
