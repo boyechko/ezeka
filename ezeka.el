@@ -1530,8 +1530,12 @@ offer to set metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-         (pasteurized (ezeka--pasteurize-file-name mdata-base))
-         (read-user-choice
+         (pasteurized
+          (progn
+            (setf (alist-get :caption mdata)
+                  (ezeka--pasteurize-file-name (alist-get :caption mdata)))
+            (ezeka-format-metadata ezeka-file-name-format mdata)))
+         (_read-user-choice
           (lambda ()
             "Prompt the user about which name to use."
             (read-char-choice
@@ -1548,10 +1552,10 @@ offer to set metadata or rename the file even if they are in agreement."
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
           (unless (and (not force)
-                       (or (string= file-base mdata-base)
+                       (or (string= (ezeka--unaccent-string file-base) pasteurized)
                            (member ezeka-rename-note-keyword
                                    (alist-get :keywords mdata))))
-            (funcall read-user-choice))))
+            (funcall _read-user-choice))))
     (funcall clear-message-function)
     (cond ((memq keep-which '(nil ?n ?q))
            ;; do nothing
