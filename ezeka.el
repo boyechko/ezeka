@@ -730,16 +730,16 @@ if file is not found."
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
 If NOERROR is non-nil, don't signal an error if ID doesn't match a
-known type."
-  (let* ((id (file-name-base id-or-file))
-         (kasten (cl-find-if (lambda (k)
-                               (let ((regexp (ezeka-kasten-id-regexp k)))
-                                 (string-match (concat "^" regexp) id)))
-                             ezeka-kaesten)))
-    (if kasten
-        (ezeka-kasten-id-type kasten)
-      (unless noerror
-        (error "ID does not match any Kasten's ID pattern")))))
+known type, and just return the passed ID-OR-FILE."
+  (if-let* ((id (ezeka-file-name-id id-or-file))
+            (kasten (cl-find-if (lambda (k)
+                                  (string-match-p
+                                   (ezeka--match-entire
+                                    (ezeka-kasten-id-regexp k)) id))
+                                ezeka-kaesten)))
+      (ezeka-kasten-id-type kasten)
+    (unless noerror
+      (error "ID does not match any Kasten's ID pattern"))))
 
 (defun ezeka-file-content (file &optional header-only noerror)
   "Return content of FILE, getting it first from opened buffer.
