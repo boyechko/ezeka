@@ -862,14 +862,14 @@ org-time-stamp. Return the result of the conversion."
          timestamp)
     ;; if the region was surrounded by parentheses or brackets, remove those
     (save-excursion
-      (goto-char (1- beg))
-      (when (re-search-forward (rx (syntax open-parenthesis)
+      (re-search-backward (rx space) (point-at-bol) 'noerror)
+      (when (re-search-forward (rx (1+ (syntax open-parenthesis))
                                    (literal text)
-                                   (syntax close-parenthesis))
+                                   (1+ (syntax close-parenthesis)))
                                (point-at-eol) t)
         (replace-match text)
-        (setq beg (- beg 1)
-              end (- end 1))))
+        (setq beg (match-beginning 0)
+              end (point))))
     (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
            (let ((timestamp (iso8601-parse text)))
              (delete-region beg end)
