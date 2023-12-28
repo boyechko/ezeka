@@ -422,6 +422,32 @@ If SORT is non-nil, set `vertico-sort-function' to it."
     (ezeka-zk-with-kasten kasten
       (call-interactively 'ezeka-zk-insert-link))))
 
+(defun ezeka-zk-insert-contextual-link (&optional kasten sort)
+  "Insert a link to KASTEN based on the previous word.
+If KASTEN is not given, assume one with highest order. If
+SORT is non-nil, set `vertico-sort-function' to it."
+  (interactive (list (if (and current-prefix-arg
+                              (not (integerp current-prefix-arg)))
+                         (ezeka--read-kasten)
+                       "numerus")))     ; HARDCODED
+  (let ((pos (point))
+        (vertico-sort-function (or sort 'vertico-sort-history-alpha))
+        (zk-link-and-title nil)
+        (context (downcase (or (word-at-point 'no-props)
+                               (save-excursion
+                                 (backward-to-word 1)
+                                 (word-at-point 'no-props))))))
+    (when (save-excursion
+            (re-search-backward "[[:space:].,;:?!]"
+                                (or (re-search-backward "\\sw" (point-at-bol) t)
+                                    (point-at-bol))
+                                t))
+      (goto-char (match-beginning 0)))
+    (ezeka-zk-with-kasten kasten
+      (ezeka-zk-insert-link
+       (zk--select-file "Insert link to: " nil nil nil
+                        (string-trim context "[[:punct:]]" "[[:punct:]]"))))))
+
 (cmd-named ezeka-zk-insert-link-to-numerus
   (ezeka-zk-insert-link-to-kasten "numerus"))
 (cmd-named ezeka-zk-insert-link-to-tempus
