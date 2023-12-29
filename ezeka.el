@@ -3694,36 +3694,35 @@ whether to visit; if NIL, do not visit."
              file)
            nil
            'ask)))
-  (let ((link (ezeka-file-link note))
-        trail)
+  (let* ((_pprint_record
+          (lambda (rec)
+            (let-alist rec
+              (format "%s moved to `%s' on %s"
+                      .source
+                      (propertize
+                       (file-name-base (ezeka-link-file .target))
+                       'face 'bold)
+                      (format-time-string
+                       "%F %a %R"
+                       (encode-time (parse-time-string .time)))))))
+         (link (ezeka-file-link note))
+         trail)
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
       (goto-char (point-min))
       (while (re-search-forward (concat ".*" link ".*") nil t)
-        (push (read (match-string 0)) trail))
-      (if (null trail)
-          (prog1 nil (message "No record of moving %s" link))
-        ;; TODO Rewrite with `pcase-let'?
-        (cl-flet* ((_source (r) (car r))
-                   (_target (r) (cadr r))
-                   (_time (r) (encode-time (parse-time-string (caddr r))))
-                   (_pprint (log)
-                     (mapconcat (lambda (rec)
-                                  (format "%s moved to `%s' on %s"
-                                          (_source rec)
-                                          (propertize
-                                           (file-name-base (ezeka-link-file (_target rec)))
-                                           'face 'bold)
-                                          (format-time-string "%F %a %R" (_time rec))))
-                                log "\n")))
-          (cond ((not visit)
-                 (message (_pprint trail)))
-                ((or (eq visit 'visit)
-                     (y-or-n-p
-                      (format "%s\nVisit %s? "
-                              (_pprint trail)
-                              (propertize (_target (car trail)) 'face 'bold))))
-                 (ezeka-find-link (_target (car trail))))))))))
+        (push (ezeka--parse-move-log-line (match-string 0)) trail))
+      (cond ((null trail)
+             (message "No record of moving %s" link)
+             nil)
+            ((not visit)
+             (message (mapconcat _pprint_record trail "\n")))
+            ((or (eq visit 'visit)
+                 (y-or-n-p
+                  (format "%s\nVisit %s? "
+                          (mapconcat _pprint_record trail "\n")
+                          (propertize (alist-get 'target (car trail)) 'face 'bold))))
+             (ezeka-find-link (alist-get 'target (car trail))))))))
 
 (defun ezeka--move-note (source target-link &optional confirm)
   "Move Zettel note from SOURCE to TARGET-LINK.
