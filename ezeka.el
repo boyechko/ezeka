@@ -2635,15 +2635,18 @@ PROMPT, if specified, replaces the default one."
 If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
 modified buffers."
   (interactive "P")
-  (switch-to-buffer (ezeka--select-buffer 'skip-current modified-only)))
+  (let ((buf (ezeka--select-buffer 'skip-current modified-only)))
+    (ezeka-breadcrumbs-drop (buffer-file-name buf) buffer-file-name)
+    (switch-to-buffer buf)))
 
 (defun ezeka-switch-to-buffer-other-window (&optional modified-only)
   "Select and switch to another open Zettel buffer in the other window.
 If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
 modified buffers."
   (interactive "P")
-  (switch-to-buffer-other-window
-   (ezeka--select-buffer 'skip-current modified-only)))
+  (let ((buf (ezeka--select-buffer 'skip-current modified-only)))
+    (ezeka-breadcrumbs-drop (buffer-file-name buf) buffer-file-name)
+    (switch-to-buffer-other-window buf)))
 
 (defun ezeka-switch-to-other-buffer (buffer-or-name &optional norecord force-same-window)
   "Like `switch-to-buffer', but only list non-Zettel buffers.
