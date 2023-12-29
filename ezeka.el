@@ -2442,12 +2442,14 @@ note. If MANUAL is non-nil (or double \\[universal-argument]) is
 given, allow the user to enter the ID manually. Return link to the
 note."
   (interactive
-   (list (ezeka--read-kasten)
-         (when (ezeka-file-p buffer-file-name t)
-           (ezeka-file-link buffer-file-name))
-         (equal current-prefix-arg '(4))
-         (when (equal current-prefix-arg '(16))
-           (ezeka--read-id "ID for the new note: "))))
+   (let ((manual (when (equal current-prefix-arg '(16))
+                   (ezeka--read-id "ID for the new note: ")))
+         (noselect (equal current-prefix-arg '(4))))
+     (list (if manual (ezeka-link-kasten manual) (ezeka--read-kasten))
+           (when (ezeka-file-p buffer-file-name t)
+             (ezeka-file-link buffer-file-name))
+           noselect
+           manual)))
   (let ((link (if parent
                   (ezeka--generate-new-child parent kasten manual)
                 (ezeka-make-link kasten
