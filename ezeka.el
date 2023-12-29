@@ -2808,14 +2808,10 @@ should consist of KEY and VALUE pairs.
 (defun ezeka-add-change-log-entry (filename entry &optional section)
   "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
-  (interactive
-   (list buffer-file-name
-         (read-string "Log entry: ")
-         nil))
+  (interactive (list buffer-file-name nil nil))
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
-         (date-item
-          (format "- [%s] :: " (ezeka-timestamp)))
+         (date-item (format "- [%s] :: " (ezeka-timestamp)))
          entry-pos)
     (save-restriction
       (save-excursion
@@ -2834,14 +2830,15 @@ If SECTION is nil, default to `Change Log'."
               (when (re-search-backward "\\.\\(?1:\"\\)*" item-start t)
                 (replace-match "\\1"))
               (insert "; ")
-              (setq entry (concat (downcase (cl-subseq entry 0 1))
-                                  (cl-subseq entry 1))))
+              (when entry
+                (setq entry (concat (downcase (cl-subseq entry 0 1))
+                                    (cl-subseq entry 1)))))
           (forward-line 1)
           (insert "\n\n" date-item))
-        (when (stringp entry)
-          (insert entry))
-        (setq entry-pos (point))
-        (org-fill-element)))
+        (if (null entry)
+            (setq entry-pos (point))
+          (insert entry)
+          (org-fill-element))))
     (when (numberp entry-pos)
       (goto-char entry-pos))))
 
