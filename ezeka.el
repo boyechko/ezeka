@@ -3656,11 +3656,28 @@ prefix), limit to only that Kasten."
 (defvar ezeka--move-log-file "auto/move.log"
   "Path, relative to `ezeka-directory', to the log file for recording moves.")
 
-(defun ezeka--add-to-move-log (link1 link2)
-  "Log the move from LINK1 to LINK2 in `ezeka--move-log-file'."
-  ;; FIXME: Hardcoded
-  ;; ("SOURCE" "TARGET" "TIME")
-  (write-region (format "\n%S" (list link1 link2 (format-time-string "%FT%T")))
+(defun ezeka--parse-move-log-line (line)
+  "Parse a move long line in LINE, returning an alist."
+  (let ((result (read-from-string line)))
+    (if (< (cdr result) (length line))
+        (error "Garbage at the end of move log line: %s"
+               (substring line (cdr result)))
+      `((source . ,(nth 0 (car result)))
+        (target . ,(nth 1 (car result)))
+        (time   . ,(nth 2 (car result)))
+        (comment . ,(nth 3 (car result)))))))
+
+(defun ezeka--add-to-move-log (source target &optional src-caption comment)
+  "Log the move from SOURCE link to TARGET in `ezeka--move-log-file'.
+SRC-CAPTION and COMMENT can be added to make the record
+easier to later read."
+  ;; ("SOURCE" "TARGET" "TIME" "SOURCE-CAPTION" "COMMENT")
+  (write-region (format "\n%S"
+                        (list source
+                              target
+                              (format-time-string "%FT%T")
+                              src-caption
+                              comment))
                 nil
                 (expand-file-name ezeka--move-log-file ezeka-directory)
                 'append))
@@ -3724,7 +3741,7 @@ move."
       (ezeka--rename-file source-file target-file)
       (let* ((mdata (ezeka-file-metadata target-file))
              (oldnames (alist-get :oldnames mdata)))
-        (ezeka--add-to-move-log source-link target-link)
+        (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata))
         ;; Put original name in oldnames, unless source-link == target-link, and
         ;; remove target-link from oldnames just in case we're resurrecting an
         ;; oldname.
