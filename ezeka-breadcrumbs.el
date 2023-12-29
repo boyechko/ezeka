@@ -156,23 +156,24 @@ TARGET and SOURCE."
 
 (defun ezeka--breadcrumb-string (target source)
   "Return a breadcrumb string for TARGET from SOURCE."
-  (let* ((t-file (cond ((ezeka-file-p target) target)
-                       ((ezeka-link-p target) (ezeka-link-file target))))
-         (s-file (cond ((ezeka-file-p source) source)
-                       ((ezeka-link-p source) (ezeka-link-file source))))
-         (timestamp (format-time-string (cdr org-time-stamp-formats))))
-    (ezeka--concat-strings " "
-      (if t-file
-          (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
-              (format "%s" (file-name-nondirectory target)))
-        target)
-      ;; TODO Implement `format-spec' for breadcrumb strings?
-      ;; Perhaps having different entries for ezeka and non-ezeka targets?
-      (when (and source ezeka-breadcrumb-record-source)
-        (format "(%s)"
-                (cond (s-file (ezeka-file-name-id s-file))
-                      ((stringp source) (file-name-nondirectory source))
-                      (t source)))))))
+  (save-match-data
+    (let* ((t-file (cond ((ezeka-file-p target) target)
+                         ((ezeka-link-p target) (ezeka-link-file target))))
+           (s-file (cond ((ezeka-file-p source) source)
+                         ((ezeka-link-p source) (ezeka-link-file source))))
+           (timestamp (format-time-string (cdr org-time-stamp-formats))))
+      (ezeka--concat-strings " "
+        (if t-file
+            (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
+                (format "%s" (file-name-nondirectory target)))
+          target)
+        ;; TODO Implement `format-spec' for breadcrumb strings?
+        ;; Perhaps having different entries for ezeka and non-ezeka targets?
+        (when (and source ezeka-breadcrumb-record-source)
+          (format "(%s)"
+                  (cond (s-file (ezeka-file-name-id s-file))
+                        ((stringp source) (file-name-nondirectory source))
+                        (t source))))))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
