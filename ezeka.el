@@ -1366,10 +1366,7 @@ update it unconditionally."
           (set-buffer-modified-p t)
           (ezeka--update-file-header nil nil
                                      (eq ezeka-header-update-modified 'always))
-          (save-buffer)
-          (run-hook-with-args 'ezeka-find-file-functions
-                              buffer-file-name
-                              'save-buffer))
+          (save-buffer))
       (set-buffer-modified-p modified))
     (set-buffer-modified-p nil)))
 
@@ -3144,16 +3141,18 @@ CITEKEY."
                               'full)))
     (when (and parent (not (string-empty-p parent)))
       (insert "parent: " (ezeka--format-link parent) "\n"))
-    (insert "\n")
-    (insert content)
-    (add-hook 'after-save-hook
-      (lambda ()
-        (run-hook-with-args 'ezeka-find-file-functions
-                            buffer-file-name
-                            (if (and parent (not (string-empty-p parent)))
-                                (ezeka-link-file parent)
-                              this-command)))
-      nil 'local)))
+    (insert "\n" content)
+    (add-hook 'after-save-hook 'ezeka--run-3f-hook nil 'local)))
+
+(defun ezeka--run-3f-hook ()
+  "Run hooks in `ezeka-find-file-functions'."
+  (let* ((mdata (ezeka-file-metadata buffer-file-name 'noerror))
+         (parent (alist-get :parent mdata)))
+    (run-hook-with-args 'ezeka-find-file-functions
+                        buffer-file-name
+                        (if parent
+                            (ezeka-link-file parent)
+                          this-command))))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
