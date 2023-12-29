@@ -2144,9 +2144,8 @@ also include the title."
   (ezeka-insert-with-spaces
    (if link-only
        (ezeka--format-link (ezeka--note-in-other-window))
-     (ezeka-insert-link-with-metadata
-      (ezeka--note-in-other-window)
-      '(:author :title) :before))))
+     (funcall-interactively #'ezeka-insert-link-with-metadata
+                            (ezeka--note-in-other-window)))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
@@ -2413,12 +2412,14 @@ With a prefix argument, try to find the Nth ancestor."
 (defun ezeka-insert-ancestor-link (arg)
   "Insert a link with title to the ancestor of the current Zettel.
 With a numerical prefix ARG'ument, try to find Nth ancestor. With a
-universal argument, ask for confirmation before inserting."
+\\[universal-argument], insert with title without confirmation."
   (interactive "P")
   (let* ((degree (if (integerp arg) arg 1))
          (link (ezeka-trace-genealogy buffer-file-name degree)))
     (if link
-        (ezeka-insert-link-with-metadata link '(:title) :before (not arg))
+        (if arg
+            (ezeka-insert-link-with-metadata link '(:title) :before 'noedit)
+          (ezeka-insert-link-with-metadata link '(:title) :before))
       (message "Could not find such ancestor"))))
 
 (defun ezeka--generate-new-child (parent &optional kasten id)
