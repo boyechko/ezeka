@@ -1154,22 +1154,23 @@ converted to keywords."
 ;;; Metadata Commands
 ;;;=============================================================================
 
-;; FIXME: Specify type (scalar/list) of data expected
 (defconst ezeka-metadata-valid-fields
-  '((:rubric)
-    (:title)
-    (:subtitle)
-    (:author)
-    (:created)
-    (:modified)
-    (:parent)
-    (:firstborn)
-    (:oldnames)
-    (:readings)
-    (:keywords))
-  "An alist of valid metadata fields.
+  '((:rubric :type string)
+    (:caption :type string :hidden t)
+    (:caption-stable :type boolean :hidden t)
+    (:title :type string)
+    (:subtitle :type string)
+    (:author :type string)
+    (:created :type timestamp)
+    (:modified :type timestamp)
+    (:parent :type link)
+    (:firstborn :type link)
+    (:oldnames :type list)
+    (:readings :type list)
+    (:keywords :type list))
+  "An alist of valid metadata fields and their properties.
 The format of each item should be as follows:
-    (:FIELD).
+    (:FIELD :TYPE <type description> :HIDDEN <boolean>).
 The order of items will affect how the metadata is written into the
 file header.")
 
@@ -1429,14 +1430,16 @@ reconciling even if :caption-stable is true."
                 (ezeka-format-metadata ezeka-header-rubric-format metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
-                  (insert (format "%s: %s\n"
-                                  (ezeka--header-yamlify-key (car cons))
-                                  (ezeka--header-yamlify-value (cdr cons)))))
-                (let (ordered)
-                  (dolist (key (mapcar #'car ezeka-metadata-valid-fields)
-                               (nreverse ordered))
-                    (when (alist-get key metadata)
-                      (push (cons key (alist-get key metadata)) ordered)))))
+                  (when cons
+                    (insert (format "%s: %s\n"
+                                    (ezeka--header-yamlify-key (car cons))
+                                    (ezeka--header-yamlify-value (cdr cons))))))
+                (mapcar (lambda (field)
+                          (when (and (not (plist-get (cdr field) :hidden))
+                                     (alist-get (car field) metadata))
+                            (cons (car field)
+                                  (alist-get (car field) metadata))))
+                        ezeka-metadata-valid-fields))
           (ezeka--make-header-read-only (current-buffer)))))))
 
 (defun ezeka--metadata-equal-p (md1 md2)
@@ -2199,23 +2202,21 @@ insert just the link itself."
     (gui-set-selection 'CLIPBOARD text))
   (message "Saved [%s] in the kill ring & clipboard" text))
 
-(defun ezeka-kill-ring-save-link-and-title (arg)
-  "Save the link and title to kill ring and system clipboard.
-If the point is at Zettel link, use that; otherwise, the current
-buffer. With \\[universal-argument] ARG, save just the title.
-With double \\[universal-argument], save caption."
-  (interactive "P")
-  (let* ((file (ezeka--grab-dwim-file-target))
-         (link (ezeka-file-link file)))
-    (when file
-      (let* ((mdata (ezeka-file-metadata file))
-             (result (cond ((equal arg '(4))
-                            (alist-get :title mdata))
-                           ((equal arg '(16))
-                            (alist-get :rubric mdata))
-                           (t
-                            (ezeka-format-metadata "%i {%l} %t" mdata)))))
-        (ezeka--kill-ring-clipboard-save result)))))
+(defun ezeka-kill-ring-save-metadata-field (field)
+  "Save the given metadata FIELD to kill ring and system clipboard.
+FIELD should be one of `ezeka-metadata-valid-fields'.
+If the point is at Zettel link, use that; otherwise, the
+current buffer."
+  (interactive
+   (list (intern-soft
+          (completing-read "Which field? "
+                           ezeka-metadata-valid-fields
+                           nil
+                           t))))
+  (when-let* ((file (ezeka--grab-dwim-file-target))
+              (link (ezeka-file-link file))
+              (mdata (ezeka-file-metadata file)))
+    (ezeka--kill-ring-clipboard-save (alist-get field mdata))))
 
 (defun ezeka-kill-ring-save-link (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
@@ -3939,7 +3940,7 @@ END."
             ("C-c )" . ezeka-set-title-or-caption)
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
-            ("C-c =" . ezeka-kill-ring-save-link-and-title) ; `org-table-eval-formula'
+            ("C-c =" . ezeka-kill-ring-save-metadata-field) ; `org-table-eval-formula'
             ("C-c +" . ezeka-insert-link-from-clipboard)
             ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
