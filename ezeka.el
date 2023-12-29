@@ -1985,6 +1985,7 @@ T if the link is a Zettel link."
     (let ((existing-file (ignore-errors (ezeka-link-file link))))
       (cond ((ezeka-file-p existing-file)
              (ezeka-find-file existing-file same-window))
+            ((ezeka-note-moved-p link nil 'ask))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
