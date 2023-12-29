@@ -3200,8 +3200,8 @@ With \\[universal-argument] ARG, asks for a different name."
 
 (defun ezeka-org-export-as-new-note (&optional kasten)
   "Create new Zettel in KASTEN (a string) from the current org subtree.
-With \\[universal-argument], ask to select the KASTEN."
-  (interactive (list (when current-prefix-arg
+With \\[universal-argument], use the current KASTEN without asking."
+  (interactive (list (unless current-prefix-arg
                        (ezeka--read-kasten "Zettel Kasten: "))))
   (let* ((parent-file buffer-file-name)
          (parent-link (ezeka-file-link buffer-file-name))
@@ -3253,19 +3253,20 @@ With \\[universal-argument], ask to select the KASTEN."
           (if (file-exists-p new-file)
               (user-error "Aborting, file already exists: %s" new-file)
             (let ((entry-pt (point))
-                  (content (org-get-entry)))
+                  (content (org-copy-subtree nil 'cut)))
               ;; New file buffer
               (with-current-buffer (get-buffer-create new-file)
                 (ezeka-insert-header-template new-link
                                               (ezeka--read-label kasten)
                                               new-title parent-link)
-                (insert "\n" content)
+                (insert "\n" org-subtree-clip)
                 (set-visited-file-name new-file t)
-                (basic-save-buffer))
+                (basic-save-buffer)
+                (ezeka-add-change-log-entry
+                 new-file (format "Extract from %s." parent-link)))
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 (goto-char entry-pt)
-                (org-cut-subtree)
                 (insert (make-string head-level ?*)
                         " "
                         head-title
