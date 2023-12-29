@@ -1077,7 +1077,7 @@ signal an error when encountering malformed header lines."
                          (ezeka--header-deyamlify-value (match-string 2 line)))
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
-           (split-string header "\n")))
+           (split-string header "\n" 'omit-nulls "[ ]+")))
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata))))
     (append decoded metadata)))
 
