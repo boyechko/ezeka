@@ -345,10 +345,11 @@ string', which see."
   "Wrap the REGEXP in ^...$ to match the entire string."
   (concat "^" (string-trim regexp "^" "$") "$"))
 
-(defun space-or-punct-p (character)
+(defun ezeka--space-or-punct-p (character)
   "Return T if the CHARACTER is a space or punctuation."
   (when character
-    (string-match-p "[[:space:][:punct:]]" (char-to-string character))))
+    ;; [:punct:] is too permissive, since includes (), [], {}, etc.
+    (string-match-p "[[:space:].,;:'\"]" (char-to-string character))))
 
 (defmacro ezeka--with-space (value &optional where)
   "If VALUE is non-nil, return a string with specified space.
@@ -2050,9 +2051,9 @@ If WHERE is :instead, do not include the LINK."
 (defun ezeka-insert-with-spaces (&rest strings)
   "Insert STRINGS at point surrounded by spaces as appropriate.
 STRINGS are themselves concatenated with spaces in between."
-  (insert (if (or (bolp) (space-or-punct-p (char-before))) "" " ")
+  (insert (if (or (bolp) (ezeka--space-or-punct-p (char-before))) "" " ")
           (string-trim (mapconcat #'identity strings " "))
-          (if (or (eolp) (space-or-punct-p (char-after))) "" " ")))
+          (if (or (eolp) (ezeka--space-or-punct-p (char-after))) "" " ")))
 
 (defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
@@ -2285,29 +2286,33 @@ Called interactively, get the LINK at point or to current Zettel."
 
 (defun ezeka-update-link-prefix-title (&optional use-caption delete)
   "Replace text from point to next Zettel link with that Zettel's title.
-With \\[universal-argument] DELETE-TITLE, delete the text instead."
-  (interactive "P")
+If USE-CAPTION is non-nil, use the label and caption instead of title.
+With DELETE (or \\[universal-argument] \\[universal-argument]), delete the text instead."
+  (interactive
+   (list (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
   (save-excursion
     ;; if already inside a link, go to the start
     (when (string= "link" (car (org-thing-at-point)))
-      (re-search-backward "\\[\\["))
+      (re-search-backward "\\[\\[" (point-at-bol) 'noerror))
     ;; if char under cursor is start of link, back up to BOF
     (while (or (char-equal (following-char) ?\[)
                (= (preceding-char) 0))  ; BOF
       (backward-char))
-    (unless (char-equal (preceding-char) ? ) (insert " "))
     (let ((start (point)))
       ;; Cannot use `org-next-link', since it ignores links in comments
-      (when (re-search-forward "\\[\\[")
+      (when (re-search-forward "\\[\\[" (point-at-eol) 'noerror)
         (goto-char (match-beginning 0)))
       (when-let* ((_ (ezeka-link-at-point-p))
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
                   (mdata (ezeka-file-metadata file))
-                  (title (alist-get :title mdata)))
+                  (text (if use-caption
+                            (ezeka-format-metadata "{%l} %c" mdata)
+                          (alist-get :title mdata))))
         (delete-region start (point))
-        (unless delete-title
-          (insert title " "))))))
+        (unless delete
+          (ezeka-insert-with-spaces text " "))))))
 
 ;;;=============================================================================
 ;;; Link hints via overlays
