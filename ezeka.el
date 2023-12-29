@@ -45,7 +45,8 @@
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified."
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*" "\\(?1:" (ezeka--id-regexp) "\\)"))
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*"
+          "\\(?1:" (ezeka--id-regexp) "\\)"))
 
 (defvar ezeka-genus-regexp "[α-ω]"
   "Regexp matching genus.")
@@ -87,7 +88,8 @@ Group 6 is the stable caption mark."
 
 (defcustom ezeka-kaesten nil
   "An alist of `ezeka-kasten' structs populated by `ezeka-kaesten-add'.
-See that function for details; do not edit by hand."
+See that function for details; do not edit by hand.
+The list is ordered by the Kasten's `order' field."
   :type 'alist
   :group 'ezeka)
 
@@ -503,6 +505,7 @@ See also `ezeka--read-only-region'."
   "Concatenate ELEMENTS, separating them with SEPARATOR.
 Any NULLs are stripped from ELEMENTS, and everything else is fed to
 FORMAT."
+  (declare (indent 1))
   (mapconcat #'(lambda (elt)
                  (if (stringp elt)
                      elt
@@ -2110,7 +2113,7 @@ already inside a link, replace it instead."
         (if (not (ezeka-link-at-point-p))
             (if arg
                 (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link '(:title) :before t))
+              (ezeka-insert-link-with-metadata link '(:title) :before))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
           (insert (ezeka--format-link link)))
@@ -3080,7 +3083,7 @@ clear the keywords without attempting to edit them."
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
   (interactive (list (ezeka--grab-dwim-file-target)
-                     (org-read-date nil nil nil nil nil nil t)))
+                     (org-read-date nil nil nil nil nil nil 'inactive)))
   (let ((mdata (ezeka-file-metadata filename)))
     (ezeka--update-metadata-values filename mdata
       :readings (cons date (alist-get :readings mdata)))))
@@ -3270,7 +3273,7 @@ With \\[universal-argument], ask to select the KASTEN."
                         " "
                         (ezeka--format-link new-link))))))))))
 
-(defun ezeka-open-link-at-point (&optional arg)
+(defun ezeka-open-link-at-point (&optional same-window)
   "Open a Zettel link at point even if it's not formatted as a link.
 If SAME-WINDOW is non-nil, or the command is called with \\[universal-argument],
 ignore `ezeka-number-of-frames' and open the link in the same window."
@@ -3485,8 +3488,8 @@ different. With \\[universal-argument] ARG, forces update."
                          "ν" (ezeka-file-name-label (buffer-file-name current))))
                  (pos (or (org-find-exact-headline-in-buffer "Snippet")
                           (org-find-exact-headline-in-buffer "Content"))))
-        (goto-char pos)
         (when (y-or-n-p "Did you modify the snippet text? ")
+          (goto-char pos)
           (org-entry-put (point) "MODIFIED"
                          (ezeka-timestamp nil 'full 'brackets))
           (when-let* ((used-in (org-entry-get (point) "USED_IN+"))
