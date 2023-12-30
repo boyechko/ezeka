@@ -2709,8 +2709,8 @@ that to sort the list first."
                       (let ((cats-copy (cl-copy-list ezeka-categories)))
                         (cl-sort cats-copy sort-fn)))))
     (if custom
-        (read-string prompt default ezeka--read-category-history)
-      (completing-read prompt categories nil nil default))))
+        (read-string prompt default 'ezeka--read-category-history)
+      (completing-read prompt categories nil nil default 'ezeka--read-category-history))))
 
 (defun ezeka--completing-read-char (prompt choices &optional choice-format)
   "Use `completing-read' to read one of CHOICES after PROMPT.
