@@ -161,19 +161,23 @@ Control sequences %i (ID), %c (caption), and %l (label) are
 parsed from the filename. For everything else, call
 `ezeka-format-metadata' instead. If NOERROR is non-nil, just
 return nil if FORMAT cannot be rendered from ID and TITLE."
-  (let ((title (string-trim (or title "")))
-        (case-fold-search nil))
-    (if (not (string-match-p "%[^icl0-9-]" format))
-        (format-spec format
-                     `((?i . ,id)
-                       ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-                             `((?c . ,(match-string 2 title))
-                               (?l . ,(match-string 1 title)))
-                           `((?c . ,title)
-                             (?l . "Unknown")))))
-      ;; FIXME: Hackish way to catch hand-edited TITLE
-      (if-let* ((file (ezeka-link-file id nil 'noerror))
+  (let* ((title (string-replace "%" "%%" (string-trim (or title ""))))
+         (case-fold-search nil)
+         (basic (format-spec format
+                             `((?i . ,id)
+                               ,@(if (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
+                                     `((?c . ,(match-string 2 title))
+                                       (?l . ,(match-string 1 title)))
+                                   `((?c . ,title)
+                                     (?t . ,title))))
+                             'delete))) ;; or 'ignore to possibly fetch mdata
+    (if (and (not (string-match-p "%[0-9-]*[[:alpha:]]" basic))
+             (not (member id ezeka--marked-for-rename)))
+        basic
+      (if-let* ((debug t)
+                (file (ezeka-link-file id nil 'noerror))
                 (mdata (ezeka-file-metadata file 'noerror)))
+          ;; FIXME: Hackish way to catch hand-edited TITLE
           (progn
             (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
               (setf (alist-get :title mdata) title))
