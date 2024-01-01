@@ -316,6 +316,8 @@ SOURCE should be a string or symbol."
       (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
       (insert ezeka-breadcrumb-trail-headline)))
   (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
+  (org-set-tags "")
+  (org-set-tags '("breadcrumb-trail"))
   (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
   (message "Breadcrumbs will be dropped under heading `%s'"
            (nth 4 (org-heading-components))))
@@ -324,6 +326,12 @@ SOURCE should be a string or symbol."
 (defun ezeka-reset-breadcrumb-trail ()
   "Stop dropping breadcrumbs on this trail."
   (interactive)
+  (unless ezeka-breadcrumb-trail-buffer
+    (user-error "There is no active breadcrumb trail"))
+  (save-excursion
+    (with-current-buffer ezeka-breadcrumb-trail-buffer
+      (org-id-goto ezeka-breadcrumb-trail-id)
+      (org-set-tags "")))
   (message "Breadcrumbs will no longer be dropped in %s"
            ezeka-breadcrumb-trail-buffer)
   (setq ezeka-breadcrumb-trail-buffer nil
