@@ -1534,11 +1534,6 @@ offer to set metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
-         (pasteurized
-          (progn
-            (setf (alist-get :caption mdata)
-                  (ezeka--pasteurize-file-name (alist-get :caption mdata)))
-            (ezeka-format-metadata ezeka-file-name-format mdata)))
          (_read-user-choice
           (lambda ()
             "Prompt the user about which name to use."
@@ -1551,12 +1546,13 @@ offer to set metadata or rename the file even if they are in agreement."
                              "      [r] to add %s keyword for renaming later, or\n"
                              "      [n] or [q] to do noting: ")
                      (propertize file-base 'face 'bold)
-                     (propertize pasteurized 'face 'italic)
+                     (propertize mdata-base 'face 'italic)
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
           (unless (and (not force)
-                       (or (string= (ezeka--unaccent-string file-base) pasteurized)
+                       (or (string= (ezeka--unaccent-string file-base)
+                                    (ezeka--unaccent-string mdata-base))
                            (member ezeka-rename-note-keyword
                                    (alist-get :keywords mdata))))
             (funcall _read-user-choice))))
@@ -1586,21 +1582,25 @@ offer to set metadata or rename the file even if they are in agreement."
            (ezeka--save-buffer-read-only filename)
            (run-hooks 'ezeka-after-save-hook))
           ((memq keep-which '(?m ?M ?l ?L))
-           (setf (alist-get :keywords mdata)
-                 (cl-remove ezeka-rename-note-keyword
-                            (alist-get :keywords mdata)
-                            :test #'string=))
-           (ezeka--rename-file
-            filename
-            (file-name-with-extension
-             (if (or (member keep-which '(?M ?L))
-                     (not (string= pasteurized mdata-base)))
-                 (ezeka--minibuffer-edit-string pasteurized)
-               pasteurized)
-             ezeka-file-extension))
-           (run-hooks 'ezeka-after-save-hook)
-           (when t                      ; TODO check if filename changed
-             (message "You might want to do `ezeka-harmonize-file-name' again"))))))
+           (let ((pasteurized
+                  (ezeka--pasteurize-file-name
+                    (ezeka-format-metadata ezeka-file-name-format mdata))))
+             (setf (alist-get :keywords mdata)
+                   (cl-remove ezeka-rename-note-keyword
+                              (alist-get :keywords mdata)
+                              :test #'string=)
+                   (alist-get :caption mdata)
+                   pasteurized)
+             (ezeka--rename-file filename
+                                 (file-name-with-extension
+                                  (if (or (member keep-which '(?M ?L))
+                                          (not (string= file-base mdata-base)))
+                                      (ezeka--minibuffer-edit-string pasteurized)
+                                    pasteurized)
+                                  ezeka-file-extension))
+             (run-hooks 'ezeka-after-save-hook)
+             (when t                    ; TODO check if filename changed
+               (message "You might want to do `ezeka-harmonize-file-name' again")))))))
 
 ;;;=============================================================================
 ;;; Numerus Currens
