@@ -3833,7 +3833,9 @@ move."
         (ezeka-add-change-log-entry target-file
           (format "Move +%s+ to %s." source-link target-link))
         ;; Check about updating title and label
-        (setf (alist-get :label mdata)
+        (setf (alist-get :id mdata)
+              (ezeka-link-id target-link)
+              (alist-get :label mdata)
               (ezeka--read-label (alist-get :kasten mdata)
                                  nil
                                  nil
