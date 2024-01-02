@@ -2786,19 +2786,18 @@ DEFAULT is the genus used if user just presses [return]."
              (if (eq verbose 'choices)
                  (ezeka--completing-read-char (or prompt "Genus: ")
                                               ezeka-genera
-                                              "%s (%s) ⇒ %s")
+                                              "%c (%c) ⇒ %s")
                (read-char-choice
                 (concat (or prompt "Genus")
-                        (when verbose
-                          (format "%s (Latin character, `?' to list choices%s): "
-                                  (cond ((and verbose (stringp default))
-                                         (format ", or RETURN for \"%s\"" default))
-                                        ((and verbose (not require-match))
-                                         ", or RETURN to leave blank")
-                                        (t ""))))
-                        (unless prompt
-                          ": "))
-                (cons ? (mapcar #'car ezeka-genera))))))
+                        (if verbose
+                            (format " (Latin character, `?' to list choices%s): "
+                                    (cond ((and verbose (stringp default))
+                                           (format ", or RETURN for \"%s\"" default))
+                                          ((and verbose (not require-match))
+                                           ", or RETURN to leave blank")
+                                          (t "")))
+                          (unless prompt ": ")))
+                (append '(?? ?) (mapcar #'car ezeka-genera))))))
         (cond ((or (= result ??)
                    (and (= result ?) require-match))
                (setq verbose 'choices))
