@@ -328,8 +328,8 @@ If ID-TYPE is not given, check ID against all known types."
 (defun ezeka--read-id (prompt &optional id-type initial-input)
   "Use `read-string' with PROMPT to read an ID.
 If ID-TYPE is given, make sure the entered ID is valid for
-that specific type. INITIAL-INPUT is passed to `read-
-string', which see."
+that specific type. INITIAL-INPUT is passed to
+`read-string', which see."
   (let (id)
     (while (or (null id) (string-empty-p id))
       (setq id (read-string prompt initial-input 'ezeka--read-id-history))
@@ -1610,7 +1610,7 @@ offer to set metadata or rename the file even if they are in agreement."
           ((memq keep-which '(?m ?M ?l ?L))
            (let ((pasteurized
                   (ezeka--pasteurize-file-name
-                    (ezeka-format-metadata ezeka-file-name-format mdata))))
+                   (ezeka-format-metadata ezeka-file-name-format mdata))))
              (setf (alist-get :keywords mdata)
                    (cl-remove ezeka-rename-note-keyword
                               (alist-get :keywords mdata)
@@ -2835,6 +2835,7 @@ should consist of KEY and VALUE pairs.
 (defun ezeka-add-change-log-entry (filename entry &optional section)
   "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
+  (declare (indent 1))
   (interactive (list buffer-file-name nil nil))
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
