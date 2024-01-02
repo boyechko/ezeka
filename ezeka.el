@@ -2741,14 +2741,17 @@ Optional PROMPT allows customizing the prompt, while DEFAULT
 specifies initial input. If CUSTOM is non-nil, asks the user
 to type in the category directly. If SORT-FN is given, use
 that to sort the list first."
-  (let ((prompt (or prompt "Category: "))
-        (categories (if (not (functionp sort-fn))
-                        ezeka-categories
-                      (let ((cats-copy (cl-copy-list ezeka-categories)))
-                        (cl-sort cats-copy sort-fn)))))
-    (if custom
-        (read-string prompt default 'ezeka--read-category-history)
-      (completing-read prompt categories nil nil default 'ezeka--read-category-history))))
+  (let* ((prompt (or prompt "Category: "))
+         (cats (if (not (functionp sort-fn))
+                   ezeka-categories
+                 (cl-sort (cl-delete-duplicates ezeka-categories :test #'string=)
+                          sort-fn)))
+         (cat (if custom
+                  (read-string prompt default 'ezeka--read-category-history)
+                (completing-read prompt cats nil nil default
+                                 'ezeka--read-category-history))))
+    (cl-pushnew cat ezeka-categories)
+    cat))
 
 (defun ezeka--completing-read-char (prompt choices &optional choice-format)
   "Use `completing-read' to read one of CHOICES after PROMPT.
