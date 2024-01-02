@@ -2988,11 +2988,11 @@ prepend a @ to it before setting."
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
-If CITEKEY is not given, get it from the parent, or if
-called with \\[universal-argument], let the user enter the citekey
-no matter what. With DEGREE, traces genealogy further than parent."
+If CITEKEY is not given, get it from the parent, leting the
+user edit it before setting. With DEGREE, trace genealogy
+further than parent."
   (interactive (list (buffer-file-name)
-                     (equal current-prefix-arg '(4))
+                     nil
                      (if (integerp current-prefix-arg)
                          current-prefix-arg
                        1)))
@@ -3000,20 +3000,23 @@ no matter what. With DEGREE, traces genealogy further than parent."
       (user-error "Not a Zettel note")
     (let* ((ancestor (ezeka-trace-genealogy filename degree))
            (old-citekey (ezeka-file-name-citekey filename))
-           (citekey (or (and (null citekey)
+           (citekey (or citekey
+                        (and (null citekey)
                              ancestor
-                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))
-                        (read-string "New citekey: " old-citekey))))
+                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))))
+           (citekey (ezeka--minibuffer-edit-string citekey nil "New citekey: ")))
       (ezeka--set-citekey filename citekey)
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
          filename
-         (cond ((and old-citekey citekey)
-                (format "Change citekey from %s to %s." old-citekey citekey))
-               (citekey
+         (cond ((and old-citekey (string-empty-p citekey))
+                (format "Remove citekey %s." old-citekey))
+               ((not old-citekey)
                 (format "Add citekey %s." citekey))
+               ((not (string= old-citekey citekey))
+                (format "Change citekey from %s to %s." old-citekey citekey))
                (t
-                (format "Remove citekey %s." old-citekey))))))))
+                (format "Old citekey: %s, new citekey: %s" old-citekey citekey))))))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
