@@ -2248,8 +2248,13 @@ current buffer."
                            t))))
   (when-let* ((file (ezeka--grab-dwim-file-target))
               (link (ezeka-file-link file))
-              (mdata (ezeka-file-metadata file)))
-    (ezeka--kill-ring-clipboard-save (alist-get field mdata))))
+              (mdata (ezeka-file-metadata file))
+              (value (alist-get field mdata)))
+    (ezeka--kill-ring-clipboard-save
+     (pcase value
+       ((pred stringp) value)
+       ((pred ezeka--timep) (ezeka-timestamp value 'full))
+       (_ (format "%s" value))))))
 
 (defun ezeka-kill-ring-save-link (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
