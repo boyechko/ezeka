@@ -58,14 +58,12 @@ See `zk--group-function' for details."
 Unlike `zk-backlinks', search in the entire `ezeka-directory' as well
 as list the note's children."
   (interactive)
-  (let* ((id (zk--file-id buffer-file-name))
+  (let* ((id (ezeka-file-name-id buffer-file-name))
          (zk-directory ezeka-directory)
          (files (zk--grep-file-list
-                 (concat "\\(parent: " id
-                         "\\|" (regexp-quote (zk--format zk-link-format id))
-                         "\\)"))))
+                 (concat "\\(parent: " id "\\|" (zk-link-regexp id) "\\)"))))
     (if files
-        (find-file (funcall zk-select-file-function "Backlinks: " files))
+        (ezeka-find-file (funcall zk-select-file-function "Backlinks: " files))
       (user-error "No backlinks found"))))
 
 (defun ezeka-zk-file-name-regexp ()
