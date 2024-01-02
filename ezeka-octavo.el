@@ -1,12 +1,12 @@
-;;; ezeka-zk.el --- Eclectic Zettelkasten & Zk Integration -*- lexical-binding: t -*-
+;;; ezeka-octavo.el --- Eclectic Zettelkasten & Octavo Integration -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2022-2023 Richard Boyechko
 
 ;; Author: Richard Boyechko <code@diachronic.net>
 ;; Version: 0.2
-;; Package-Requires: ((emacs "28.1") (ezeka "0.8") (zk "0.4") (zk-index "0.4"))
-;; Keywords: deft zettelkasten org
+;; Keywords: zettelkasten org
 ;; URL: https://github.com/boyechko/eclectic-zettelkasten
+;; Package-Requires: ((emacs "28.1") (ezeka "0.8") (octavo "0.1") (octavo-index "0.1"))
 
 ;; This file is not part of Emacs
 
@@ -25,20 +25,20 @@
 
 ;;; Commentary:
 
-;; Zk and Zk-index integration for ezeka.el
+;; Octavo and Octavo-index integration for ezeka.el
 
 (require 'ezeka)
-(require 'zk)
-(require 'zk-index)
+(require 'octavo)
+(require 'octavo-index)
 
 ;; For these avariables to be treated as dynamic, need to declare them first
 ;; here.
 
 ;;; Code:
 
-(defvar zk-directory)
-(defvar zk-id-regexp)
-(defvar zk-id-format)
+(defvar octavo-directory)
+(defvar octavo-id-regexp)
+(defvar octavo-id-format)
 
 (defmacro cmd-named (name &rest body)
   "Wrap the BODY inside an interactive defun form for NAME."
@@ -48,14 +48,14 @@
      ,@body))
 (put 'cmd-named 'lisp-indent-function 1)
 
-(defmacro ezeka-zk-with-kasten (kasten &rest body)
+(defmacro ezeka-octavo-with-kasten (kasten &rest body)
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
   `(let ((ezeka-kasten (ezeka-kasten-named ,kasten))
-         (zk-directory (ezeka-kasten-directory ,kasten))
-         (zk-id-regexp (ezeka--id-regexp)))
-     (cl-progv '(zk-id-time-string-format
-                 zk-file-name-id-only)
+         (octavo-directory (ezeka-kasten-directory ,kasten))
+         (octavo-id-regexp (ezeka--id-regexp)))
+     (cl-progv '(octavo-id-time-string-format
+                 octavo-file-name-id-only)
          (if (eq (ezeka-kasten-id-type ezeka-kasten) :numerus)
              '(,(concat (string (seq-random-elt (number-sequence ?a ?z)))
                         "-%H%M")
@@ -64,40 +64,40 @@
              t))
        ,@body)))
 
-(defun ezeka-zk-initialize-kasten (name)
+(defun ezeka-octavo-initialize-kasten (name)
   "Set necessary variables for long-term work in Kasten with given NAME."
-  (setq zk-directory (ezeka-kasten-directory name)
-        zk-id-regexp (ezeka--id-regexp))
+  (setq octavo-directory (ezeka-kasten-directory name)
+        octavo-id-regexp (ezeka--id-regexp))
   (let ((kasten (ezeka-kasten-named name)))
     (if (eq (ezeka-kasten-id-type kasten) :numerus)
-        (setq zk-index-format "%i {%l} %c"
-              zk-id-time-string-format
+        (setq octavo-index-format "%i {%l} %c"
+              octavo-id-time-string-format
               (concat (cl-subseq (downcase (format-time-string "%a")) 0 1) "-%H%M"))
-      (setq zk-id-time-string-format "%Y%m%dT%H%M"
-            zk-index-format "{%-12l} %c [[%i]]"))))
+      (setq octavo-id-time-string-format "%Y%m%dT%H%M"
+            octavo-index-format "{%-12l} %c [[%i]]"))))
 
-(defcustom ezeka-zk-index-buffer-format "*Zk-Index: %k*"
-  "Format string to use when creating Zk index buffers.
+(defcustom ezeka-octavo-index-buffer-format "*Octavo-Index: %k*"
+  "Format string to use when creating Octavo index buffers.
 %k means capitalized kasten.
 %K means upcased kasten."
   :type 'string)
 
-(defun ezeka-zk--index-buffer-name (kasten)
-  "Return a name for an zk index buffer for KASTEN.
-The format is customizable via `ezeka-zk-index-buffer-format'."
-  (format-spec ezeka-zk-index-buffer-format
+(defun ezeka-octavo--index-buffer-name (kasten)
+  "Return a name for an octavo index buffer for KASTEN.
+The format is customizable via `ezeka-octavo-index-buffer-format'."
+  (format-spec ezeka-octavo-index-buffer-format
                `((?k . ,(capitalize kasten))
                  (?k . ,(upcase kasten)))))
 
 ;;;###autoload
-(defun ezeka-zk-index-switch-to-kasten (kasten &optional choose noselect)
-  "Create or switch to Zk-Index buffer for given KASTEN.
+(defun ezeka-octavo-index-switch-to-kasten (kasten &optional choose noselect)
+  "Create or switch to Octavo-Index buffer for given KASTEN.
 If KASTEN is not specified, switch to the most recently
 viewed index, if there are active ones. With CHOOSE (or
 \\[universal-argument]), offer a choice of Kasten regardless. If NOSELECT
 is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually switch."
   (interactive
-   (let ((active (ezeka-zk--current-active-indexes))
+   (let ((active (ezeka-octavo--current-active-indexes))
          (prefix (prefix-numeric-value current-prefix-arg)))
      (list
       (if (or (not active) (= prefix 4))
@@ -114,17 +114,17 @@ is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually sw
       (= prefix 4)
       (= prefix 16))))
   (custom-set-variables
-   '(zk-subdirectory-function #'ezeka-id-subdirectory)
-   `(zk-index-buffer-name ,(ezeka-zk--index-buffer-name kasten)))
-  (ezeka-zk-initialize-kasten kasten)
+   '(octavo-subdirectory-function #'ezeka-id-subdirectory)
+   `(octavo-index-buffer-name ,(ezeka-octavo--index-buffer-name kasten)))
+  (ezeka-octavo-initialize-kasten kasten)
   (unless noselect
-    (zk-index)))
+    (octavo-index)))
 
-(defun ezeka-zk--current-active-indexes ()
-  "Return alist of currently active Kasten and their Zk index buffers."
+(defun ezeka-octavo--current-active-indexes ()
+  "Return alist of currently active Kasten and their Octavo index buffers."
   (let ((regexp
          (string-replace "%k" "\\(.*\\)"
-                         (regexp-quote ezeka-zk-index-buffer-format))))
+                         (regexp-quote ezeka-octavo-index-buffer-format))))
     (delq nil
           (mapcar (lambda (buf)
                     (when (string-match regexp (buffer-name buf))
@@ -132,15 +132,15 @@ is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually sw
                             buf)))
                   (buffer-list)))))
 
-(defun ezeka-zk-new-note-header (title new-id &optional orig-id)
+(defun ezeka-octavo-new-note-header (title new-id &optional orig-id)
   "Insert header in new notes with args TITLE and NEW-ID.
 Optionally use ORIG-ID for backlink."
   (ezeka-insert-header-template new-id nil title orig-id))
 
-(defun ezeka-zk-index-button-display-action (file buffer &optional same-window)
+(defun ezeka-octavo-index-button-display-action (file buffer &optional same-window)
   "Function to display FILE or BUFFER on button press in Index and Desktop.
 If \\[universal-argument] SAME-WINDOW is non-nil, use same window.
-See `zk-index-button-display-action'."
+See `octavo-index-button-display-action'."
   (let ((buffer (or buffer (find-file-noselect file))))
     (with-current-buffer buffer
       (ezeka-breadcrumbs-drop buffer-file-name 'index))
@@ -155,7 +155,7 @@ See `zk-index-button-display-action'."
              (find-file file))
             (t (find-file-other-window file))))))
 
-(defun ezeka-zk-format-function (format id title &optional noerror)
+(defun ezeka-octavo-format-function (format id title &optional noerror)
   "Format given ID and TITLE according to FORMAT.
 Control sequences %i (ID), %c (caption), and %l (label) are
 parsed from the filename. For everything else, call
@@ -185,9 +185,9 @@ return nil if FORMAT cannot be rendered from ID and TITLE."
         (unless noerror
           (error "Cannot retrieve metadata for `%s'" id))))))
 
-(defun ezeka-zk-parse-file (target files)
+(defun ezeka-octavo-parse-file (target files)
   "Parse FILES for TARGET.
-See `zk-parse-file-function'."
+See `octavo-parse-file-function'."
   (let* ((files (if (listp files)
                     files
                   (list files)))
@@ -202,14 +202,14 @@ See `zk-parse-file-function'."
         (car return)
       return)))
 
-(defvar ezeka-zk-metadata-alist nil
+(defvar ezeka-octavo-metadata-alist nil
   "An alist of file metadata and mtime, cached by ID.
 Each item has the form (ID TITLE FILENAME MTIME METADATA).")
 
-(defun ezeka-zk-cache-update-all ()
+(defun ezeka-octavo-cache-update-all ()
   "Update file list and update cached information for each file.
-Return `ezeka-zk-metadata-alist'."
-  (setq ezeka-zk-metadata-alist
+Return `ezeka-octavo-metadata-alist'."
+  (setq ezeka-octavo-metadata-alist
     (mapcar
      (lambda (file)
        (when (ezeka-file-p file)
@@ -219,14 +219,14 @@ Return `ezeka-zk-metadata-alist'."
                  file
                  (file-attribute-modification-time (file-attributes file))
                  metadata))))
-     (zk--directory-files t))))
+     (octavo--directory-files t))))
 
-(defun ezeka-zk-alist ()
-  "See `zk-alist-function'."
-  (or ezeka-zk-metadata-alist
-      (ezeka-zk-cache-update-all)))
+(defun ezeka-octavo-alist ()
+  "See `octavo-alist-function'."
+  (or ezeka-octavo-metadata-alist
+      (ezeka-octavo-cache-update-all)))
 
-(defun ezeka-zk-set-parent (filename &optional new-parent other-window)
+(defun ezeka-octavo-set-parent (filename &optional new-parent other-window)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel, unless
 OTHER-WINDOW (or \\[universal-argument] \\[universal-argument]) is non-nil and
@@ -245,8 +245,8 @@ Otherwise, ask the user to enter the link manually."
                                (ezeka--read-kasten "Which Kasten? ")
                              (ezeka-kasten-name (car ezeka-kaesten)))))
                (ezeka-file-link
-                (ezeka-zk-with-kasten kasten
-                  (zk--select-file "Set parent to: "))))))))
+                (ezeka-octavo-with-kasten kasten
+                  (octavo--select-file "Set parent to: "))))))))
   (ezeka--update-metadata-values filename nil
     :parent (if new-parent
                 new-parent
@@ -254,30 +254,30 @@ Otherwise, ask the user to enter the link manually."
               nil)))
 
 ;;;=============================================================================
-;;; Mapping Across Zk-Index Buttons
+;;; Mapping Across Octavo-Index Buttons
 ;;;=============================================================================
 
-(defun ezeka-zk-map-buttons (func &optional buffer start end)
-  "Map FUNC across zk-index buttons in BUFFER between START and END.
-Like `widget-map-buttons' but for zk-index buttons."
-  (mapc func (zk-index--current-button-list buffer start end)))
+(defun ezeka-octavo-map-buttons (func &optional buffer start end)
+  "Map FUNC across octavo-index buttons in BUFFER between START and END.
+Like `widget-map-buttons' but for octavo-index buttons."
+  (mapc func (octavo-index--current-button-list buffer start end)))
 
-(defun ezeka-zk-map-button-files (func &optional buffer start end)
-  "Map FUNC across zk-index buttons in BUFFER between START and END.
+(defun ezeka-octavo-map-button-files (func &optional buffer start end)
+  "Map FUNC across octavo-index buttons in BUFFER between START and END.
 FUNC should be a function accepting arguments FILE, COUNTER,
 TOTAL-FILES. Return list of files mapped across."
-  (let* ((buttons (zk-index--current-button-list buffer start end))
+  (let* ((buttons (octavo-index--current-button-list buffer start end))
          (total (length buttons))
          (n 0)
          results)
     (dolist (button buttons (nreverse results))
-      (let ((file (zk--triplet-file (button-get button 'zk-triplet))))
+      (let ((file (octavo--triplet-file (button-get button 'octavo-triplet))))
         (funcall func file n total)
         (push file results)
         (cl-incf n)))))
 
-(defmacro define-zk-index-mapper (name func &optional docstring &rest body)
-  "Define interactive function to map FUNC across Zk-Index region.
+(defmacro define-octavo-index-mapper (name func &optional docstring &rest body)
+  "Define interactive function to map FUNC across Octavo-Index region.
 FUNC should take filename as the only argument. BODY is the body of
 the index mapper command.
 
@@ -299,51 +299,51 @@ the index mapper command.
              (ezeka-update-modification-date 'never)
              (inhibit-read-only t))
          ,@body
-         (let ((,files (nreverse (ezeka-zk-map-button-files ,func nil ,beg ,end))))
+         (let ((,files (nreverse (ezeka-octavo-map-button-files ,func nil ,beg ,end))))
            (delete-region ,beg ,end)
            (dolist (,file ,files ,files)
-             (zk-index--insert-button ,file)
+             (octavo-index--insert-button ,file)
              ;;(insert "\n")
              ))))))
 
-(defvar ezeka-zk--last-genus nil
-  "Used by `ezeka-zk-index-set-genus' to hold the last set genus.")
+(defvar ezeka-octavo--last-genus nil
+  "Used by `ezeka-octavo-index-set-genus' to hold the last set genus.")
 
-(defun ezeka-zk-index-set-genus (file)
-  "Set genus for the Zettel FILE at point in the Zk-Index buffer.
+(defun ezeka-octavo-index-set-genus (file)
+  "Set genus for the Zettel FILE at point in the Octavo-Index buffer.
 Afteward, save the file without asking."
   (interactive (list (ezeka--grab-dwim-file-target)))
   (let ((ezeka-save-after-metadata-updates t)
         (ezeka-update-modification-date 'never)
         (inhibit-read-only t)
-        (genus (ezeka-read-genus nil nil ezeka-zk--last-genus)))
+        (genus (ezeka-read-genus nil nil ezeka-octavo--last-genus)))
     (ezeka-set-genus file genus)
-    (setq ezeka-zk--last-genus genus)
-    (when zk-index-view-mode
-      (with-current-buffer zk-index-buffer-name
+    (setq ezeka-octavo--last-genus genus)
+    (when octavo-index-view-mode
+      (with-current-buffer octavo-index-buffer-name
         (when (file-equal-p (ezeka--grab-dwim-file-target) file)
           (delete-region (point-at-bol) (point-at-eol))
-          (zk-index--insert-button file))))
-    (zk-index-next-line)))
+          (octavo-index--insert-button file))))
+    (octavo-index-next-line)))
 
-(define-zk-index-mapper ezeka-zk-index-mass-set-genus
-    (lambda (file &rest args) (ezeka-set-genus file ezeka-zk--last-genus))
+(define-octavo-index-mapper ezeka-octavo-index-mass-set-genus
+    (lambda (file &rest args) (ezeka-set-genus file ezeka-octavo--last-genus))
   "Set the genus for all notes in the active region and save the
 files without asking."
-  (setq ezeka-zk--last-genus
-    (ezeka-read-genus nil "Mass-set what genus? " ezeka-zk--last-genus)))
+  (setq ezeka-octavo--last-genus
+    (ezeka-read-genus nil "Mass-set what genus? " ezeka-octavo--last-genus)))
 
-(define-zk-index-mapper ezeka-zk-index-set-citekey
+(define-octavo-index-mapper ezeka-octavo-index-set-citekey
     (lambda (file &rest args) (ezeka-set-citekey file nil current-prefix-arg))
   "Set the citekey for all notes in the active region and save the
 files without asking.")
 
-(define-zk-index-mapper ezeka-zk-index-set-title
+(define-octavo-index-mapper ezeka-octavo-index-set-title
     (lambda (file &rest args) (ezeka-set-title file))
   "Set the title for all notes in the active region and save the files without
 asking.")
 
-(define-zk-index-mapper ezeka-zk-index-set-rubric
+(define-octavo-index-mapper ezeka-octavo-index-set-rubric
     (lambda (file &rest args)
       (let* ((metadata (ezeka-file-metadata file))
              (updated (ezeka-decode-rubric
@@ -355,12 +355,12 @@ asking.")
   "Set the entire rubric line for all notes in the active region and save the
 files without asking.")
 
-(define-zk-index-mapper ezeka-zk-index-entitle
+(define-octavo-index-mapper ezeka-octavo-index-entitle
     (lambda (file n out-of)
       (ezeka-entitle-file-name file
                                current-prefix-arg
                                (format "[%d/%d] New file name: " n out-of)))
-  "Entitle all files in the currently active region of Zk-Index
+  "Entitle all files in the currently active region of Octavo-Index
 buffer. With \\[universal-argument], don't bother editing each new
 name."
   (when (ezeka-file-p (current-buffer))
@@ -368,8 +368,8 @@ name."
     (save-buffer)
     (user-error "Use `ezeka-entitle-file-name' for singe files")))
 
-(defun ezeka-zk-move-all-in-region (start end kasten arg)
-  "Move files between START and END of Zk Index to KASTEN.
+(defun ezeka-octavo-move-all-in-region (start end kasten arg)
+  "Move files between START and END of Octavo Index to KASTEN.
 With \\[universal-argument] ARG, confirm each move and ask about
 destination kasten."
   (interactive
@@ -381,13 +381,13 @@ destination kasten."
                  current-prefix-arg)))
   (let ((lines (count-lines start end))
         (moved 1)
-        (zk-alist (zk--alist (zk--directory-files))))
+        (octavo-alist (octavo--alist (octavo--directory-files))))
     (goto-char start)
-    (while (re-search-forward zk-id-regexp end t)
+    (while (re-search-forward octavo-id-regexp end t)
       (let* ((id (match-string-no-properties 1))
              (title (buffer-substring-no-properties
                      (point-at-bol) (match-beginning 0)))
-             (file (zk--parse-id 'file-path id zk-alist)))
+             (file (octavo--parse-id 'file-path id octavo-alist)))
         (when (and file
                    (or arg
                        (y-or-n-p
@@ -406,30 +406,30 @@ destination kasten."
     32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
   (put 'vertico--define-sort 'lisp-indent-function 1))
 
-(defun ezeka-zk-insert-link (file)
+(defun ezeka-octavo-insert-link (file)
   "Insert link to the Zettel FILE.
-Unlike `zk-insert-link', allow editing the title in the
-minibuffer according to the value of `zk-link-and-title': if it's
+Unlike `octavo-insert-link', allow editing the title in the
+minibuffer according to the value of `octavo-link-and-title': if it's
 'ask or t, the user can edit the title before it is inserted."
-  (interactive (list (zk--select-file "Insert link to: ")))
+  (interactive (list (octavo--select-file "Insert link to: ")))
   (when-let ((link (ezeka-file-link file)))
-    (if (or (eq zk-link-and-title 't)
-            (and (eq zk-link-and-title 'ask)
+    (if (or (eq octavo-link-and-title 't)
+            (and (eq octavo-link-and-title 'ask)
                  ;; FIXME: Nonlocal function
                  (rb-y-or-explicit-n-p "Include (edited) title? ")))
         (ezeka-insert-link-with-metadata link '(:title) :before)
       (ezeka-insert-with-spaces (ezeka--format-link link)))
     (ezeka--make-help-echo-overlay-at-pos (point))))
 
-(defun ezeka-zk-insert-link-to-kasten (&optional kasten sort)
-  "Temporarily set zk variables for KASTEN and call `zk-insert-link'.
+(defun ezeka-octavo-insert-link-to-kasten (&optional kasten sort)
+  "Temporarily set octavo variables for KASTEN and call `octavo-insert-link'.
 If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive (list (ezeka--read-kasten)))
   (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha)))
-    (ezeka-zk-with-kasten kasten
-      (call-interactively 'ezeka-zk-insert-link))))
+    (ezeka-octavo-with-kasten kasten
+      (call-interactively 'ezeka-octavo-insert-link))))
 
-(defun ezeka-zk-insert-contextual-link (&optional kasten sort)
+(defun ezeka-octavo-insert-contextual-link (&optional kasten sort)
   "Insert a link to KASTEN based on the previous word.
 If KASTEN is not given, assume one with highest order. If
 SORT is non-nil, set `vertico-sort-function' to it."
@@ -439,7 +439,7 @@ SORT is non-nil, set `vertico-sort-function' to it."
                        "numerus")))     ; HARDCODED
   (let ((pos (point))
         (vertico-sort-function (or sort 'vertico-sort-history-alpha))
-        (zk-link-and-title nil)
+        (octavo-link-and-title nil)
         (context (downcase (or (word-at-point 'no-props)
                                (save-excursion
                                  (backward-to-word 1)
@@ -450,53 +450,53 @@ SORT is non-nil, set `vertico-sort-function' to it."
                                     (point-at-bol))
                                 t))
       (goto-char (match-beginning 0)))
-    (ezeka-zk-with-kasten kasten
-      (ezeka-zk-insert-link
-       (zk--select-file "Insert link to: " nil nil nil
+    (ezeka-octavo-with-kasten kasten
+      (ezeka-octavo-insert-link
+       (octavo--select-file "Insert link to: " nil nil nil
                         (string-trim context "[[:punct:]]" "[[:punct:]]"))))))
 
-(cmd-named ezeka-zk-insert-link-to-numerus
-  (ezeka-zk-insert-link-to-kasten "numerus"))
-(cmd-named ezeka-zk-insert-link-to-tempus
-  (ezeka-zk-insert-link-to-kasten "tempus" 'vertico-sort-reverse-alpha))
-(cmd-named ezeka-zk-insert-link-to-scriptum
-  (ezeka-zk-insert-link-to-kasten "scriptum"))
+(cmd-named ezeka-octavo-insert-link-to-numerus
+  (ezeka-octavo-insert-link-to-kasten "numerus"))
+(cmd-named ezeka-octavo-insert-link-to-tempus
+  (ezeka-octavo-insert-link-to-kasten "tempus" 'vertico-sort-reverse-alpha))
+(cmd-named ezeka-octavo-insert-link-to-scriptum
+  (ezeka-octavo-insert-link-to-kasten "scriptum"))
 
-(defun ezeka-zk-find-note-in-kasten (kasten &optional other-window sort)
-  "Temporarily set zk variables for KASTEN and call `zk-find-file'.
+(defun ezeka-octavo-find-note-in-kasten (kasten &optional other-window sort)
+  "Temporarily set octavo variables for KASTEN and call `octavo-find-file'.
 With \\[universal-argument] OTHER-WINDOW, open in other window.
 If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive
    (list (if-let ((kasten
-                   (and zk-directory
+                   (and octavo-directory
                         (not current-prefix-arg)
-                        (ezeka-directory-kasten zk-directory))))
+                        (ezeka-directory-kasten octavo-directory))))
              kasten
            (ezeka--read-kasten))
          current-prefix-arg))
-  (ezeka-zk-with-kasten kasten
+  (ezeka-octavo-with-kasten kasten
     (let* ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
-           (file (zk--select-file (if other-window
+           (file (octavo--select-file (if other-window
                                       "Find note in other window: "
                                     "Find note: "))))
       (ezeka-find-file file (not other-window)))))
 
-(defmacro ezeka-zk--define-kasten-finders (kasten &optional sort)
+(defmacro ezeka-octavo--define-kasten-finders (kasten &optional sort)
   "Define a set of new commands for finding notes in KASTEN.
 SORT is the function that vertico uses to sort the results."
   `(progn
-     (defun ,(intern (concat "ezeka-zk-find-in-" kasten)) ()
+     (defun ,(intern (concat "ezeka-octavo-find-in-" kasten)) ()
        ,(format "Find a note in %s kasten." kasten)
        (interactive)
-       (ezeka-zk-find-note-in-kasten ,kasten nil ,sort))
-     (defun ,(intern (concat "ezeka-zk-find-in-" kasten "-other-window")) ()
+       (ezeka-octavo-find-note-in-kasten ,kasten nil ,sort))
+     (defun ,(intern (concat "ezeka-octavo-find-in-" kasten "-other-window")) ()
        ,(format "Find a note in %s kasten in other window." kasten)
        (interactive)
-       (ezeka-zk-find-note-in-kasten ,kasten 'other-window ,sort))))
+       (ezeka-octavo-find-note-in-kasten ,kasten 'other-window ,sort))))
 
-(ezeka-zk--define-kasten-finders "numerus")
-(ezeka-zk--define-kasten-finders "tempus" 'vertico-sort-reverse-alpha)
-(ezeka-zk--define-kasten-finders "scriptum")
+(ezeka-octavo--define-kasten-finders "numerus")
+(ezeka-octavo--define-kasten-finders "tempus" 'vertico-sort-reverse-alpha)
+(ezeka-octavo--define-kasten-finders "scriptum")
 
 ;;;=============================================================================
 ;;; Maintenance
@@ -509,22 +509,22 @@ SORT is the function that vertico uses to sort the results."
            (ezeka-link-at-point))))
   (consult-grep ezeka-directory link))
 
-(defun ezeka-zk-grep-in-zettelkasten (string &optional literal)
+(defun ezeka-octavo-grep-in-zettelkasten (string &optional literal)
   "Run recursive grep (`rgrep') for the given STRING across all Zettel.
 If LITERAL is non-nil, search for STRING literallyl."
   (interactive "sSearch for what? ")
   (grep-compute-defaults)
-  (let ((zk-directory ezeka-directory))
-    (zk--grep-file-list (if literal
+  (let ((octavo-directory ezeka-directory))
+    (octavo--grep-file-list (if literal
                             (regexp-quote string)
                           (string-replace " " ".*" string)))))
 
-(defvar ezeka--zk-replace-links-before-history nil
-  "History variable used in `ezeka-zk-replace-links'.")
-(defvar ezeka--zk-replace-links-after-history nil
-  "History variable used in `ezeka-zk-replace-links'.")
+(defvar ezeka--octavo-replace-links-before-history nil
+  "History variable used in `ezeka-octavo-replace-links'.")
+(defvar ezeka--octavo-replace-links-after-history nil
+  "History variable used in `ezeka-octavo-replace-links'.")
 
-(defun ezeka-zk-replace-links (before after &optional directory confirm)
+(defun ezeka-octavo-replace-links (before after &optional directory confirm)
   "Replace BEFORE links to AFTER links in DIRECTORY.
 DIRECTORY defaults to `ezeka-directory' if not given. If AFTER is nil,
 replace the link with {{BEFORE}}. Returns a tuple of number of links
@@ -541,20 +541,20 @@ non-nil, check with user before replacing."
          (list (car rec) (cadr rec) nil nil))
      (let* ((before (read-string "Replace link: "
                                  nil
-                                 'ezeka--zk-replace-links-before-history))
+                                 'ezeka--octavo-replace-links-before-history))
             (after (read-string (format "Replace `%s' with link: " before)
                                 nil
-                                'ezeka--zk-replace-links-after-history)))
+                                'ezeka--octavo-replace-links-after-history)))
        (list before after nil
              (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
          (ezeka-breadcrumbs-leave-trail nil)
          (bf-id (ezeka-link-id before))
          (with-links
-          (let ((zk-directory (or directory ezeka-directory)))
-            ;; NOTE: Requires `zk--grep-file-list' after PR #68 that translates
+          (let ((octavo-directory (or directory ezeka-directory)))
+            ;; NOTE: Requires `octavo--grep-file-list' after PR #68 that translates
             ;; Emacs regexp into POSIX form and defaults to extended regexps
-            (zk--grep-file-list
+            (octavo--grep-file-list
              (format "\\(parent: [a-z:]*%s$\\|%s][][]\\)" bf-id bf-id))))
          (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
          (replacement (if after
@@ -606,7 +606,7 @@ METADATA is NOTE's metadata."
       (cons   (cl-find note2-id parents :test #'string=))
       (t (error "Don't know how to handle" (type-of parents))))))
 
-(defun ezeka-zk-delete-note (link-or-file &optional change-to)
+(defun ezeka-octavo-delete-note (link-or-file &optional change-to)
   "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
 If CHANGE-TO is not given, suggest the note's parent, if set."
   (interactive (list (ezeka--grab-dwim-file-target) nil))
@@ -618,8 +618,8 @@ If CHANGE-TO is not given, suggest the note's parent, if set."
                  (ezeka-file-link link-or-file)))
          (mdata (ezeka-file-metadata file))
          (parent (alist-get :parent mdata))
-         (with-links (let ((zk-directory ezeka-directory))
-                       (zk--grep-file-list
+         (with-links (let ((octavo-directory ezeka-directory))
+                       (octavo--grep-file-list
                         (format "(parent: %s|%s\\]\\])" link link))))
          (change-to
           (or change-to
@@ -630,18 +630,18 @@ If CHANGE-TO is not given, suggest the note's parent, if set."
                                parent
                              (concat "{{" link "}}"))))))
     (when with-links                    ; FIXME: Pass with-links!
-      (ezeka-zk-replace-links link change-to))
+      (ezeka-octavo-replace-links link change-to))
     (ezeka--add-to-move-log link change-to)
     (when (y-or-n-p (format "Really delete %s %s? "
                             link (alist-get :title mdata)))
       (delete-file file)
       (kill-buffer-ask (get-file-buffer file)))))
 
-(defun ezeka-zk-insert-link-to-index ()
-  "Insert link to the ID at point in `zk-index-buffer-name'."
+(defun ezeka-octavo-insert-link-to-index ()
+  "Insert link to the ID at point in `octavo-index-buffer-name'."
   (interactive)
-  (let ((id (with-current-buffer zk-index-buffer-name
-              (zk-index--button-at-point))))
+  (let ((id (with-current-buffer octavo-index-buffer-name
+              (octavo-index--button-at-point))))
     (ezeka-insert-link-with-metadata id '(:title) :before t)))
 
 ;;;=============================================================================
@@ -719,14 +719,14 @@ before renaming If given, use the custom PROMPT."
 ;;; Utility
 ;;;=============================================================================
 
-(defun ezeka-zk-file-id (file)
+(defun ezeka-octavo-file-id (file)
   "Return the ID of the given FILE."
-  (when (string-match (zk-file-name-regexp) file)
+  (when (string-match (octavo-file-name-regexp) file)
     (match-string-no-properties 1 file)))
 
-(defun ezeka-zk-file-title (file)
+(defun ezeka-octavo-file-title (file)
   "Return the TITLE of the given FILE."
-  (when (string-match (zk-file-name-regexp) file)
+  (when (string-match (octavo-file-name-regexp) file)
     (let ((id (match-string-no-properties 1 file))
           (title (match-string-no-properties 2 file)))
       (if (string= "." title)
@@ -734,5 +734,5 @@ before renaming If given, use the custom PROMPT."
               "<no title>")
         title))))
 
-(provide 'ezeka-zk)
-;;; ezeka-zk.el ends here
+(provide 'ezeka-octavo)
+;;; ezeka-octavo.el ends here
