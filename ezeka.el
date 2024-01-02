@@ -3776,8 +3776,10 @@ whether to visit; if NIL, do not visit."
   (interactive
    (let ((file (ezeka--grab-dwim-file-target 'link-at-point)))
      (list (if (or current-prefix-arg (null file))
-               (ezeka--read-id "Link of note to check: " (ezeka-file-link file))
-             file)
+               (read-string "Link of note to check: "
+                            (word-at-point)
+                            'ezeka--read-id-history)
+             (ezeka-file-link file))
            nil
            'ask)))
   (let* ((_pprint_record
@@ -3791,15 +3793,16 @@ whether to visit; if NIL, do not visit."
                       (format-time-string
                        "%F %a %R"
                        (encode-time (parse-time-string .time)))))))
-         (link (ezeka-file-link note))
          trail)
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
       (goto-char (point-min))
-      (while (re-search-forward (concat ".*" link ".*") nil t)
-        (push (ezeka--parse-move-log-line (match-string 0)) trail))
+      (while (re-search-forward (format "\"%s\"" note) nil t)
+        (push (ezeka--parse-move-log-line
+               (buffer-substring (point-at-bol) (point-at-eol)))
+              trail))
       (cond ((null trail)
-             (message "No record of moving %s" link)
+             (message "No record of moving %s" note)
              nil)
             ((not visit)
              (message (mapconcat _pprint_record trail "\n")))
