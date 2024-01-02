@@ -1533,6 +1533,18 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
            (message "Rename failed")))))
    ezeka--unnormalized-files-to-move))
 
+(defvar ezeka--marked-for-rename nil
+  "List of files that are marked for rename.")
+
+(defun ezeka--mark-for-rename (filename &optional metadata)
+  "Mark FILENAME (with METADATA) for rename."
+  (interactive (list buffer-file-name))
+  (let ((mdata (or metadata (ezeka-file-metadata filename))))
+    (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
+    (cl-pushnew (ezeka-file-name-id filename)
+                ezeka--marked-for-rename
+                :test #'string=)))
+
 (defun ezeka-harmonize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
 When called interactively with \\[universal-argument], or FORCE is non-nil,
@@ -1577,7 +1589,7 @@ offer to set metadata or rename the file even if they are in agreement."
           ((and (memq keep-which '(?r ?R))
                 (not (member ezeka-rename-note-keyword
                              (alist-get :keywords mdata))))
-           (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
+           (ezeka--mark-for-rename filename mdata)
            (ezeka--save-buffer-read-only filename))
           ((memq keep-which '(?f ?F ?u ?U))
            (when (memq keep-which '(?F ?U))
