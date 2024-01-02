@@ -137,6 +137,11 @@ Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
   :type 'symbol
   :group 'ezeka)
 
+(defcustom ezeka-header-read-only t
+  "When non-nil, the Ezeka file headers are made read-only."
+  :type 'boolean
+  :group 'ezeka)
+
 (defcustom ezeka-save-after-metadata-updates 'confirm
   "Whether to automatically save the file after modification.
 Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
@@ -1101,9 +1106,10 @@ signal an error when encountering malformed header lines."
 
 (defun ezeka--make-header-read-only (buffer)
   "Make the header in the Zettel BUFFER read-only."
-  (let ((beg-end (ezeka--header-region buffer)))
-    (with-current-buffer buffer
-      (ezeka--read-only-region (car beg-end) (cdr beg-end)))))
+  (when ezeka-header-read-only
+    (let ((beg-end (ezeka--header-region buffer)))
+      (with-current-buffer buffer
+        (ezeka--read-only-region (car beg-end) (cdr beg-end))))))
 
 (defun ezeka-toggle-header-read-only ()
   "Toggle header being read-only in the current Zettel buffer."
