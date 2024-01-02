@@ -3062,27 +3062,54 @@ This list is generated once per session and then just referenced.")
 (defun ezeka--all-keywords ()
   "Return `ezeka-keywords' with optional dynamic keywords.
 See `ezeka-dynamic-keywords'."
-  (when (and ezeka-dynamic-keywords
-             (null ezeka--dynamic-keywords-cache))
-    (let* ((zk-directory ezeka-directory)
-           (tag-list (zk--grep-tag-list)))
-      (setq ezeka--dynamic-keywords-cache tag-list)))
-  (cl-union ezeka--dynamic-keywords-cache ezeka-keywords))
+  (if ezeka-dynamic-keywords
+      (setq ezeka--dynamic-keywords-cache
+        (cl-union ezeka--dynamic-keywords-cache
+                  ezeka-keywords
+                  :test #'string=))
+    ezeka-keywords))
+
+(defun ezeka--keyword-list (keys)
+  "Return a proper list of keywords from KEYS.
+KEYS can be a string of space and/or comma-separated keys,
+or a list of strings that are then assumed to be keywords."
+  (mapcar (lambda (s)
+            (if (= ?# (elt s 0))
+                s
+              (concat "#" s)))
+          (pcase keys
+            ((pred stringp)
+             (split-string keys "[ ,]+" 'omit-nulls "[^a-z0-9-]+"))
+            ((pred listp)
+             keys)
+            (_
+             (signal 'wrong-type-argument (list 'string-or-list-p keys))))))
+
+(defun ezeka--add-to-keywords-cache (keys)
+  "Add keywords from KEYS to keyword history.
+If given, the KEYS is sanitized and split to get clean
+keywords, which are then added to `ezeka--dynamic-keywords-cache.'
+The last keyword from KEYS is returned."
+  (let ((keywords (ezeka--keyword-list keys)))
+    (dolist (word keywords (last keywords))
+      (cl-pushnew word ezeka--dynamic-keywords-cache :test #'string=))))
 
 (defun ezeka-add-keyword (filename keyword &optional replace metadata)
   "Add the given KEYWORD to the Zettel note in FILENAME.
-When KEYWORD is nil (or \\[universal-argument]), clear any
-existing keywords. When REPLACE is non-nil (or double
-\\[universal-argument]), replace them with KEYWORD. Keywords
-are interactively selected based on `ezeka-keywords' and
-`ezeka-dynamic-keywords'. If METADATA is supplied, used
-that."
+Select keyword interactively from `ezeka--all-keywords'.
+When KEYWORD is nil (or \\[universal-argument]), clear any existing keywords.
+When REPLACE is non-nil (or double \\[universal-argument]), replace them with
+KEYWORD. Use METADATA if supplied."
   (interactive
    (list (ezeka--grab-dwim-file-target)
          (pcase current-prefix-arg
            ('(4) nil)
-           ('(16) (completing-read "Replace with keyword: " (ezeka--all-keywords)))
-           (_ (completing-read "Add keyword: " (ezeka--all-keywords))))
+           ('(16) (completing-read "Replace with keyword: "
+                                   (ezeka--all-keywords)
+                                   nil nil nil 'ezeka--keyword-history))
+           (_ (completing-read "Add keyword: "
+                               (ezeka--all-keywords)
+                               nil nil nil 'ezeka--keyword-history)))
          (equal current-prefix-arg '(16))))
   (let ((keyword (cond ((null keyword) nil)
                        ((string-match-p "^#\\w+$" keyword)
@@ -3096,11 +3123,11 @@ that."
       (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
           :keywords (cond (replace (list keyword))
-                          (keyword (cons keyword (alist-get :keywords mdata)))
+                          (keyword (ezeka--add-to-keywords-cache keyword))
                           (t nil)))))))
 
 (defvar ezeka--keyword-history nil
-  "History variable for entering keywords.")
+  "History variable for editing keywords.")
 
 (defun ezeka-edit-keywords (filename &optional metadata clear)
   "Interactively edit FILENAME's keywords.
@@ -3113,18 +3140,19 @@ clear the keywords without attempting to edit them."
   (if (not (ezeka-file-p filename))
       (user-error "This command can only be used on Zettel notes")
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
-           (keywords (mapconcat #'identity (alist-get :keywords mdata) " "))
-           (_keywordify (lambda (s) (if (= ?# (elt s 0)) s (concat "#" s)))))
-      (push keywords ezeka--keyword-history)
-      (ezeka--update-metadata-values filename mdata
-        :keywords
-        (unless clear
-          (mapcar _keywordify
-                  (split-string (ezeka--minibuffer-edit-string
-                                 keywords keywords "Edit keywords: "
-                                 '(ezeka--keyword-history . 1))
-                                "[ ,]+"
-                                'omit-nulls)))))))
+           (keystring (string-join (alist-get :keywords mdata) " "))
+           (new-keys (unless clear
+                       (ezeka--keyword-list
+                        (if (string-empty-p keystring)
+                            (completing-read "Add keyword: "
+                                             (ezeka--all-keywords)
+                                             nil nil nil 'ezeka--keyword-history)
+                          (push keystring ezeka--keyword-history)
+                          (ezeka--minibuffer-edit-string
+                           keystring nil
+                           "Edit keywords: " '(ezeka--keyword-history . 1)))))))
+      (ezeka--add-to-keywords-cache new-keys)
+      (ezeka--update-metadata-values filename mdata :keywords new-keys))))
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
