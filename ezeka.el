@@ -1166,10 +1166,12 @@ converted to keywords."
 ;;; Metadata Commands
 ;;;=============================================================================
 
+;; TODO Instead of :type, maybe have :setter? (and :getter?)
 (defconst ezeka-metadata-valid-fields
-  '((:rubric :type string)
+  '((:link :type id :hidden t)
     (:caption :type string :hidden t)
     (:caption-stable :type boolean :hidden t)
+    (:rubric :type string)
     (:title :type string)
     (:subtitle :type string)
     (:author :type string)
