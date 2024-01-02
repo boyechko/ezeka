@@ -375,7 +375,6 @@ This function is based on `diary-ordinal-suffix'."
         "th"
       (aref ["th" "st" "nd" "rd"] (% n 10)))))
 
-;; TODO: More extensible way to do this without invoking other modes?
 (defun ezeka--grab-dwim-file-target (&optional link-at-point interactive)
   "Return the do-what-I-mean Zettel file from a variety of modes.
 If LINK-AT-POINT is non-nil, prioritize such a link if
@@ -386,20 +385,23 @@ file interactively."
         ((and buffer-file-name
               (or ezeka-mode (ezeka-file-p buffer-file-name t)))
          buffer-file-name)
-        ((eq major-mode 'magit-status-mode) ; FIXME: magit
+        ((and (featurep 'magit)
+              (eq major-mode 'magit-status-mode))
          (magit-file-at-point))
-        ((eq major-mode 'zk-index-mode) ; FIXME: zk-index
-         (if-let* ((id (car (button-get (button-at (point)) 'button-data))))
-             (ezeka-link-file id)
-           (zk--select-file)))
-        ((eq major-mode 'deft-mode)     ; FIXME: deft
+        ((and (featurep 'zk-index)
+              (eq major-mode 'zk-index-mode))
+         (or (button-get (button-at (point)) 'button-data)
+             (zk--select-file)))
+        ((and (featurep 'ivy)
+              (eq major-mode 'deft-mode))
          (if-let ((button (button-at (point))))
              (button-get button 'tag)
            (ezeka-ivy-select-link)))
-        (interactive
+        ((and (featurep 'zk)
+              interactive)
          ;; FIXME Rather than calling `zk--select-file' directly, need a native
          ;; function that would at least allow selecting Kasten.
-         (zk--select-file))))           ; FIXME: zk
+         (zk--select-file))))
 
 (defun ezeka--replace-in-string (string &rest replacements)
   "Replace in STRING all the regexp/replacement pairs in REPLACEMENTS.
