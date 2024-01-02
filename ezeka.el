@@ -1194,6 +1194,13 @@ Return the original METADATA with the field changed."
   (setf (alist-get field metadata) value)
   metadata)
 
+(defun ezeka--add-oldname (metadata oldname)
+  "Add OLDNAME to METADATA, returning the modified one."
+  (setf (alist-get :oldnames metadata)
+        (cl-union (list oldname)
+                  (remove (alist-get :id metadata)
+                          (alist-get :oldnames metadata)))))
+
 ;; See [[https://help.dropbox.com/organize/file-names]]
 (defvar ezeka--pasturize-characters
   '(("/" "_")
@@ -3117,6 +3124,16 @@ clear the keywords without attempting to edit them."
     (ezeka--update-metadata-values filename mdata
       :readings (cons date (alist-get :readings mdata)))))
 
+(defun ezeka-add-oldname (filename &optional link)
+  "Add LINK to the FILENAME's oldnames."
+  (interactive (list (ezeka--grab-dwim-file-target)
+                     (ezeka--read-id "What is the old name? ")))
+  (let* ((mdata (ezeka-file-metadata filename))
+         (oldnames (alist-get :oldnames mdata)))
+    (cl-pushnew link oldnames)
+    (ezeka--update-metadata-values filename mdata
+      :oldnames oldnames)))
+
 ;;;=============================================================================
 ;;; Populating Files
 ;;;=============================================================================
@@ -3768,19 +3785,11 @@ move."
       (unless (file-exists-p (file-name-directory target-file))
         (make-directory (file-name-directory target-file)))
       (ezeka--rename-file source-file target-file)
-      (let* ((mdata (ezeka-file-metadata target-file))
-             (oldnames (alist-get :oldnames mdata)))
+      (let* ((mdata (ezeka-file-metadata target-file)))
         (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata))
-        ;; Put original name in oldnames, unless source-link == target-link, and
-        ;; remove target-link from oldnames just in case we're resurrecting an
-        ;; oldname.
-        (unless (string= (ezeka-link-id source-link) (ezeka-link-id target-link))
-          (setf (alist-get :oldnames mdata)
-                (cl-union (list source-link) (remove target-link oldnames)))
-          (setf (alist-get :id mdata)
-                (ezeka-link-id target-link)))
-        (ezeka-add-change-log-entry
-         target-file (format "Move +%s+ to %s." source-link target-link))
+        (ezeka--add-oldname mdata source-link)
+        (ezeka-add-change-log-entry target-file
+          (format "Move +%s+ to %s." source-link target-link))
         ;; Check about updating title and label
         (setf (alist-get :label mdata)
               (ezeka--read-label (alist-get :kasten mdata)
