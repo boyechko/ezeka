@@ -620,7 +620,7 @@ If CHANGE-TO is not given, suggest the note's parent, if set."
          (parent (alist-get :parent mdata))
          (with-links (let ((zk-directory ezeka-directory))
                        (zk--grep-file-list
-                        (format "(parent: %s|%s\\]\\])" link link) t)))
+                        (format "(parent: %s|%s\\]\\])" link link))))
          (change-to
           (or change-to
               (read-string (format "Replace %d link(s) to %s with what? "
