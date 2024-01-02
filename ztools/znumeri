@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+# Count number of files in each of the numerus currens subdirectories
+
+nfiles () {
+	for f in "${@:-.}"
+	do
+		echo -n "$f"
+		find "$f" -type f | wc -l
+	done
+}
+
+cd $ZETTEL_DIR
+for d in $(ls -d ?); do
+    echo -n $d;
+    nfiles $d
+done
