@@ -960,32 +960,36 @@ The format control string may contain the following %-sequences:
 %M means modification timestamp (empty if not set).
 %s means stable mark (see `ezeka-header-stable-caption-mark').
 %t means title."
-  (save-match-data
-    (string-trim
-     (format-spec format-string
-                  `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
-                               (format "%s's " (ezeka--citaton-key-authors ck))
-                             ""))
-                    (?c . ,(alist-get :caption metadata))
-                    (?C . ,(format-time-string (cdr ezeka-timestamp-formats)
-                                               (alist-get :created metadata)))
-                    (?i . ,(alist-get :id metadata))
-                    (?k . ,(let ((citekey (alist-get :citekey metadata)))
-                             (cond ((or (not citekey)
-                                        (string-empty-p citekey))
-                                    "")
-                                   ((string-match-p "^[@&]" citekey)
-                                    citekey)
-                                   (t
-                                    (concat "@" citekey)))))
-                    (?K . ,(alist-get :kasten metadata))
-                    (?l . ,(alist-get :label metadata))
-                    (?M . ,(format-time-string (cdr ezeka-timestamp-formats)
-                                               (alist-get :modified metadata)))
-                    (?s . ,(if (alist-get :caption-stable metadata)
-                               ezeka-header-stable-caption-mark
-                             ""))
-                    (?t . ,(alist-get :title metadata)))))))
+  (let ((_format-time
+         (lambda (time-string)
+           (if (and (stringp time-string)
+                    (not (string-match-p ezeka-iso8601-date-regexp time-string)))
+               "UNKNOWN"
+             (format-time-string (cdr ezeka-timestamp-formats) time-string)))))
+    (save-match-data
+      (string-trim
+       (format-spec format-string
+                    `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
+                                 (format "%s's " (ezeka--citaton-key-authors ck))
+                               ""))
+                      (?c . ,(alist-get :caption metadata))
+                      (?C . ,(funcall _format-time (alist-get :created metadata)))
+                      (?i . ,(alist-get :id metadata))
+                      (?k . ,(let ((citekey (alist-get :citekey metadata)))
+                               (cond ((or (not citekey)
+                                          (string-empty-p citekey))
+                                      "")
+                                     ((string-match-p "^[@&]" citekey)
+                                      citekey)
+                                     (t
+                                      (concat "@" citekey)))))
+                      (?K . ,(alist-get :kasten metadata))
+                      (?l . ,(alist-get :label metadata))
+                      (?M . ,(funcall _format-time (alist-get :modified metadata)))
+                      (?s . ,(if (alist-get :caption-stable metadata)
+                                 ezeka-header-stable-caption-mark
+                               ""))
+                      (?t . ,(alist-get :title metadata))))))))
 
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
