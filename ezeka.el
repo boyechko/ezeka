@@ -2541,7 +2541,7 @@ as the current note. With double \\[universal-argument], ask for ID."
                         (ezeka--read-kasten "Kasten for new child: "))
                       id)))
     (ezeka--set-new-child-metadata child-link :title title :citekey citekey)
-    (insert (ezeka--format-link child-link))
+    (ezeka-insert-with-spaces (ezeka--format-link child-link))
     (ezeka-find-link child-link)))
 
 ;;;=============================================================================
@@ -3756,6 +3756,7 @@ prefix), limit to only that Kasten."
   "Log the move from SOURCE link to TARGET in `ezeka--move-log-file'.
 SRC-CAPTION and COMMENT can be added to make the record
 easier to later read."
+  (interactive "sMoved from: \nsMoved to: \nsSource caption: \nsComment: ")
   ;; ("SOURCE" "TARGET" "TIME" "SOURCE-CAPTION" "COMMENT")
   (write-region (format "\n%S"
                         (list source
