@@ -303,7 +303,7 @@ SOURCE should be a string or symbol."
    (list (let ((ezeka-leave-breadcrumb-trail nil))
            (if ezeka-mode
                buffer-file-name
-             (ezeka-zk-select-file
+             (ezeka-octavo-select-file
               "tempus"
               "Select Zettel for breadcrumb trail: ")))))
   (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file)

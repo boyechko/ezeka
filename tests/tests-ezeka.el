@@ -148,9 +148,9 @@
   (should (ezeka-id-type "20230403T1000"))
   (should (ezeka-id-type "MS-123")))
 
-(ert-deftest tests/adv--zk-group-function ()
+(ert-deftest tests/adv--octavo-group-function ()
   (let ((file "/Users/richard/Zettelkasten/os/2022/20221030T1409.txt"))
-    (should (adv--zk-group-function file nil))))
+    (should (adv--octavo-group-function file nil))))
 
 (provide 'tests-ezeka)
 ;;; tests-ezeka.el ends here

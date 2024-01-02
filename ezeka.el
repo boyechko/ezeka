@@ -393,20 +393,20 @@ file interactively."
         ((and (featurep 'magit)
               (eq major-mode 'magit-status-mode))
          (magit-file-at-point))
-        ((and (featurep 'zk-index)
-              (eq major-mode 'zk-index-mode))
+        ((and (featurep 'octavo-index)
+              (eq major-mode 'octavo-index-mode))
          (or (button-get (button-at (point)) 'button-data)
-             (zk--select-file)))
+             (octavo--select-file)))
         ((and (featurep 'ivy)
               (eq major-mode 'deft-mode))
          (if-let ((button (button-at (point))))
              (button-get button 'tag)
            (ezeka-ivy-select-link)))
-        ((and (featurep 'zk)
+        ((and (featurep 'octavo)
               interactive)
-         ;; FIXME Rather than calling `zk--select-file' directly, need a native
+         ;; FIXME Rather than calling `octavo--select-file' directly, need a native
          ;; function that would at least allow selecting Kasten.
-         (zk--select-file))))
+         (octavo--select-file))))
 
 (defun ezeka--replace-in-string (string &rest replacements)
   "Replace in STRING all the regexp/replacement pairs in REPLACEMENTS.
@@ -1933,9 +1933,9 @@ If TIME is nil, default to current time."
     (while (not project)
       ;; FIXME: Do I need a native function for this?
       (setq project
-        (if (fboundp #'zk--select-file)
-            (ezeka-zk-with-kasten "numerus"
-              (ezeka-file-link (zk--select-file "Select project: ")))
+        (if (fboundp #'octavo--select-file)
+            (ezeka-octavo-with-kasten "numerus"
+              (ezeka-file-link (octavo--select-file "Select project: ")))
           (ezeka--read-id "Scriptum project (numerus currens): " :numerus)))
       (unless (ezeka-link-file project)
         (setq project nil)))
@@ -2628,7 +2628,7 @@ information for Zettelkasten work."
                    (if (alist-get :citekey metadata) " " "")
                    (or (alist-get :citekey metadata) ""))
            'face '(:slant italic :height 0.9)))
-      (setq mode-line-misc-info zk-index-mode-line-orig))))
+      (setq mode-line-misc-info octavo-index-mode-line-orig))))
 
 (defun ezeka-completion-table (files)
   "Turn list of FILES into completion table suitable for `completing-read'."
@@ -3187,7 +3187,7 @@ CITEKEY."
                     (ezeka-file-link buffer-file-name)
                   (user-error "This command can only be called from a Zettel")))
           (nondir (file-name-nondirectory buffer-file-name))
-          (mdata (when (string-match (ezeka-zk-file-name-regexp) nondir)
+          (mdata (when (string-match (ezeka-octavo-file-name-regexp) nondir)
                    (ezeka-decode-rubric
                     (concat (match-string 1 nondir)
                             (match-string 2 nondir))))))
@@ -3855,7 +3855,7 @@ move."
             (save-buffer)))
         ;; Replace links
         (message "Replacing links: %s with %s" source-link target-link)
-        (let ((replaced (ezeka-zk-replace-links source-link target-link)))
+        (let ((replaced (ezeka-octavo-replace-links source-link target-link)))
           (message "Moved %s to %s, replacing %d links in %d files"
                    source-link target-link
                    (or (car replaced) 0) (or (cdr replaced) 0)))))))

@@ -65,9 +65,9 @@ END. If BEG and END are not given, do so through the entire buffer."
 ;;;=============================================================================
 
 (defun rb-temp-advice (&rest _args)
-  (switch-to-buffer-other-window zk-index-buffer-name)
-  (setq zk-index-view--kill t)
-  (zk-index-next-line))
+  (switch-to-buffer-other-window octavo-index-buffer-name)
+  (setq octavo-index-view--kill t)
+  (octavo-index-next-line))
 (advice-add 'ezeka-zmove-to-another-kasten :after #'rb-temp-advice)
 
 (defun rb-beg-of-title ()
@@ -122,7 +122,7 @@ encloses the last N words."
 ;;; Propertized titles
 ;;;=============================================================================
 
-(defun zk-index--propertize-title (title)
+(defun octavo-index--propertize-title (title)
   "Returns a propertized TITLE."
   (let ((result title))
     (when (string-match "_\\([^_]+\\)_" title)
@@ -144,7 +144,7 @@ encloses the last N words."
 ;;; Something to do with Scriptum
 ;;;=============================================================================
 
-(defun ezeka-zk--set-scriptum-project (filename &optional new-parent other-window)
+(defun ezeka-octavo--set-scriptum-project (filename &optional new-parent other-window)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If NEW-PARENT is NIL, let user choose the the Zettel, unless
 \\[universal-argument] OTHER-WINDOW is non-nil and there is something
@@ -159,8 +159,8 @@ usable in the other window, in which case set that as the new parent."
          (or new-parent
              other-window
              (ezeka-file-link
-              (ezeka-zk-with-kasten "numerus" ; FIXME: Hardcoded
-                (zk--select-file "Scriptum file's project: "))))))
+              (ezeka-octavo-with-kasten "numerus" ; FIXME: Hardcoded
+                (octavo--select-file "Scriptum file's project: "))))))
     (ezeka--update-metadata-values filename nil :parent new-parent)))
 
 ;;;=============================================================================
