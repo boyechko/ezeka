@@ -608,13 +608,19 @@ The format control string can contain the following %-sequences:
 %i means ID or link.
 %k means citation key.
 %K means kasten.
-%l means label (genus or category)."
-  (format-spec format-string
-               `((?i . ,(ezeka-file-name-id filename))
-                 (?K . ,(ezeka-file-kasten filename))
-                 (?l . ,(ezeka-file-name-label filename))
-                 (?c . ,(ezeka-file-name-caption filename))
-                 (?k . ,(ezeka-file-name-citekey filename)))))
+%l means label (genus or category).
+
+Unknown %-sequences are left intact."
+  (let-alist (ezeka--file-name-fields filename)
+    (let* ((case-fold-search nil)
+           (basic (format-spec format-string
+                               `((?i . ,.id)
+                                 (?l . ,.label)
+                                 (?c . ,.caption)
+                                 (?K . ,(ezeka-file-kasten filename))
+                                 (?k . ,(or .citekey "")))
+                               'ignore))) ; leave unknown %-sequences
+      basic)))
 
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
