@@ -559,6 +559,20 @@ It is a Zettel if all of these conditions are met:
   (save-match-data
     (string-match (ezeka-file-name-regexp) (file-name-base filename))))
 
+(defun ezeka--file-name-fields (filename)
+  "Parse FILENAME, returning its matched fields an an alist."
+  (let* ((base (file-name-base filename))
+         (_match-trim
+          (lambda (n)
+            (let ((match (match-string n base)))
+              (when match (string-trim match))))))
+    (save-match-data
+      (when (string-match (ezeka-file-name-regexp) base)
+        `((id      . ,(funcall _match-trim 1))
+          (label   . ,(funcall _match-trim 3))
+          (caption . ,(funcall _match-trim 4))
+          (citekey . ,(funcall _match-trim 5)))))))
+
 (defun ezeka--file-name-part (filename part)
   "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
   (let ((base (file-name-base filename)))
