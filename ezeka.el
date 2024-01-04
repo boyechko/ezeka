@@ -2653,24 +2653,14 @@ information for Zettelkasten work."
 (defun ezeka-completion-table (files)
   "Turn list of FILES into completion table suitable for `completing-read'."
   ;;                  * ID  LABEL  TITLE  CITEKEY
-  (let* ((iw 14) (lw 10) (kw 25)
-         (tw (- (frame-width) (+ iw lw kw 5)))
-         (fmt (format "%%s%%-%ds %%-%ds %%-%ds %%-15s" iw lw tw kw)))
+  (let* ((id-w 14) (lbl-w 10) (key-w 25)
+         (cap-w (- (frame-width) (+ id-w lbl-w key-w 5)))
+         (fmt (format "%%-%di %%-%dl %%-%dc %%-15k" id-w lbl-w cap-w key-w)))
     (mapcar (lambda (file)
-              (when (ezeka-file-p file)
-                (let* ((metadata (ezeka-file-metadata file t))
-                       (title (alist-get :title metadata))
-                       (buf (get-file-buffer file)))
-                  (cons (format fmt
-                                (if (and buf (buffer-modified-p buf)) "*" " ")
-                                (or (alist-get :id metadata)
-                                    (file-name-base file))
-                                (alist-get :label metadata)
-                                (when title
-                                  (cl-subseq title 0 (min (length title)
-                                                          tw)))
-                                (or (alist-get :citekey metadata) ""))
-                        file))))
+              (let* ((buf (get-file-buffer file))
+                     (mod-p (if (and buf (buffer-modified-p buf)) "*" " ")))
+                (cons (ezeka-format-file-name (concat mod-p fmt) file)
+                      file)))
             files)))
 
 (defun ezeka--select-buffer (&optional skip-current modified-only prompt)
