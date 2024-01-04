@@ -3785,14 +3785,15 @@ whether to visit; if NIL, do not visit."
   (let* ((_pprint_record
           (lambda (rec)
             (let-alist rec
-              (format "%s moved to `%s' on %s"
-                      .source
-                      (propertize
-                       (file-name-base (ezeka-link-file .target))
-                       'face 'bold)
-                      (format-time-string
-                       "%F %a %R"
-                       (encode-time (parse-time-string .time)))))))
+              (let ((tfile (ignore-errors (ezeka-link-file .target))))
+                (format "%s moved to `%s' on %s"
+                        .source
+                        (propertize
+                         (if tfile (file-name-base tfile) .target)
+                         'face 'bold)
+                        (format-time-string
+                         "%F %a %R"
+                         (encode-time (parse-time-string .time))))))))
          trail)
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
