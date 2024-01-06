@@ -2395,6 +2395,7 @@ With DELETE (or \\[universal-argument] \\[universal-argument]), delete the text 
         (overlay-put overlay 'type 'ezeka-help-echo)
         (overlay-put overlay 'face '(:underline "purple"))
         (overlay-put overlay 'help-echo (file-name-base file))))))
+;; (add-hook 'ezeka-octavo-insert-link-hook 'ezeka--make-help-echo-overlay-at-pos)
 
 (defun ezeka--make-help-echo-overlay (match-data)
   "Make a help-echo overlay for Zettel ID based on MATCH-DATA."

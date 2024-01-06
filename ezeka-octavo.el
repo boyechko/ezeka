@@ -406,6 +406,9 @@ destination kasten."
     32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
   (put 'vertico--define-sort 'lisp-indent-function 1))
 
+(defvar ezeka-octavo-insert-link-hook nil
+  "Normal hook that is run after `ezeka-octavo-insert-link'.")
+
 (defun ezeka-octavo-insert-link (file)
   "Insert link to the Zettel FILE.
 Unlike `octavo-insert-link', allow editing the title in the
@@ -419,7 +422,7 @@ minibuffer according to the value of `octavo-link-and-title': if it's
                  (rb-y-or-explicit-n-p "Include (edited) title? ")))
         (ezeka-insert-link-with-metadata link '(:title) :before)
       (ezeka-insert-with-spaces (ezeka--format-link link)))
-    (ezeka--make-help-echo-overlay-at-pos (point))))
+    (run-hooks 'ezeka-octavo-insert-link-hook)))
 
 (defun ezeka-octavo-insert-link-to-kasten (&optional kasten sort)
   "Temporarily set octavo variables for KASTEN and call `octavo-insert-link'.
