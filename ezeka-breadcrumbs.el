@@ -86,7 +86,10 @@ otherwise return the Org-ID."
   (save-excursion
     (beginning-of-line)
     (when (re-search-forward "\\(?1:\\*+\\) \\(.*\\<nil\\>.*\\)$" (point-at-eol) 'noerror)
-      (replace-match (concat "\\1 " (ezeka--breadcrumb-string target source))))))
+      (replace-match
+       (format "%s %s"
+               (match-string-no-properties 1)
+               (ezeka--breadcrumb-string target source))))))
 
 (defun ezeka-breadcrumb-find-arboreal-trail (target source)
   "Find where to drop breadcrumbs in an arboreal trail.
