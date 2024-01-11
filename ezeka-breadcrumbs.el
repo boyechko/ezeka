@@ -336,16 +336,18 @@ SOURCE should be a string or symbol."
 (defun ezeka-reset-breadcrumb-trail ()
   "Stop dropping breadcrumbs on this trail."
   (interactive)
-  (unless ezeka-breadcrumb-trail-buffer
-    (user-error "There is no active breadcrumb trail"))
-  (save-excursion
-    (with-current-buffer ezeka-breadcrumb-trail-buffer
-      (org-id-goto ezeka-breadcrumb-trail-id)
-      (org-set-tags "")))
-  (message "Breadcrumbs will no longer be dropped in %s"
-           ezeka-breadcrumb-trail-buffer)
-  (setq ezeka-breadcrumb-trail-buffer nil
-        ezeka-breadcrumb-trail-id nil))
+  (let ((id-file (ignore-errors (org-id-find-id-file ezeka-breadcrumb-trail-id))))
+    (when (and id-file
+               ezeka-breadcrumb-trail-buffer
+               (equal id-file (buffer-file-name ezeka-breadcrumb-trail-buffer)))
+      (save-excursion
+        (with-current-buffer ezeka-breadcrumb-trail-buffer
+          (org-id-goto ezeka-breadcrumb-trail-id)
+          (org-set-tags nil)
+          (ezeka--save-buffer-read-only buffer-file-name))))
+    (setq ezeka-breadcrumb-trail-buffer nil
+          ezeka-breadcrumb-trail-id nil)
+    (message "Breadcrumbs will no longer be dropped")))
 
 (defun ezeka-switch-to-breadcrumb-trail ()
   "Switch to the buffer of the current breadcrumb trail."
