@@ -226,13 +226,19 @@ from."
                      (if t-file (ezeka-file-link t-file) target)
                      (if s-file (ezeka-file-link s-file) source)
                      problem)
-          (with-current-buffer ezeka-breadcrumb-trail-buffer
-            (save-excursion
-              (when-let ((status (ezeka-breadcrumb-find-trail target source)))
-                (insert (ezeka--breadcrumb-string target source))
-                (message "Dropped breadcrumbs for `%s' as %s"
-                         (ezeka-file-name-id t-file)
-                         status)))))))))
+          (let ((status (ezeka-breadcrumb-find-trail target source)))
+            (pcase status
+              ((pred null)
+               nil)
+              ((pred symbolp)
+               (with-current-buffer ezeka-breadcrumb-trail-buffer
+                 (insert (ezeka--breadcrumb-string target source))
+                 (message "Dropped breadcrumbs for `%s' as %s"
+                          (ezeka-file-name-id t-file)
+                          status)))
+              ((pred markerp)
+               (pop-to-buffer ezeka-breadcrumb-trail-buffer)
+               (goto-char (marker-position status))))))))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
