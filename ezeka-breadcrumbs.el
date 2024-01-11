@@ -325,9 +325,11 @@ SOURCE should be a string or symbol."
         (user-error "Move to desired heading first")
       (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
       (insert ezeka-breadcrumb-trail-headline)))
-  (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
-  (org-set-tags nil)
-  (org-set-tags '("breadcrumb_trail"))
+  (let* ((org-id (org-id-get nil 'create))
+         (overlay (make-overlay (point-at-eol) (point-at-eol))))
+    (setq ezeka-breadcrumb-trail-id org-id)
+    (overlay-put overlay 'ezeka-breadcrumbs org-id)
+    (overlay-put overlay 'after-string " (🍞)"))
   (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
   (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
 
@@ -335,18 +337,16 @@ SOURCE should be a string or symbol."
 (defun ezeka-reset-breadcrumb-trail ()
   "Stop dropping breadcrumbs on this trail."
   (interactive)
-  (let ((id-file (ignore-errors (org-id-find-id-file ezeka-breadcrumb-trail-id))))
-    (when (and id-file
-               ezeka-breadcrumb-trail-buffer
-               (equal id-file (buffer-file-name ezeka-breadcrumb-trail-buffer)))
-      (save-excursion
-        (with-current-buffer ezeka-breadcrumb-trail-buffer
-          (org-id-goto ezeka-breadcrumb-trail-id)
-          (org-set-tags nil)
-          (ezeka--save-buffer-read-only buffer-file-name))))
+  (when-let* ((tid ezeka-breadcrumb-trail-id)
+              (tbuf ezeka-breadcrumb-trail-buffer)
+              (id-file (org-id-find-id-file tid))
+              (where (org-id-find-id-in-file tid id-file 'marker)))
+    (save-excursion
+      (with-current-buffer (marker-buffer where)
+        (goto-char (marker-position where))
+        (remove-overlays (point-at-eol) (point-at-eol))))
     (setq ezeka-breadcrumb-trail-buffer nil
-          ezeka-breadcrumb-trail-id nil)
-    (message "Breadcrumbs will no longer be dropped")))
+          ezeka-breadcrumb-trail-id nil)))
 
 (defun ezeka-switch-to-breadcrumb-trail ()
   "Switch to the buffer of the current breadcrumb trail."
