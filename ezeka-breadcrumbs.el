@@ -73,7 +73,7 @@ otherwise return the Org-ID."
     (when id
       (goto-char id)
       (move-marker id nil)
-      id)))
+      ezeka-breadcrumb-trail-id)))
 
 (defun ezeka--insert-heading-after-current (level)
   "Insert `org-mode' heading of LEVEL after the current one."
