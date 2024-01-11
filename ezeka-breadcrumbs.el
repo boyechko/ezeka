@@ -326,11 +326,10 @@ SOURCE should be a string or symbol."
       (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
       (insert ezeka-breadcrumb-trail-headline)))
   (setq ezeka-breadcrumb-trail-id (org-id-get nil 'create))
-  (org-set-tags "")
-  (org-set-tags '("breadcrumb-trail"))
+  (org-set-tags nil)
+  (org-set-tags '("breadcrumb_trail"))
   (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
-  (message "Breadcrumbs will be dropped under heading `%s'"
-           (nth 4 (org-heading-components))))
+  (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
 
 ;; TODO: Any way to mark the breadcrumb heading and buffer?
 (defun ezeka-reset-breadcrumb-trail ()
