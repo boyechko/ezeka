@@ -104,40 +104,41 @@ TARGET and SOURCE."
                       ((ezeka-link-p source) source)
                       ((symbolp source) (symbol-name source))
                       (t source))))
-    (save-restriction
-      (ezeka--goto-breadcrumb-head)
-      (org-narrow-to-subtree)
-      (let ((org-blank-before-new-entry '((heading . nil)))
-            (head-level (org-current-level)))
-        (cond ((and (stringp source)
-                    (search-forward source nil t)
-                    (org-at-heading-p))
-               ;; Breadcrumb for SOURCE found, so add one for TARGET
-               (let ((src-level (car (org-heading-components)))
-                     (src-head (point)))
-                 (cond ((and (search-forward target nil t)
-                             (org-at-heading-p))
-                        (ezeka--update-breadcrumb-heading target source)
-                        (message "Breadcrumb for %s already exists under %s"
-                                 target
-                                 source)
-                        nil)
-                       (t
-                        (goto-char src-head)
-                        (ezeka--insert-heading-after-current (1+ src-level))
-                        'secondary))))
-              ((and (goto-char (point-min))
-                    (search-forward target nil 'noerror)
-                    (org-at-heading-p))
-               ;; Breadcrumbs already dropped for TARGET
-               (ezeka--update-breadcrumb-heading target source)
-               (message "Breadcrumbs already exist for %s" target)
-               nil)
-              (t
-               ;; No breadcrumbs dropped for TARGET
-               (org-end-of-subtree)
-               (ezeka--insert-heading-after-current (1+ head-level))
-               'primary))))))
+    (with-current-buffer ezeka-breadcrumb-trail-buffer
+      (save-restriction
+        (ezeka--goto-breadcrumb-head)
+        (org-narrow-to-subtree)
+        (let ((org-blank-before-new-entry '((heading . nil)))
+              (head-level (org-current-level)))
+          (cond ((and (stringp source)
+                      (search-forward source nil t)
+                      (org-at-heading-p))
+                 ;; Breadcrumb for SOURCE found, so add one for TARGET
+                 (let ((src-level (car (org-heading-components)))
+                       (src-head (point)))
+                   (cond ((and (search-forward target nil t)
+                               (org-at-heading-p))
+                          (ezeka--update-breadcrumb-heading target source)
+                          (message "Breadcrumb for %s already exists under %s"
+                                   target
+                                   source)
+                          nil)
+                         (t
+                          (goto-char src-head)
+                          (ezeka--insert-heading-after-current (1+ src-level))
+                          'secondary))))
+                ((and (goto-char (point-min))
+                      (search-forward target nil 'noerror)
+                      (org-at-heading-p))
+                 ;; Breadcrumbs already dropped for TARGET
+                 (ezeka--update-breadcrumb-heading target source)
+                 (when (y-or-n-p (format "Breadcrumbs already exist for %s. Visit it?" target))
+                   (point-marker)))
+                (t
+                 ;; No breadcrumbs dropped for TARGET
+                 (org-end-of-subtree)
+                 (ezeka--insert-heading-after-current (1+ head-level))
+                 'primary)))))))
 
 (defun ezeka-breadcrumb-find-linear-trail (target source)
   "Find where to drop breadcrumbs on a linear trail.
