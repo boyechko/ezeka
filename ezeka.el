@@ -1239,14 +1239,17 @@ This list is then passed to `ezeka--replace-in-string'.")
 ;; by NickD [https://emacs.stackexchange.com/a/75531/41826]
 (defun ezeka--unaccent-string (s)
   "Decomposes accented characters in S to produce an ASCII equivalent."
-  (mapconcat
-   (lambda (c)
-     (char-to-string
-      (let ((dec (get-char-code-property c 'decomposition)))
-        (while (cdr dec)
-          (setq dec (get-char-code-property (car dec) 'decomposition)))
-        (car dec))))
-   s ""))
+  (let ((_decompose
+         (lambda (char)
+           (let ((dec (get-char-code-property char 'decomposition)))
+            (while (cdr dec)
+              (setq dec
+                (if (fixnump (car dec))
+                    (get-char-code-property (car dec) 'decomposition)
+                  (cdr dec))))))))
+    (mapconcat (lambda (c)
+                 (char-to-string (or (funcall _decompose c) c)))
+               s "")))
 
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasteurize-file-name (title)
