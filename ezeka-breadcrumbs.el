@@ -33,11 +33,8 @@
 (require 'ezeka)
 (require 'org)
 
-(defvar ezeka-breadcrumb-trail-buffer nil
-  "Buffer where to record the breadcrumb trail.")
-
-(defvar ezeka-breadcrumb-trail-id nil
-  "Org ID of the current breadcrumb head.")
+(defvar ezeka-breadcrumb-trail nil
+  "Overlay object pointing to the current breadcrumb trail.")
 
 (defcustom ezeka-leave-breadcrumb-trail t
   "When non-nil, leave a trail of visited Zettel notes."
@@ -66,14 +63,11 @@ drop breadcrumbs).")
   (funcall ezeka-breadcrumb-find-trail-function target source))
 
 (defun ezeka--goto-breadcrumb-head ()
-  "Go to the head of the current breadcrumb.
-Return NIL if the breadcrumb head could not be found,
-otherwise return the Org-ID."
-  (let ((id (org-id-find ezeka-breadcrumb-trail-id 'marker)))
-    (when id
-      (goto-char id)
-      (move-marker id nil)
-      ezeka-breadcrumb-trail-id)))
+  "Go to the head of the current breadcrumb trail.
+Return the position on success, otherwise NIL."
+  (let ((pos (overlay-end ezeka-breadcrumb-trail)))
+    (when pos
+      (goto-char pos))))
 
 (defun ezeka--insert-heading-after-current (level)
   "Insert `org-mode' heading of LEVEL after the current one."
@@ -104,9 +98,9 @@ TARGET and SOURCE."
                       ((ezeka-link-p source) source)
                       ((symbolp source) (symbol-name source))
                       (t source))))
-    (with-current-buffer ezeka-breadcrumb-trail-buffer
+    (with-current-buffer (overlay-buffer ezeka-breadcrumb-trail)
       (save-restriction
-        (ezeka--goto-breadcrumb-head)
+        (goto-char (overlay-end ezeka-breadcrumb-trail))
         (org-narrow-to-subtree)
         (let ((org-blank-before-new-entry '((heading . nil)))
               (head-level (org-current-level)))
@@ -132,7 +126,8 @@ TARGET and SOURCE."
                       (org-at-heading-p))
                  ;; Breadcrumbs already dropped for TARGET
                  (ezeka--update-breadcrumb-heading target source)
-                 (when (y-or-n-p (format "Breadcrumbs already exist for %s. Visit it?" target))
+                 (when (and nil
+                            (y-or-n-p (format "Breadcrumbs already exist for %s. Visit it?" target)))
                    (point-marker)))
                 (t
                  ;; No breadcrumbs dropped for TARGET
@@ -191,54 +186,50 @@ TARGET and SOURCE."
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
-  "Add the Zettel TARGET to `ezeka-breadcrumb-trail-buffer'.
+  "Add the Zettel TARGET to `ezeka-breadcrumb-trail'.
 TARGET should be a Zettel filename; SOURCE can be one too,
 or a symbol describing where the function is being called
 from."
   (interactive (list buffer-file-name 'interactive))
-  (save-excursion
-    (when ezeka-leave-breadcrumb-trail
-      (let* ((inhibit-read-only t)
-             (problem nil)
-             (t-file (cond ((ezeka-file-p target) target)
-                           ((ezeka-link-p target) (ezeka-link-file target))
-                           ((and (null target) (ezeka-file-p buffer-file-name))
-                            buffer-file-name)
-                           (t nil)))
-             (s-file (cond ((ezeka-file-p source) source)
-                           ((ezeka-link-p source) (ezeka-link-file source))
-                           (t nil))))
-        (when (and (not (buffer-live-p ezeka-breadcrumb-trail-buffer))
-                   (y-or-n-p "There is no breadcrumb trail. Start one? "))
-          (call-interactively #'ezeka-start-breadcrumb-trail))
-        (cond ((or (null ezeka-breadcrumb-trail-id)
-                   (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
-               (setq problem "no active breadcrumb trail"))
-              ((ezeka-same-file-p
-                t-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-               (setq problem "same Zettel"))
-              ((ezeka-same-file-p
-                s-file (buffer-file-name ezeka-breadcrumb-trail-buffer))
-               ;; FIXME: There has to be a better way to do this
-               (setq s-file nil)))
-        (if problem
-            (message "Could not drop breadcrumbs for `%s' (from %s): %s"
-                     (if t-file (ezeka-file-link t-file) target)
-                     (if s-file (ezeka-file-link s-file) source)
-                     problem)
-          (let ((status (ezeka-breadcrumb-find-trail target source)))
-            (pcase status
-              ((pred null)
-               nil)
-              ((pred symbolp)
-               (with-current-buffer ezeka-breadcrumb-trail-buffer
-                 (insert (ezeka--breadcrumb-string target source))
-                 (message "Dropped breadcrumbs for `%s' as %s"
-                          (ezeka-file-name-id t-file)
-                          status)))
-              ((pred markerp)
-               (pop-to-buffer ezeka-breadcrumb-trail-buffer)
-               (goto-char (marker-position status))))))))))
+  (when ezeka-leave-breadcrumb-trail
+    (if-let ((trail ezeka-breadcrumb-trail)
+             (trail-buf (overlay-buffer trail)))
+        (let* ((inhibit-read-only t)
+               (problem nil)
+               (t-file (cond ((ezeka-file-p target) target)
+                             ((ezeka-link-p target) (ezeka-link-file target))
+                             ((and (null target) (ezeka-file-p buffer-file-name))
+                              buffer-file-name)
+                             (t nil)))
+               (s-file (cond ((ezeka-file-p source) source)
+                             ((ezeka-link-p source) (ezeka-link-file source))
+                             (t nil))))
+          (cond ((ezeka-same-file-p t-file (buffer-file-name trail-buf))
+                 (setq problem "same Zettel"))
+                ((ezeka-same-file-p s-file (buffer-file-name trail-buf))
+                 ;; FIXME: There has to be a better way to do this
+                 (setq s-file nil)))
+          (if problem
+              (message "Could not drop breadcrumbs for `%s' (from %s): %s"
+                       (if t-file (ezeka-file-link t-file) target)
+                       (if s-file (ezeka-file-link s-file) source)
+                       problem)
+            (let ((status (ezeka-breadcrumb-find-trail target source)))
+              (pcase status
+                ((pred null)
+                 nil)
+                ((pred symbolp)
+                 (with-current-buffer (overlay-buffer ezeka-breadcrumb-trail)
+                   (insert (ezeka--breadcrumb-string target source))
+                   (message "Dropped breadcrumbs for `%s' as %s"
+                            (ezeka-file-name-id t-file)
+                            status)))
+                ((pred markerp)
+                 (pop-to-buffer (overlay-buffer ezeka-breadcrumb-trail))
+                 (goto-char (marker-position status)))))))
+      (setq ezeka-breadcrumb-trail nil)
+      (unless (y-or-n-p "There is no active breadcrumb trail. Continue anyway? ")
+        (user-error "There is no active breadcrumb trail")))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
@@ -287,12 +278,12 @@ SOURCE should be a string or symbol."
   (interactive
    (list (buffer-file-name
           (get-buffer (read-buffer "How did you get here? " nil t)))))
-  (unless (or (null ezeka-breadcrumb-trail-id)
-              (not (buffer-live-p ezeka-breadcrumb-trail-buffer)))
+  (unless (or (null ezeka-breadcrumb-trail)
+              (not (overlay-buffer ezeka-breadcrumb-trail)))
     (let ((inhibit-read-only t)
           (target (or (ezeka--breadcrumbs-elisp-target)
                       (ezeka--breadcrumbs-buffer-target))))
-      (with-current-buffer ezeka-breadcrumb-trail-buffer
+      (with-current-buffer (overlay-buffer ezeka-breadcrumb-trail)
         (save-excursion
           (when-let ((status (ezeka-breadcrumb-find-trail target source)))
             (insert (ezeka--breadcrumb-string target source))
@@ -316,43 +307,36 @@ SOURCE should be a string or symbol."
              (ezeka-octavo-select-file
               "tempus"
               "Select Zettel for breadcrumb trail: ")))))
-  (setq ezeka-breadcrumb-trail-buffer (find-file-noselect file)
-        ezeka-breadcrumb-trail-id     nil)
-  (set-buffer ezeka-breadcrumb-trail-buffer)
-  (unless (org-at-heading-p)
-    (if (not (y-or-n-p (format "Insert `%s' heading here? "
-                               ezeka-breadcrumb-trail-headline)))
-        (user-error "Move to desired heading first")
-      (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
-      (insert ezeka-breadcrumb-trail-headline)))
-  (let* ((org-id (org-id-get nil 'create))
-         (overlay (make-overlay (point-at-eol) (point-at-eol))))
-    (setq ezeka-breadcrumb-trail-id org-id)
-    (overlay-put overlay 'ezeka-breadcrumbs org-id)
-    (overlay-put overlay 'after-string " (🍞)"))
-  (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
-  (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))
+  (save-excursion
+    (with-current-buffer (find-file-noselect file)
+      (unless (org-at-heading-p)
+        (if (not (y-or-n-p (format "Insert `%s' heading here? "
+                                   ezeka-breadcrumb-trail-headline)))
+            (user-error "Move to desired heading first")
+          (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
+          (insert ezeka-breadcrumb-trail-headline)))
+      (ezeka-reset-breadcrumb-trail)
+      (setq ezeka-breadcrumb-trail (make-overlay (point-at-eol) (point-at-eol)))
+      (overlay-put ezeka-breadcrumb-trail 'type 'ezeka-breadcrumb-trail)
+      (overlay-put ezeka-breadcrumb-trail 'after-string " (🍞)")
+      (add-hook 'kill-buffer-hook #'ezeka-reset-breadcrumb-trail nil t)
+      (message "Breadcrumbs will be dropped in `%s'" (file-name-base file)))))
 
 ;; TODO: Any way to mark the breadcrumb heading and buffer?
 (defun ezeka-reset-breadcrumb-trail ()
   "Stop dropping breadcrumbs on this trail."
   (interactive)
-  (when-let* ((tid ezeka-breadcrumb-trail-id)
-              (tbuf ezeka-breadcrumb-trail-buffer)
-              (id-file (org-id-find-id-file tid))
-              (where (org-id-find-id-in-file tid id-file 'marker)))
-    (save-excursion
-      (with-current-buffer (marker-buffer where)
-        (goto-char (marker-position where))
-        (remove-overlays (point-at-eol) (point-at-eol))))
-    (setq ezeka-breadcrumb-trail-buffer nil
-          ezeka-breadcrumb-trail-id nil)))
+  (when (overlayp ezeka-breadcrumb-trail)
+    (message "Breadcrumbs will no longer be dropped in `%s'"
+             (overlay-buffer ezeka-breadcrumb-trail))
+    (delete-overlay ezeka-breadcrumb-trail))
+  (setq ezeka-breadcrumb-trail nil))
 
 (defun ezeka-switch-to-breadcrumb-trail ()
   "Switch to the buffer of the current breadcrumb trail."
   (interactive)
-  (when (buffer-live-p ezeka-breadcrumb-trail-buffer)
-    (pop-to-buffer ezeka-breadcrumb-trail-buffer)
+  (when ezeka-breadcrumb-trail
+    (pop-to-buffer (overlay-buffer ezeka-breadcrumb-trail))
     (ezeka--goto-breadcrumb-head)))
 
 (defun ezeka-breadcrumb-trail-dispatch (arg)
