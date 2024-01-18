@@ -325,17 +325,26 @@ If ID-TYPE is not given, check ID against all known types."
     (and (stringp id)
          (string-match-p (ezeka--match-entire (ezeka--id-regexp id-type)) id))))
 
-(defun ezeka--read-id (prompt &optional id-type initial-input)
+(defun ezeka--read-id (prompt &optional id-type initial-input required)
   "Use `read-string' with PROMPT to read an ID.
 If ID-TYPE is given, make sure the entered ID is valid for
 that specific type. INITIAL-INPUT is passed to
-`read-string', which see."
-  (let (id)
-    (while (or (null id) (string-empty-p id))
-      (setq id (read-string prompt initial-input 'ezeka--read-id-history))
-      (unless (ezeka-id-valid-p id id-type)
-        (read-key "That is not a valid ID. Press any key to try again...")
-        (setq id nil)))
+`read-string', which see. If REQUIRED is non-nil, keep
+asking until a valid ID is entered."
+  (let ((message "")
+        id)
+    (while (null id)
+      (setq id (read-string (concat message prompt)
+                            initial-input
+                            'ezeka--read-id-history))
+      (when (or (and (string-empty-p id) required)
+                (and (not (string-empty-p id))
+                     (not (ezeka-id-valid-p id id-type))))
+        (setq id nil
+              message (format "That is not a valid %sID; try again.\n"
+                              (if id-type
+                                  (concat (symbol-name id-type) " ")
+                                "")))))
     id))
 
 ;;;=============================================================================
@@ -1939,6 +1948,7 @@ INTERACTIVE is non-NIL when called interactively."
               (t
                ;; Can't figure out automatically; ask the user
                (ezeka--read-id "No created metadata; make up your own name: "
+                               :tempus
                                (ezeka--generate-id (ezeka-link-kasten link)
                                                    interactive))))))))
 
