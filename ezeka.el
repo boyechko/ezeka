@@ -2178,14 +2178,15 @@ already inside a link, replace it instead."
 
 (defun ezeka--note-in-other-window ()
   "Return the file name to the Zettel note in the other window.
-If the file is not a Zettel note, return nil."
+If there is no other window or the file is not a Zettel
+note, return nil."
   (when-let* ((other-win (cond ((one-window-p t 'visible)
-                                (user-error "There are no other windows"))
+                                nil)
                                ((and (> (count-windows nil 'visible) 2)
                                      (featurep 'ace-window))
                                 (aw-select " Ace - Window"))
                                ((> (count-windows nil 'all-frames) 2)
-                                (user-error "There are more than one `other-window's"))
+                                (error "There are more than one `other-window's"))
                                (t
                                 (other-window-for-scrolling))))
               (other-buf (window-buffer other-win))
