@@ -3779,7 +3779,8 @@ prefix), limit to only that Kasten."
       `((source . ,(nth 0 (car result)))
         (target . ,(nth 1 (car result)))
         (time   . ,(nth 2 (car result)))
-        (comment . ,(nth 3 (car result)))))))
+        (caption . ,(nth 3 (car result)))
+        (comment . ,(nth 4 (car result)))))))
 
 (defun ezeka--add-to-move-log (source target &optional src-caption comment)
   "Log the move from SOURCE link to TARGET in `ezeka--move-log-file'.
