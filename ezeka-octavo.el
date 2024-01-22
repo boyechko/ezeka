@@ -609,11 +609,29 @@ METADATA is NOTE's metadata."
       (cons   (cl-find note2-id parents :test #'string=))
       (t (error "Don't know how to handle" (type-of parents))))))
 
-(defun ezeka-octavo-delete-note (link-or-file &optional change-to)
-  "Delete the Zettel at LINK-OR-FILE, updating existing links with CHANGE-TO.
-If CHANGE-TO is not given, suggest the note's parent, if set."
-  (interactive (list (ezeka--grab-dwim-file-target) nil))
-  (let* ((file (if (ezeka-link-p link-or-file)
+(defcustom ezeka-octavo-delete-note-method 'archive
+  "How to actually delete Octavo notes.
+When set to 'archive the notes are renamed with modified
+`ezeka-file-extension', replacing the last character by
+`_', e.g. \"tx_\" instead of \"txt\"."
+  :type '(choice (const :tag "Delete" delete)
+                 (const :tag "Archive" archive)))
+
+(defun ezeka-octavo-delete-note (link-or-file &optional change-to method)
+  "Delete the Zettel at LINK-OR-FILE, updating existing links.
+Links are replaced with CHANGE-TO. If CHANGE-TO is not
+given, suggest the note's parent, if set. METHOD overrides
+`ezeka-octavo-delete-note-method'."
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         nil
+         (intern-soft
+          (completing-read "Deletion method: "
+                           '(delete rename)
+                           nil
+                           'require-match))))
+  (let* ((method (or method ezeka-octavo-delete-note-method))
+         (file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
                  link-or-file))
          (link (if (ezeka-link-p link-or-file)
@@ -634,10 +652,20 @@ If CHANGE-TO is not given, suggest the note's parent, if set."
                              (concat "{{" link "}}"))))))
     (when with-links                    ; FIXME: Pass with-links!
       (ezeka-octavo-replace-links link change-to))
-    (ezeka--add-to-move-log link change-to)
+    (ezeka--add-to-move-log link
+                            (concat (symbol-name method) "d")
+                            (alist-get :caption mdata)
+                            (format "Replaced links with %s" change-to))
     (when (y-or-n-p (format "Really delete %s %s? "
                             link (alist-get :title mdata)))
-      (delete-file file)
+      (if (eq method 'delete)
+          (delete-file file)
+        (ezeka--rename-file file
+                            (file-name-with-extension
+                             (file-name-base file)
+                             (replace-regexp-in-string
+                              ".$" "_"
+                              ezeka-file-extension))))
       (kill-buffer-ask (get-file-buffer file)))))
 
 (defun ezeka-octavo-insert-link-to-index ()
