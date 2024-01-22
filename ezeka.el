@@ -739,32 +739,37 @@ if CAPTION is anything else (e.g. 'wildcard or nil), try
 wildcard expansion for the file name beginning with the ID
 given in LINK. If NOERROR is non-nil, do not raise an error
 if file is not found."
-  (if (file-exists-p link)
-      link
-    (save-match-data
-      (unless (ezeka-link-p link) (error "Link not valid: %s" link))
-      (let* ((id (ezeka-link-id link))
-             (basename (format "%s%s.%s"
-                               id
-                               (cond ((string-empty-p caption)
-                                      "")
-                                     ((stringp caption)
-                                      (concat ezeka-file-name-separator caption))
-                                     (t
-                                      "*"))
-                               ezeka-file-extension))
-             (dir (ezeka-id-directory id (ezeka-link-kasten link))))
-        (if (stringp caption)
-            (file-truename (expand-file-name basename dir))
-          (let ((matches (flatten-list
-                          (file-expand-wildcards
-                           (expand-file-name basename dir)))))
-            (cl-case (length matches)
-              (0 (if noerror
-                     nil
-                   (error "No matching files found for link %s" link)))
-              (1 (file-truename (car matches)))
-              (t (error "Found multiple file matches: %s" matches)))))))))
+  (cond ((file-exists-p link)
+         link)
+        ((and (not (ezeka-link-p link))
+              (not noerror))
+         (error "Link not valid: %s" link))
+        ((not (ezeka-link-p link))
+         nil)
+        (t
+         (save-match-data
+           (let* ((id (ezeka-link-id link))
+                  (basename (format "%s%s.%s"
+                                    id
+                                    (cond ((string-empty-p caption)
+                                           "")
+                                          ((stringp caption)
+                                           (concat ezeka-file-name-separator caption))
+                                          (t
+                                           "*"))
+                                    ezeka-file-extension))
+                  (dir (ezeka-id-directory id (ezeka-link-kasten link))))
+             (if (stringp caption)
+                 (file-truename (expand-file-name basename dir))
+               (let ((matches (flatten-list
+                               (file-expand-wildcards
+                                (expand-file-name basename dir)))))
+                 (cl-case (length matches)
+                   (0 (if noerror
+                          nil
+                        (error "No matching files found for link %s" link)))
+                   (1 (file-truename (car matches)))
+                   (t (error "Found multiple file matches: %s" matches))))))))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
@@ -3793,7 +3798,9 @@ easier to later read."
                 'append))
 
 (defun ezeka--note-move-trail (note)
-  "Return the move trail (if any) for NOTE."
+  "Return the move trail (if any) for NOTE.
+If there are multiple records, they are returned in
+reverse-chronological order (i.e. latest record first)."
   (let (trail)
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--move-log-file))
@@ -3835,11 +3842,11 @@ whether to visit; if NIL, do not visit."
            (message "No record of moving %s" note)
            nil)
           ((not visit)
-           (message (mapconcat _pprint_record trail "\n")))
+           (message (mapconcat _pprint_record (nreverse trail) "\n")))
           ((or (eq visit 'visit)
                (y-or-n-p
                 (format "%s\nVisit %s? "
-                        (mapconcat _pprint_record trail "\n")
+                        (mapconcat _pprint_record (nreverse trail) "\n")
                         (propertize (alist-get 'target (car trail)) 'face 'bold))))
            (ezeka-find-link (alist-get 'target (car trail)))))))
 
