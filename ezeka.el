@@ -729,46 +729,43 @@ explicitly given."
                                 (eq (cadr x) type))
                               ezeka-kaesten))))
 
-(defun ezeka-link-file (link &optional caption noerror)
+(defun ezeka-link-file (link-or-file &optional rubric noerror)
   "Return a full file path to the Zettel LINK.
-If LINK is actually a filename, just return it. Otherwise,
-CAPTION can be a string (including an empty string), in
-which case return a filename consisting of LINK and CAPTION
-separated with `ezeka-file-name-separator'. Alternatively,
-if CAPTION is anything else (e.g. 'wildcard or nil), try
-wildcard expansion for the file name beginning with the ID
-given in LINK. If NOERROR is non-nil, do not raise an error
-if file is not found."
-  (cond ((file-exists-p link)
-         link)
-        ((and (not (ezeka-link-p link))
+If LINK-OR-FILE is actually a filename, just return it.
+Otherwise, RUBRIC can be a string, in which case return a
+full file path for such a Zettel. Alternatively, if RUBRIC
+is anything else (e.g. 'wildcard or nil), try wildcard
+expansion for the file name beginning with LINK. If NOERROR
+is non-nil, do not raise an error if file is not found."
+  (cond ((file-exists-p link-or-file)
+         link-or-file)
+        ((and (not (ezeka-link-p link-or-file))
               (not noerror))
-         (error "Link not valid: %s" link))
-        ((not (ezeka-link-p link))
+         (error "Link not valid: %s" link-or-file))
+        ((not (ezeka-link-p link-or-file))
          nil)
         (t
          (save-match-data
-           (let* ((id (ezeka-link-id link))
-                  (basename (format "%s%s.%s"
-                                    id
-                                    (cond ((string-empty-p caption)
-                                           "")
-                                          ((stringp caption)
-                                           (concat ezeka-file-name-separator caption))
-                                          (t
-                                           "*"))
-                                    ezeka-file-extension))
-                  (dir (ezeka-id-directory id (ezeka-link-kasten link))))
-             (if (stringp caption)
-                 (file-truename (expand-file-name basename dir))
+           (let* ((id (ezeka-link-id link-or-file))
+                  (basename (file-name-with-extension
+                             (cond ((string-empty-p rubric)
+                                    (error "Rubric cannot be an empty string"))
+                                   ((stringp rubric)
+                                    rubric)
+                                   (t
+                                    (concat id "*")))
+                             ezeka-file-extension))
+                  (dir (ezeka-id-directory id (ezeka-link-kasten link-or-file))))
+             (if (stringp rubric)
+                 (expand-file-name basename dir)
                (let ((matches (flatten-list
                                (file-expand-wildcards
                                 (expand-file-name basename dir)))))
                  (cl-case (length matches)
                    (0 (if noerror
                           nil
-                        (error "No matching files found for link %s" link)))
-                   (1 (file-truename (car matches)))
+                        (error "No matching files found for link %s" link-or-file)))
+                   (1 (car matches))
                    (t (error "Found multiple file matches: %s" matches))))))))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
