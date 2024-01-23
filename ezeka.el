@@ -3770,6 +3770,8 @@ prefix), limit to only that Kasten."
 (defvar ezeka--move-log-file "auto/move.log"
   "Path, relative to `ezeka-directory', to the log file for recording moves.")
 
+;; TODO Replace with JSON so it's more portable and comprehensible
+;; TODO Distinguish between action (moved, deleted, archived) and target
 (defun ezeka--parse-move-log-line (line)
   "Parse a move long line in LINE, returning an alist."
   (let ((result (read-from-string line)))
@@ -3829,27 +3831,29 @@ whether to visit; if NIL, do not visit."
   (let* ((_pprint_record
           (lambda (rec)
             (let-alist rec
-              (let ((tfile (ignore-errors (ezeka-link-file .target))))
-                (format "%s moved to `%s' on %s"
+              (let* ((t-file (ezeka-link-file .target nil 'noerror))
+                     (t-name (when t-file (file-name-base t-file))))
+                (format "%s %s`%s' on %s (%s)"
                         .source
-                        (propertize
-                         (if tfile (file-name-base tfile) .target)
-                         'face 'bold)
+                        (if t-file "moved to " "")
+                        (propertize (or t-name .target) 'face 'bold)
                         (format-time-string
                          "%F %a %R"
-                         (encode-time (parse-time-string .time))))))))
+                         (encode-time (parse-time-string .time)))
+                        (or .comment ""))))))
          (trail (ezeka--note-move-trail note)))
     (cond ((null trail)
            (message "No record of moving %s" note)
            nil)
-          ((not visit)
-           (message (mapconcat _pprint_record (nreverse trail) "\n")))
-          ((or (eq visit 'visit)
-               (y-or-n-p
-                (format "%s\nVisit %s? "
-                        (mapconcat _pprint_record (nreverse trail) "\n")
-                        (propertize (alist-get 'target (car trail)) 'face 'bold))))
-           (ezeka-find-link (alist-get 'target (car trail)))))))
+          ((and (ezeka-link-p (alist-get 'target (car trail)))
+                (or (eq visit 'visit)
+                    (y-or-n-p
+                     (format "%s\nVisit %s? "
+                             (mapconcat _pprint_record (nreverse trail) "\n")
+                             (propertize (alist-get 'target (car trail)) 'face 'bold)))))
+           (ezeka-find-link (alist-get 'target (car trail))))
+          (t
+           (message (mapconcat _pprint_record (nreverse trail) "\n"))))))
 
 (defun ezeka--move-note (source target-link &optional confirm)
   "Move Zettel note from SOURCE to TARGET-LINK.
