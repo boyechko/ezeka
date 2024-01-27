@@ -771,7 +771,7 @@ is non-nil, do not raise an error if file is not found."
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
 If NOERROR is non-nil, don't signal an error if ID doesn't match a
 known type, and just return the passed ID-OR-FILE."
-  (if-let* ((id (ezeka-file-name-id id-or-file))
+  (if-let* ((id (or (ezeka-file-name-id id-or-file) id-or-file))
             (kasten (cl-find-if (lambda (k)
                                   (string-match-p
                                    (ezeka--match-entire
