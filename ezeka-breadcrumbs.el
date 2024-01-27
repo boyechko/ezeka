@@ -163,8 +163,9 @@ TARGET and SOURCE."
                (ezeka--insert-heading-after-current (1+ head-level))
                'primary))))))
 
-(defun ezeka--breadcrumb-string (target source)
-  "Return a breadcrumb string for TARGET from SOURCE."
+(defun ezeka--breadcrumb-string (target source &optional comment)
+  "Return a breadcrumb string for TARGET from SOURCE.
+Optionally, add COMMENT after TARGET."
   (save-match-data
     (let* ((t-file (cond ((ezeka-file-p target) target)
                          ((ezeka-link-p target) (ezeka-link-file target))))
@@ -176,6 +177,7 @@ TARGET and SOURCE."
             (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
                 (format "%s" (file-name-nondirectory target)))
           target)
+        comment
         ;; TODO Implement `format-spec' for breadcrumb strings?
         ;; Perhaps having different entries for ezeka and non-ezeka targets?
         (when (and source ezeka-breadcrumb-record-source)
@@ -272,9 +274,9 @@ The control sequence %s is replaced with the xref search string.")
     (format "\"%s\"" (buffer-name))))
 
 ;;;###autoload
-(defun ezeka-breadcrumbs-drop-external (source)
+(defun ezeka-breadcrumbs-drop-external (source &optional comment)
   "Drop breadcrumbs for the current external location.
-SOURCE should be a string or symbol."
+SOURCE should be a string or symbol; COMMENT can be a short string."
   (interactive
    (list (buffer-file-name
           (get-buffer (read-buffer "How did you get here? " nil t)))))
@@ -286,7 +288,7 @@ SOURCE should be a string or symbol."
       (with-current-buffer (overlay-buffer ezeka-breadcrumb-trail)
         (save-excursion
           (when-let ((status (ezeka-breadcrumb-find-trail target source)))
-            (insert (ezeka--breadcrumb-string target source))
+            (insert (ezeka--breadcrumb-string target source comment))
             (message "Dropped breadcrumbs from `%s' as %s"
                      (file-name-nondirectory source)
                      status)))))))
