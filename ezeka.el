@@ -665,12 +665,13 @@ Unknown %-sequences are left intact."
 
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
-  (and (stringp string)
-       (string-match (ezeka--match-entire (ezeka-link-regexp)) string)
-       ;; If kasten is specified, make sure it's a valid one
-       (if-let ((kasten (match-string-no-properties 2 string)))
-           (ezeka-kasten-named kasten)
-         t)))
+  (save-match-data
+    (and (stringp string)
+         (string-match (ezeka--match-entire (ezeka-link-regexp)) string)
+         ;; If kasten is specified, make sure it's a valid one
+         (if-let ((kasten (match-string-no-properties 2 string)))
+             (ezeka-kasten-named kasten)
+           t))))
 
 (defun ezeka-link-kasten (link &optional explicit)
   "Return the Kasten part of the given LINK.
