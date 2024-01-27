@@ -2392,16 +2392,17 @@ Called interactively, get the LINK at point or to current Zettel."
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
 
-(defun ezeka-update-link-prefix-title (&optional use-caption delete)
-  "Replace text from point to next Zettel link with that Zettel's title.
-If USE-CAPTION is non-nil, use the label and caption instead of title.
-With DELETE (or \\[universal-argument] \\[universal-argument]), delete the text instead."
+(defun ezeka-update-link-description (&optional use-rubric delete)
+  "Replace text from point to next Zettel link with its title.
+If USE-RUBRIC (or \\[universal-argument]) is non-nil, instead of the title,
+use the rubric sans the ID. With DELETE (or \\[universal-argument] \\[universal-argument]),
+delete the text instead."
   (interactive
    (list (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
   (save-excursion
     ;; if already inside a link, go to the start
-    (when (string= "link" (car (org-thing-at-point)))
+    (when (eq :link (caar (org-context)))
       (re-search-backward "\\[\\[" (point-at-bol) 'noerror))
     ;; if char under cursor is start of link, back up to BOF
     (while (or (char-equal (following-char) ?\[)
@@ -2414,10 +2415,10 @@ With DELETE (or \\[universal-argument] \\[universal-argument]), delete the text 
       (when-let* ((_ (ezeka-link-at-point-p))
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
-                  (mdata (ezeka-file-metadata file))
-                  (text (if use-caption
-                            (ezeka-format-metadata "{%l} %c" mdata)
-                          (alist-get :title mdata))))
+                  (text (if use-rubric
+                            (cadr (split-string (file-name-base file)
+                                                ezeka-file-name-separator 'omit-nulls))
+                            (alist-get :title (ezeka-file-metadata file)))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
@@ -4128,7 +4129,7 @@ END."
             ("C-c _" . ezeka-find-descendant)
             ("C-c =" . ezeka-kill-ring-save-metadata-field) ; `org-table-eval-formula'
             ("C-c +" . ezeka-insert-link-from-clipboard)
-            ("C-c [" . ezeka-update-link-prefix-title) ; `org-agenda-file-to-front'
+            ("C-c [" . ezeka-update-link-description) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
             ("C-c '" . ezeka-set-label)                     ; `org-edit-special'
