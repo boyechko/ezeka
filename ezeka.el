@@ -52,7 +52,7 @@ Group 2 is the kasten, if specified."
   "Regexp matching genus.")
 
 (defun ezeka-file-name-regexp ()
-  "Return regexp matching numerus currens note file names.
+  "Return regexp matching Zettel base file names (i.e. rubrics).
 
 Group 1 is the ID.
 Group 2 is the kasten.
@@ -60,10 +60,11 @@ Group 3 is the label (genus or category).
 Group 4 is the caption (i.e. short title).
 Group 5 is the citation key.
 Group 6 is the stable caption mark."
-  (concat (ezeka-link-regexp)             ; \1 and \2
-          "\\(?:"                         ; everything else is optional
-          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
-          "\\(?: {\\(?3:[^}]+\\)}\\)*"    ; \3
+  (concat (ezeka-link-regexp)           ; \1 and \2
+          "\\(?:"                       ; everything else is optional
+          "\\(?:\\.\\)*"                ; FIXME: optional historic period
+          ezeka-file-name-separator
+          "\\(?:{\\(?3:[^}]+\\)} \\)*"    ; \3
           "\\(?4:.+?\\)"                  ; \4
           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
           "\\)*"                          ; end of everything else
@@ -211,10 +212,10 @@ of pregenerated numeri currentes, one per line."
 ;; midified time, and so on. Header, on the other hand, is the actual
 ;; representation of that metadata inside the Zettel note.
 ;;
-;; Rubric is the compressed metadata information that is added to the file name
-;; in numerus currens notes. Caption is the shortened title, matching the file
-;; name, that is included in the rubric for redundancy.
-;;------------------------------------------------------------------------------
+;; Rubric is the compressed metadata information (including the caption, which
+;; is a pasteurized or shortened title) that serves as the file name for the
+;; note. This is included in the rubric for redundancy.
+;; ------------------------------------------------------------------------------
 
 (defvar ezeka-header-line-regexp
   "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
@@ -232,18 +233,12 @@ Group 2 is the value.")
   :type 'string
   :group 'ezeka)
 
+;; TODO Rename to `ezeka-header-stable-rubric-mark' or get rid of entirely
 (defcustom ezeka-header-stable-caption-mark "§"
   "Mark that signifies stable caption.
 The mark is used in the rubric value to show that any
 differences between caption and title values should be
 ignored as long as filename and header match."
-  :type 'string
-  :group 'ezeka)
-
-(defcustom ezeka-header-rubric-format "%s%i {%l} %c %k"
-  "The `format-spec' string for generating the note's rubric.
-See `ezeka-format-metadata' for details.
-This should match `ezeka-header-rubric-regexp'."
   :type 'string
   :group 'ezeka)
 
@@ -254,11 +249,20 @@ See `ezeka-format-metadata' for details. This should match
   :type 'string
   :group 'ezeka)
 
+;; TODO Move `ezeka-header-stable-caption-mark' (%s) somewhere else in header?
+(defcustom ezeka-header-rubric-format
+  (concat "%s" ezeka-file-name-format)
+  "The `format-spec' string for generating the note's rubric.
+See `ezeka-format-metadata' for details.
+This should match `ezeka-header-rubric-regexp'."
+  :type 'string
+  :group 'ezeka)
+
 (defun ezeka-header-rubric-regexp ()
   "Regular expression for the rubric string as found in the header.
 
 Groups 1-5 see `ezeka-file-name-regexp'.
-Group 6 is the stable caption mark."
+Group 6 is the stable caption mark."    ; TODO Rename to 'stable rubric'
   (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
           (ezeka-file-name-regexp)))
 
@@ -608,9 +612,14 @@ It is a Zettel if all of these conditions are met:
   "Return the citekey part of the given Zettel FILENAME."
   `(ezeka--file-name-part ,filename :citekey))
 
+;; TODO Rewrite using rubric
 (defun ezeka-format-file-name (format-string filename)
   "Format FILENAME according to FORMAT-STRING.
-The format control string can contain the following %-sequences:
+Unlike `ezeka-format-metadata', this function relies purely
+on the filename.
+
+The format control string can contain the following
+%-sequences:
 
 %c means caption (i.e. short title).
 %i means ID or link.
@@ -747,14 +756,13 @@ is non-nil, do not raise an error if file is not found."
         (t
          (save-match-data
            (let* ((id (ezeka-link-id link-or-file))
-                  (basename (file-name-with-extension
-                             (cond ((string-empty-p rubric)
-                                    (error "Rubric cannot be an empty string"))
-                                   ((stringp rubric)
-                                    rubric)
-                                   (t
-                                    (concat id "*")))
-                             ezeka-file-extension))
+                  (rubric (if (string-empty-p rubric)
+                              id        ; FIXME Hack for backward compatibility
+                            rubric))
+                  (basename (file-name-with-extension (if (stringp rubric)
+                                                          rubric
+                                                        (concat id "*"))
+                                                      ezeka-file-extension))
                   (dir (ezeka-id-directory id (ezeka-link-kasten link-or-file))))
              (if (stringp rubric)
                  (expand-file-name basename dir)
@@ -1030,12 +1038,12 @@ The format control string may contain the following %-sequences:
   "Return alist of metadata from the RUBRIC line.
 If cannot decode, return NIL."
   (when (and rubric (string-match (ezeka-header-rubric-regexp) rubric))
-    (let ((id          (match-string 1 rubric))
-          (kasten      (match-string 2 rubric))
-          (label       (match-string 3 rubric))
-          (caption     (match-string 4 rubric))
-          (stable      (when (match-string 6 rubric) t))
-          (citekey     (match-string 5 rubric)))
+    (let ((id           (match-string 1 rubric))
+          (kasten       (match-string 2 rubric))
+          (label        (match-string 3 rubric))
+          (caption      (match-string 4 rubric))
+          (stable       (when (match-string 6 rubric) t))
+          (citekey      (match-string 5 rubric)))
       (list (cons :id id)
             (when kasten (cons :kasten (string-trim kasten)))
             (cons :type (ezeka-id-type id))
@@ -1438,7 +1446,8 @@ Returns modifed metadata. If FORCE is non-nil, attempt
 reconciling even if :caption-stable is true."
   (let* ((mdata (or metadata (ezeka-file-metadata file)))
          (caption (or (alist-get :caption mdata) ""))
-         (title (or (alist-get :title mdata) ""))
+         (title (or (alist-get :title mdata)
+                    (alist-get :rubric mdata)))
          (_capitalp (lambda (c) (and (= ?w (char-syntax c)) (= c (upcase c))))))
     (unless (or (string= (ezeka--pasteurize-file-name title) caption)
                 (and (not force)
@@ -2568,15 +2577,24 @@ as the current note. With double \\[universal-argument], ask for ID."
           (read-from-minibuffer "Title for the child: "
                                 (ezeka--possible-new-note-title)))
          (when (equal current-prefix-arg '(16))
-           (read-from-minibuffer "ID for the child: "))))
-  (let* ((parent-link (ezeka-file-link buffer-file-name))
-         (citekey (alist-get :citekey (ezeka-file-metadata buffer-file-name)))
-         (child-link (ezeka--generate-new-child
-                      parent-link
-                      (unless (equal arg '(4))
-                        (ezeka--read-kasten "Kasten for new child: "))
-                      id)))
-    (ezeka--set-new-child-metadata child-link :title title :citekey citekey)
+           (ezeka--read-id "ID for the child: "))))
+  (let* ((rubric-mdata (ezeka-decode-rubric buffer-file-name))
+         (parent (alist-get :id rubric-mdata))
+         (citekey (ezeka--read-citekey (alist-get :citekey rubric-mdata)))
+         (kasten (cond (id
+                        (ezeka-link-kasten id))
+                       ((equal arg '(4))
+                        (ezeka-file-kasten buffer-file-name))
+                       (t
+                        (ezeka--read-kasten "Kasten for new child: "))))
+         (child-link (ezeka--generate-new-child parent kasten id))
+         (metadata `((:id       . ,child-link)
+                     (:kasten   . ,kasten)
+                     (:title    . ,title)
+                     (:caption  . ,(ezeka--pasteurize-file-name title))
+                     (:parent   . ,parent)
+                     (:citekey  . ,citekey))))
+    (ezeka--set-new-child-metadata child-link metadata)
     (ezeka-insert-with-spaces (ezeka--format-link child-link))
     (ezeka-find-link child-link)))
 
