@@ -1808,7 +1808,7 @@ one (every subdir has unique number of notes). If N is not
 an integer or is outside of 0..M range, return the subdirs
 with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
   (let* ((counts (if counts
-                     (cl-sort counts #'< :key #'cdr)
+                     (cl-sort (copy-sequence counts) #'< :key #'cdr)
                    (ezeka--numerus-subdir-counts #'< #'cdr)))
          (unique (cl-remove-duplicates (mapcar 'cdr counts)))
          (n (cond ((not n) 0)
