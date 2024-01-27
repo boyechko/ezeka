@@ -70,9 +70,6 @@ Group 6 is the stable caption mark."
           "\\)*"                          ; end of everything else
           ))
 
-(defvar ezeka--read-id-history nil
-  "History of IDs that the user entered manually.")
-
 ;;;=============================================================================
 ;;; User Variables
 ;;;=============================================================================
@@ -328,6 +325,9 @@ If ID-TYPE is not given, check ID against all known types."
   (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
     (and (stringp id)
          (string-match-p (ezeka--match-entire (ezeka--id-regexp id-type)) id))))
+
+(defvar ezeka--read-id-history nil
+  "History of IDs that the user entered manually.")
 
 (defun ezeka--read-id (prompt &optional id-type initial-input required)
   "Use `read-string' with PROMPT to read an ID.
@@ -2565,14 +2565,6 @@ note."
       (ezeka-find-link link))
     link))
 
-(defun ezeka--read-kasten (&optional prompt)
-  "Read a valid Kasten with `completing-read' and given PROMPT, if any."
-  (completing-read
-   (or prompt "Kasten: ")
-   (if (listp ezeka-kaesten)
-       (mapcar #'ezeka-kasten-name ezeka-kaesten)
-     (error "No `ezeka-kaesten' defined"))))
-
 (defun ezeka--possible-new-note-title ()
   "Return a possible title for a new Zettel note based on context."
   (interactive)
@@ -2977,10 +2969,11 @@ exist in FILENAME."
                               ((and set-title set-caption) "both title and caption")
                               (t "nothing (huh?)")))
            (new-val (or new-val
-                        (read-string (format "Change \"%s\" to what? " change-what)
-                                     (if set-title
-                                         (alist-get :title mdata)
-                                       caption)))))
+                        (ezeka--read-title
+                         (format "Change \"%s\" to what? " change-what)
+                         (if set-title
+                             (alist-get :title mdata)
+                           caption)))))
       (when (and set-caption (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
          filename
@@ -3011,7 +3004,7 @@ exist in FILENAME."
   (when (ezeka-file-p filename)
     (let* ((mdata (ezeka-file-metadata filename))
            (subtitle (or subtitle
-                         (read-string
+                         (ezeka--read-title
                           (if (alist-get :subtitle mdata)
                               (format "Change `%s' to what? "
                                       (alist-get :subtitle mdata))
@@ -3069,7 +3062,8 @@ further than parent."
            (citekey (or citekey
                         (and (null citekey)
                              ancestor
-                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))))
+                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))
+                        ""))
            (citekey (ezeka--minibuffer-edit-string citekey nil "New citekey: ")))
       (ezeka--set-citekey filename citekey)
       (when (y-or-n-p "Record the change in the change log? ")
@@ -3103,7 +3097,7 @@ argument), trace genealogy farther than parent."
               (alist-get :citekey
                 (ezeka-decode-rubric
                  (file-name-base (ezeka-link-file ancestor))))))
-         (citekey (or citekey (read-string "New citekey: " initial))))
+         (citekey (or citekey (ezeka--read-citekey "New citekey: " initial))))
     (ezeka--update-metadata-values filename nil
       :citekey (if (and citekey
                         (string-match-p "^[^@&]" citekey))
@@ -3242,7 +3236,38 @@ clear the keywords without attempting to edit them."
 ;;; Populating Files
 ;;;=============================================================================
 
-(defvar ezeka--citekey-history nil)
+(defvar ezeka--read-title-history nil
+  "History variable for Zettel titles.")
+
+(defun ezeka--read-title (&optional prompt initial-input)
+  "Read title or caption via minibuffer.
+PROMPT and INITIAL-INPUT are passed to `read-string'."
+  (read-string (or prompt "Title: ") initial-input 'ezeka--read-title-history))
+
+(defvar ezeka--read-citekey-history nil
+  "History variable for Zettel citekeys.")
+
+(defun ezeka--read-citekey (&optional prompt initial-input)
+  "Read a citekey.
+PROMPT and INITIAL-INPUT are passed to `read-string'."
+  (let ((citekey (read-string (or prompt "Citekey: ")
+                              initial-input
+                              'ezeka--read-citekey-history)))
+    (cond ((or (not citekey)
+               (string-empty-p citekey))
+           nil)
+          ((string-match-p "^[@&]" citekey)
+           citekey)
+          (t
+           (concat "@" citekey)))))
+
+(defun ezeka--read-kasten (&optional prompt)
+  "Read a valid Kasten with `completing-read' and given PROMPT, if any."
+  (completing-read
+   (or prompt "Kasten: ")
+   (if (listp ezeka-kaesten)
+       (mapcar #'ezeka-kasten-name ezeka-kaesten)
+     (error "No `ezeka-kaesten' defined"))))
 
 (defun ezeka-insert-header-template (&optional link label title parent citekey metadata)
   "Insert header template into the current buffer.
@@ -3261,11 +3286,11 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
             (setf (alist-get :label mdata)
                   (ezeka--read-label (ezeka-link-kasten link))))
         (setf (alist-get :title mdata)
-              (read-string "Title: " (or .:title .:caption)))
+              (ezeka--read-title "Title: " (or .:title .:caption)))
         (setf (alist-get :parent mdata)
               (ezeka--read-id "Parent? " nil .:parent))
         (setf (alist-get :citekey mdata)
-              (read-string "Citekey? " .:citekey 'ezeka--citekey-history))
+              (ezeka--read-citekey "Citekey? " .:citekey))
         (prog1 mdata
           (ezeka--set-new-child-metadata link mdata))))))
   (let* ((mdata (ezeka-metadata link
@@ -3857,9 +3882,10 @@ whether to visit; if NIL, do not visit."
   (interactive
    (let ((file (ezeka--grab-dwim-file-target 'link-at-point)))
      (list (if (or current-prefix-arg (null file))
-               (read-string "Link of note to check: "
-                            (word-at-point)
-                            'ezeka--read-id-history)
+               (ezeka--read-id "Link of note to check: "
+                               nil
+                               (word-at-point)
+                               'required)
              (ezeka-file-link file))
            nil
            'ask)))
