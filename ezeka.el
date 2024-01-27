@@ -573,17 +573,16 @@ It is a Zettel if all of these conditions are met:
 
 (defun ezeka--file-name-fields (filename)
   "Parse FILENAME, returning its matched fields an an alist."
-  (let* ((base (file-name-base filename))
-         (_match-trim
-          (lambda (n)
-            (let ((match (match-string n base)))
-              (when match (string-trim match))))))
+  (let* ((base (file-name-base filename)))
     (save-match-data
       (when (string-match (ezeka-file-name-regexp) base)
-        `((id      . ,(funcall _match-trim 1))
-          (label   . ,(funcall _match-trim 3))
-          (caption . ,(funcall _match-trim 4))
-          (citekey . ,(funcall _match-trim 5)))))))
+        (mapcar (lambda (key-val)
+                  (cons (car key-val)
+                        (when (cdr key-val) (string-trim (cdr key-val)))))
+                `((id . ,(match-string 1 base))
+                  (label . ,(match-string 3 base))
+                  (caption . ,(match-string 4 base))
+                  (citekey . ,(match-string 5 base))))))))
 
 (defun ezeka--file-name-part (filename part)
   "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
@@ -1010,29 +1009,49 @@ The format control string may contain the following %-sequences:
                "UNKNOWN"
              (format-time-string (cdr ezeka-timestamp-formats) time-string)))))
     (save-match-data
-      (string-trim
-       (format-spec format-string
-                    `((?a . ,(if-let ((ck (alist-get :citekey metadata)))
-                                 (format "%s's " (ezeka--citaton-key-authors ck))
-                               ""))
-                      (?c . ,(alist-get :caption metadata))
-                      (?C . ,(funcall _format-time (alist-get :created metadata)))
-                      (?i . ,(alist-get :id metadata))
-                      (?k . ,(let ((citekey (alist-get :citekey metadata)))
-                               (cond ((or (not citekey)
-                                          (string-empty-p citekey))
+      (let-alist metadata
+        (string-trim
+         (format-spec format-string
+                      `((?a . ,(if-let ((ck .:citekey))
+                                   (format "%s's " (ezeka--citaton-key-authors ck))
+                                 ""))
+                        (?c . ,(or .:caption (ezeka--pasteurize-file-name .:title)))
+                        (?C . ,(funcall _format-time .:created))
+                        (?i . ,.:id)
+                        (?k . ,(cond ((or (not .:citekey)
+                                          (string-empty-p .:citekey))
                                       "")
-                                     ((string-match-p "^[@&]" citekey)
-                                      citekey)
+                                     ((string-match-p "^[@&]" .:citekey)
+                                      .:citekey)
                                      (t
-                                      (concat "@" citekey)))))
-                      (?K . ,(alist-get :kasten metadata))
-                      (?l . ,(alist-get :label metadata))
-                      (?M . ,(funcall _format-time (alist-get :modified metadata)))
-                      (?s . ,(if (alist-get :caption-stable metadata)
-                                 ezeka-header-stable-caption-mark
-                               ""))
-                      (?t . ,(alist-get :title metadata))))))))
+                                      (concat "@" .:citekey))))
+                        (?K . ,.:kasten)
+                        (?l . ,.:label)
+                        (?M . ,(funcall _format-time .:modified))
+                        (?s . ,(if .:caption-stable
+                                   ezeka-header-stable-caption-mark
+                                 ""))
+                        (?t . ,.:title))))))))
+
+(defun ezeka-metadata (file-or-link &rest values)
+  "Create a metadata object from pairs of VALUES.
+FILE-OR-LINK identifies the Zettel these metadata belong to.
+VALUES should be a list of keyword and value properties
+corresponding to metadata fields."
+  (declare (indent 1))
+  (if (and values (zerop (mod (length values) 2)))
+      (let* ((link (if (ezeka-link-p file-or-link)
+                       file-or-link
+                     (ezeka-file-link file-or-link)))
+             (mdata `((:link . ,link)
+                      (:id   . ,(ezeka-link-id link))
+                      (:file . ,(unless (ezeka-link-p file-or-link)
+                                  file-or-link)))))
+        (while values
+          (push (cons (car values) (cadr values)) mdata)
+          (setq values (cddr values)))
+        mdata)
+    (error "VALUES should be paired :key value pairs: %s" values)))
 
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
@@ -1996,27 +2015,30 @@ If TIME is nil, default to current time."
 ;;; Zettel Links
 ;;;=============================================================================
 
-(defvar ezeka--new-child-plist nil
-  "An alist of new children and a plist of their details.
-Plist values are :parent, :title, :label, and :citekey.")
+(defvar ezeka--new-child-metadata nil
+  "An alist of new children and their metadata.")
 
+;; TODO Metadata really should be a `defstruct'
 (defun ezeka--set-new-child-metadata (link &rest values)
   "Set the metadata property values for LINK.
-VALUES should be a list of keyword and value properties."
-  (unless (and values (zerop (mod (length values) 2)))
-    (error "VALUES should be paired :key value pairs: %s" values))
-  (let ((plist (alist-get link ezeka--new-child-plist nil nil #'string=)))
-    (while values
-      (setq plist (plist-put plist (car values) (cadr values)))
-      (setq values (cddr values)))
-    (setf (alist-get link ezeka--new-child-plist nil nil #'string=)
-          plist)))
+If VALUES is a list, assume it's a metadata alist, and just
+set the child metadata to that. Otherwise, VALUES should be
+a list of keyword and value properties."
+  (declare (indent 1))
+  (let ((mdata (when (listp (car values)) (car values))))
+    (cond ((not (null mdata)))
+          ((and values (zerop (mod (length values) 2)))
+           (while values
+             (push (cons (car values) (cadr values)) mdata)
+             (setq values (cddr values))))
+          (t
+           (error "VALUES should be paired :key value pairs: %s" values)))
+    (setf (alist-get link ezeka--new-child-metadata nil nil #'string=)
+          mdata)))
 
-(defun ezeka--get-new-child-metadata (link key)
-  "Return KEY metadata value for child LINK, or nil."
-  (when-let* ((plist (alist-get link ezeka--new-child-plist nil nil #'string=))
-              (found (plist-member plist key)))
-    (cadr found)))
+(defun ezeka--new-child-metadata (link)
+  "Return metadata alist for child LINK."
+  (alist-get link ezeka--new-child-metadata nil nil #'string=))
 
 (defun ezeka-link-at-point-p (&optional freeform)
   "Return non-nil if the thing at point is a wiki link (i.e. [[XXX]]).
@@ -2570,7 +2592,7 @@ note."
   "Create a new child with given TITLE, inserting its link at point.
 If TITLE is not given, use text on the current line before point.
 With \\[universal-argument] ARG, create the child in the same Kasten
-as the current note. With double \\[universal-argument], ask for ID."
+as the current note. With \\[universal-argument] \\[universal-argument], ask for ID."
   (interactive
    (list current-prefix-arg
          (org-trim
@@ -3222,58 +3244,56 @@ clear the keywords without attempting to edit them."
 
 (defvar ezeka--citekey-history nil)
 
-(defun ezeka-insert-header-template (&optional link label title parent citekey)
+(defun ezeka-insert-header-template (&optional link label title parent citekey metadata)
   "Insert header template into the current buffer.
 If given, populate the header with the LINK, LABEL, TITLE, PARENT, and
-CITEKEY."
+CITEKEY. Anything not specified is taken from METADATA, if available."
   (interactive
    (let* ((link (if buffer-file-name
                     (ezeka-file-link buffer-file-name)
                   (user-error "This command can only be called from a Zettel")))
-          (nondir (file-name-nondirectory buffer-file-name))
-          (mdata (when (string-match (ezeka-octavo-file-name-regexp) nondir)
-                   (ezeka-decode-rubric
-                    (concat (match-string 1 nondir)
-                            (match-string 2 nondir))))))
-     (list
-      link
-      (or (alist-get :label mdata)
-          (ezeka--get-new-child-metadata link :label)
-          (ezeka--read-label (ezeka-link-kasten link)))
-      (read-string "Title: " (or (ezeka--get-new-child-metadata link :title)
-                                 (alist-get :caption mdata)))
-      (ezeka--read-id "Parent: "
-                      nil (ezeka--get-new-child-metadata link :parent))
-      (read-string
-       "Citekey? " (or (ezeka--get-new-child-metadata link :citekey)
-                       (when (string-match "[@&][^\\s]+$"
-                                           (file-name-base buffer-file-name))
-                         (match-string 0 (file-name-base buffer-file-name))))
-       'ezeka--citekey-history))))
-  (let* ((id (ezeka-link-id link))
-         (caption (ezeka--pasteurize-file-name title))
+          (mdata (or (ezeka--new-child-metadata link)
+                     (ezeka-decode-rubric (file-name-nondirectory buffer-file-name)))))
+     (let-alist mdata
+       (list
+        link
+        (or .:label
+            (setf (alist-get :label mdata)
+                  (ezeka--read-label (ezeka-link-kasten link))))
+        (setf (alist-get :title mdata)
+              (read-string "Title: " (or .:title .:caption)))
+        (setf (alist-get :parent mdata)
+              (ezeka--read-id "Parent? " nil .:parent))
+        (setf (alist-get :citekey mdata)
+              (read-string "Citekey? " .:citekey 'ezeka--citekey-history))
+        (prog1 mdata
+          (ezeka--set-new-child-metadata link mdata))))))
+  (let* ((mdata (ezeka-metadata link
+                  :link link
+                  :id (or (alist-get :id metadata) (ezeka-link-id link))
+                  :label (or label (alist-get :label metadata))
+                  :title (or title (alist-get :title metadata))
+                  :parent (or parent (alist-get :parent metadata))
+                  :citekey (or citekey (alist-get :citekey metadata))))
          (inhibit-read-only t)
          (content (buffer-substring-no-properties (point-min) (point-max))))
-    (erase-buffer)
-    (goto-char (point-min))
-    (insert
-     (concat ezeka-header-rubric-key
-             ": "
-             (ezeka-format-metadata ezeka-header-rubric-format
-                                    `((:id . ,(ezeka-link-id link))
-                                      (:caption . ,caption)
-                                      (:label . ,label)
-                                      (:citekey . ,citekey)))))
-    (insert "\ntitle: " title)
-    (insert (format "\ncreated: %s\n"
-             ;; Insert creation time, making it match a tempus currens filename
-             (ezeka-timestamp (when (eq :tempus (ezeka-id-type id))
-                                (ezeka--encode-time id))
-                              'full)))
-    (when (and parent (not (string-empty-p parent)))
-      (insert "parent: " (ezeka--format-link parent) "\n"))
-    (insert "\n" content)
-    (add-hook 'after-save-hook 'ezeka--run-3f-hook nil 'local)))
+    (let-alist mdata
+      (erase-buffer)
+      (goto-char (point-min))
+      (insert
+       (concat ezeka-header-rubric-key
+               ": "
+               (ezeka-format-metadata ezeka-header-rubric-format mdata)))
+      (insert "\ntitle: " .:title)
+      (insert (format "\ncreated: %s\n"
+                      ;; Insert creation time, making it match a tempus currens filename
+                      (ezeka-timestamp (when (eq :tempus (ezeka-id-type .:id))
+                                         (ezeka--encode-time .:id))
+                                       'full)))
+      (when (and .:parent (not (string-empty-p .:parent)))
+        (insert "parent: " (ezeka--format-link .:parent) "\n"))
+      (insert "\n" content)
+      (add-hook 'after-save-hook 'ezeka--run-3f-hook nil 'local))))
 
 (defun ezeka--run-3f-hook ()
   "Run hooks in `ezeka-find-file-functions'."
