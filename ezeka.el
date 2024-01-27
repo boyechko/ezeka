@@ -972,6 +972,28 @@ Return the result of the conversion."
 ;;; Metadata: Internal
 ;;;=============================================================================
 
+(defconst ezeka-metadata-fields
+  '((:link      :yaml-type string :lisp-type link :hidden t)
+    (:caption   :yaml-type string :hidden t)
+    (:citekey   :yaml-type string :hidden t)
+    (:rubric    :yaml-type string)
+    (:successor :yaml-type string)
+    (:title     :yaml-type string)
+    (:subtitle  :yaml-type string)
+    (:author    :yaml-type string)
+    (:created   :yaml-type string :lisp-type time)
+    (:modified  :yaml-type string :lisp-type time)
+    (:parent    :yaml-type string :lisp-type link)
+    (:firstborn :yaml-type string :lisp-type link)
+    (:oldnames  :yaml-type list)
+    (:readings  :yaml-type list)
+    (:keywords  :yaml-type list))
+  "An alist of valid metadata fields and their properties.
+The format of each item should be as follows:
+    (:FIELD :YAML-TYPE <type description> :HIDDEN <boolean>).
+The order of items will affect how the metadata is written into the
+file header.")
+
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."
   (let ((case-fold-search nil))
@@ -1112,8 +1134,10 @@ This is a copy of `timep' from `type-break'."
     (_
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun ezeka--header-deyamlify-value (value)
-  "Return an elisp version of the given YAML-formatted VALUE."
+(defun ezeka--header-deyamlify-value (value &optional type)
+  "Return an elisp version of the given YAML-formatted VALUE.
+TYPE is a symbol representing the basic YAML type (as listed
+in `ezeka-metadata-fields')."
   (pcase value
     ;; strip [[ ]] in wiki links
     ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
@@ -1142,8 +1166,13 @@ signal an error when encountering malformed header lines."
            (lambda (line)
              (when (> (length line) 0)
                (if (string-match ezeka-header-line-regexp line)
-                   (cons (intern (concat ":" (match-string 1 line)))
-                         (ezeka--header-deyamlify-value (match-string 2 line)))
+                   (let* ((key (intern (concat ":" (match-string 1 line))))
+                          (field-plist (alist-get key ezeka-metadata-fields))
+                          (val (match-string 2 line)))
+                     (cons key
+                           (ezeka--header-deyamlify-value
+                            val
+                            (plist-get :yaml-type field-plist))))
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
@@ -1221,30 +1250,8 @@ converted to keywords."
         (error "Cannot find where the body begins")))))
 
 ;;;=============================================================================
-;;; Metadata Commands
+;;; Metadata: Commands
 ;;;=============================================================================
-
-;; TODO Instead of :type, maybe have :setter? (and :getter?)
-(defconst ezeka-metadata-valid-fields
-  '((:link :type id :hidden t)
-    (:caption :type string :hidden t)
-    (:caption-stable :type boolean :hidden t)
-    (:rubric :type string)
-    (:title :type string)
-    (:subtitle :type string)
-    (:author :type string)
-    (:created :type timestamp)
-    (:modified :type timestamp)
-    (:parent :type link)
-    (:firstborn :type link)
-    (:oldnames :type list)
-    (:readings :type list)
-    (:keywords :type list))
-  "An alist of valid metadata fields and their properties.
-The format of each item should be as follows:
-    (:FIELD :TYPE <type description> :HIDDEN <boolean>).
-The order of items will affect how the metadata is written into the
-file header.")
 
 (defun ezeka-set-metadata-value (metadata field value)
   "Set METADATA's FIELD to VALUE after doing some checking.
@@ -1302,7 +1309,6 @@ troublesome characters."
                            (1+ anychar)
                            ,title-delimiters))
          (date '(>= 4 (in "0-9" "-" ",")))
-         (citekey '(seq (any "&@") (1+ word)))
          (one (list
                (rx-to-string `(seq ,given-name
                                    " " word-start
@@ -1522,7 +1528,7 @@ reconciling even if :caption-stable is true."
                                      (alist-get (car field) metadata))
                             (cons (car field)
                                   (alist-get (car field) metadata))))
-                        ezeka-metadata-valid-fields))
+                        ezeka-metadata-fields))
           (ezeka--make-header-read-only (current-buffer)))))))
 
 (defun ezeka--metadata-equal-p (md1 md2)
@@ -2304,13 +2310,12 @@ insert just the link itself."
 
 (defun ezeka-kill-ring-save-metadata-field (field)
   "Save the given metadata FIELD to kill ring and system clipboard.
-FIELD should be one of `ezeka-metadata-valid-fields'.
-If the point is at Zettel link, use that; otherwise, the
-current buffer."
+FIELD should be one of `ezeka-metadata-fields'. If the point
+is at Zettel link, use that; otherwise, the current buffer."
   (interactive
    (list (intern-soft
           (completing-read "Which field? "
-                           ezeka-metadata-valid-fields
+                           ezeka-metadata-fields
                            nil
                            t))))
   (when-let* ((file (ezeka--grab-dwim-file-target))
