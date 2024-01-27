@@ -37,41 +37,7 @@
 (require 'seq)
 
 ;;;=============================================================================
-;;; Internal Variables
-;;;=============================================================================
-
-(defun ezeka-link-regexp ()
-  "Return the regular expression that matches Zettel links.
-
-Group 1 is the ID.
-Group 2 is the kasten, if specified."
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*"
-          "\\(?1:" (ezeka--id-regexp) "\\)"))
-
-(defvar ezeka-genus-regexp "[α-ω]"
-  "Regexp matching genus.")
-
-(defun ezeka-file-name-regexp ()
-  "Return regexp matching Zettel base file names (i.e. rubrics).
-
-Group 1 is the ID.
-Group 2 is the kasten.
-Group 3 is the label (genus or category).
-Group 4 is the caption (i.e. short title).
-Group 5 is the citation key.
-Group 6 is the stable caption mark."
-  (concat (ezeka-link-regexp)           ; \1 and \2
-          "\\(?:"                       ; everything else is optional
-          "\\(?:\\.\\)*"                ; FIXME: optional historic period
-          ezeka-file-name-separator
-          "\\(?:{\\(?3:[^}]+\\)} \\)*"    ; \3
-          "\\(?4:.+?\\)"                  ; \4
-          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
-          "\\)*"                          ; end of everything else
-          ))
-
-;;;=============================================================================
-;;; User Variables
+;;; Variables: General
 ;;;=============================================================================
 
 (defcustom ezeka-directory nil
@@ -92,7 +58,7 @@ The list is ordered by the Kasten's `order' field."
   :group 'ezeka)
 
 (defcustom ezeka-categories nil
-  "A list of categories used for Zettel."
+  "A list of categories used for tempus currens Zettel."
   :type 'list
   :group 'ezeka)
 
@@ -107,6 +73,14 @@ Each element should be in the form
   "A list of frequently-used keywords.
 Each element should be a string beginning with #."
   :type 'list
+  :group 'ezeka)
+
+(defcustom ezeka-rename-note-keyword "#rename"
+  "Keyword to add to notes that need renaming.
+Because git does not keep track of renames, significantly changing the
+content confuses the default rename detection. It is helpful,
+therefore, to split the operations into two commits."
+  :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-dynamic-keywords t
@@ -127,33 +101,6 @@ Possible valus are t (always create), nil (never create), or
   "Try to use only this many frames. Nil means single frame."
   :type 'symbol
   :options '(one two many)
-  :group 'ezeka)
-
-(defcustom ezeka-header-update-modified t
-  "Whether `ezeka--update-file-header' updates the modification date.
-Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
-  :type 'symbol
-  :group 'ezeka)
-
-(defcustom ezeka-header-read-only t
-  "When non-nil, the Ezeka file headers are made read-only."
-  :type 'boolean
-  :group 'ezeka)
-
-(defcustom ezeka-save-after-metadata-updates 'confirm
-  "Whether to automatically save the file after modification.
-Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
-`ezeka-set-title-or-caption'."
-  :type 'symbol
-  :options '(nil t confirm)
-  :group 'ezeka)
-
-(defcustom ezeka-rename-note-keyword "#rename"
-  "Keyword to add to notes that need renaming.
-Because git does not keep track of renames, significantly changing the
-content confuses the default rename detection. It is helpful,
-therefore, to split the operations into two commits."
-  :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-after-save-hook '()
@@ -202,8 +149,8 @@ of pregenerated numeri currentes, one per line."
                  (file :tag "Pregenerated numeri currentes"))
   :group 'ezeka)
 
-;;------------------------------------------------------------------------------
-;; Metadata and Headers
+;;;-----------------------------------------------------------------------------
+;;; Variables: Metadata and Headers
 ;;
 ;; Metadata refers to the information about the Zettel note, like its created or
 ;; midified time, and so on. Header, on the other hand, is the actual
@@ -212,13 +159,48 @@ of pregenerated numeri currentes, one per line."
 ;; Rubric is the compressed metadata information (including the caption, which
 ;; is a pasteurized or shortened title) that serves as the file name for the
 ;; note. This is included in the rubric for redundancy.
-;; ------------------------------------------------------------------------------
+;;;-----------------------------------------------------------------------------
 
-(defvar ezeka-header-line-regexp
-  "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
-  "The regular expression that matches a line of YAML metadata.
-Group 1 is the key.
-Group 2 is the value.")
+;; TODO Replace "link" with "id," reserving "link" term for actual links
+(defun ezeka-link-regexp ()
+  "Return the regular expression that matches Zettel links.
+
+Group 1 is the ID.
+Group 2 is the kasten, if specified."
+  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*"
+          "\\(?1:" (ezeka--id-regexp) "\\)"))
+
+(defcustom ezeka-file-name-format "%i {%l} %c %k"
+  "The `format-spec' string for generating a note's file name.
+At the minimum, it must start with \"%i\"; everything else
+is optional. See `ezeka-format-metadata' for details. This
+should match `ezeka-file-name-regexp'."
+  :type 'string
+  :group 'ezeka)
+
+(defcustom ezeka-file-name-separator " "
+  "String separating the ID from the rest of the file name.
+For example, with `ezeka-file-name-format' set to \"%i-%c\"")
+
+(defun ezeka-file-name-regexp ()        ; HARDCODED
+  "Return regexp matching Zettel base file names (i.e. rubrics).
+It should match the result of `ezeka-file-name-format`.
+
+Group 1 is the ID.
+Group 2 is the kasten.
+Group 3 is the label (genus or category).
+Group 4 is the caption (i.e. short title).
+Group 5 is the citation key.
+Group 6 is the stable caption mark."
+  (concat (ezeka-link-regexp)             ; \1 and \2
+          ezeka-file-name-separator
+          "\\(?:"                         ; everything else is optional
+          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
+          "\\(?:{\\(?3:[^}]+\\)} \\)*"    ; \3
+          "\\(?4:.+?\\)"                  ; \4
+          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
+          "\\)*"                          ; end of everything else
+          ))
 
 (defcustom ezeka-header-separator-regexp "^$"
   "Regexp that matches the separator line between header and the note text."
@@ -239,13 +221,6 @@ ignored as long as filename and header match."
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-file-name-format "%i {%l} %c %k"
-  "The `format-spec' string for generating a note's file name.
-See `ezeka-format-metadata' for details. This should match
-`ezeka-file-name-regexp'."
-  :type 'string
-  :group 'ezeka)
-
 ;; TODO Move `ezeka-header-stable-caption-mark' (%s) somewhere else in header?
 (defcustom ezeka-header-rubric-format
   (concat "%s" ezeka-file-name-format)
@@ -262,6 +237,25 @@ Groups 1-5 see `ezeka-file-name-regexp'.
 Group 6 is the stable caption mark."    ; TODO Rename to 'stable rubric'
   (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
           (ezeka-file-name-regexp)))
+
+(defcustom ezeka-header-update-modified t
+  "Whether `ezeka--update-file-header' updates the modification date.
+Possible choices are ALWAYS, SAMEDAY, NEVER, or CONFIRM (same as T)."
+  :type 'symbol
+  :group 'ezeka)
+
+(defcustom ezeka-header-read-only t
+  "When non-nil, the Ezeka file headers are made read-only."
+  :type 'boolean
+  :group 'ezeka)
+
+(defcustom ezeka-save-after-metadata-updates 'confirm
+  "Whether to automatically save the file after modification.
+Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
+`ezeka-set-title-or-caption'."
+  :type 'symbol
+  :options '(nil t confirm)
+  :group 'ezeka)
 
 ;;;=============================================================================
 ;;; Kaesten
@@ -727,9 +721,6 @@ explicitly given."
     (or (ezeka-id-subdirectory id)
         (error "Cannot get subdirectory for %s" id)))))
 
-(defvar ezeka-file-name-separator " "
-  "Separator to use between ID and CAPTION in file names.")
-
 (defun ezeka--id-kaesten (id)
   "Return all kaesten for the ID's type."
   (let ((type (ezeka-id-type id)))
@@ -1156,6 +1147,12 @@ in `ezeka-metadata-fields')."
              (split-string inside "," t "[[:space:]]+")))
     (_
      (string-trim value))))
+
+(defvar ezeka-header-line-regexp
+  "\\(?1:\\w+\\):\\s-+\\(?2:.*\\)"
+  "The regular expression that matches a line of YAML metadata.
+Group 1 is the key.
+Group 2 is the value.")
 
 (defun ezeka--decode-header (header file &optional noerror)
   "Return metadata alist decoded from FILE's YAML HEADER.
