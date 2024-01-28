@@ -2890,10 +2890,11 @@ should consist of KEY and VALUE pairs.
   (declare (indent 2))
   (when (/= (logand (length args) 1) 0)
     (signal 'wrong-number-of-arguments (list 'setf (length args))))
-  (let ((already-open (get-file-buffer filename)))
+  (let* ((already-open (get-file-buffer filename))
+         (buf (or already-open (find-file-noselect filename))))
     (save-excursion
       (unwind-protect
-          (with-current-buffer (or already-open (find-file-noselect filename))
+          (with-current-buffer buf
             (let ((already-modified (buffer-modified-p))
                   (metadata (or metadata (ezeka-file-metadata filename))))
               (while args
@@ -2905,9 +2906,8 @@ should consist of KEY and VALUE pairs.
                              (y-or-n-p "Save? ")
                            ezeka-save-after-metadata-updates))
                 (save-buffer))))
-        (let ((buf (get-file-buffer filename)))
-          (unless already-open
-            (kill-buffer-if-not-modified buf)))))))
+        (unless already-open
+          (kill-buffer-if-not-modified buf))))))
 
 (defun ezeka-add-change-log-entry (filename entry &optional section)
   "Add a change log ENTRY in FILENAME's SECTION.
