@@ -175,8 +175,8 @@ return nil if FORMAT cannot be rendered from ID and TITLE."
              (not (member id ezeka--marked-for-rename)))
         basic
       (if-let* ((debug t)
-                (file (ezeka-link-file id nil 'noerror))
-                (mdata (ezeka-file-metadata file 'noerror)))
+                (file (ezeka-link-file id))
+                (mdata (ezeka-file-metadata file)))
           ;; FIXME: Hackish way to catch hand-edited TITLE
           (progn
             (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)

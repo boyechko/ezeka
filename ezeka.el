@@ -393,7 +393,7 @@ If LINK-AT-POINT is non-nil, prioritize such a link if
 exists. If INTERACTIVE is non-nil, have the user select a
 file interactively."
   (cond ((and link-at-point (ezeka-link-at-point-p))
-         (ezeka-link-file (ezeka-link-at-point) nil 'noerror))
+         (ezeka-link-file (ezeka-link-at-point)))
         ((and buffer-file-name
               (or ezeka-mode (ezeka-file-p buffer-file-name t)))
          buffer-file-name)
@@ -729,43 +729,41 @@ explicitly given."
                                 (eq (cadr x) type))
                               ezeka-kaesten))))
 
-(defun ezeka-link-file (link-or-file &optional rubric noerror)
+(defun ezeka-link-file (link)
   "Return a full file path to the Zettel LINK.
-If LINK-OR-FILE is actually a filename, just return it.
-Otherwise, RUBRIC can be a string, in which case return a
-full file path for such a Zettel. Alternatively, if RUBRIC
-is anything else (e.g. 'wildcard or nil), try wildcard
-expansion for the file name beginning with LINK. If NOERROR
-is non-nil, do not raise an error if file is not found."
-  (cond ((file-exists-p link-or-file)
-         link-or-file)
-        ((and (not (ezeka-link-p link-or-file))
-              (not noerror))
-         (error "Link not valid: %s" link-or-file))
-        ((not (ezeka-link-p link-or-file))
-         nil)
-        (t
-         (save-match-data
-           (let* ((id (ezeka-link-id link-or-file))
-                  (rubric (if (string-empty-p rubric)
-                              id        ; FIXME Hack for backward compatibility
-                            rubric))
-                  (basename (file-name-with-extension (if (stringp rubric)
-                                                          rubric
-                                                        (concat id "*"))
-                                                      ezeka-file-extension))
-                  (dir (ezeka-id-directory id (ezeka-link-kasten link-or-file))))
-             (if (stringp rubric)
-                 (expand-file-name basename dir)
-               (let ((matches (flatten-list
-                               (file-expand-wildcards
-                                (expand-file-name basename dir)))))
-                 (cl-case (length matches)
-                   (0 (if noerror
-                          nil
-                        (error "No matching files found for link %s" link-or-file)))
-                   (1 (car matches))
-                   (t (error "Found multiple file matches: %s" matches))))))))))
+To do that, try wildcard expansion for the file name
+beginning with LINK, returning it if found, or NIL
+otherwise."
+  (save-match-data
+    (let* ((id (ezeka-link-id link))
+           (basename (file-name-with-extension
+                      (concat id "*")
+                      ezeka-file-extension))
+           (dir (ezeka-id-directory id (ezeka-link-kasten link)))
+           (matches (flatten-list
+                     (file-expand-wildcards
+                      (expand-file-name basename dir)))))
+      (cl-case (length matches)
+        (0 nil)
+        (1 (car matches))
+        (t (error "Found multiple file matches: %s" matches))))))
+
+(defun ezeka-link-path (link &optional metadata)
+  "Return a full file path to the Zettel LINK.
+Unlike `ezeka-link-file', no attempts are made to check if
+the file actually exists; its file path is simply computed
+based on LINK and METADATA (if present)."
+  (let ((mdata (append metadata
+                       (ezeka-metadata link
+                         :label "nil"
+                         :caption "nil"))))
+    (expand-file-name (file-name-with-extension
+                       (if mdata
+                           (ezeka-format-metadata ezeka-file-name-format mdata)
+                         (ezeka-link-id link))
+                       ezeka-file-extension)
+                      (ezeka-id-directory (ezeka-link-id link)
+                                          (ezeka-link-kasten link)))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
@@ -2087,8 +2085,8 @@ same window."
 If SAME-WINDOW is non-NIL, opens the link in the same window. Return
 T if the link is a Zettel link."
   (when (ezeka-link-p link)
-    (let ((existing-file (ignore-errors (ezeka-link-file link))))
-      (cond ((ezeka-file-p existing-file)
+    (let ((existing-file (ezeka-link-file link)))
+      (cond (existing-file
              (ezeka-find-file existing-file same-window))
             ((ezeka-note-moved-p link nil 'ask))
             ((or (eq ezeka-create-nonexistent-links t)
@@ -2098,7 +2096,9 @@ T if the link is a Zettel link."
              (when-let ((_ (ezeka-file-p buffer-file-name))
                         (parent (ezeka-file-link buffer-file-name)))
                (ezeka--set-new-child-metadata link :parent parent))
-             (ezeka-find-file (ezeka-link-file link "") same-window)
+             (ezeka-find-file (ezeka-link-path link
+                                               (ezeka--new-child-metadata link))
+                              same-window)
              (call-interactively #'ezeka-insert-header-template))
             (t
              (message "Link `%s' doesn't exist" link)
@@ -2175,7 +2175,7 @@ interactively edit the text."
                  '(":none" ":title" ":citekey" ":label"))))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
   (let ((result
-         (if-let* ((file (or (ezeka-link-file link nil t)
+         (if-let* ((file (or (ezeka-link-file link)
                              (cl-find-if #'(lambda (buf)
                                              (string-match link (buffer-name buf)))
                                          (buffer-list))))
@@ -2440,7 +2440,7 @@ delete the text instead."
       (when-let* ((_ (or (thing-at-point-looking-at (ezeka-link-regexp))
                          (and (backward-to-word 1)
                               (thing-at-point-looking-at (ezeka-link-regexp)))))
-                  (file (ezeka-link-file (match-string 1) nil t))
+                  (file (ezeka-link-file (match-string 1)))
                   (overlay (make-overlay (match-beginning 1) (match-end 1))))
         (overlay-put overlay 'type 'ezeka-help-echo)
         (overlay-put overlay 'face '(:underline "purple"))
@@ -2451,7 +2451,7 @@ delete the text instead."
   "Make a help-echo overlay for Zettel ID based on MATCH-DATA."
   (save-match-data
     (set-match-data match-data)
-    (when-let* ((file (ezeka-link-file (match-string 1) nil t))
+    (when-let* ((file (ezeka-link-file (match-string-no-properties 1)))
                 (overlay (make-overlay (match-beginning 1) (match-end 1))))
       (overlay-put overlay 'type 'ezeka-help-echo)
       (overlay-put overlay 'face '(:underline "purple"))
@@ -3896,7 +3896,7 @@ whether to visit; if NIL, do not visit."
   (let* ((_pprint_record
           (lambda (rec)
             (let-alist rec
-              (let* ((t-file (ezeka-link-file .target nil 'noerror))
+              (let* ((t-file (ezeka-link-file .target))
                      (t-name (when t-file (file-name-base t-file))))
                 (format "%s %s`%s' on %s (%s)"
                         .source
@@ -3926,9 +3926,9 @@ SOURCE can be a link or a file. With CONFIRM, confirm before
 move."
   (let* ((source-file (if (file-exists-p source)
                           source
-                        (ezeka-link-file source 'try-wild)))
+                        (ezeka-link-file source)))
          (source-link (ezeka-file-link source-file))
-         (target-file (ezeka-link-file target-link "")))
+         (target-file (ezeka-link-path target-link)))
     (when (or (not confirm)
               (y-or-n-p (format "Move %s to %s? " source-link target-link)))
       (unless (file-exists-p (file-name-directory target-file))
@@ -3978,7 +3978,7 @@ appropriate oldname."
                                      (when (ezeka-link-p link)
                                        (eq (ezeka-id-type link t) id-type)))
                                    (alist-get :oldnames mdata))))
-    (unless (ezeka-link-file cadaver nil t)
+    (unless (ezeka-link-file cadaver)
       cadaver)))
 
 (defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
