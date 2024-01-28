@@ -3847,20 +3847,20 @@ This is the Bookmark record function for Zettel files."
 
 (defun ezeka-find-regexp (regexp &optional kasten)
   "Find all matches of REGEXP in `ezeka-directory'.
-If KASTEN is non-nil (or with \\[universal-argument]
-prefix), limit to only that Kasten."
+If KASTEN is non-nil (or with \\[universal-argument]), limit to only that Kasten."
   (interactive
-   (list (ezeka--read-regexp "Regexp to find")
+   (list (ezeka--read-regexp "Regexp to find: ")
          (when current-prefix-arg
-           (ezeka--read-kasten "Kasten to search "))))
+           (ezeka--read-kasten "Kasten to search: "))))
   (ezeka-breadcrumbs-drop (format ezeka--breadcrumbs-xref-format regexp)
                           (buffer-file-name))
   (require 'xref)
-  (xref--show-xrefs
-   (xref-matches-in-directory regexp
-                              (format "*.%s" ezeka-file-extension)
-                              ezeka-directory nil)
-   nil)
+  (let ((xref-buffer-name (format "*Ezeka Find Regexp: %s*" regexp)))
+    (xref--show-xrefs
+     (xref-matches-in-directory regexp
+                                (format "*.%s" ezeka-file-extension)
+                                ezeka-directory nil)
+     nil))
   (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice))
 
 ;;;=============================================================================
