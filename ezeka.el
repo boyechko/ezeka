@@ -3493,6 +3493,14 @@ ignore `ezeka-number-of-frames' and open the link in the same window."
 ;;; Org-Mode: Inserting Snippets
 ;;;-----------------------------------------------------------------------------
 
+(defcustom ezeka-snippet-heading "Snippet"
+  "The text of the snippet heading."
+  :type 'string)
+
+(defcustom ezeka-snippet-modified-property "MODIFIED"
+  "Name of the snippet heading's last-modified property."
+  :type 'string)
+
 (defcustom ezeka-insert-snippet-summary nil
   "Non-nil means insert the snippet summary."
   :type 'boolean
@@ -3543,19 +3551,52 @@ Return the resulting point."
       (insert "\n\n"))
     (point)))
 
+(defun ezeka--find-snippet-heading ()
+  "Go to the first snippet heading in the current buffer.
+Return the new position; otherwise, nil."
+  (let (pos)
+    (save-excursion
+      (goto-char (point-min))
+      ;; HARDCODED Match the entire org-mode heading line
+      (when (re-search-forward (concat "^\\* .*"
+                                       ezeka-snippet-heading
+                                       ".*$"))
+        (setq pos (match-end 0))))
+    (when pos
+      (goto-char pos))))
+
+(defun ezeka-set-modified-property (&optional time)
+  "Add :MODIFIED: property to the current heading.
+If given, set it to TIME, otherwise the latest recorded
+modification date."
+  (cond ((not ezeka-mode)
+         (user-error "This only works in Ezeka Mode"))
+        ((and (not (org-at-heading-p))
+              (not (ezeka--find-snippet-heading)))
+         (user-error "Can't find the right heading"))
+        (t
+         (if-let ((mdata (ezeka-file-metadata buffer-file-name 'noerror)))
+             (org-set-property ezeka-snippet-modified-property
+                               (alist-get :created mdata))))))
+
 ;;; TODO:
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
 ;;; - don't copy subtrees marked with COMMENT
 ;;; - quickly scan through all the headings and see if any need updating?
-(defun ezeka-insert-snippet-text (arg link)
+(defun ezeka-insert-snippet-text (link &optional force summary)
   "Insert snippet text from the given LINK into the current buffer.
 By default, only update the text if the modification time is
-different. With \\[universal-argument] ARG, forces update."
+different. With \\[universal-argument] FORCE, forces update. With SUMMARY
+\(or \\[universal-argument] \\[universal-argument]),
+insert the summary before the content."
   (interactive
-   (list current-prefix-arg
-         (or (org-entry-get (point) "SNIP_SOURCE")
-             (ezeka--org-nth-link-on-line -1)
-             (error "Insert a link to the snippet source first"))))
+   (list (or (org-entry-get (point) "SNIP_SOURCE")
+             (save-excursion
+               (org-back-to-heading)
+               (ezeka--org-nth-link-on-line -1))
+             (user-error "Insert a link to the snippet source first"))
+         (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
   (save-excursion
     (save-restriction
       (org-back-to-heading)
@@ -3581,7 +3622,7 @@ different. With \\[universal-argument] ARG, forces update."
         (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
           (org-entry-put (point) "SNIP_SOURCE" link))
         (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
-        (if (and current? (null arg))
+        (if (and current? (not force))
             (message "Snippet is up to date; leaving alone")
           (org-entry-put (point)
                          "SNIP_MODIFIED"
@@ -3601,7 +3642,7 @@ different. With \\[universal-argument] ARG, forces update."
               ;; Get the Summary and Snippet subtrees from snippet snip-file
               (with-current-buffer snip-buf
                 ;; Include Summary section if present
-                (when (and ezeka-insert-snippet-summary
+                (when (and (or summary ezeka-insert-snippet-summary)
                            (org-find-exact-headline-in-buffer "Summary"))
                   (goto-char (org-find-exact-headline-in-buffer "Summary"))
                   (forward-line)
@@ -3611,10 +3652,8 @@ different. With \\[universal-argument] ARG, forces update."
                     (push (buffer-substring-no-properties summary-start (point))
                           content)
                     (push "\n#+end_comment\n\n" content)))
-                (goto-char
-                 (or (org-find-exact-headline-in-buffer "Snippet")
-                     (org-find-exact-headline-in-buffer "Content")
-                     (error "Can't find the Snippet or Content section")))
+                (or (ezeka--find-snippet-heading)
+                    (error "Can't find the Snippet or Content section"))
                 (if (not org-id)
                     (warn "No org-id added to file %s" snip-file)
                   (org-entry-add-to-multivalued-property (point)
@@ -3746,10 +3785,6 @@ with :USED_IN: property, perform the reverse action."
         ;; Insert the transclusion line
         (insert (format "\n#+transclude: [[%s::begin]] :lines 2- :end \"end\""
                         (file-relative-name file)))))))
-
-(defcustom ezeka-snippet-heading "Snippet"
-  "The text of the snippet heading."
-  :type 'string)
 
 (defun ezeka-org-footnote-action-maybe-local (&optional arg)
   "Place footnotes locally in snippets, ignoring `org-footnote-section'.
