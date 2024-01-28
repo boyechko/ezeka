@@ -1213,8 +1213,8 @@ converted to keywords."
               (header (ezeka-file-content file t noerror)))
         (let* ((mdata  (ezeka--decode-header header file noerror))
                ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
-               (id     (or (ezeka-file-name-id file)
-                           (alist-get :id mdata)))
+               (id     (or (alist-get :id mdata)
+                           (ezeka-file-name-id file)))
                (type   (or (alist-get :type mdata)
                            (ezeka-id-type file)))
                (kasten (or (alist-get :kasten mdata)
@@ -1223,7 +1223,8 @@ converted to keywords."
                            (ezeka-make-link kasten id)))
                ;; TODO: Remove after full transition from v0.1 to v0.2
                (title   (or (alist-get :title mdata)
-                            (alist-get :caption mdata)))
+                            (alist-get :caption mdata)
+                            (alist-get :rubric mdata)))
                (caption (or (alist-get :caption mdata)
                             (ezeka-file-name-caption file)
                             title)))
