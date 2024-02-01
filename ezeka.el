@@ -2175,7 +2175,12 @@ interactively edit the text."
                  "Which metadata field? "
                  '(":none" ":title" ":citekey" ":label"))))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (let ((result
+  (let ((already-linked
+         (cond ((save-excursion (re-search-backward link nil 'noerror))
+                'above)
+               ((save-excursion (re-search-forward link nil 'noerror))
+                'below)))
+        (link-metadata
          (if-let* ((file (or (ezeka-link-file link)
                              (cl-find-if #'(lambda (buf)
                                              (string-match link (buffer-name buf)))
@@ -2186,10 +2191,13 @@ interactively edit the text."
              (ezeka-format-metadata fmt mdata)
            "")))
     ;; HARDCODED
-    (ezeka-insert-with-spaces (if noedit
-                                  result
-                                (read-string "Insert: " result))
-                              (ezeka--format-link link))))
+    (when (or (not already-linked)
+              (y-or-n-p (format "There's already a link there %s. Insert anyway? "
+                                already-linked)))
+      (ezeka-insert-with-spaces (if noedit
+                                    link-metadata
+                                  (read-string "Insert: " link-metadata))
+                                (ezeka--format-link link)))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
