@@ -3964,6 +3964,49 @@ whether to visit; if NIL, do not visit."
           (t
            (message (mapconcat _pprint_record (nreverse trail) "\n"))))))
 
+(defun ezeka--rename-moving-note (source target &optional metadata)
+  "Finish moving SOURCE to TARGET (both file paths).
+If METADATA is nil, read it from SOURCE."
+  (let ((source-link (ezeka-file-link source))
+        (mdata (or metadata (ezeka-file-metadata source)))
+        (target-link (ezeka-file-link target)))
+    (if (file-symlink-p target)
+        (delete-file target)
+      (error "`%s' is not a symlink!" (file-relative-name target ezeka-directory)))
+    (ezeka--add-to-move-log source-link
+                            target-link
+                            (alist-get :caption
+                              (ezeka-decode-rubric (file-name-base source)))
+                            "Move")
+    (unwind-protect
+        (when-let ((_ (ezeka--rename-file source target))
+                   (buf (or (get-file-buffer target)
+                            (find-file-noselect target))))
+          (with-current-buffer buf
+            (ezeka--update-file-header
+             target
+             (ezeka--add-oldname mdata source-link))
+            (ezeka-add-change-log-entry source
+              (format "Move +%s+ to %s." source-link target-link))
+            (setf (alist-get :keywords mdata)
+                  (cl-remove "#moving"
+                             (cl-remove "#rename"
+                                        (alist-get :keywords mdata)
+                                        :test #'string=)
+                             :test #'string=))
+            (ezeka-harmonize-file-name target mdata t)
+            (save-buffer)))
+      (message "Replacing links: %s with %s" source-link target-link)
+      (condition-case nil
+          (let ((replaced (ezeka-octavo-replace-links source-link target-link)))
+            (message "Moved %s to %s, replacing %d links in %d files"
+                     source-link target-link
+                     (or (car replaced) 0) (or (cdr replaced) 0)))
+        (error
+         (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
+                           source-link target-link))
+         (message "Replacing links failed; try manually"))))))
+
 (defun ezeka--move-note (source target-link &optional confirm)
   "Move Zettel note from SOURCE to TARGET-LINK.
 SOURCE can be a link or a file. With CONFIRM, confirm before
@@ -3972,44 +4015,35 @@ move."
                           source
                         (ezeka-link-file source)))
          (source-link (ezeka-file-link source-file))
-         (target-file (ezeka-link-path target-link)))
-    (when (or (not confirm)
-              (y-or-n-p (format "Move %s to %s? " source-link target-link)))
-      (unless (file-exists-p (file-name-directory target-file))
-        (make-directory (file-name-directory target-file)))
-      (ezeka--rename-file source-file target-file)
-      (let* ((mdata (ezeka-file-metadata target-file)))
-        (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata))
-        (ezeka--add-oldname mdata source-link)
-        (ezeka-add-change-log-entry target-file
-          (format "Move +%s+ to %s." source-link target-link))
-        ;; Check about updating title and label
-        (setf (alist-get :id mdata)
-              (ezeka-link-id target-link)
-              (alist-get :label mdata)
-              (ezeka--read-label (alist-get :kasten mdata)
-                                 nil
-                                 nil
-                                 (alist-get :label mdata)))
-        (when (y-or-n-p "Modify caption and title? ")
-          (ezeka-set-title-or-caption target-file nil 'set-title 'set-caption mdata))
-        (when-let ((citekey (read-string (format "Title: %s\nCitekey: "
-                                                 (alist-get :title mdata)))))
-          (setf (alist-get :citekey mdata)
-                (unless (string-empty-p citekey)
-                  citekey)))
-        (setq target-file (ezeka-link-file target-link))
-        (ezeka--update-file-header target-file mdata t)
-        (when-let ((buf (get-file-buffer target-file)))
-          (with-current-buffer buf
-            (ezeka-harmonize-file-name target-file mdata t)
-            (save-buffer)))
-        ;; Replace links
-        (message "Replacing links: %s with %s" source-link target-link)
-        (let ((replaced (ezeka-octavo-replace-links source-link target-link)))
-          (message "Moved %s to %s, replacing %d links in %d files"
-                   source-link target-link
-                   (or (car replaced) 0) (or (cdr replaced) 0)))))))
+         (mdata (ezeka-file-metadata source-file)))
+    (if (and (member "#moving" (alist-get :keywords mdata))
+             (or (not confirm)
+                 (y-or-n-p (format "Move %s to %s? " source-link target-link))))
+        (ezeka--rename-moving-note
+         source-file
+         (ezeka-link-path target-link mdata))
+      (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata)
+                              "Creating symbolic link")
+      (setf (alist-get :id mdata)
+            (ezeka-link-id target-link)
+            (alist-get :label mdata)
+            (ezeka--read-label (alist-get :kasten mdata)
+                               nil
+                               nil
+                               (alist-get :label mdata)))
+      (cl-pushnew "#moving" (alist-get :keywords mdata))
+      (when (y-or-n-p "Modify caption and title? ")
+        (ezeka-set-title-or-caption source-file nil 'set-title 'set-caption mdata))
+      (setf (alist-get :citekey mdata)
+            (ezeka--read-citekey (format "Title: %s\nCitekey: "
+                                         (alist-get :title mdata))))
+      (ezeka--update-file-header source-file mdata 'force)
+      (let ((target-file (ezeka-link-path target-link mdata)))
+        (unless (file-exists-p (file-name-directory target-file))
+          (make-directory (file-name-directory target-file)))
+        (make-symbolic-link source-file target-file)
+        (message "Note `%s' prepared for moving to `%s'; re-run `ezeka-move-to-another-kasten' after committing"
+                 source-link target-link)))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
@@ -4017,7 +4051,8 @@ ID-TYPE should be a keyword matching an ID type in
 `ezeka-kaesten'. If METADATA is non-nil, use that rather
 than parsing the file again. If successful, return the
 appropriate oldname."
-  (when-let* ((mdata (or metadata (ezeka-file-metadata source-file)))
+  (when-let* ((mdata (or metadata
+                         (ignore-errors (ezeka-file-metadata source-file))))
               (cadaver (cl-find-if (lambda (link)
                                      (when (ezeka-link-p link)
                                        (eq (ezeka-id-type link t) id-type)))
@@ -4030,8 +4065,12 @@ appropriate oldname."
 With \\[universal-argument], ask for an explicit TARGET-LINK instead.
 Return the target link and open it (unless NOSELECT is non-nil)."
   (interactive
-   (let ((target (when (equal current-prefix-arg '(4))
-                   (ezeka--read-id "Target link: "))))
+   (let* ((source (ezeka--grab-dwim-file-target))
+          (src-header (ezeka-file-content source 'header))
+          (target (cond ((equal current-prefix-arg '(4))
+                         (ezeka--read-id "Target link: "))
+                        ((string-match-p "#moving" src-header)
+                         (alist-get :id (ezeka--decode-header src-header source))))))
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
@@ -4050,15 +4089,6 @@ Return the target link and open it (unless NOSELECT is non-nil)."
         (error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
       (ezeka--move-note source-file target-link)
-      (cond ((string= source-file buffer-file-name)
-             (kill-this-buffer)
-             (unless (> (length (frame-list))
-                        (cl-case ezeka-number-of-frames
-                          (one 1)
-                          (two 2)))
-               (delete-frame)))
-            ((eq major-mode 'magit-status-mode)
-             (magit-refresh)))
       (unless noselect
         (ezeka-find-link target-link t)))))
 
