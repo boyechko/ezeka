@@ -2162,6 +2162,14 @@ STRINGS are themselves concatenated with spaces in between."
           (string-trim (mapconcat #'identity strings " "))
           (if (or (eolp) (ezeka--space-or-punct-p (char-after))) "" " ")))
 
+(defun ezeka--insert-link-with-spaces (link &rest strings)
+  "Insert LINK at point.
+If STRINGS is non-nil, LINK is not actually inserted, just
+assumed to be contained in some of them."
+  (if strings
+      (apply #'ezeka-insert-with-spaces strings)
+    (ezeka-insert-with-spaces (ezeka--format-link link))))
+
 (defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
 WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
@@ -2190,14 +2198,14 @@ interactively edit the text."
                    (fmt "%t"))
              (ezeka-format-metadata fmt mdata)
            "")))
-    ;; HARDCODED
     (when (or (not already-linked)
               (y-or-n-p (format "There's already a link there %s. Insert anyway? "
                                 already-linked)))
-      (ezeka-insert-with-spaces (if noedit
-                                    link-metadata
-                                  (read-string "Insert: " link-metadata))
-                                (ezeka--format-link link)))))
+      (ezeka--insert-link-with-spaces link
+                                      (if noedit
+                                          link-metadata
+                                        (read-string "Insert: " link-metadata))
+                                      (ezeka--format-link link)))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
@@ -2228,7 +2236,7 @@ already inside a link, replace it instead."
               (ezeka-insert-link-with-metadata link '(:title) :before))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
-          (insert (ezeka--format-link link)))
+          (ezeka--insert-link-with-spaces link))
       (message "No visiting Zettel"))))
 
 (defun ezeka--note-in-other-window ()
@@ -2256,11 +2264,10 @@ note, return nil."
 With LINK-ONLY (or \\[universal-argument]), insert just the link, otherwise
 also include the title."
   (interactive "P")
-  (ezeka-insert-with-spaces
-   (if link-only
-       (ezeka--format-link (ezeka--note-in-other-window))
-     (funcall-interactively #'ezeka-insert-link-with-metadata
-                            (ezeka--note-in-other-window)))))
+  (if link-only
+      (ezeka--insert-link-with-spaces (ezeka--note-in-other-window))
+    (funcall-interactively #'ezeka-insert-link-with-metadata
+                           (ezeka--note-in-other-window))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
@@ -2288,12 +2295,12 @@ already inside a link, replace it instead."
               (ezeka-insert-link-with-metadata link '(:title) :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
-          (insert (ezeka--format-link link)))
+          (ezeka--insert-link-with-spaces link))
       (message "No visiting Zettel"))))
 
 (defun ezeka-insert-link-from-clipboard (arg)
   "Insert link with metadata to the LINK in the OS clipboard.
-See `ezeka-insert-link' for details. With \\[universal-argument] ARG,
+See `ezeka-insert-link-with-metadata' for details. With \\[universal-argument] ARG,
 insert just the link itself."
   (interactive "P")
   (let ((link (gui-get-selection 'CLIPBOARD))
@@ -3364,17 +3371,15 @@ With \\[universal-argument] ARG, asks for a different name."
   "Set the FROM, CREATED, and ID properties for the current org heading."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
-  (org-set-property "FROM"
-                    (ezeka-insert-link-with-metadata
-                     buffer-file-name '(:title) :after))
+  (org-set-property "FROM" (ezeka-insert-link-with-metadata
+                            buffer-file-name '(:title) :after))
   (org-set-property "CREATED"
                     (ezeka-timestamp nil 'full 'brackets)))
 
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
   (interactive)
-  (insert (ezeka--format-link
-           (ezeka-tempus-currens (org-read-date t t)))))
+  (ezeka--insert-link-with-spaces (ezeka-tempus-currens (org-read-date t t))))
 
 (defvar ezeka--org-timestamp-regexp
   (rx (seq

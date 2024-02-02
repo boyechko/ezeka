@@ -409,6 +409,7 @@ destination kasten."
 (defvar ezeka-octavo-insert-link-hook nil
   "Normal hook that is run after `ezeka-octavo-insert-link'.")
 
+;; TODO Fold functionality into `ezeka--insert-link-with-spaces'?
 (defun ezeka-octavo-insert-link (file)
   "Insert link to the Zettel FILE.
 Unlike `octavo-insert-link', allow editing the title in the
@@ -421,7 +422,7 @@ minibuffer according to the value of `octavo-link-and-title': if it's
                  ;; FIXME: Nonlocal function
                  (rb-y-or-explicit-n-p "Include (edited) title? ")))
         (ezeka-insert-link-with-metadata link '(:title) :before)
-      (ezeka-insert-with-spaces (ezeka--format-link link)))
+      (ezeka--insert-link-with-spaces link))
     (run-hooks 'ezeka-octavo-insert-link-hook)))
 
 (defun ezeka-octavo-insert-link-to-kasten (&optional kasten sort)
