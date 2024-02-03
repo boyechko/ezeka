@@ -2607,14 +2607,14 @@ With \\[universal-argument] ARG, create the child in the same Kasten
 as the current note. With \\[universal-argument] \\[universal-argument], ask for ID."
   (interactive
    (list current-prefix-arg
-         (org-trim
-          (read-from-minibuffer "Title for the child: "
-                                (ezeka--possible-new-note-title)))
+         (ezeka--read-title "Title for the child: "
+                            (ezeka--possible-new-note-title))
          (when (equal current-prefix-arg '(16))
            (ezeka--read-id "ID for the child: "))))
-  (let* ((rubric-mdata (ezeka-decode-rubric buffer-file-name))
+  (let* ((rubric-mdata (ezeka-decode-rubric (file-name-base buffer-file-name)))
          (parent (alist-get :id rubric-mdata))
-         (citekey (ezeka--read-citekey (alist-get :citekey rubric-mdata)))
+         (citekey (ezeka--read-citekey "Citekey? "
+                                       (alist-get :citekey rubric-mdata)))
          (kasten (cond (id
                         (ezeka-link-kasten id))
                        ((equal arg '(4))
@@ -2622,15 +2622,27 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                        (t
                         (ezeka--read-kasten "Kasten for new child: "))))
          (child-link (ezeka--generate-new-child parent kasten id))
-         (metadata `((:id       . ,child-link)
-                     (:kasten   . ,kasten)
-                     (:title    . ,title)
-                     (:caption  . ,(ezeka--pasteurize-file-name title))
-                     (:parent   . ,parent)
-                     (:citekey  . ,citekey))))
+         (metadata `((:id . ,child-link)
+                     (:kasten . ,kasten)
+                     (:title . ,title)
+                     (:caption . ,(ezeka--pasteurize-file-name title))
+                     (:parent . ,parent)
+                     (:citekey . ,citekey))))
+    (ezeka--insert-link-with-spaces child-link)
     (ezeka--set-new-child-metadata child-link metadata)
-    (ezeka-insert-with-spaces (ezeka--format-link child-link))
-    (ezeka-find-link child-link)))
+    (if-let* ((_ (eq 'placeholder
+                     (intern (completing-read
+                              "Create a new note or just a placeholder? "
+                              '(new-note placeholder) nil 'require))))
+              (child-path (ezeka-link-path child-link
+                                           ;; HARDCODED
+                                           (cons '(:label . "ψ") metadata)))
+              (link-target (file-relative-name
+                            (ezeka-link-file
+                             (ezeka--read-id "Symbolic link to: " nil parent 'required))
+                            (file-name-directory child-path))))
+        (make-symbolic-link link-target child-path)
+      (ezeka-find-link child-link))))
 
 ;;;=============================================================================
 ;;; Buffers and Frames
