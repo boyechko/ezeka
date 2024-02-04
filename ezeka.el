@@ -266,18 +266,19 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
 ;; TODO Rewrite the whole shebang in OOP?
 (cl-defstruct (ezeka-kasten (:constructor ezeka-kasten--create)
                             (:copier nil))
-  name id-type id-example id-regexp default order)
+  name id-type id-example id-regexp directory order)
 
 (defun ezeka-kasten-named (name)
   "Return the Kasten with given NAME in `ezeka-kaesten'."
   (cl-find name ezeka-kaesten :key #'ezeka-kasten-name :test #'string=))
 
-(defun ezeka-kaesten-add (name id-example id-regexp default order)
+(defun ezeka-kaesten-add (name id-example id-regexp directory order)
   "Add a new Kasten to `ezeka-kaesten' with the given options.
-NAME is a unique string, ID-EXAMPLE is an example of an ID, ID-REGEXP
-is used to match IDs in this Kasten, DEFAULT specifies whether this is
-the default Kasten for this ID-REGEXP, and ORDER determines relative
-order in various `completing-read' invocations."
+NAME is a unique string, ID-EXAMPLE is an example of an ID,
+ID-REGEXP is used to match IDs in this Kasten, DIRECTORY
+specifies subdirectory in `ezeka-directory' where files of
+this Kasten can be found, and ORDER determines relative
+priority order."
   (setq ezeka-kaesten
     (cl-remove name ezeka-kaesten :test #'string= :key #'ezeka-kasten-name))
   (add-to-list 'ezeka-kaesten
@@ -285,19 +286,13 @@ order in various `completing-read' invocations."
                           :id-type (intern (concat ":" name))
                           :id-example id-example
                           :id-regexp id-regexp
-                          :default default
+                          :directory directory
                           :order order))
   (setq ezeka-kaesten (seq-sort-by #'ezeka-kasten-order #'< ezeka-kaesten)))
 
-(ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" t 1)
-(ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" t 2)
-(ezeka-kaesten-add "scriptum" "a-1234~01" "[a-z]-[0-9]\\{4\\}~[0-9][0-9]" t 3)
-
-(defun ezeka-kasten-directory (kasten)
-  "Return the directory of the Kasten named KASTEN."
-  (if (ezeka-kasten-named kasten)
-      (file-name-as-directory (in-ezeka-dir kasten))
-    (error "Unknown Kasten: %s" kasten)))
+(ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" "numerus" 1)
+(ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" "tempus" 2)
+(ezeka-kaesten-add "scriptum" "a-1234~01" "[a-z]-[0-9]\\{4\\}~[0-9][0-9]" "scriptum" 3)
 
 (defun ezeka--id-regexp (&optional id-type)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
@@ -717,7 +712,7 @@ explicitly given."
   "Return the full directory under KASTEN where ID should be."
   (file-name-as-directory
    (file-name-concat
-    (ezeka-kasten-directory kasten)
+    (ezeka-kasten-directory (ezeka-kasten-named kasten))
     (or (ezeka-id-subdirectory id)
         (error "Cannot get subdirectory for %s" id)))))
 
@@ -3552,17 +3547,6 @@ return NIL."
                  (org-previous-link))))
         (when (ezeka-link-at-point-p)
           (ezeka-link-at-point))))))
-
-(defun ezeka--initialize-org-id-locations ()
-  "Initialize the org-id locations."
-  (interactive)
-  (unless (listp org-id-extra-files)
-    (setq org-id-extra-files '()))
-  (dolist (file
-           (directory-files-recursively
-            ;; FIXME: hardcoded
-            (ezeka-kasten-directory "scriptum") ".*\\.txt"))
-    (cl-pushnew file org-id-extra-files)))
 
 (defun ezeka--org-move-after-properties ()
   "Move point after the properties drawer, if any.

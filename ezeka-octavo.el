@@ -52,7 +52,7 @@
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
   `(let ((ezeka-kasten (ezeka-kasten-named ,kasten))
-         (octavo-directory (ezeka-kasten-directory ,kasten))
+         (octavo-directory (ezeka-kasten-directory ,ezeka-kasten))
          (octavo-id-regexp (ezeka--id-regexp)))
      (cl-progv '(octavo-id-time-string-format
                  octavo-file-name-id-only)
@@ -66,9 +66,9 @@
 
 (defun ezeka-octavo-initialize-kasten (name)
   "Set necessary variables for long-term work in Kasten with given NAME."
-  (setq octavo-directory (ezeka-kasten-directory name)
-        octavo-id-regexp (ezeka--id-regexp))
   (let ((kasten (ezeka-kasten-named name)))
+    (setq octavo-directory (ezeka-kasten-directory kasten)
+          octavo-id-regexp (ezeka--id-regexp))
     (if (eq (ezeka-kasten-id-type kasten) :numerus)
         (setq octavo-index-format "%i {%l} %c"
               octavo-id-time-string-format
@@ -688,7 +688,7 @@ given, suggest the note's parent, if set. METHOD overrides
 (defun ezeka-link-entitled-file (link title)
   "Return a full file path to the Zettel LINK with the given TITLE."
   (if (ezeka-link-p link)
-      (let ((kasten (ezeka-link-kasten link))
+      (let ((kasten (ezeka-kasten-named (ezeka-link-kasten link)))
             (id (ezeka-link-id link)))
         (expand-file-name
          (ezeka--normalize-title-into-caption
