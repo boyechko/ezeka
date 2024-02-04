@@ -3410,12 +3410,11 @@ With \\[universal-argument], use the current KASTEN without asking."
   (interactive (list (unless current-prefix-arg
                        (ezeka--read-kasten "Zettel Kasten: "))))
   (let* ((parent-file buffer-file-name)
-         (parent-link (ezeka-file-link buffer-file-name))
          (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
          (kstruct (ezeka-kasten-named kasten))
-         (new-title "")
-         new-link
-         new-file)
+         mdata)
+    (setf (alist-get :parent mdata)
+          (ezeka-file-link buffer-file-name))
     (save-excursion
       (save-restriction
         (org-narrow-to-subtree)
@@ -3424,52 +3423,51 @@ With \\[universal-argument], use the current KASTEN without asking."
                (head-title (nth 4 (org-heading-components)))
                timestamp)
           (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" head-title)
-                 (list (match-string 1 head-title) (match-string 2 head-title))
-                 (setq timestamp
-                   (save-match-data
-                     (org-timestamp-from-string (match-string 2 head-title))))
-                 (setq new-title
-                   (ezeka--minibuffer-edit-string
-                    (match-string 1 head-title)
-                    nil
-                    "Title for new note: ")))
+                 (setf (alist-get :title mdata)
+                       (ezeka--minibuffer-edit-string
+                        (match-string-no-properties 1 head-title)
+                        nil
+                        "Title for new note: ")
+                       (alist-get :created)
+                       (save-match-data
+                         (org-timestamp-from-string (match-string 2 head-title)))))
                 ((org-get-scheduled-time nil)
-                 (setq timestamp
-                   (org-timestamp-from-time (org-get-scheduled-time nil) t)))
+                 (setf (alist-get :created)
+                       (org-timestamp-from-time (org-get-scheduled-time nil) t)))
                 (t
-                 (setq new-title
-                   (ezeka--minibuffer-edit-string
-                    (buffer-substring-no-properties (point-at-bol) (point-at-eol))
-                    nil
-                    "Title for new note: "))
-                 (setq timestamp
-                   (org-timestamp-from-string
-                    (read-string "No timestamp found. Enter it here: ")))))
-          (setq new-link (ezeka-make-link
-                          kasten
-                          (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
-                                      (org-timestamp-has-time-p timestamp))
-                                 (org-timestamp-format timestamp "%Y%m%dT%H%M"))
-                                ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                                 (concat (org-timestamp-format timestamp "%Y%m%dT")
-                                         (format-time-string "%H%M")))
-                                (t
-                                 (ezeka--generate-id kasten))))
-                new-file (ezeka-link-file new-link ""))
-          (if (file-exists-p new-file)
-              (user-error "Aborting, file already exists: %s" new-file)
+                 (setf (alist-get :title mdata)
+                       (ezeka--minibuffer-edit-string
+                        (buffer-substring-no-properties (point-at-bol) (point-at-eol))
+                        nil
+                        "Title for new note: ")
+                       (alist-get :created)
+                       (read-string "No timestamp found. Enter it here: "))))
+          (setf (alist-get :link mdata)
+                (ezeka-make-link
+                 kasten
+                 (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
+                             (org-timestamp-has-time-p (alist-get :created mdata)))
+                        (org-timestamp-format (alist-get :created mdata) "%Y%m%dT%H%M"))
+                       ((eq (ezeka-kasten-id-type kstruct) :tempus)
+                        (concat (org-timestamp-format (alist-get :created mdata) "%Y%m%dT")
+                                (format-time-string "%H%M")))
+                       (t
+                        (ezeka--generate-id kasten))))
+                (alist-get :file mdata)
+                (ezeka-link-path (alist-get :link mdata)))
+          (if (file-exists-p (alist-get :file mdata))
+              (user-error "Aborting, file already exists: %s" (alist-get :file mdata))
             (let ((entry-pt (point))
                   (content (org-copy-subtree nil 'cut)))
               ;; New file buffer
-              (with-current-buffer (get-buffer-create new-file)
-                (ezeka-insert-header-template new-link
-                                              (ezeka--read-label kasten)
-                                              new-title parent-link)
+              (with-current-buffer (get-buffer-create (alist-get :file mdata))
+                (ezeka-insert-header-template
+                 nil (ezeka--read-label kasten) nil nil nil mdata)
                 (insert "\n" org-subtree-clip)
-                (set-visited-file-name new-file t)
+                (set-visited-file-name (alist-get :file mdata) t)
                 (basic-save-buffer)
-                (ezeka-add-change-log-entry
-                 new-file (format "Extract from %s." parent-link)))
+                (ezeka-add-change-log-entry (alist-get :file mdata)
+                  (format "Extract from %s." (alist-get :parent mdata))))
               ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 (goto-char entry-pt)
@@ -3477,7 +3475,7 @@ With \\[universal-argument], use the current KASTEN without asking."
                         " "
                         head-title
                         " "
-                        (ezeka--format-link new-link))))))))))
+                        (ezeka--format-link (alist-get :link mdata)))))))))))
 
 (defun ezeka-open-link-at-point (&optional same-window)
   "Open a Zettel link at point even if it's not formatted as a link.
