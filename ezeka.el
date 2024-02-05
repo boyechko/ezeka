@@ -518,21 +518,18 @@ as the first line. HISTORY is passed to `read-string'."
 If NEWNAME is relative, fill missing values from FILENAME.
 The rename happens in two steps to bypass issues with
 case-insensitive file systems."
-  (let* ((tempname (file-name-with-extension filename "~tmp"))
+  (let* ((tempname (file-name-with-extension filename "tmp"))
          (newname (if (file-name-absolute-p newname)
                       newname
                     (expand-file-name
-                     (file-name-with-extension
-                      newname (file-name-extension filename))
+                     newname
                      (file-name-directory filename)))))
-    (cond ((not (file-exists-p filename))
-           (set-visited-file-name newname t t))
-          ((and nil (vc-backend filename))
-           (vc-rename-file filename newname))
-          (t
-           (rename-file filename tempname t)
-           (rename-file tempname newname t)
-           (set-visited-file-name newname t t)))))
+    (when (or (not (file-exists-p filename))
+              (progn
+                (rename-file filename tempname t)
+                (rename-file tempname newname t)
+                (file-exists-p newname)))
+      (set-visited-file-name newname t t))))
 
 ;; The following is adapted from
 ;; https://emacs.stackexchange.com/a/46059
