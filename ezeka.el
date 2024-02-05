@@ -261,38 +261,92 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
 ;;; Kaesten
 ;;;=============================================================================
 
-;; TODO Add constructor methods
-;; TODO Add field for subdirs?
-;; TODO Rewrite the whole shebang in OOP?
-(cl-defstruct (ezeka-kasten (:constructor ezeka-kasten--create)
-                            (:copier nil))
-  name id-type id-example id-regexp directory order)
+(cl-defstruct
+    (ezeka-kasten (:constructor nil)
+                  (:constructor ezeka-kasten--create)
+                  (:copier nil))
+  (name
+   nil
+   :documentation "The name of the Kasten"
+   :type 'string
+   :read-only t)
+  (id-type
+   nil
+   :documentation "Keyword form of the name"
+   :type 'keyword
+   :read-only t)
+  (id-regexp
+   nil
+   :documentation "Regexp to match possible IDs of this type"
+   :type 'string)
+  (id-example
+   nil
+   :documentation "Example of the minimal ID"
+   :type 'string)
+  (directory
+   nil
+   :documentation "Kasten's directory under `ezeka-directory'"
+   :type 'string)
+  (subdir-func
+   nil
+   :documentation "Return subdirectory based on given ID"
+   :type 'function)
+  (order
+   nil
+   :documentation "Priority order (1 = highest)"
+   :type 'integer))
+
+(cl-defun ezeka-kasten-new (name &key id-example id-regexp directory subdir-func)
+  "Create a new `ezeka-kasten' with NAME and register it.
+See defstruct above about ID-REGEXP, ID-EXAMPLE, DIRECTORY,
+and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
+`ezeka-directory'."
+  (let* ((directory (or directory ""))
+         (directory (if (file-name-absolute-p directory)
+                        directory
+                      (file-name-as-directory
+                       (expand-file-name directory ezeka-directory))))
+         (kasten (ezeka-kasten--create :name name
+                                       :id-type (intern (concat ":" name))
+                                       :id-example id-example
+                                       :id-regexp id-regexp
+                                       :directory directory
+                                       :subdir-func subdir-func
+                                       :order (1+ (length ezeka-kaesten)))))
+    (setq ezeka-kaesten
+      (cl-sort (cons kasten
+                     (cl-remove name ezeka-kaesten
+                                :test #'string= :key #'ezeka-kasten-name))
+               #'<
+               :key #'ezeka-kasten-order))
+    kasten))
+
+(setq ezeka-kaesten nil)
+(ezeka-kasten-new "numerus"
+                  :id-example "a-1234"
+                  :id-regexp "[a-z]-[0-9]\\{4\\}"
+                  :directory "numerus")
+(ezeka-kasten-new "tempus"
+                  :id-example "20230404T1713"
+                  :id-regexp "[0-9]\\{8\\}T[0-9]\\{4\\}"
+                  :directory "tempus")
+(ezeka-kasten-new "scriptum"
+                  :id-example "a-1234~01"
+                  :id-regexp "[a-z]-[0-9]\\{4\\}~[0-9][0-9]"
+                  :directory "scriptum")
+(ezeka-kasten-new "v1"
+                  :id-example "123"
+                  :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)\\)*")
+(ezeka-kasten-new "v2"
+                  :id-example "123"
+                  :id-regexp "[0-9]\\{3\\}\\(-[a-z]+\\)*")
+(ezeka-kasten-new "v3"
+                  :id-example "123-abc"
+                  :id-regexp "[0-9]\\{3\\}-[a-z]\\{3\\}")
 
 (defun ezeka-kasten-named (name)
   "Return the Kasten with given NAME in `ezeka-kaesten'."
   (cl-find name ezeka-kaesten :key #'ezeka-kasten-name :test #'string=))
-
-(defun ezeka-kaesten-add (name id-example id-regexp directory order)
-  "Add a new Kasten to `ezeka-kaesten' with the given options.
-NAME is a unique string, ID-EXAMPLE is an example of an ID,
-ID-REGEXP is used to match IDs in this Kasten, DIRECTORY
-specifies subdirectory in `ezeka-directory' where files of
-this Kasten can be found, and ORDER determines relative
-priority order."
-  (setq ezeka-kaesten
-    (cl-remove name ezeka-kaesten :test #'string= :key #'ezeka-kasten-name))
-  (add-to-list 'ezeka-kaesten
-    (ezeka-kasten--create :name name
-                          :id-type (intern (concat ":" name))
-                          :id-example id-example
-                          :id-regexp id-regexp
-                          :directory directory
-                          :order order))
-  (setq ezeka-kaesten (seq-sort-by #'ezeka-kasten-order #'< ezeka-kaesten)))
-
-(ezeka-kaesten-add "numerus" "a-1234" "[a-z]-[0-9]\\{4\\}" "numerus" 1)
-(ezeka-kaesten-add "tempus" "20230404T1713" "[0-9]\\{8\\}T[0-9]\\{4\\}" "tempus" 2)
-(ezeka-kaesten-add "scriptum" "a-1234~01" "[a-z]-[0-9]\\{4\\}~[0-9][0-9]" "scriptum" 3)
 
 (defun ezeka--id-regexp (&optional id-type)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
@@ -622,18 +676,18 @@ Unknown %-sequences are left intact."
                                `((?i . ,.id)
                                  (?l . ,.label)
                                  (?c . ,.caption)
-                                 (?K . ,(ezeka-file-kasten filename))
+                                 (?K . ,(ezeka-kasten-name
+                                         (ezeka-file-kasten filename)))
                                  (?k . ,(or .citekey "")))
                                'ignore))) ; leave unknown %-sequences
       basic)))
 
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
-  (let ((dirs (reverse (split-string (file-name-directory file) "/" t "/"))))
-    (or (cl-find-if (lambda (dir) (ezeka-kasten-named dir)) dirs)
-        ;; FIXME: Hack
-        (ezeka-link-kasten (ezeka-file-name-id file))
-        (error "Can't figure out kasten for %s" file))))
+  (let ((id (ezeka-file-name-id file)))
+    (cl-find-if (lambda (re) (string-match-p (rx bos (regexp re) eos) id))
+                ezeka-kaesten
+                :key #'ezeka-kasten-id-regexp)))
 
 (defun ezeka-file-link (file)
   "Return a fully qualified link to FILE or nil."
@@ -656,11 +710,7 @@ Unknown %-sequences are left intact."
   "Return non-NIL if the STRING could be a link to a Zettel."
   (save-match-data
     (and (stringp string)
-         (string-match (ezeka--match-entire (ezeka-link-regexp)) string)
-         ;; If kasten is specified, make sure it's a valid one
-         (if-let ((kasten (match-string-no-properties 2 string)))
-             (ezeka-kasten-named kasten)
-           t))))
+         (string-match (rx bos (regexp (ezeka-link-regexp)) eos) string))))
 
 (defun ezeka-link-kasten (link &optional explicit)
   "Return the Kasten part of the given LINK.
@@ -686,13 +736,16 @@ explicitly given."
     (match-string 1 link)))
 
 (defun ezeka-make-link (kasten id)
-  "Make a new proper link to ID in KASTEN (a string)."
-  (let ((kstruct (ezeka-kasten-named kasten)))
-    (cond ((not (ezeka-kasten-id-type kstruct))
-           (error "Kasten %s is not in `ezeka-kaesten'" kasten))
-          ((not (eq (ezeka-kasten-id-type kstruct)
-                    (ezeka-id-type id)))
-           (error "ID doesn't match the ID type for %s Kasten" kasten))
+  "Make a new proper link to ID in KASTEN (string or `ezeka-kasten')."
+  (let ((e-k (pcase kasten
+               ((pred stringp) (ezeka-kasten-named kasten))
+               ((pred ezeka-kasten-p) kasten)
+               (_ (signal 'wrong-type-argument (cons 'ezeka-kasten-p kasten))))))
+    (cond ((not e-k)
+           (error "Unknown Kasten %s; register it with `ezeka-kasten-new' first" kasten))
+          ((not (eq (ezeka-kasten-id-type e-k) (ezeka-id-type id)))
+           (error "ID `%s' doesn't match the ID type for %s Kasten"
+                  id (ezeka-kasten-name e-k)))
           (t
            id))))
 
@@ -767,8 +820,8 @@ known type, and just return the passed ID-OR-FILE."
   (if-let* ((id (or (ezeka-file-name-id id-or-file) id-or-file))
             (kasten (cl-find-if (lambda (k)
                                   (string-match-p
-                                   (ezeka--match-entire
-                                    (ezeka-kasten-id-regexp k)) id))
+                                   (rx bos (regexp (ezeka-kasten-id-regexp k)) eos)
+                                   id))
                                 ezeka-kaesten)))
       (ezeka-kasten-id-type kasten)
     (unless noerror

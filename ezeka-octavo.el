@@ -51,9 +51,9 @@
 (defmacro ezeka-octavo-with-kasten (kasten &rest body)
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
-  `(let ((ezeka-kasten (ezeka-kasten-named ,kasten))
-         (octavo-directory (ezeka-kasten-directory ,ezeka-kasten))
-         (octavo-id-regexp (ezeka--id-regexp)))
+  `(let* ((ezeka-kasten (ezeka-kasten-named ,kasten))
+          (octavo-directory (ezeka-kasten-directory ezeka-kasten))
+          (octavo-id-regexp (ezeka--id-regexp)))
      (cl-progv '(octavo-id-time-string-format
                  octavo-file-name-id-only)
          (if (eq (ezeka-kasten-id-type ezeka-kasten) :numerus)
