@@ -155,13 +155,17 @@ of pregenerated numeri currentes, one per line."
 ;;;-----------------------------------------------------------------------------
 
 ;; TODO Replace "link" with "id," reserving "link" term for actual links
-(defun ezeka-link-regexp ()
+(defmacro ezeka-link-regexp (&optional match-entire)
   "Return the regular expression that matches Zettel links.
+If MATCH-ENTIRE is non-nil, the regexp matches the entire
+string.
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified."
-  (concat "\\(?:\\(?2:[[:alpha:]]+\\):\\)*"
-          "\\(?1:" (ezeka--id-regexp) "\\)"))
+  `(rx ,(if match-entire 'string-start 'word-start)
+       (optional (group-n 2 (one-or-more alpha)) ":")
+       (group-n 1 (regexp (ezeka--id-regexp)))
+       ,(if match-entire 'string-end 'word-end)))
 
 (defcustom ezeka-file-name-format "%i {%l} %c %k"
   "The `format-spec' string for generating a note's file name.
@@ -349,11 +353,13 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
   "Return the Kasten with given NAME in `ezeka-kaesten'."
   (cl-find name (ezeka-kaesten) :key #'ezeka-kasten-name :test #'string=))
 
-(defun ezeka--id-regexp (&optional id-type)
+(defun ezeka--id-regexp (&optional id-type match-entire)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
-If ID-TYPE is not given, return a regexp that matches all known types."
+If ID-TYPE is not given, return a regexp that matches all known types.
+If MATCH-ENTIRE is non-nil, enclose the regexp in string boundaries."
   (let ((kasten (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)))
-    (concat "\\(?:"
+    (concat (when match-entire "\\`")
+            "\\(?:"
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
               (mapconcat #'ezeka-kasten-id-regexp
@@ -361,14 +367,15 @@ If ID-TYPE is not given, return a regexp that matches all known types."
                                       #'>
                                       (ezeka-kaesten))
                          "\\|"))
-            "\\)")))
+            "\\)"
+            (when match-entire "\\'"))))
 
 (defun ezeka-id-valid-p (id &optional id-type)
   "Return non-nil if ID matches the ID-TYPE.
 If ID-TYPE is not given, check ID against all known types."
   (let ((kasten (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)))
     (and (stringp id)
-         (string-match-p (ezeka--match-entire (ezeka--id-regexp id-type)) id))))
+         (string-match-p (ezeka--id-regexp id-type 'match-entire) id))))
 
 (defvar ezeka--read-id-history nil
   "History of IDs that the user entered manually.")
@@ -404,10 +411,6 @@ asking until a valid ID is entered."
   (unless ezeka-directory
     (error "No `ezeka-directory' set"))
   (expand-file-name (or relative-path "") ezeka-directory))
-
-(defun ezeka--match-entire (regexp)
-  "Wrap the REGEXP in ^...$ to match the entire string."
-  (concat "^" (string-trim regexp "^" "$") "$"))
 
 (defun ezeka--space-or-punct-p (character)
   "Return T if the CHARACTER is a space or punctuation."
@@ -868,11 +871,11 @@ content. If HEADER-ONLY is non-nil, only get the header."
 
 (defvar ezeka-iso8601-date-regexp
   (rx word-boundary
-    (group (repeat 4 digit))
-    (* "-")
-    (group (repeat 2 digit))
-    (* "-")
-    (group (repeat 2 digit)))
+      (group (repeat 4 digit))
+      (* "-")
+      (group (repeat 2 digit))
+      (* "-")
+      (group (repeat 2 digit)))
   "The regular expression that matches ISO 8601-like date.
 Groups 1-3 are year, month, day.")
 
