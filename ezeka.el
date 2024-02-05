@@ -2261,13 +2261,18 @@ interactively edit the text."
   "Select from among Zettel FILES, presenting optional PROMPT.
 If REQUIRE-MATCH is non-nil, require match, otherwise treat entered
 text as a Zettel link."
-  (let* ((table (ezeka-completion-table files))
-         (file (when table
-                 (completing-read (or prompt "Select Zettel: ")
-                                  table
-                                  nil
-                                  require-match))))
-    (cdr (assoc-string file table))))
+  (when files
+    (let* ((table (ezeka-completion-table files))
+           (_collection (lambda (string predicate action)
+                          (if (eq action 'metadata)
+                              '(metadata (category . ezeka-file))
+                            (complete-with-action
+                             action table string predicate)))))
+      (gethash (completing-read (or prompt "Select Zettel: ")
+                                _collection
+                                nil
+                                require-match)
+               table))))
 
 (defun ezeka-insert-link-to-visiting (arg)
   "Insert a link to another Zettel being currently visited.
@@ -2726,7 +2731,7 @@ With \\[universal-argument] ARG, just kill all visiting Zettel."
       (while t
         (let* ((table (ezeka-completion-table (ezeka-visiting-files-list t)))
                (choice (completing-read "Kill buffer: " table nil t)))
-          (kill-buffer (get-file-buffer (cdr (assoc-string choice table)))))))))
+          (kill-buffer (get-file-buffer (gethash choice table))))))))
 
 (defun ezeka-formatted-frame-title ()
   "Return string suitable for `frame-title-format'.
@@ -2782,16 +2787,10 @@ information for Zettelkasten work."
 
 (defun ezeka-completion-table (files)
   "Turn list of FILES into completion table suitable for `completing-read'."
-  ;;                  * ID  LABEL  TITLE  CITEKEY
-  (let* ((id-w 14) (lbl-w 10) (key-w 25)
-         (cap-w (- (frame-width) (+ id-w lbl-w key-w 5)))
-         (fmt (format "%%-%di %%-%dl %%-%dc %%-15k" id-w lbl-w cap-w key-w)))
-    (mapcar (lambda (file)
-              (let* ((buf (get-file-buffer file))
-                     (mod-p (if (and buf (buffer-modified-p buf)) "*" " ")))
-                (cons (ezeka-format-file-name (concat mod-p fmt) file)
-                      file)))
-            files)))
+  (when files
+    (let ((table (make-hash-table :test #'equal :size (length files))))
+      (dolist (f files table)
+        (puthash (file-name-base f) f table)))))
 
 (defun ezeka--select-buffer (&optional skip-current modified-only prompt)
   "Select an open Zettel buffer, returning its filename.
@@ -2805,9 +2804,7 @@ PROMPT, if specified, replaces the default one."
          (vertico-sort-function nil))
     (when files
       (get-file-buffer
-       (cdr (assoc-string
-             (completing-read (or prompt "Select Zettel buffer: ") table nil t)
-             table))))))
+       (gethash (completing-read prompt table nil t) table)))))
 
 (defun ezeka-switch-to-buffer (&optional modified-only)
   "Select and switch to another open Zettel buffer.
