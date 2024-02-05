@@ -724,11 +724,9 @@ explicitly given."
         (or kasten
             (and (not explicit)
                  (ezeka-kasten-name
-                  (cl-find-if (lambda (k)
-                                (and (eq (ezeka-id-type id)
-                                         (ezeka-kasten-id-type k))
-                                     (ezeka-kasten-default k)))
-                              (ezeka-kaesten))))))
+                  (cl-find (ezeka-id-type id)
+                           (ezeka-kaesten)
+                           :key #'ezeka-kasten-id-type)))))
     (error "Invalid link %s" link)))
 
 (defun ezeka-link-id (link)
