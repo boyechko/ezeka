@@ -75,12 +75,12 @@ optinal NUMBER-OF-FRAMES, set the `ezeka-number-of-frames' to that value."
   (interactive
    (cond ((null (get-buffer deft-buffer))
           (list current-prefix-arg
-                (completing-read "Zettel kasten: " ezeka-kaesten)
+                (completing-read "Zettel kasten: " (ezeka-kaesten))
                 (or ezeka-number-of-frames
                     (intern (completing-read "Number of frames: " '(one two many))))))
          ((equal current-prefix-arg '(4))
           (list current-prefix-arg
-                (completing-read "Zettel kasten: " ezeka-kaesten)
+                (completing-read "Zettel kasten: " (ezeka-kaesten))
                 (intern (completing-read "Number of frames: " '(one two many)))))
          (t (list current-prefix-arg nil ezeka-number-of-frames))))
   (setq ezeka-number-of-frames number-of-frames)
@@ -277,7 +277,7 @@ changes the existing one. With prefix argument, replaces the current
 prefix argument, confirm each move and ask about destination kasten."
   (interactive (list (region-beginning)
                      (region-end)
-                     (completing-read "Which kasten to move to? " ezeka-kaesten)
+                     (completing-read "Which kasten to move to? " (ezeka-kaesten))
                      current-prefix-arg))
   (save-excursion
     (save-restriction
@@ -294,7 +294,7 @@ prefix argument, confirm each move and ask about destination kasten."
                  (file (ezeka-link-file id)))
             (when (or (not arg)
                       (setq kasten
-                        (completing-read "Which kasten to move to? " ezeka-kaesten))
+                        (completing-read "Which kasten to move to? " (ezeka-kaesten)))
                       (y-or-n-p
                        (format "[%d/%d] Move %s [%s] to %s? "
                                j (length alist) id title kasten)))

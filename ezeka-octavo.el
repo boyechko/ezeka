@@ -107,7 +107,7 @@ is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually sw
                                        (if (assoc-string name active)
                                            (propertize name 'face 'bold-italic)
                                          name)))
-                                   ezeka-kaesten)
+                                   (ezeka-kaesten))
                            nil
                            t)           ; = user cannot exit without selecting
         (caar active))
@@ -243,7 +243,7 @@ Otherwise, ask the user to enter the link manually."
                                  (ezeka-file-link owin-file)))
              (let ((kasten (if current-prefix-arg
                                (ezeka--read-kasten "Which Kasten? ")
-                             (ezeka-kasten-name (car ezeka-kaesten)))))
+                             (ezeka-kasten-name (car (ezeka-kaesten))))))
                (ezeka-file-link
                 (ezeka-octavo-with-kasten kasten
                   (octavo--select-file "Set parent to: "))))))))
@@ -377,7 +377,7 @@ destination kasten."
                (list (region-beginning) (region-end))
              (list (point-min) (point-max)))
            (list (completing-read "Which kasten to move to? "
-                                  (mapcar #'ezeka-kasten-name ezeka-kaesten))
+                                  (mapcar #'ezeka-kasten-name (ezeka-kaesten)))
                  current-prefix-arg)))
   (let ((lines (count-lines start end))
         (moved 1)

@@ -50,13 +50,6 @@
   :type 'string
   :group 'ezeka)
 
-(defcustom ezeka-kaesten nil
-  "An alist of `ezeka-kasten' structs populated by `ezeka-kaesten-add'.
-See that function for details; do not edit by hand.
-The list is ordered by the Kasten's `order' field."
-  :type 'alist
-  :group 'ezeka)
-
 (defcustom ezeka-categories nil
   "A list of categories used for tempus currens Zettel."
   :type 'list
@@ -296,6 +289,10 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
    :documentation "Priority order (1 = highest)"
    :type 'integer))
 
+(defvar ezeka--kaesten nil
+  "A list of `ezeka-kasten' structs populated by `ezeka-kaesten-new'.
+The list is ordered by the Kasten's `order' field.")
+
 (cl-defun ezeka-kasten-new (name &key id-example id-regexp directory subdir-func)
   "Create a new `ezeka-kasten' with NAME and register it.
 See defstruct above about ID-REGEXP, ID-EXAMPLE, DIRECTORY,
@@ -312,16 +309,20 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
                                        :id-regexp id-regexp
                                        :directory directory
                                        :subdir-func subdir-func
-                                       :order (1+ (length ezeka-kaesten)))))
-    (setq ezeka-kaesten
+                                       :order (1+ (length ezeka--kaesten)))))
+    (setq ezeka--kaesten
       (cl-sort (cons kasten
-                     (cl-remove name ezeka-kaesten
+                     (cl-remove name ezeka--kaesten
                                 :test #'string= :key #'ezeka-kasten-name))
                #'<
                :key #'ezeka-kasten-order))
     kasten))
 
-(setq ezeka-kaesten nil)
+(defun ezeka-kaesten ()
+  "Return a list of registered Kästen."
+  (copy-sequence ezeka--kaesten))
+
+(setq ezeka--kaesten nil)
 (ezeka-kasten-new "numerus"
                   :id-example "a-1234"
                   :id-regexp "[a-z]-[0-9]\\{4\\}"
@@ -346,26 +347,26 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
 
 (defun ezeka-kasten-named (name)
   "Return the Kasten with given NAME in `ezeka-kaesten'."
-  (cl-find name ezeka-kaesten :key #'ezeka-kasten-name :test #'string=))
+  (cl-find name (ezeka-kaesten) :key #'ezeka-kasten-name :test #'string=))
 
 (defun ezeka--id-regexp (&optional id-type)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
 If ID-TYPE is not given, return a regexp that matches all known types."
-  (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
+  (let ((kasten (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)))
     (concat "\\(?:"
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
               (mapconcat #'ezeka-kasten-id-regexp
                          (seq-sort-by (lambda (k) (length (ezeka-kasten-id-example k)))
                                       #'>
-                                      ezeka-kaesten)
+                                      (ezeka-kaesten))
                          "\\|"))
             "\\)")))
 
 (defun ezeka-id-valid-p (id &optional id-type)
   "Return non-nil if ID matches the ID-TYPE.
 If ID-TYPE is not given, check ID against all known types."
-  (let ((kasten (cl-find id-type ezeka-kaesten :key #'ezeka-kasten-id-type)))
+  (let ((kasten (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)))
     (and (stringp id)
          (string-match-p (ezeka--match-entire (ezeka--id-regexp id-type)) id))))
 
@@ -684,9 +685,9 @@ Unknown %-sequences are left intact."
 
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
-  (let ((id (ezeka-file-name-id file)))
+  (when-let ((id (ezeka-file-name-id file)))
     (cl-find-if (lambda (re) (string-match-p (rx bos (regexp re) eos) id))
-                ezeka-kaesten
+                (ezeka-kaesten)
                 :key #'ezeka-kasten-id-regexp)))
 
 (defun ezeka-file-link (file)
@@ -727,7 +728,7 @@ explicitly given."
                                 (and (eq (ezeka-id-type id)
                                          (ezeka-kasten-id-type k))
                                      (ezeka-kasten-default k)))
-                              ezeka-kaesten)))))
+                              (ezeka-kaesten))))))
     (error "Invalid link %s" link)))
 
 (defun ezeka-link-id (link)
@@ -775,7 +776,7 @@ explicitly given."
     (mapcar #'car
             (cl-remove-if-not (lambda (x)
                                 (eq (cadr x) type))
-                              ezeka-kaesten))))
+                              (ezeka-kaesten)))))
 
 (defun ezeka-link-file (link)
   "Return a full file path to the Zettel LINK.
@@ -822,7 +823,7 @@ known type, and just return the passed ID-OR-FILE."
                                   (string-match-p
                                    (rx bos (regexp (ezeka-kasten-id-regexp k)) eos)
                                    id))
-                                ezeka-kaesten)))
+                                (ezeka-kaesten))))
       (ezeka-kasten-id-type kasten)
     (unless noerror
       (error "ID does not match any Kasten's ID pattern"))))
@@ -3345,8 +3346,8 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
   "Read a valid Kasten with `completing-read' and given PROMPT, if any."
   (completing-read
    (or prompt "Kasten: ")
-   (if (listp ezeka-kaesten)
-       (mapcar #'ezeka-kasten-name ezeka-kaesten)
+   (if (listp (ezeka-kaesten))
+       (mapcar #'ezeka-kasten-name (ezeka-kaesten))
      (error "No `ezeka-kaesten' defined"))))
 
 (defun ezeka-insert-header-template (&optional link label title parent citekey metadata)
@@ -3415,7 +3416,7 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
   "Move FILE (defaults to one in current buffer) to KASTEN.
 With \\[universal-argument] ARG, asks for a different name."
   (interactive (list (buffer-file-name)
-                     (completing-read "Zettel kasten: " ezeka-kaesten)
+                     (completing-read "Zettel kasten: " (ezeka-kaesten))
                      current-prefix-arg))
   (rb-rename-file-and-buffer
    (if (not arg)
@@ -4127,7 +4128,7 @@ Return the target link and open it (unless NOSELECT is non-nil)."
            (if target
                (ezeka-link-kasten target)
              (completing-read "Which kasten to move to? "
-                              (mapcar #'ezeka-kasten-name ezeka-kaesten)))
+                              (mapcar #'ezeka-kasten-name (ezeka-kaesten))))
            target)))
   (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
          (id-type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
