@@ -730,9 +730,8 @@ Unknown %-sequences are left intact."
 
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
-  (save-match-data
-    (and (stringp string)
-         (string-match (rx bos (regexp (ezeka-link-regexp)) eos) string))))
+  (when (stringp string)
+    (string-match-p (ezeka-link-regexp 'match-entire) string)))
 
 (defun ezeka-link-kasten (link &optional explicit)
   "Return the Kasten part of the given LINK.
@@ -825,7 +824,8 @@ based on LINK and METADATA (if present)."
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
 If NOERROR is non-nil, don't signal an error if ID doesn't match a
 known type, and just return the passed ID-OR-FILE."
-  (if-let* ((id (or (ezeka-file-name-id id-or-file) id-or-file))
+  (if-let* ((id (or (ezeka-file-name-id id-or-file)
+                    (file-name-base id-or-file))) ; HACK
             (kasten (cl-find-if (lambda (k)
                                   (string-match-p
                                    (rx bos (regexp (ezeka-kasten-id-regexp k)) eos)
@@ -1134,7 +1134,8 @@ If cannot decode, return NIL."
       (list (cons :id id)
             (when kasten (cons :kasten (string-trim kasten)))
             (cons :type (ezeka-id-type id))
-            (cons :label label)
+            (cons :label (unless (string= "nil" label) ; HACK for new notes
+                           (ezeka--validate-label label)))
             (when caption (cons :caption (string-trim caption)))
             (cons :caption-stable stable)
             (when citekey (cons :citekey (string-trim citekey)))))))
@@ -1267,16 +1268,18 @@ converted to keywords."
   (save-match-data
     (if-let* ((file (expand-file-name file ezeka-directory))
               (header (ezeka-file-content file t noerror)))
-        (let* ((mdata  (ezeka--decode-header header file noerror))
-               ;; Fill in any missing values for :ID, :TYPE, :KASTEN, and :LINK
+        (let* ((mdata (ezeka--decode-header header file noerror))
+               ;; Fill in any missing values
                (id     (or (alist-get :id mdata)
-                           (ezeka-file-name-id file)))
+                           (ezeka-file-name-id file)
+                           (file-name-base file))) ; HACK
                (type   (or (alist-get :type mdata)
                            (ezeka-id-type file)))
                (kasten (or (alist-get :kasten mdata)
                            (ezeka-file-kasten file)))
                (link   (or (ignore-errors (ezeka-file-link file))
-                           (ezeka-make-link kasten id)))
+                           (ignore-errors (ezeka-make-link kasten id))
+                           (file-name-base file))) ; HACK
                ;; TODO: Remove after full transition from v0.1 to v0.2
                (title   (or (alist-get :title mdata)
                             (alist-get :caption mdata)
@@ -1316,7 +1319,8 @@ Return the original METADATA with the field changed."
   (setf (alist-get :oldnames metadata)
         (cl-union (list oldname)
                   (remove (alist-get :id metadata)
-                          (alist-get :oldnames metadata)))))
+                          (alist-get :oldnames metadata))))
+  metadata)
 
 ;; See [[https://help.dropbox.com/organize/file-names]]
 (defvar ezeka--pasturize-characters
@@ -2066,7 +2070,7 @@ If TIME is nil, default to current time."
              project
              (cl-find-if-not (lambda (n)
                                (ezeka-link-file
-                                (funcall _scriptum-id project n) nil 'noerror))
+                                (funcall _scriptum-id project n)))
                              (number-sequence 1 99)))))
 
 ;;;=============================================================================
@@ -2500,7 +2504,7 @@ delete the text instead."
                   (text (if use-rubric
                             (cadr (split-string (file-name-base file)
                                                 ezeka-file-name-separator 'omit-nulls))
-                            (alist-get :title (ezeka-file-metadata file)))))
+                          (alist-get :title (ezeka-file-metadata file)))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
@@ -2533,7 +2537,8 @@ delete the text instead."
   "Make a help-echo overlay for Zettel ID based on MATCH-DATA."
   (save-match-data
     (set-match-data match-data)
-    (when-let* ((file (ezeka-link-file (match-string-no-properties 1)))
+    (when-let* ((file (ignore-errors
+                        (ezeka-link-file (match-string-no-properties 1))))
                 (overlay (make-overlay (match-beginning 1) (match-end 1))))
       (overlay-put overlay 'type 'ezeka-help-echo)
       (overlay-put overlay 'face '(:underline "purple"))
@@ -2646,7 +2651,8 @@ note."
                   (ezeka--generate-new-child parent kasten manual)
                 (ezeka-make-link kasten
                                  (or manual
-                                     (ezeka--generate-id kasten))))))
+                                     (ezeka--generate-id kasten)))))
+        (ezeka-create-nonexistent-links t))
     (unless noselect
       (ezeka-find-link link))
     link))
@@ -2879,6 +2885,15 @@ to buffers visiting files."
 ;; currens notes). By default, it is the value shown between curly brackets
 ;; {...} in the note's rubric.
 ;;;=============================================================================
+
+(defun ezeka--validate-label (label)
+  "Return the validated LABEL when it is, or NIL otherwise."
+  (rx-let ((genus (eval (cons 'any (mapcar #'cadr ezeka-genera)))))
+    (when (string-match-p (rx string-start
+                              (or genus (one-or-more alpha))
+                              string-end)
+                          label)
+      label)))
 
 (defvar ezeka--read-category-history nil
   "History of manually entered categories.")
@@ -3338,7 +3353,7 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
   "History variable for Zettel citekeys.")
 
 (defun ezeka--read-citekey (&optional prompt initial-input)
-  "Read a citekey.
+  "Read a citekey, returning either a string or nil.
 PROMPT and INITIAL-INPUT are passed to `read-string'."
   (let ((citekey (read-string (or prompt "Citekey: ")
                               initial-input
@@ -3368,7 +3383,7 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
                     (ezeka-file-link buffer-file-name)
                   (user-error "This command can only be called from a Zettel")))
           (mdata (or (ezeka--new-child-metadata link)
-                     (ezeka-decode-rubric (file-name-nondirectory buffer-file-name)))))
+                     (ezeka-decode-rubric (file-name-base buffer-file-name)))))
      (let-alist mdata
        (list
         link
@@ -4144,7 +4159,7 @@ Return the target link and open it (unless NOSELECT is non-nil)."
          (target-link
           (or target-link
               (ezeka--resurrectable-oldname source-file id-type)
-              (if (eq id-type :tempus)  ; FIXME: Hardcoded
+              (if (eq id-type :tempus)  ; HARDCODED
                   (ezeka-tempus-currens-id-for source-file)
                 (ezeka--generate-id kasten)))))
     (if (not target-link)
