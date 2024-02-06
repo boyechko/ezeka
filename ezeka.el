@@ -3559,14 +3559,16 @@ With \\[universal-argument], use the current KASTEN without asking."
 If SAME-WINDOW is non-nil, or the command is called with \\[universal-argument],
 ignore `ezeka-number-of-frames' and open the link in the same window."
   (interactive "p")
-  (when-let ((_ (or (ezeka-link-at-point-p)
-                    (ezeka-link-at-point-p t)))
-             (link (ezeka-link-at-point)))
-    (ezeka-find-link link same-window)
-    ;; This function is later added to `org-open-at-point-functions', so "must
-    ;; return t if they identify and follow a link at point. If they don’t find
-    ;; anything interesting at point, they must return nil."
-    t))
+  (if-let ((_ (or (ezeka-link-at-point-p)
+                  (ezeka-link-at-point-p t)))
+           (link (ezeka-link-at-point)))
+      ;; This function is later added to `org-open-at-point-functions', so "must
+      ;; return t if they identify and follow a link at point. If they don’t
+      ;; find anything interesting at point, they must return nil."
+      (and (ezeka-find-link link same-window)
+           t)
+    (message "Could not find any links at point")
+    nil))
 
 (defun ezeka-open-link-at-mouse (ev)
   "Open a Zettel link at mouse point (determined from EV)."
