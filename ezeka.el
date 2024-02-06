@@ -2662,15 +2662,15 @@ note."
   (interactive)
   (if (region-active-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
-    (let ((start (point)))
-      (save-excursion
-        (beginning-of-line)
-        ;; FIXME: Might be good to have some limit to prevent
-        ;; killing whole paragraphs worth of text with soft
-        ;; newlines.
-        (string-trim-left
-         (buffer-substring-no-properties (point) (max (point-min) (1- start)))
-         "[ +*-]*")))))
+    (let ((context (buffer-substring-no-properties
+                    (point)
+                    (max (point-min)
+                         (save-excursion
+                           (forward-line -1)
+                           (point))))))
+      (string-trim-left
+       (replace-regexp-in-string "[\t\n\r]+" " " context)
+       "[ +*-]*"))))
 
 (defun ezeka-insert-new-child-with-title (arg title &optional id)
   "Create a new child with given TITLE, inserting its link at point.
