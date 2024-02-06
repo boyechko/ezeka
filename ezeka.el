@@ -2141,8 +2141,11 @@ same window."
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
-If SAME-WINDOW is non-NIL, opens the link in the same window. Return
-T if the link is a Zettel link."
+If SAME-WINDOW (or \\[universal-argument]) is non-NIL, opens
+the link in the same window. Return T if the link is a
+Zettel link."
+  (interactive (list (ezeka--read-id "Link to find: ")
+                     current-prefix-arg))
   (when (ezeka-link-p link)
     (let ((existing-file (ezeka-link-file link)))
       (cond (existing-file
@@ -2155,9 +2158,9 @@ T if the link is a Zettel link."
              (when-let ((_ (ezeka-file-p buffer-file-name))
                         (parent (ezeka-file-link buffer-file-name)))
                (ezeka--set-new-child-metadata link :parent parent))
-             (ezeka-find-file (ezeka-link-path link
-                                               (ezeka--new-child-metadata link))
-                              same-window)
+             (ezeka-find-file
+              (ezeka-link-path link (ezeka--new-child-metadata link))
+              same-window)
              (call-interactively #'ezeka-insert-header-template))
             (t
              (message "Link `%s' doesn't exist" link)
