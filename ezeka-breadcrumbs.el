@@ -306,9 +306,7 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
    (list (let ((ezeka-leave-breadcrumb-trail nil))
            (if ezeka-mode
                buffer-file-name
-             (ezeka-octavo-select-file
-              "tempus"
-              "Select Zettel for breadcrumb trail: ")))))
+             (user-error "Point must be on an org-mode heading")))))
   (save-excursion
     (with-current-buffer (find-file-noselect file)
       (unless (org-at-heading-p)
@@ -345,8 +343,12 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
   "Start, switch to, or reset breadcrumb trail based on ARG."
   (interactive "p")
   (pcase arg
-    (1 (or (ezeka-switch-to-breadcrumb-trail)
-           (call-interactively 'ezeka-start-breadcrumb-trail)))
+    (1 (if (and (org-at-heading-p)
+                (string= (nth 4 (org-heading-components))
+                         ezeka-breadcrumb-trail-headline))
+           (call-interactively 'ezeka-start-breadcrumb-trail)
+         (or (ezeka-switch-to-breadcrumb-trail)
+             (call-interactively 'ezeka-start-breadcrumb-trail))))
     (4 (ezeka-reset-breadcrumb-trail))
     (_ (user-error "Not a valid option"))))
 
