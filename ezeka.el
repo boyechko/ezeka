@@ -3083,15 +3083,15 @@ exist in FILENAME."
         (ezeka-add-change-log-entry
          filename
          (cond ((string-match (regexp-quote caption) new-val)
-                (format "Add \"%s\" to caption."
-                        (ezeka--demote-quotes
-                         (string-trim (replace-match "" nil nil new-val)
-                                      "[ ,]+"))))
+                (when-let ((addition (ezeka--demote-quotes
+                                      (string-trim (replace-match "" nil nil new-val)
+                                                   "[ ,]+"))))
+                  (format "Add \"%s\" to caption." addition)))
                ((string-match (regexp-quote new-val) caption)
-                (format "Remove \"%s\" from caption."
-                        (ezeka--demote-quotes
-                         (string-trim (replace-match "" nil nil caption)
-                                      "[ ,]+"))))
+                (when-let ((deletion (ezeka--demote-quotes
+                                      (string-trim (replace-match "" nil nil caption)
+                                                   "[ ,]+"))))
+                  (format "Remove \"%s\" from caption." deletion)))
                (t
                 (format "Change caption from \"%s\" to \"%s.\""
                         (ezeka--demote-quotes (alist-get :caption mdata))
