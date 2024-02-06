@@ -2118,23 +2118,26 @@ Needs to be called after `ezeka-link-at-point-p'."
   "Edit the given FILE based on the value of `ezeka-number-of-frames'.
 If SAME-WINDOW is non-NIL, open the buffer visiting the file in the
 same window."
-  (run-hook-with-args 'ezeka-find-file-functions
-                      file
-                      (if (ezeka-file-p buffer-file-name)
-                          buffer-file-name
-                        'find-file))
-  (if same-window
-      (find-file file)
-    (cl-case ezeka-number-of-frames
-      (two (if (< (length (frame-list)) 2)
-               (find-file-other-frame file)
-             (select-window (ace-select-window))
-             (find-file file)))
-      (one (let ((pop-up-windows t))
-             (select-window (ace-select-window))
-             (find-file file)))
-      (nil (find-file file))
-      (t (find-file-other-frame file)))))
+  (let ((truename (file-truename file)))
+    (run-hook-with-args 'ezeka-find-file-functions
+                        file
+                        (if (ezeka-file-p buffer-file-name)
+                            buffer-file-name
+                          'find-file))
+    (if same-window
+        (find-file truename)
+      (cl-case ezeka-number-of-frames
+        (two (if (< (length (frame-list)) 2)
+                 (find-file-other-frame truename)
+               (when (featurep 'ace-window)
+                 (select-window (ace-select-window)))
+               (find-file truename)))
+        (one (let ((pop-up-windows t))
+               (when (featurep 'ace-window)
+                 (select-window (ace-select-window)))
+               (find-file truename)))
+        (nil (find-file truename))
+        (t (find-file-other-frame truename))))))
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
