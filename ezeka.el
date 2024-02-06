@@ -3927,6 +3927,21 @@ This is the Bookmark record function for Zettel files."
 ;;; Searching
 ;;;=============================================================================
 
+(defcustom ezeka-find-regexp-buffer-format "Full-Text Search: %s"
+  "Format string *xref* buffer name used by `ezeka-find-regexp'.
+The control sequence %s is replaced with the xref search string."
+  :group 'ezeka
+  :type 'string)
+
+(defun ezeka--find-regexp-open-buffer (regexp)
+  "Open xref buffer showing results of searching for REGEXP."
+  (let ((name (format (concat "*" ezeka-find-regexp-buffer-format "*") regexp)))
+    (if (get-buffer name)
+        (pop-to-buffer name)
+      (user-error "No such buffer"))))
+
+(org-add-link-type "efir" 'ezeka--find-regexp-open-buffer)
+
 (defvar ezeka--read-regexp-history nil
   "History variable for `ezeka--read-regexp'.")
 
@@ -3938,15 +3953,15 @@ This is the Bookmark record function for Zettel files."
 
 (defun ezeka-find-regexp (regexp &optional kasten)
   "Find all matches of REGEXP in `ezeka-directory'.
-If KASTEN is non-nil (or with \\[universal-argument]), limit to only that Kasten."
+If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
   (interactive
    (list (ezeka--read-regexp "Regexp to find: ")
          (when current-prefix-arg
            (ezeka--read-kasten "Kasten to search: "))))
-  (ezeka-breadcrumbs-drop (format ezeka--breadcrumbs-xref-format regexp)
-                          (buffer-file-name))
+  (ezeka-breadcrumbs-drop
+   (format ezeka-find-regexp-buffer-format regexp) (buffer-file-name))
   (require 'xref)
-  (let ((xref-buffer-name (format "*Ezeka Find Regexp: %s*" regexp)))
+  (let ((xref-buffer-name (format ezeka-find-regexp-buffer-format regexp)))
     (xref--show-xrefs
      (xref-matches-in-directory regexp
                                 (format "*.%s" ezeka-file-extension)
