@@ -259,6 +259,14 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
 ;;;=============================================================================
 
 (cl-defstruct
+    (ezeka-id-style (:constructor nil)
+                    (:constructor ezeka-id-style--create))
+  (description nil :type 'string)
+  (regexp      nil :type 'string)
+  (min-length  nil :type 'integer)
+  (max-length  nil :type 'integer))
+
+(cl-defstruct
     (ezeka-kasten (:constructor nil)
                   (:constructor ezeka-kasten--create)
                   (:copier nil))
@@ -267,19 +275,10 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
    :documentation "The name of the Kasten"
    :type 'string
    :read-only t)
-  (id-type
+  (id-style
    nil
-   :documentation "Keyword form of the name"
-   :type 'keyword
-   :read-only t)
-  (id-regexp
-   nil
-   :documentation "Regexp to match possible IDs of this type"
-   :type 'string)
-  (id-example
-   nil
-   :documentation "Example of the minimal ID"
-   :type 'string)
+   :documentation "ID style (`ezeka-id-style') used in the Kasten"
+   :type 'keyword)
   (directory
    nil
    :documentation "Kasten's directory under `ezeka-directory'"
@@ -293,13 +292,25 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
    :documentation "Priority order (1 = highest)"
    :type 'integer))
 
+(defun ezeka-kasten-id-type (kasten)
+  "Return a keyword naming KASTEN's ID style."
+  (intern (concat ":" (ezeka-kasten-name kasten))))
+
+(defun ezeka-kasten-id-min-length (kasten)
+  "Return `ezeka-id-style-min-length' for KASTEN's `ezeka-kasten-id-style'."
+  (ezeka-id-style-min-length (ezeka-kasten-id-style kasten)))
+
+(defun ezeka-kasten-id-regexp (kasten)
+  "Return `ezeka-id-style-regexp' for KASTEN's `ezeka-kasten-id-style'."
+  (ezeka-id-style-regexp (ezeka-kasten-id-style kasten)))
+
 (defvar ezeka--kaesten nil
   "A list of `ezeka-kasten' structs populated by `ezeka-kaesten-new'.
 The list is ordered by the Kasten's `order' field.")
 
-(cl-defun ezeka-kasten-new (name &key id-example id-regexp directory subdir-func)
+(cl-defun ezeka-kasten-new (name &key id-regexp minimal-id directory subdir-func)
   "Create a new `ezeka-kasten' with NAME and register it.
-See defstruct above about ID-REGEXP, ID-EXAMPLE, DIRECTORY,
+See defstruct above about ID-REGEXP, MINIMAL-ID, DIRECTORY,
 and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
 `ezeka-directory'."
   (let* ((directory (or directory ""))
@@ -307,10 +318,12 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
                         directory
                       (file-name-as-directory
                        (expand-file-name directory ezeka-directory))))
+         (id-style (ezeka-id-style--create
+                    :description (format "Used in %s Kasten; ex. %s" name minimal-id)
+                    :regexp id-regexp
+                    :min-length (length minimal-id)))
          (kasten (ezeka-kasten--create :name name
-                                       :id-type (intern (concat ":" name))
-                                       :id-example id-example
-                                       :id-regexp id-regexp
+                                       :id-style id-style
                                        :directory directory
                                        :subdir-func subdir-func
                                        :order (1+ (length ezeka--kaesten)))))
@@ -328,26 +341,30 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
 
 (setq ezeka--kaesten nil)
 (ezeka-kasten-new "numerus"
-                  :id-example "a-1234"
                   :id-regexp "[a-z]-[0-9]\\{4\\}"
-                  :directory "numerus")
+                  :minimal-id "a-1234"
+                  :directory "numerus"
+                  :subdir-func (lambda (id) (substring id 0 1)))
 (ezeka-kasten-new "tempus"
-                  :id-example "20230404T1713"
                   :id-regexp "[0-9]\\{8\\}T[0-9]\\{4\\}"
-                  :directory "tempus")
+                  :minimal-id "20230404T1713"
+                  :directory "tempus"
+                  :subdir-func (lambda (id) (substring id 0 4)))
 (ezeka-kasten-new "scriptum"
-                  :id-example "a-1234~01"
                   :id-regexp "[a-z]-[0-9]\\{4\\}~[0-9][0-9]"
-                  :directory "scriptum")
+                  :minimal-id "a-1234~01"
+                  :directory "scriptum"
+                  :subdir-func (lambda (id)
+                                 (car (split-string id "~"))))
 (ezeka-kasten-new "v1"
-                  :id-example "123"
-                  :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)\\)*")
+                  :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)\\)*"
+                  :minimal-id "123")
 (ezeka-kasten-new "v2"
-                  :id-example "123"
-                  :id-regexp "[0-9]\\{3\\}\\(-[a-z]+\\)*")
+                  :id-regexp "[0-9]\\{3\\}\\(-[a-z]+\\)*"
+                  :minimal-id "123")
 (ezeka-kasten-new "v3"
-                  :id-example "123-abc"
-                  :id-regexp "[0-9]\\{3\\}-[a-z]\\{3\\}")
+                  :id-regexp "[0-9]\\{3\\}-[a-z]\\{3\\}"
+                  :minimal-id "123-abc")
 
 (defun ezeka-kasten-named (name)
   "Return the Kasten with given NAME in `ezeka-kaesten'."
@@ -363,9 +380,8 @@ If MATCH-ENTIRE is non-nil, enclose the regexp in string boundaries."
             (if kasten
                 (ezeka-kasten-id-regexp kasten)
               (mapconcat #'ezeka-kasten-id-regexp
-                         (seq-sort-by (lambda (k) (length (ezeka-kasten-id-example k)))
-                                      #'>
-                                      (ezeka-kaesten))
+                         (cl-sort (ezeka-kaesten) #'>
+                                  :key #'ezeka-kasten-id-min-length)
                          "\\|"))
             "\\)"
             (when match-entire "\\'"))))
@@ -748,25 +764,13 @@ explicitly given."
           (t
            id))))
 
-(defun ezeka-id-subdirectory (id)
-  "Return the subdirectory relative to Kasten for the given ID, a string."
-  (file-name-as-directory
-   (cl-case (ezeka-id-type id)
-    ;; HARDCODED
-    (:numerus (cl-subseq id 0 1)) ; first letter
-    (:tempus (cl-subseq id 0 4))  ; YYYY
-    (:scriptum                    ; numerus
-     (cl-subseq id 0
-                (length
-                 (ezeka-kasten-id-example (ezeka-kasten-named "numerus"))))))))
-
-(defun ezeka-id-directory (id kasten)
+(defun ezeka-id-directory (id &optional kasten)
   "Return the full directory under KASTEN where ID should be."
-  (file-name-as-directory
-   (file-name-concat
-    (ezeka-kasten-directory (ezeka-kasten-named kasten))
-    (or (ezeka-id-subdirectory id)
-        (error "Cannot get subdirectory for %s" id)))))
+  (let ((eka (ezeka-kasten-named (or kasten (ezeka-link-kasten id)))))
+    (file-name-as-directory
+     (file-name-concat (ezeka-kasten-directory eka)
+                       (or (funcall (ezeka-kasten-subdir-func eka) id)
+                           (error "Cannot get subdirectory for %s" id))))))
 
 (defun ezeka--id-kaesten (id)
   "Return all kaesten for the ID's type."
@@ -809,8 +813,7 @@ based on LINK and METADATA (if present)."
                            (ezeka-format-metadata ezeka-file-name-format mdata)
                          (ezeka-link-id link))
                        ezeka-file-extension)
-                      (ezeka-id-directory (ezeka-link-id link)
-                                          (ezeka-link-kasten link)))))
+                      (ezeka-id-directory (ezeka-link-id link)))))
 
 (defun ezeka-id-type (id-or-file &optional noerror)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
@@ -1821,8 +1824,7 @@ the tuples in the form (LETTER . COUNT)."
                                  (length
                                   (directory-files
                                    (ezeka-id-directory
-                                    (ezeka-make-numerus (string letter) "0000")
-                                    "numerus")
+                                    (ezeka-make-numerus (string letter) "0000"))
                                    nil
                                    (concat "\\." ezeka-file-extension "$")))))
                          (number-sequence ?a ?z))))
