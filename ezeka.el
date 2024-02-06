@@ -3287,8 +3287,12 @@ KEYWORD. Use METADATA if supplied."
         (user-error "This command can only be used on Zettel notes")
       (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
-          :keywords (cond (replace (list keyword))
-                          (keyword (ezeka--add-to-keywords-cache keyword))
+          :keywords (cond (replace
+                           (list keyword))
+                          (keyword
+                           (ezeka--add-to-keywords-cache keyword)
+                           (cons ezeka-rename-note-keyword
+                                 (alist-get :keywords mdata)))
                           (t nil)))))))
 
 (defvar ezeka--keyword-history nil
