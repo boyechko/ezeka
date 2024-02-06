@@ -2227,9 +2227,17 @@ STRINGS are themselves concatenated with spaces in between."
   "Insert LINK at point.
 If STRINGS is non-nil, LINK is not actually inserted, just
 assumed to be contained in some of them."
-  (if strings
-      (apply #'ezeka-insert-with-spaces strings)
-    (ezeka-insert-with-spaces (ezeka--format-link link))))
+  (let ((already-linked
+         (cond ((save-excursion (re-search-backward link nil 'noerror))
+                'above)
+               ((save-excursion (re-search-forward link nil 'noerror))
+                'below))))
+    (when (or (not already-linked)
+              (y-or-n-p (format "There's already a link there %s. Insert anyway? "
+                                already-linked)))
+      (if strings
+          (apply #'ezeka-insert-with-spaces strings)
+        (ezeka-insert-with-spaces (ezeka--format-link link))))))
 
 (defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
@@ -2244,12 +2252,7 @@ interactively edit the text."
                  "Which metadata field? "
                  '(":none" ":title" ":citekey" ":label"))))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (let ((already-linked
-         (cond ((save-excursion (re-search-backward link nil 'noerror))
-                'above)
-               ((save-excursion (re-search-forward link nil 'noerror))
-                'below)))
-        (link-metadata
+  (let ((link-metadata
          (if-let* ((file (or (ezeka-link-file link)
                              (cl-find-if #'(lambda (buf)
                                              (string-match link (buffer-name buf)))
@@ -2259,14 +2262,11 @@ interactively edit the text."
                    (fmt "%t"))
              (ezeka-format-metadata fmt mdata)
            "")))
-    (when (or (not already-linked)
-              (y-or-n-p (format "There's already a link there %s. Insert anyway? "
-                                already-linked)))
-      (ezeka--insert-link-with-spaces link
-                                      (if noedit
-                                          link-metadata
-                                        (read-string "Insert: " link-metadata))
-                                      (ezeka--format-link link)))))
+    (ezeka--insert-link-with-spaces link
+                                    (if noedit
+                                        link-metadata
+                                      (read-string "Insert: " link-metadata))
+                                    (ezeka--format-link link))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
