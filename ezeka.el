@@ -791,14 +791,15 @@ To do that, try wildcard expansion for the file name
 beginning with LINK, returning it if found, or NIL
 otherwise."
   (save-match-data
-    (let* ((id (ezeka-link-id link))
-           (basename (file-name-with-extension
-                      (concat id "*")
-                      ezeka-file-extension))
-           (dir (ezeka-id-directory id (ezeka-link-kasten link)))
-           (matches (flatten-list
-                     (file-expand-wildcards
-                      (expand-file-name basename dir)))))
+    (when-let* ((link (substring-no-properties link))
+                (id (ezeka-link-id link))
+                (basename (file-name-with-extension
+                           (concat id "*")
+                           ezeka-file-extension))
+                (dir (ezeka-id-directory id))
+                (matches (flatten-list
+                          (file-expand-wildcards
+                           (expand-file-name basename dir)))))
       (cl-case (length matches)
         (0 nil)
         (1 (car matches))
