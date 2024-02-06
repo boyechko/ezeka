@@ -339,6 +339,15 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
   "Return a list of registered Kästen."
   (copy-sequence ezeka--kaesten))
 
+(cl-defgeneric ezeka-kasten (thing)
+  "Return the `ezeka-kasten' appropriate for THING."
+  (:method ((thing string))
+   (cl-find thing (ezeka-kaesten) :key #'ezeka-kasten-name :test #'string=))
+  (:method ((thing integer))
+   (cl-find thing (ezeka-kaesten) :key #'ezeka-kasten-order))
+  (:method ((thing ezeka-kasten))
+   thing))
+
 (setq ezeka--kaesten nil)
 (ezeka-kasten-new "numerus"
                   :id-regexp "[a-z]-[0-9]\\{4\\}"
@@ -365,10 +374,6 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
 (ezeka-kasten-new "v3"
                   :id-regexp "[0-9]\\{3\\}-[a-z]\\{3\\}"
                   :minimal-id "123-abc")
-
-(defun ezeka-kasten-named (name)
-  "Return the Kasten with given NAME in `ezeka-kaesten'."
-  (cl-find name (ezeka-kaesten) :key #'ezeka-kasten-name :test #'string=))
 
 (defun ezeka--id-regexp (&optional id-type match-entire)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
@@ -753,7 +758,7 @@ explicitly given."
 (defun ezeka-make-link (kasten id)
   "Make a new proper link to ID in KASTEN (string or `ezeka-kasten')."
   (let ((e-k (pcase kasten
-               ((pred stringp) (ezeka-kasten-named kasten))
+               ((pred stringp) (ezeka-kasten kasten))
                ((pred ezeka-kasten-p) kasten)
                (_ (signal 'wrong-type-argument (cons 'ezeka-kasten-p kasten))))))
     (cond ((not e-k)
@@ -766,7 +771,7 @@ explicitly given."
 
 (defun ezeka-id-directory (id &optional kasten)
   "Return the full directory under KASTEN where ID should be."
-  (let ((eka (ezeka-kasten-named (or kasten (ezeka-link-kasten id)))))
+  (let ((eka (ezeka-kasten (or kasten (ezeka-link-kasten id)))))
     (file-name-as-directory
      (file-name-concat (ezeka-kasten-directory eka)
                        (or (funcall (ezeka-kasten-subdir-func eka) id)
@@ -1978,7 +1983,7 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
   "Return the next unused ID for the given KASTEN.
 If BATCH is non-nil, assume that the user cannot respond to
 interactive prompts."
-  (cl-case (ezeka-kasten-id-type (ezeka-kasten-named kasten))
+  (cl-case (ezeka-kasten-id-type (ezeka-kasten kasten))
     (:tempus  (ezeka-tempus-currens))
     (:numerus (ezeka-new-numerus-currens
                (when (and batch
@@ -2009,7 +2014,7 @@ INTERACTIVE is non-NIL when called interactively."
         (file (if (file-exists-p link-or-file)
                   link-or-file
                 (ezeka-link-file link-or-file))))
-    (if (eq (ezeka-kasten-id-type (ezeka-kasten-named (ezeka-link-kasten link)))
+    (if (eq (ezeka-kasten-id-type (ezeka-kasten (ezeka-link-kasten link)))
             :tempus)
         ;; If already tempus currens, just return that id
         (ezeka-link-id link)
@@ -2949,7 +2954,7 @@ DEFAULT is the genus used if user just presses [return]."
   "Interactively read label for the given KASTEN.
 Pass SPECIAL, PROMPT, and DEFAULT to the appropriate
 function."
-  (if (eq :numerus (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
+  (if (eq :numerus (ezeka-kasten-id-type (ezeka-kasten kasten)))
       (ezeka--read-genus prompt special default)
     (ezeka--read-category prompt special default)))
 
@@ -3457,7 +3462,7 @@ With \\[universal-argument], use the current KASTEN without asking."
                        (ezeka--read-kasten "Zettel Kasten: "))))
   (let* ((parent-file buffer-file-name)
          (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
-         (kstruct (ezeka-kasten-named kasten))
+         (kstruct (ezeka-kasten kasten))
          mdata)
     (setf (alist-get :parent mdata)
           (ezeka-file-link buffer-file-name))
@@ -4127,8 +4132,8 @@ Return the target link and open it (unless NOSELECT is non-nil)."
              (completing-read "Which kasten to move to? "
                               (mapcar #'ezeka-kasten-name (ezeka-kaesten))))
            target)))
-  (let* ((ezeka-header-update-modified 'never) ; FIXME: Hardcoded
-         (id-type (ezeka-kasten-id-type (ezeka-kasten-named kasten)))
+  (let* ((ezeka-header-update-modified 'never) ; HARDCODED
+         (id-type (ezeka-kasten-id-type (ezeka-kasten kasten)))
          (target-link
           (or target-link
               (ezeka--resurrectable-oldname source-file id-type)

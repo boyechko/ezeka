@@ -51,22 +51,23 @@
 (defmacro ezeka-octavo-with-kasten (kasten &rest body)
   "Lexically bind variables for executing BODY in KASTEN."
   (declare (indent 1))
-  `(let* ((ezeka-kasten (ezeka-kasten-named ,kasten))
-          (octavo-directory (ezeka-kasten-directory ezeka-kasten))
-          (octavo-id-regexp (ezeka--id-regexp)))
-     (cl-progv '(octavo-id-time-string-format
-                 octavo-file-name-id-only)
-         (if (eq (ezeka-kasten-id-type ezeka-kasten) :numerus)
-             '(,(concat (string (seq-random-elt (number-sequence ?a ?z)))
-                        "-%H%M")
-               nil)
-           '("%Y%m%dT%H%M"
-             t))
-       ,@body)))
+  (let ((eka (gensym)))
+    `(let* ((,eka (ezeka-kasten ,kasten))
+            (octavo-directory (ezeka-kasten-directory ,eka))
+            (octavo-id-regexp (ezeka--id-regexp)))
+       (cl-progv '(octavo-id-time-string-format
+                   octavo-file-name-id-only)
+           (if (eq (ezeka-kasten-id-type ,eka) :numerus)
+               '(,(concat (string (seq-random-elt (number-sequence ?a ?z)))
+                          "-%H%M")
+                 nil)
+             '("%Y%m%dT%H%M"
+               t))
+         ,@body))))
 
 (defun ezeka-octavo-initialize-kasten (name)
   "Set necessary variables for long-term work in Kasten with given NAME."
-  (let ((kasten (ezeka-kasten-named name)))
+  (let ((kasten (ezeka-kasten name)))
     (setq octavo-directory (ezeka-kasten-directory kasten)
           octavo-id-regexp (ezeka--id-regexp))
     (if (eq (ezeka-kasten-id-type kasten) :numerus)
@@ -688,7 +689,7 @@ given, suggest the note's parent, if set. METHOD overrides
 (defun ezeka-link-entitled-file (link title)
   "Return a full file path to the Zettel LINK with the given TITLE."
   (if (ezeka-link-p link)
-      (let ((kasten (ezeka-kasten-named (ezeka-link-kasten link)))
+      (let ((kasten (ezeka-kasten (ezeka-link-kasten link)))
             (id (ezeka-link-id link)))
         (expand-file-name
          (ezeka--normalize-title-into-caption
