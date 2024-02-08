@@ -835,41 +835,29 @@ known type, and just return the passed ID-OR-FILE."
     (unless noerror
       (error "ID does not match any Kasten's ID pattern"))))
 
-(defun ezeka-file-content (file &optional header-only noerror)
+(defun ezeka-file-content (file &optional header-only)
   "Return content of FILE, getting it first from opened buffer.
-If NOERROR is non-NIL, don't signal an error if cannot get the
-content. If HEADER-ONLY is non-nil, only get the header."
-  (let ((retrieve-content
-         (lambda (buffer)
-           "Get the content from BUFFER."
-           (save-excursion
-             (with-current-buffer buffer
-               (save-restriction
-                 (widen)
-                 (if (= 0 (buffer-size))
-                     (unless noerror
-                       (error "Buffer %s is empty" (current-buffer)))
-                   (buffer-substring-no-properties
-                    (point-min)
-                    (if (not header-only)
-                        (point-max)
-                      (goto-char (point-min))
-                      (if (re-search-forward ezeka-header-separator-regexp nil t)
-                          (match-beginning 0)
-                        (point-max)))))))))))
-    (cond ((null file)
-           (unless noerror
-             (signal 'type-error
-                     '("FILE is nil, but should be a string"))))
-          ((get-file-buffer file)
-           (funcall retrieve-content (get-file-buffer file)))
-          ((file-exists-p file)
-           (with-temp-buffer
-             (insert-file-contents file)
-             (funcall retrieve-content (current-buffer))))
-          (t
-           (unless noerror
-             (error "Cannot get content for %s" file))))))
+If HEADER-ONLY is non-nil, only get the header."
+  (let ((_retrieve-content
+         (lambda ()
+           "Retrieve content from current buffer."
+           (buffer-substring-no-properties
+            (point-min)
+            (if (not header-only)
+                (point-max)
+              (goto-char (point-min))
+              (if (re-search-forward ezeka-header-separator-regexp nil t)
+                  (match-beginning 0)
+                (point-max)))))))
+    (if (get-file-buffer file)
+        (save-excursion
+          (with-current-buffer (get-file-buffer file)
+            (save-restriction
+              (widen)
+              (funcall _retrieve-content))))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (funcall _retrieve-content (current-buffer))))))
 
 ;;;=============================================================================
 ;;; Parsing and Manipulating Time
@@ -1277,14 +1265,12 @@ signal an error when encountering malformed header lines."
           (ezeka--writeable-region (car beg-end) (cdr beg-end))
         (ezeka--read-only-region (car beg-end) (cdr beg-end))))))
 
-(defun ezeka-file-metadata (file &optional noerror)
-  "Return an alist of metadata for FILE.
-If NOERROR is non-nil, do not signal errors. The keys are
-converted to keywords."
+(defun ezeka-file-metadata (file)
+  "Return an alist of metadata for FILE."
   (save-match-data
     (if-let* ((file (expand-file-name file ezeka-directory))
-              (header (ezeka-file-content file t noerror)))
-        (let* ((mdata (ezeka--decode-header header file noerror))
+              (header (ezeka-file-content file 'just-header)))
+        (let* ((mdata (ezeka--decode-header header file))
                ;; Fill in any missing values
                (id     (or (alist-get :id mdata)
                            (ezeka-file-name-id file)
@@ -4180,7 +4166,7 @@ With \\[universal-argument], ask for an explicit TARGET-LINK instead.
 Return the target link and open it (unless NOSELECT is non-nil)."
   (interactive
    (let* ((source (ezeka--grab-dwim-file-target))
-          (src-header (ezeka-file-content source 'header))
+          (src-header (ezeka-file-content source 'just-header))
           (target (cond ((equal current-prefix-arg '(4))
                          (ezeka--read-id "Target link: "))
                         ((string-match-p "#moving" src-header)
