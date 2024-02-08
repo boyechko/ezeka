@@ -1205,10 +1205,9 @@ This is a copy of `timep' from `type-break'."
 Group 1 is the key.
 Group 2 is the value.")
 
-(defun ezeka--decode-header (header file &optional noerror)
-  "Return metadata alist decoded from FILE's YAML HEADER.
-They keys are converted to keywords. If NOERROR is non-nil, do not
-signal an error when encountering malformed header lines."
+(defun ezeka--decode-header (header &optional file)
+  "Return metadata alist decoded from FILE's HEADER.
+They keys are converted to keywords."
   (let* ((metadata
           (mapcar
            (lambda (line)
@@ -1229,8 +1228,7 @@ signal an error when encountering malformed header lines."
                        (setq deval
                          (ezeka--header-deyamlify-value val)))
                      (cons key deval))
-                 (unless noerror
-                   (error "Malformed header line: '%s'" line)))))
+                 (error "Malformed header line: '%s'" line))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata))))
     (append decoded metadata)))
