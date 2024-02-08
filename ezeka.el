@@ -1018,26 +1018,36 @@ Return the result of the conversion."
 ;;;=============================================================================
 
 (defconst ezeka-metadata-fields
-  '((:link      :yaml-type string :lisp-type link :hidden t)
-    (:caption   :yaml-type string :hidden t)
-    (:citekey   :yaml-type string :hidden t)
-    (:rubric    :yaml-type string)
-    (:successor :yaml-type string)
-    (:title     :yaml-type string)
-    (:subtitle  :yaml-type string)
-    (:author    :yaml-type string)
-    (:created   :yaml-type string :lisp-type time)
-    (:modified  :yaml-type string :lisp-type time)
-    (:parent    :yaml-type string :lisp-type link)
-    (:firstborn :yaml-type string :lisp-type link)
-    (:oldnames  :yaml-type list)
-    (:readings  :yaml-type list)
-    (:keywords  :yaml-type list))
+  '((:link      :hidden t)
+    (:path      :hidden t)
+    (:caption   :hidden t)
+    (:citekey   :hidden t)
+    (:rubric    )
+    (:successor )
+    (:title     )
+    (:subtitle  )
+    (:author    )
+    (:created   :predicate ezeka--timep)
+    (:modified  :predicate ezeka--timep)
+    (:parent    )
+    (:firstborn )
+    (:oldnames  :predicate listp)
+    (:readings  :predicate listp)
+    (:keywords  :predicate listp))
   "An alist of valid metadata fields and their properties.
 The format of each item should be as follows:
-    (:FIELD :YAML-TYPE <type description> :HIDDEN <boolean>).
-The order of items will affect how the metadata is written into the
-file header.")
+    (:FIELD [:HIDDEN T] [:PREDICATE <type>]).
+
+If HIDDEN is T, the field is not added to the note header.
+YAML collections are returned as Emacs lists and strings
+that look like ISO 8601 or `org-mode' timestamps are
+converted to Emacs encoded time values. Everything else is
+assumed to be scalars, which result in Emacs strings. If
+given, PREDICATE is a function that must be satisfied by the
+de-YAMLified value.
+
+The order of items will affect how the metadata is written
+into the file header.")
 
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."
@@ -1180,15 +1190,13 @@ This is a copy of `timep' from `type-break'."
     (_
      (error "Not implemented for type %s" (type-of value)))))
 
-(defun ezeka--header-deyamlify-value (value &optional type)
-  "Return an elisp version of the given YAML-formatted VALUE.
-TYPE is a symbol representing the basic YAML type (as listed
-in `ezeka-metadata-fields')."
+(defun ezeka--header-deyamlify-value (value)
+  "Return an elisp version of the given YAML-formatted VALUE."
   (pcase value
-    ;; strip [[ ]] in wiki links
+    ;; strip [[ ]] around wiki links
     ((rx bol "[[" (let inside (1+ anychar)) "]]" eol)
      inside)
-    ;; convert timestamps to time values
+    ;; convert ISO 8601 and/or `org-mode' timestamps to time values
     ((rx bol
          (* "[")
          (let timestamp
@@ -1219,12 +1227,20 @@ signal an error when encountering malformed header lines."
              (when (> (length line) 0)
                (if (string-match ezeka-header-line-regexp line)
                    (let* ((key (intern (concat ":" (match-string 1 line))))
-                          (field-plist (alist-get key ezeka-metadata-fields))
-                          (val (match-string 2 line)))
-                     (cons key
-                           (ezeka--header-deyamlify-value
-                            val
-                            (plist-get :yaml-type field-plist))))
+                          (val (match-string 2 line))
+                          (pred (or
+                                 (plist-get (alist-get key ezeka-metadata-fields)
+                                            :predicate)
+                                 #'identity))
+                          (deval (ezeka--header-deyamlify-value val)))
+                     (while (not (funcall pred deval))
+                       (setq val
+                         (read-string
+                          (format "Expected `%s' to satisfy predicate `%s'. Fix it: "
+                                  val pred)))
+                       (setq deval
+                         (ezeka--header-deyamlify-value val)))
+                     (cons key deval))
                  (unless noerror
                    (error "Malformed header line: '%s'" line)))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
