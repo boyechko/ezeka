@@ -3138,17 +3138,14 @@ show genera verbosely or type custom category."
          filename
          (format "Change label from {%s} to {%s}." old-val label))))))
 
-;; TODO: Write similar setters for other fields?
-(defun ezeka--set-citekey (filename citekey)
-  "Set the FILENAME's citekey to CITEKEY.
+(defun ezeka--validate-citekey (citekey)
+  "Return validated version of the CITEKEY or NIL.
 If CITEKEY is a string that does not start with @ or &,
-prepend a @ to it before setting."
-  (ezeka--update-metadata-values
-      filename nil
-    :citekey (if (and (stringp citekey)
-                      (string-match-p "^[^@&]" citekey))
-                 (concat "@" citekey)
-               citekey)))
+prepend @ to it."
+  (save-match-data
+    (when (string-match "\\`\\(?1:[@&]\\)*\\(?2:[A-Za-z0-9-]+\\)\\'" citekey)
+      (concat (or (match-string 1 citekey) "@")
+              (match-string 2 citekey)))))
 
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
@@ -3170,7 +3167,8 @@ further than parent."
                              (ezeka-file-name-citekey (ezeka-link-file ancestor)))
                         ""))
            (citekey (ezeka--minibuffer-edit-string citekey nil "New citekey: ")))
-      (ezeka--set-citekey filename citekey)
+      (ezeka--update-metadata-values filename nil
+        :citekey (ezeka--validate-citekey citekey))
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
          filename
@@ -3359,16 +3357,10 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
 (defun ezeka--read-citekey (&optional prompt initial-input)
   "Read a citekey, returning either a string or nil.
 PROMPT and INITIAL-INPUT are passed to `read-string'."
-  (let ((citekey (read-string (or prompt "Citekey: ")
-                              initial-input
-                              'ezeka--read-citekey-history)))
-    (cond ((or (not citekey)
-               (string-empty-p citekey))
-           nil)
-          ((string-match-p "^[@&]" citekey)
-           citekey)
-          (t
-           (concat "@" citekey)))))
+  (ezeka--validate-citekey
+   (read-string (or prompt "Citekey: ")
+                initial-input
+                'ezeka--read-citekey-history)))
 
 (defun ezeka--read-kasten (&optional prompt)
   "Read a valid Kasten with `completing-read' and given PROMPT, if any."
