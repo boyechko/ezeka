@@ -4060,9 +4060,14 @@ If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
         (mdata (or metadata (ezeka-file-metadata source)))
         (target-link (ezeka-file-link target)))
-    (if (file-symlink-p target)
-        (delete-file target)
-      (error "`%s' is not a symlink!" (file-relative-name target ezeka-directory)))
+    (cond ((file-symlink-p target)
+           (delete-file target))
+          ((file-exists-p target)
+           (error "`%s' is not a symlink!"
+                  (file-relative-name target ezeka-directory)))
+          (t
+           ;; TARGET is new, proceed
+           ))
     (ezeka--add-to-move-log source-link
                             target-link
                             (alist-get :caption
