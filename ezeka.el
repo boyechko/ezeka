@@ -4111,9 +4111,11 @@ move."
                         (ezeka-link-file source)))
          (source-link (ezeka-file-link source-file))
          (mdata (ezeka-file-metadata source-file)))
-    (if (and (member "#moving" (alist-get :keywords mdata))
-             (or (not confirm)
-                 (y-or-n-p (format "Move %s to %s? " source-link target-link))))
+    (if (or (and (member :scriptum      ; HARDCODED HACK
+                   (mapcar #'ezeka-id-type (list source-link target-link))))
+            (and (member "#moving" (alist-get :keywords mdata))
+                 (or (not confirm)
+                     (y-or-n-p (format "Move %s to %s? " source-link target-link)))))
         (ezeka--rename-moving-note
          source-file
          (ezeka-link-path target-link mdata))
@@ -4137,7 +4139,8 @@ move."
         (unless (file-exists-p (file-name-directory target-file))
           (make-directory (file-name-directory target-file)))
         (make-symbolic-link source-file target-file)
-        (message "Note `%s' prepared for moving to `%s'; re-run `ezeka-move-to-another-kasten' after committing"
+        (message "Note `%s' prepared for moving to `%s'; \
+re-run `ezeka-move-to-another-kasten' after committing"
                  source-link target-link)))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
