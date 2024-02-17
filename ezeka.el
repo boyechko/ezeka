@@ -4054,7 +4054,7 @@ whether to visit; if NIL, do not visit."
           (t
            (message (mapconcat _pprint_record (nreverse trail) "\n"))))))
 
-(defun ezeka--rename-moving-note (source target &optional metadata)
+(defun ezeka--finish-moving-note (source target &optional metadata)
   "Finish moving SOURCE to TARGET (both file paths).
 If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
@@ -4102,10 +4102,12 @@ If METADATA is nil, read it from SOURCE."
                            source-link target-link))
          (message "Replacing links failed; try manually"))))))
 
-(defun ezeka--move-note (source target-link &optional confirm)
-  "Move Zettel note from SOURCE to TARGET-LINK.
-SOURCE can be a link or a file. With CONFIRM, confirm before
-move."
+(defun ezeka--begin-moving-note (source target-link &optional confirm)
+  "Begin moving Zettel note from SOURCE to TARGET-LINK.
+For moves involving scriptum, simply rename source to
+target. Otherwise, make a symbolic link from source to
+target first, and finish the actual move later. SOURCE can
+be a link or a file. With CONFIRM, confirm before move."
   (let* ((source-file (if (file-exists-p source)
                           source
                         (ezeka-link-file source)))
@@ -4116,7 +4118,7 @@ move."
             (and (member "#moving" (alist-get :keywords mdata))
                  (or (not confirm)
                      (y-or-n-p (format "Move %s to %s? " source-link target-link)))))
-        (ezeka--rename-moving-note
+        (ezeka--finish-moving-note
          source-file
          (ezeka-link-path target-link mdata))
       (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata)
@@ -4186,7 +4188,7 @@ Return the target link and open it (unless NOSELECT is non-nil)."
     (if (not target-link)
         (error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (ezeka--move-note source-file target-link)
+      (ezeka--begin-moving-note source-file target-link)
       (unless noselect
         (ezeka-find-link target-link t)))))
 
