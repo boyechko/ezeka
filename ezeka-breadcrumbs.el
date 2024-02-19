@@ -62,12 +62,23 @@ drop breadcrumbs).")
   "Call `ezeka-breadcrumbs-find-trail-function' on TARGET and SOURCE."
   (funcall ezeka-breadcrumbs-find-trail-function target source))
 
-(defun ezeka--goto-breadcrumbs-head ()
+(defun ezeka--goto-breadcrumbs-trailhead ()
   "Go to the head of the current breadcrumb trail.
 Return the position on success, otherwise NIL."
   (let ((pos (overlay-end ezeka--breadcrumbs-trail)))
     (when pos
       (goto-char pos))))
+
+(defun ezeka-breadcrumbs-visit-trailhead (&optional buffer-only)
+  "Visit the current breadcrumbs trailhead.
+If BUFFER-ONLY is non-nil, just `pop-to-buffer' without
+going to the exact location. Return the position on success,
+otherwise NIL."
+  (interactive "P")
+  (when ezeka--breadcrumbs-trail
+    (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
+    (unless buffer-only
+      (goto-char (overlay-end ezeka--breadcrumbs-trail)))))
 
 (defun ezeka--insert-heading-after-current (level)
   "Insert `org-mode' heading of LEVEL after the current one."
@@ -149,7 +160,7 @@ TARGET and SOURCE."
                       ((symbolp source) (symbol-name source))
                       (t source))))
     (save-restriction
-      (ezeka--goto-breadcrumbs-head)
+      (ezeka--goto-breadcrumbs-trailhead)
       (org-narrow-to-subtree)
       (let ((org-blank-before-new-entry '((heading . nil)))
             (head-level (org-current-level)))
@@ -332,13 +343,6 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
     (delete-overlay ezeka--breadcrumbs-trail))
   (setq ezeka--breadcrumbs-trail nil))
 
-(defun ezeka-breadcrumbs-goto-trail ()
-  "Switch to the buffer of the current breadcrumb trail."
-  (interactive)
-  (when ezeka--breadcrumbs-trail
-    (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
-    (ezeka--goto-breadcrumbs-head)))
-
 (defun ezeka-breadcrumbs-trail-dispatch (arg)
   "Start, switch to, or reset breadcrumb trail based on ARG."
   (interactive "p")
@@ -347,7 +351,7 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
                 (string= (nth 4 (org-heading-components))
                          ezeka-breadcrumbs-trail-headline))
            (call-interactively 'ezeka-breadcrumbs-start-trail)
-         (or (ezeka-breadcrumbs-goto-trail)
+         (or (ezeka-breadcrumbs-visit-trailhead)
              (call-interactively 'ezeka-breadcrumbs-start-trail))))
     (4 (ezeka-breadcrumbs-stop-trail))
     (_ (user-error "Not a valid option"))))
