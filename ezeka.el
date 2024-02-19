@@ -1011,14 +1011,14 @@ Return the result of the conversion."
     (:caption   :hidden t)
     (:citekey   :hidden t)
     (:rubric    )
-    (:successor )
+    (:successor :predicate ezeka-link-p)
     (:title     )
     (:subtitle  )
     (:author    )
     (:created   :predicate ezeka--timep)
     (:modified  :predicate ezeka--timep)
-    (:parent    )
-    (:firstborn )
+    (:parent    :predicate ezeka-link-p)
+    (:firstborn :predicate ezeka-link-p)
     (:oldnames  :predicate listp)
     (:readings  :predicate listp)
     (:keywords  :predicate listp))
@@ -3116,6 +3116,23 @@ exist in FILENAME."
                             "Subtitle: ")
                           (alist-get :subtitle mdata)))))
       (setf (alist-get :subtitle mdata) subtitle)
+      (ezeka--update-metadata-values filename mdata))))
+
+(defun ezeka-set-successor (filename successor)
+  "Add a SUCCESSOR header field in FILENAME."
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         (ezeka--note-in-other-window)))
+  (when (ezeka-file-p filename)
+    (let* ((mdata (ezeka-file-metadata filename))
+           (successor (or (ezeka-file-link successor)
+                          (ezeka--read-id
+                           (if (alist-get :successor mdata)
+                               (format "Change `%s' to what? "
+                                       (alist-get :successor mdata))
+                             "Successor: ")
+                           (alist-get :successor mdata)))))
+      (setf (alist-get :successor mdata) successor)
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-label (filename label &optional special)

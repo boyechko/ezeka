@@ -626,7 +626,7 @@ When set to 'archive the notes are renamed with modified
 (defun ezeka-octavo-delete-note (link-or-file &optional change-to method)
   "Delete the Zettel at LINK-OR-FILE, updating existing links.
 Links are replaced with CHANGE-TO. If CHANGE-TO is not
-given, suggest the note's parent, if set. METHOD overrides
+given, suggest the note's successor, if set. METHOD overrides
 `ezeka-octavo-delete-note-method'."
   (interactive
    (list (ezeka--grab-dwim-file-target)
@@ -644,18 +644,20 @@ given, suggest the note's parent, if set. METHOD overrides
                    link-or-file
                  (ezeka-file-link link-or-file)))
          (mdata (ezeka-file-metadata file))
-         (parent (alist-get :parent mdata))
+         (successor (or (alist-get :successor mdata)
+                        (alist-get :parent mdata)))
          (with-links (let ((octavo-directory ezeka-directory))
                        (octavo--grep-file-list
                         (format "(parent: %s|%s\\]\\])" link link))))
          (change-to
           (or change-to
-              (read-string (format "Replace %d link(s) to %s with what? "
-                                   (length with-links) link)
-                           (if (and parent
-                                    (file-exists-p (ezeka-link-file parent)))
-                               parent
-                             (concat "{{" link "}}"))))))
+              (and (not (zerop (length with-links)))
+                   (read-string (format "Replace %d link(s) to %s with what? "
+                                        (length with-links) link)
+                                (if (and successor
+                                         (file-exists-p (ezeka-link-file successor)))
+                                    successor
+                                  (concat "+" link "+")))))))
     (when with-links                    ; FIXME: Pass with-links!
       (ezeka-octavo-replace-links link change-to))
     (ezeka--add-to-move-log link
