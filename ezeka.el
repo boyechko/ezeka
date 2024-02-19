@@ -3135,6 +3135,23 @@ exist in FILENAME."
       (setf (alist-get :successor mdata) successor)
       (ezeka--update-metadata-values filename mdata))))
 
+(defun ezeka-set-parent (filename &optional new-parent)
+  "Set parent metadata of FILENAME to NEW-PARENT (a link).
+If called interactively, ask user to select the parent,
+offering to use the note in the other window (if
+available). If called with \\[universal-argument], clear the parent."
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         (unless current-prefix-arg
+           (ezeka--read-id "Parent ID: "
+                           nil
+                           (ezeka-file-link (ezeka-file-link owin-file))))))
+  (ezeka--update-metadata-values filename nil
+    :parent (if new-parent
+                (ezeka-file-link new-parent)
+              (message "Parent metadata cleared")
+              nil)))
+
 (defun ezeka-set-label (filename label &optional special)
   "Set LABEL (genus or category) in Zettel FILENAME.
 With non-nil SPECIAL (or \\[universal-argument]), either
