@@ -545,12 +545,13 @@ case-insensitive file systems."
                     (expand-file-name
                      newname
                      (file-name-directory filename)))))
-    (when (or (not (file-exists-p filename))
+    (when (or (not (file-exists-p filename)) ; filename not saved yet
               (progn
                 (rename-file filename tempname t)
                 (rename-file tempname newname t)
                 (file-exists-p newname)))
-      (set-visited-file-name newname t t))))
+      (set-visited-file-name newname t t)
+      newname)))
 
 ;; The following is adapted from
 ;; https://emacs.stackexchange.com/a/46059
