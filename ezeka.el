@@ -3283,32 +3283,6 @@ further than parent."
                (t
                 (format "Old citekey: %s, new citekey: %s" old-citekey citekey))))))))
 
-(defun ezeka-set-citekey (filename &optional citekey degree)
-  "Set CITEKEY in the Zettel note in FILENAME.
-If CITEKEY is not given, get it from the parent, letting the
-user edit beforehand. With DEGREE (or numerical prefix
-argument), trace genealogy farther than parent."
-  (interactive (list (buffer-file-name)
-                     nil
-                     (if (integerp current-prefix-arg)
-                         current-prefix-arg
-                       1)))
-  (unless (ezeka-file-p filename)
-    (user-error "Not a Zettel note"))
-  (let* ((ancestor (ezeka-trace-genealogy filename degree))
-         (initial
-          (or (alist-get :citekey
-                (ezeka-decode-rubric (file-name-base filename)))
-              (alist-get :citekey
-                (ezeka-decode-rubric
-                 (file-name-base (ezeka-link-file ancestor))))))
-         (citekey (or citekey (ezeka--read-citekey "New citekey: " initial))))
-    (ezeka--update-metadata-values filename nil
-      :citekey (if (and citekey
-                        (string-match-p "^[^@&]" citekey))
-                   (concat "@" citekey)
-                 citekey))))
-
 (defun ezeka-set-author (filename author)
   "Set the AUTHOR metadata in Zettel FILENAME."
   (interactive
