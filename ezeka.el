@@ -803,7 +803,16 @@ otherwise."
       (cl-case (length matches)
         (0 nil)
         (1 (car matches))
-        (t (error "Found multiple file matches: %s" matches))))))
+        (t (let ((coll (mapcar (lambda (m)
+                                 (cons (file-name-base m) m))
+                               matches)))
+             (cdr
+              (assoc-string
+               (completing-read
+                (format "Multiple matches found (this-command = %s)! Select one: "
+                        real-this-command)
+                coll)
+               coll))))))))
 
 (defun ezeka-link-path (link &optional metadata)
   "Return a full file path to the Zettel LINK.
