@@ -2882,6 +2882,7 @@ MODIFIED-ONLY is non-nil, show only modified buffers.
 PROMPT, if specified, replaces the default one."
   (let* ((files (nreverse (ezeka-visiting-files-list skip-current modified-only)))
          (table (ezeka-completion-table files))
+         (prompt (or prompt "Select Zettel buffer: "))
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?
          (vertico-sort-function nil))
@@ -3148,21 +3149,21 @@ exist in FILENAME."
                            caption)))))
       (when (and set-caption (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
-         filename
-         (cond ((string-match (regexp-quote caption) new-val)
-                (when-let ((addition (ezeka--demote-quotes
-                                      (string-trim (replace-match "" nil nil new-val)
-                                                   "[ ,]+"))))
-                  (format "Add \"%s\" to caption." addition)))
-               ((string-match (regexp-quote new-val) caption)
-                (when-let ((deletion (ezeka--demote-quotes
-                                      (string-trim (replace-match "" nil nil caption)
-                                                   "[ ,]+"))))
-                  (format "Remove \"%s\" from caption." deletion)))
-               (t
-                (format "Change caption from \"%s\" to \"%s.\""
-                        (ezeka--demote-quotes (alist-get :caption mdata))
-                        (ezeka--demote-quotes new-val))))))
+            filename
+          (cond ((string-match (regexp-quote caption) new-val)
+                 (when-let ((addition (ezeka--demote-quotes
+                                       (string-trim (replace-match "" nil nil new-val)
+                                                    "[ ,]+"))))
+                   (format "Add \"%s\" to caption." addition)))
+                ((string-match (regexp-quote new-val) caption)
+                 (when-let ((deletion (ezeka--demote-quotes
+                                       (string-trim (replace-match "" nil nil caption)
+                                                    "[ ,]+"))))
+                   (format "Remove \"%s\" from caption." deletion)))
+                (t
+                 (format "Change caption from \"%s\" to \"%s.\""
+                         (ezeka--demote-quotes (alist-get :caption mdata))
+                         (ezeka--demote-quotes new-val))))))
       (when set-title
         (setf (alist-get :title mdata) new-val))
       (when set-caption
@@ -3236,8 +3237,8 @@ show genera verbosely or type custom category."
         (cl-pushnew label ezeka-categories))
       (when (y-or-n-p "Add a change log entry? ")
         (ezeka-add-change-log-entry
-         filename
-         (format "Change label from {%s} to {%s}." old-val label))))))
+            filename
+          (format "Change label from {%s} to {%s}." old-val label))))))
 
 (defun ezeka--validate-citekey (citekey)
   "Return validated version of the CITEKEY or NIL.
@@ -3471,7 +3472,8 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
        (mapcar #'ezeka-kasten-name (ezeka-kaesten))
      (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))))
 
-(defun ezeka-insert-header-template (&optional link label title parent citekey metadata)
+(defun ezeka-insert-header-template
+    (&optional link label title parent citekey metadata)
   "Insert header template into the current buffer.
 If given, populate the header with the LINK, LABEL, TITLE, PARENT, and
 CITEKEY. Anything not specified is taken from METADATA, if available."
@@ -4194,6 +4196,10 @@ If METADATA is nil, read it from SOURCE."
       (message "Replacing links: %s with %s" source-link target-link)
       (condition-case nil
           (let ((replaced (ezeka-octavo-replace-links source-link target-link)))
+            (ezeka-add-change-log-entry
+                source
+              (format "Replace %d links in %d files."
+                      (or (car replaced) 0) (or (cdr replaced) 0)))
             (message "Moved %s to %s, replacing %d links in %d files"
                      source-link target-link
                      (or (car replaced) 0) (or (cdr replaced) 0)))
