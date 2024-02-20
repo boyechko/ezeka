@@ -1368,6 +1368,39 @@ This list is then passed to `ezeka--replace-in-string'.")
                  (char-to-string (or (funcall _decompose c) c)))
                s "")))
 
+;; Any way to make this more general without re-implementing half of BibTeX?
+(defun ezeka--citekey-from-note-title (title)
+  "Parse note's TITLE into a citekey suggestion or NIL."
+  (save-match-data
+    (let* ((given-name '(1+ (in "A-Z" "a-z" "." "-" " ")))
+           (family-name '(1+ (in "A-Za-z-")))
+           (title-delimiters '(in "/\"'_"))
+           (work-title `(seq ,title-delimiters
+                             (1+ anychar)
+                             ,title-delimiters))
+           (date '(>= 4 (in "0-9" "-" ",")))
+           ;; Common patterns
+           (first-edition
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                " "
+                                "(" (group-n 3 ,date) ")")
+                          'no-group))
+           (republished
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                "(" (group-n 3 ,date) ")")
+                          'no-group)))
+      (when (or (string-match first-edition title)
+                (string-match republished title))
+        (concat (match-string 1 title) (match-string 3 title))))))
+
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasteurize-file-name (title)
   "Return TITLE after making it safe to use as file caption.
@@ -2701,10 +2734,10 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                             (ezeka--possible-new-note-title))
          (when (equal current-prefix-arg '(16))
            (ezeka--read-id "ID for the child: "))))
-  (let* ((rubric-mdata (ezeka-decode-rubric (file-name-base buffer-file-name)))
-         (parent (alist-get :id rubric-mdata))
-         (citekey (ezeka--read-citekey "Citekey? "
-                                       (alist-get :citekey rubric-mdata)))
+  (let* ((parent (ezeka-file-name-id buffer-file-name))
+         (citekey (ezeka--read-citekey
+                   "Citekey? "
+                   (ezeka--citekey-from-note-title title)))
          (kasten (cond (id
                         (ezeka-link-kasten id))
                        ((equal arg '(4))
@@ -2727,11 +2760,14 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
               (child-path (ezeka-link-path child-link
                                            ;; HARDCODED
                                            (cons '(:label . "ψ") metadata)))
+              (link-to (ezeka--read-id "Symbolic link to: " nil parent 'required))
               (link-target (file-relative-name
                             (ezeka-link-file
                              (ezeka--read-id "Symbolic link to: " nil parent 'required))
                             (file-name-directory child-path))))
-        (make-symbolic-link link-target child-path)
+        (progn (ezeka--add-to-move-log
+                child-link link-to (alist-get :caption metadata) "Placeholder")
+               (make-symbolic-link link-target child-path))
       (ezeka-find-link child-link))))
 
 ;;;=============================================================================
