@@ -2202,9 +2202,14 @@ Zettel link."
   (interactive (list (ezeka--read-id "Link to find: ")
                      current-prefix-arg))
   (when (ezeka-link-p link)
-    (let ((existing-file (ezeka-link-file link)))
-      (cond (existing-file
-             (ezeka-find-file existing-file same-window))
+    (let ((file (ezeka-link-file link))
+          (buf (cl-find link (buffer-list)
+                        :key #'buffer-name
+                        :test #'string-match-p)))
+      (cond (file (ezeka-find-file file same-window))
+            (buf  (if same-window
+                      (pop-to-buffer-same-window buf)
+                    (pop-to-buffer buf)))
             ((ezeka-note-moved-p link nil 'ask))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
