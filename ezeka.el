@@ -3643,11 +3643,12 @@ ignore `ezeka-number-of-frames' and open the link in the same window."
     (message "Could not find any links at point")
     nil))
 
-(defun ezeka-open-link-at-mouse (ev)
-  "Open a Zettel link at mouse point (determined from EV)."
-  (interactive "e")
+(defun ezeka-open-link-at-mouse (ev &optional same-window)
+  "Open a Zettel link at mouse point (determined from EV).
+With non-nil SAME-WINDOW (or \\[universal-argument]), open in the same window."
+  (interactive "e\nP")
   (mouse-set-point ev)
-  (ezeka-open-link-at-point t))
+  (ezeka-open-link-at-point same-window))
 
 ;; Org links
 (eval-after-load "org"
@@ -4393,11 +4394,12 @@ END."
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-or-convert-timestamp) ; `org-table-eval-formula'
-            ("C-c /" . ezeka-set-author)                 ; `org-sparse-tree'
+            ("C-c /" . ezeka-set-author)                  ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([C-down-mouse-1] . ezeka-open-link-at-mouse)
+            ([mouse-1] . ezeka-open-link-at-mouse)
             ;;
             ;; Unsafe: reserved for major modes
             ;;
