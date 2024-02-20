@@ -2385,15 +2385,23 @@ note, return nil."
               (_ (ezeka-file-p file)))
     file))
 
-(defun ezeka-insert-link-to-other-window (&optional link-only)
+(defun ezeka-insert-link-to-other-window (&optional link-only rubric)
   "Insert the link to the Zettel note in the other window.
-With LINK-ONLY (or \\[universal-argument]), insert just the link, otherwise
-also include the title."
-  (interactive "P")
-  (if link-only
-      (ezeka--insert-link-with-spaces (ezeka--note-in-other-window))
-    (funcall-interactively #'ezeka-insert-link-with-metadata
-                           (ezeka--note-in-other-window))))
+By default, include the title. With LINK-ONLY (or
+\\[universal-argument]), insert just the link; with RUBRIC,
+(or \\[universal-argument] \\[universal-argument]) insert
+the rubric instead."
+  (interactive
+   (list (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
+  (let ((other-file (ezeka--note-in-other-window)))
+    (cond (link-only
+           (ezeka--insert-link-with-spaces other-file))
+          (rubric
+           (insert (file-name-base other-file)))
+          (t
+           (funcall-interactively #'ezeka-insert-link-with-metadata
+                                  other-file)))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
