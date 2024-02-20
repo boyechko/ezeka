@@ -3594,20 +3594,22 @@ With \\[universal-argument], use the current KASTEN without asking."
                  kasten
                  (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
                              (org-timestamp-has-time-p (alist-get :created mdata)))
-                        (org-timestamp-format (alist-get :created mdata) "%Y%m%dT%H%M"))
+                        (org-timestamp-format (alist-get :created mdata)
+                                              "%Y%m%dT%H%M"))
                        ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                        (concat (org-timestamp-format (alist-get :created mdata) "%Y%m%dT")
+                        (concat (org-timestamp-format (alist-get :created mdata)
+                                                      "%Y%m%dT")
                                 (format-time-string "%H%M")))
                        (t
-                        (ezeka--generate-id kasten))))
-                (alist-get :file mdata)
+                        (ezeka--generate-id kasten)))))
+          (setf (alist-get :file mdata)
                 (ezeka-link-path (alist-get :link mdata)))
           (if (file-exists-p (alist-get :file mdata))
               (user-error "Aborting, file already exists: %s" (alist-get :file mdata))
             (let ((entry-pt (point))
-                  (content (org-copy-subtree nil 'cut)))
-              ;; New file buffer
+                  (content (org-copy-subtree)))
               (with-current-buffer (get-buffer-create (alist-get :file mdata))
+                ;; New file buffer
                 (ezeka-insert-header-template
                  nil (ezeka--read-label kasten) nil nil nil mdata)
                 (insert "\n" org-subtree-clip)
@@ -3615,9 +3617,10 @@ With \\[universal-argument], use the current KASTEN without asking."
                 (basic-save-buffer)
                 (ezeka-add-change-log-entry (alist-get :file mdata)
                   (format "Extract from %s." (alist-get :parent mdata))))
-              ;; Back in original buffer
               (with-current-buffer (get-file-buffer (file-truename parent-file))
+                ;; Back in original buffer
                 (goto-char entry-pt)
+                (org-cut-subtree)
                 (insert (make-string head-level ?*)
                         " "
                         head-title
