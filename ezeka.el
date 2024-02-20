@@ -4138,6 +4138,9 @@ whether to visit; if NIL, do not visit."
   "Finish moving SOURCE to TARGET (both file paths).
 If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
+        (source-caption
+         (alist-get :caption
+           (ezeka-decode-rubric (file-name-base source))))
         (mdata (or metadata (ezeka-file-metadata source)))
         (target-link (ezeka-file-link target)))
     (cond ((file-symlink-p target)
@@ -4148,11 +4151,9 @@ If METADATA is nil, read it from SOURCE."
           (t
            ;; TARGET is new, proceed
            ))
-    (ezeka--add-to-move-log source-link
-                            target-link
-                            (alist-get :caption
-                              (ezeka-decode-rubric (file-name-base source)))
-                            "Move")
+    (ezeka--add-to-move-log source-link target-link source-rubric "Finish moving")
+    (ezeka-add-change-log-entry source
+      (format "Finish moving +%s+ to %s." source-link target-link))
     (unwind-protect
         (when-let ((_ (ezeka--rename-file source target))
                    (buf (or (get-file-buffer target)
@@ -4162,7 +4163,7 @@ If METADATA is nil, read it from SOURCE."
              target
              (ezeka--add-oldname mdata source-link))
             (ezeka-add-change-log-entry source
-              (format "Move +%s+ to %s." source-link target-link))
+              (format "Finish moving +%s+ to %s." source-link target-link))
             (setf (alist-get :keywords mdata)
                   (cl-remove "#moving"
                              (cl-remove "#rename"
@@ -4186,48 +4187,47 @@ If METADATA is nil, read it from SOURCE."
                            source-link target-link))
          (message "Replacing links failed; try manually"))))))
 
-(defun ezeka--begin-moving-note (source target-link &optional confirm)
+(defun ezeka--begin-moving-note (source target-link)
   "Begin moving Zettel note from SOURCE to TARGET-LINK.
-For moves involving scriptum, simply rename source to
-target. Otherwise, make a symbolic link from source to
-target first, and finish the actual move later. SOURCE can
-be a link or a file. With CONFIRM, confirm before move."
+To do that, make a symbolic link from source to target
+first, which `ezeka--finish-moving-note' will deal with
+afterwards. SOURCE can be a link or a file."
   (let* ((source-file (if (file-exists-p source)
                           source
                         (ezeka-link-file source)))
          (source-link (ezeka-file-link source-file))
-         (mdata (ezeka-file-metadata source-file)))
-    (if (or (and (member :scriptum      ; HARDCODED HACK
-                   (mapcar #'ezeka-id-type (list source-link target-link))))
-            (and (member "#moving" (alist-get :keywords mdata))
-                 (or (not confirm)
-                     (y-or-n-p (format "Move %s to %s? " source-link target-link)))))
-        (ezeka--finish-moving-note
-         source-file
-         (ezeka-link-path target-link mdata))
-      (ezeka--add-to-move-log source-link target-link (alist-get :caption mdata)
-                              "Creating symbolic link")
-      (setf (alist-get :id mdata)
-            (ezeka-link-id target-link)
-            (alist-get :label mdata)
-            (ezeka--read-label (alist-get :kasten mdata)
-                               nil
-                               nil
-                               (alist-get :label mdata)))
-      (cl-pushnew "#moving" (alist-get :keywords mdata))
-      (when (y-or-n-p "Modify caption and title? ")
-        (ezeka-set-title-or-caption source-file nil 'set-title 'set-caption mdata))
-      (setf (alist-get :citekey mdata)
-            (ezeka--read-citekey (format "Title: %s\nCitekey: "
-                                         (alist-get :title mdata))))
-      (ezeka--update-file-header source-file mdata 'force)
-      (let ((target-file (ezeka-link-path target-link mdata)))
-        (unless (file-exists-p (file-name-directory target-file))
-          (make-directory (file-name-directory target-file)))
-        (make-symbolic-link source-file target-file)
-        (message "Note `%s' prepared for moving to `%s'; \
-re-run `ezeka-move-to-another-kasten' after committing"
-                 source-link target-link)))))
+         (mdata (ezeka-file-metadata source-file))
+         (orig-caption (alist-get :caption mdata)))
+    (ezeka--add-to-move-log
+     source-link target-link orig-caption "Begin moving")
+    (setf (alist-get :id mdata)
+          (ezeka-link-id target-link)
+          (alist-get :label mdata)
+          (ezeka--read-label (alist-get :kasten mdata)
+                             nil
+                             nil
+                             (alist-get :label mdata))
+          (alist-get :title mdata)
+          (ezeka--read-title "Title: "
+                             (alist-get :title mdata))
+          (alist-get :caption mdata)
+          (ezeka--read-title "Caption: "
+                             (ezeka--pasteurize-file-name (alist-get :title mdata)))
+          (alist-get :citekey mdata)
+          (ezeka--read-citekey (format "Title: %s\nCitekey: "
+                                       (alist-get :title mdata))))
+    (cl-pushnew "#moving" (alist-get :keywords mdata))
+    (ezeka--update-file-header source-file mdata 'force)
+    (ezeka--add-to-system-log 'move-begin nil
+      :source `(:link ,source-link :caption ,orig-caption)
+      :target `(:link ,target-link :caption ,(alist-get :caption mdata)))
+    (let ((target-file (ezeka-link-path target-link mdata)))
+      (unless (file-exists-p (file-name-directory target-file))
+        (make-directory (file-name-directory target-file)))
+      (make-symbolic-link source-file target-file)
+      (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
+after committing"
+               source-link target-link))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
