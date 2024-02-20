@@ -1297,8 +1297,7 @@ They keys are converted to keywords."
                            (ezeka-file-kasten file)))
                (link   (or (ignore-errors (ezeka-file-link file))
                            (ignore-errors (ezeka-make-link kasten id))
-                           (file-name-base file))) ; HACK
-               ;; TODO: Remove after full transition from v0.1 to v0.2
+                           (ezeka--file-name-part file :id)))
                (title   (or (alist-get :title mdata)
                             (alist-get :caption mdata)
                             (alist-get :rubric mdata)))
@@ -1623,7 +1622,7 @@ header. If FORCE is non-nil, update the header even if the the file
 has not changed since last update."
   (interactive (list buffer-file-name nil current-prefix-arg))
   (let* ((fname (or filename buffer-file-name))
-         (mdata (or metadata (ezeka-file-metadata fname 'noerror)))
+         (mdata (or metadata (ezeka-file-metadata fname)))
          (force (or force current-prefix-arg))
          (prev (assoc-string fname ezeka--previously-updated))
          (old-point (point))
@@ -1704,7 +1703,7 @@ offer to set metadata or rename the file even if they are in agreement."
   (let* ((filename (or filename buffer-file-name))
          (file-base (file-name-base filename))
          (mdata (if (null metadata)
-                    (ezeka-file-metadata filename t)
+                    (ezeka-file-metadata filename)
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
@@ -3448,7 +3447,8 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
               (ezeka--read-citekey "Citekey? " .:citekey))
         (prog1 mdata
           (ezeka--set-new-child-metadata link mdata))))))
-  (let* ((mdata (ezeka-metadata link
+  (let* ((link (or link (alist-get :link metadata)))
+         (mdata (ezeka-metadata link
                   :link link
                   :id (or (alist-get :id metadata) (ezeka-link-id link))
                   :label (or label (alist-get :label metadata))
@@ -3477,7 +3477,7 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
 
 (defun ezeka--run-3f-hook ()
   "Run hooks in `ezeka-find-file-functions'."
-  (let* ((mdata (ezeka-file-metadata buffer-file-name 'noerror))
+  (let* ((mdata (ezeka-file-metadata buffer-file-name))
          (parent (alist-get :parent mdata)))
     (run-hook-with-args 'ezeka-find-file-functions
                         buffer-file-name
@@ -3550,20 +3550,20 @@ With \\[universal-argument], use the current KASTEN without asking."
                        (ezeka--minibuffer-edit-string
                         (match-string-no-properties 1 head-title)
                         nil
-                        "Title for new note: ")
-                       (alist-get :created)
+                        "Title for new note: "))
+                 (setf (alist-get :created mdata)
                        (save-match-data
                          (org-timestamp-from-string (match-string 2 head-title)))))
                 ((org-get-scheduled-time nil)
-                 (setf (alist-get :created)
+                 (setf (alist-get :created mdata)
                        (org-timestamp-from-time (org-get-scheduled-time nil) t)))
                 (t
                  (setf (alist-get :title mdata)
                        (ezeka--minibuffer-edit-string
                         (buffer-substring-no-properties (point-at-bol) (point-at-eol))
                         nil
-                        "Title for new note: ")
-                       (alist-get :created)
+                        "Title for new note: "))
+                 (setf (alist-get :created mdata)
                        (read-string "No timestamp found. Enter it here: "))))
           (setf (alist-get :link mdata)
                 (ezeka-make-link
