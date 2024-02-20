@@ -4239,7 +4239,7 @@ appropriate oldname."
                          (ignore-errors (ezeka-file-metadata source-file))))
               (cadaver (cl-find-if (lambda (link)
                                      (when (ezeka-link-p link)
-                                       (eq (ezeka-id-type link t) id-type)))
+                                       (eq (ezeka-id-type link) id-type)))
                                    (alist-get :oldnames mdata))))
     (unless (ezeka-link-file cadaver)
       cadaver)))
@@ -4263,16 +4263,26 @@ Return the target link and open it (unless NOSELECT is non-nil)."
            target)))
   (let* ((ezeka-header-update-modified 'never) ; HARDCODED
          (id-type (ezeka-kasten-id-type (ezeka-kasten kasten)))
+         (source-link (ezeka-file-link source-file))
+         (s-mdata (ezeka-file-metadata source-file))
          (target-link
           (or target-link
-              (ezeka--resurrectable-oldname source-file id-type)
+              (ezeka--resurrectable-oldname source-file id-type s-mdata)
               (if (eq id-type :tempus)  ; HARDCODED
                   (ezeka-tempus-currens-id-for source-file)
                 (ezeka--generate-id kasten)))))
     (if (not target-link)
         (user-error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (ezeka--begin-moving-note source-file target-link)
+      (if (or (and (member :scriptum    ; HARDCODED HACK
+                     (mapcar #'ezeka-id-type (list source-link target-link))))
+              (and (member "#moving" (alist-get :keywords s-mdata))
+                   (y-or-n-p (format "Finish moving %s to %s? "
+                                     source-link target-link))))
+          (ezeka--finish-moving-note
+           source-file
+           (ezeka-link-path target-link s-mdata))
+        (ezeka--begin-moving-note source-file target-link))
       (unless noselect
         (ezeka-find-link target-link t)))))
 
