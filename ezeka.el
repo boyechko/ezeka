@@ -427,10 +427,18 @@ asking until a valid ID is entered."
 ;;; General Functions
 ;;;=============================================================================
 
+(define-error 'ezeka-error
+  "Something went wrong: %s"
+  'error)
+
+(define-error 'ezeka-unknown-id-type-error
+  "Unknown type of ID: `%s'"
+  'ezeka-error)
+
 (defun in-ezeka-dir (&optional relative-path)
   "Return absolute path to RELATIVE-PATH in the Zettel directory."
   (unless ezeka-directory
-    (error "No `ezeka-directory' set"))
+    (signal 'ezeka-error "No `ezeka-directory' set"))
   (expand-file-name (or relative-path "") ezeka-directory))
 
 (defun ezeka--space-or-punct-p (character)
@@ -616,8 +624,8 @@ It is a Zettel if all of these conditions are met:
                          ((stringp file-or-buffer)
                           (expand-file-name file-or-buffer))
                          (strict
-                          (signal 'type-error
-                                  '("FILE-OR-BUFFER can only be file or buffer")))
+                          (signal 'wrong-type-argument
+                                  (list 'file-or-buffer-p file-or-buffer)))
                          (t nil))))
     (and (string-equal (file-name-extension file) ezeka-file-extension)
          (string-match (concat "^" (ezeka-file-name-regexp) "$")
@@ -748,7 +756,7 @@ explicitly given."
                   (cl-find (ezeka-id-type id)
                            (ezeka-kaesten)
                            :key #'ezeka-kasten-id-type)))))
-    (error "Invalid link %s" link)))
+    (signal 'wrong-type-argument (list 'ezeka-link-p link))))
 
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
@@ -760,12 +768,16 @@ explicitly given."
   (let ((e-k (pcase kasten
                ((pred stringp) (ezeka-kasten kasten))
                ((pred ezeka-kasten-p) kasten)
-               (_ (signal 'wrong-type-argument (cons 'ezeka-kasten-p kasten))))))
+               (_ (signal 'wrong-type-argument (list 'ezeka-kasten-p kasten))))))
     (cond ((not e-k)
-           (error "Unknown Kasten %s; register it with `ezeka-kasten-new' first" kasten))
+           (signal 'ezeka-error
+                   (list "Unknown Kasten `%s'; register with `ezeka-kasten-new' first"
+                         kasten)))
           ((not (eq (ezeka-kasten-id-type e-k) (ezeka-id-type id)))
-           (error "ID `%s' doesn't match the ID type for %s Kasten"
-                  id (ezeka-kasten-name e-k)))
+           (signal 'ezeka-error
+                   (list "ID `%s' doesn't match the ID type for `%s' Kasten"
+                         id
+                         (ezeka-kasten-name e-k))))
           (t
            id))))
 
@@ -775,7 +787,7 @@ explicitly given."
     (file-name-as-directory
      (file-name-concat (ezeka-kasten-directory eka)
                        (or (funcall (ezeka-kasten-subdir-func eka) id)
-                           (error "Cannot get subdirectory for %s" id))))))
+                           "")))))
 
 (defun ezeka--id-kaesten (id)
   "Return all kaesten for the ID's type."
@@ -830,10 +842,8 @@ based on LINK and METADATA (if present)."
                        ezeka-file-extension)
                       (ezeka-id-directory (ezeka-link-id link)))))
 
-(defun ezeka-id-type (id-or-file &optional noerror)
-  "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`.
-If NOERROR is non-nil, don't signal an error if ID doesn't match a
-known type, and just return the passed ID-OR-FILE."
+(defun ezeka-id-type (id-or-file)
+  "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`."
   (if-let* ((id (or (ezeka-file-name-id id-or-file)
                     (file-name-base id-or-file))) ; HACK
             (kasten (cl-find-if (lambda (k)
@@ -842,8 +852,7 @@ known type, and just return the passed ID-OR-FILE."
                                    id))
                                 (ezeka-kaesten))))
       (ezeka-kasten-id-type kasten)
-    (unless noerror
-      (error "ID does not match any Kasten's ID pattern"))))
+    (signal 'ezeka-unknown-id-type-error (cons id kasten))))
 
 (defun ezeka-file-content (file &optional header-only)
   "Return content of FILE, getting it first from opened buffer.
@@ -949,7 +958,7 @@ org-time-stamp. Return the result of the conversion."
             (thing-at-point-looking-at ezeka-iso8601-date-regexp))
         (setq beg (match-beginning 0)
               end (match-end 0))
-      (user-error "Can't figure out time string; maybe try selecting region?")))
+      (user-error "Can't figure out time string; try selecting region?")))
   (let* ((text (buffer-substring-no-properties beg end))
          timestamp)
     ;; if the region was surrounded by parentheses or brackets, remove those
@@ -991,7 +1000,8 @@ org-time-stamp. Return the result of the conversion."
                (insert timestamp)
                timestamp)))
           (t
-           (signal 'wrong-type-argument (list text))))))
+           (display-warning 'ezeka-dwim-with-this-timestring
+                            "`%s' doesn't look like a timestring" text)))))
 
 (defun ezeka-insert-or-convert-timestamp (&optional beg end)
   "Insert or convert timestamp at point or between BEG and END.
@@ -1127,7 +1137,7 @@ corresponding to metadata fields."
           (push (cons (car values) (cadr values)) mdata)
           (setq values (cddr values)))
         mdata)
-    (error "VALUES should be paired :key value pairs: %s" values)))
+    (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
 
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
@@ -1186,7 +1196,7 @@ This is a copy of `timep' from `type-break'."
                         ", ")
              " ]"))
     (_
-     (error "Not implemented for type %s" (type-of value)))))
+     (signal 'wrong-type-argument (list (type-of value) value)))))
 
 (defun ezeka--header-deyamlify-value (value)
   "Return an elisp version of the given YAML-formatted VALUE."
@@ -1238,22 +1248,20 @@ They keys are converted to keywords."
                        (setq deval
                          (ezeka--header-deyamlify-value val)))
                      (cons key deval))
-                 (error "Malformed header line: '%s'" line))))
+                 (signal 'ezeka-error (list "Malformed header line: '%s'" line)))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
          (decoded (ezeka-decode-rubric (alist-get :rubric metadata))))
     (append decoded metadata)))
 
 (defun ezeka--header-region (buffer)
   "Return a tuple of (START. END) for the header in Ezeka BUFFER."
-  (if (ezeka-file-p buffer)
-      (save-excursion
-        (with-current-buffer buffer
-          (goto-char (point-min))
-          (cons (point)
-                (if (re-search-forward ezeka-header-separator-regexp nil t)
-                    (match-end 0)
-                  (point-max)))))
-    (error "Not an Ezeka note")))
+  (save-excursion
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (cons (point)
+            (if (re-search-forward ezeka-header-separator-regexp nil t)
+                (match-end 0)
+              (point-max))))))
 
 (defun ezeka--make-header-read-only (buffer)
   "Make the header in the Zettel BUFFER read-only."
@@ -1302,8 +1310,7 @@ They keys are converted to keywords."
                    '(:id :type :kasten :link :title :caption)
                    `(,id ,type ,kasten ,link ,title ,caption))
           mdata)
-      (unless noerror
-        (error "Cannot retrieve %s's header" file)))))
+      (signal 'file-error file))))
 
 (defun ezeka-point-at-bob ()
   "Return point at the beginning of the body (BoB)."
@@ -1312,7 +1319,7 @@ They keys are converted to keywords."
       (goto-char (point-min))
       (if (re-search-forward ezeka-header-separator-regexp nil t)
           (1+ (match-end 0))
-        (error "Cannot find where the body begins")))))
+        (signal 'ezeka-error "Cannot find where the body begins")))))
 
 ;;;=============================================================================
 ;;; Metadata: Commands
@@ -1456,8 +1463,8 @@ With \\[universal-argument] ARG, show a list of options instead."
            (if-let ((result (member ezeka-header-update-modified
                                     '(#1=sameday never confirm #1#))))
                (cadr result)
-             (error "Invalid current `ezeka-header-update-modified': %s"
-                    ezeka-header-update-modified)))))
+             (user-error "Invalid current `ezeka-header-update-modified': %s"
+                         ezeka-header-update-modified)))))
     (setq ezeka-header-update-modified new-value)
     (unless arg
       (message "Set `ezeka-header-update-modified' to %s" new-value))))
@@ -1622,7 +1629,7 @@ has not changed since last update."
          (old-point (point))
          (inhibit-read-only t))
     (cond ((not mdata)
-           (error "Cannot update header: can't parse metadata"))
+           (signal 'ezeka-error '("Cannot update header: can't parse metadata")))
           ((and (not force)
                 (string= (buffer-hash) (cadr prev)))
            (message "The header is unchanged"))
@@ -1658,7 +1665,7 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
          (cond ((file-exists-p renamed)
                 (unless (y-or-n-p (format "File `%s' already exists. Skip? "
                                           caption))
-                  (error "File `%s' already exists" caption)))
+                  (signal 'ezeka-error (list "File `%s' already exists" caption))))
                ((and (file-exists-p filename)
                      (or (not confirm)
                          (y-or-n-p
@@ -1779,7 +1786,7 @@ Both LETTER and NUMBERS are strings."
   (let ((result (concat letter "-" numbers)))
     (if (string-match-p (ezeka--id-regexp :numerus) result)
         result
-      (error "Resulting numerus currens doesn't match ID regexp: %s" result))))
+      (signal 'ezeka-error (list "Invalid numerus: %s" result)))))
 
 (defun ezeka-numerus-letter (id)
   "Return the letter part of the ID as a string."
@@ -1802,13 +1809,13 @@ Return NIL if the ID is not a numerus currens ID."
 Case-insensitive."
   (if (string-match "[a-zA-Z]" letter)
       (- (string-to-char (downcase letter)) ?a)
-    (error "LETTER must be a string of one letter")))
+    (signal 'wrong-type-argument (list 'stringp letter))))
 
 (defun abase26-decimal-to-letter (n)
   "Return a string of number in abase26 corresponding decimal N."
   (if (< -1 n 26)
       (char-to-string (+ n ?a))
-    (error "N must be an integer between 0 and 25")))
+    (signal 'wrong-type-argument (list '0-to-25-p n))))
 
 (defun abase26-encode (n &optional width)
   "Return string representating integer N in 'alphabetic' base 26.
@@ -1983,7 +1990,8 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
                     (funcall _random-numerus
                              (seq-random-elt (number-sequence ?a ?z))))
                    (_
-                    (error "Don't know how to handle METHOD: %s" method))))
+                    (signal 'ezeka-error
+                            (list "Don't know how to handle METHOD: %s" method)))))
         (cond ((not (ezeka-id-valid-p id :numerus))
                (setq error-msg
                  (format "`%s' is not a valid numerus currens ID." id)))
@@ -1998,15 +2006,16 @@ METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
   "Return the next unused ID for the given KASTEN.
 If BATCH is non-nil, assume that the user cannot respond to
 interactive prompts."
-  (cl-case (ezeka-kasten-id-type (ezeka-kasten kasten))
-    (:tempus  (ezeka-tempus-currens))
-    (:numerus (ezeka-new-numerus-currens
-               (when (and batch
-                          (member ezeka-new-numerus-currens-method
-                                  '(ask selective)))
-                 'auto)))
-    (:scriptum (ezeka-scriptum-id))
-    (t        (error "No such ID type %s in `ezeka-kaesten'" type))))
+  (let ((type (ezeka-kasten-id-type (ezeka-kasten kasten))))
+    (pcase type
+      (':tempus (ezeka-tempus-currens))
+      (':numerus (ezeka-new-numerus-currens
+                  (when (and batch
+                             (member ezeka-new-numerus-currens-method
+                                     '(ask selective)))
+                    'auto)))
+      (':scriptum (ezeka-scriptum-id))
+      (_ (signal 'ezeka-error (list "Not implemented for ID type `%s'" type))))))
 
 ;;;=============================================================================
 ;;; Tempus Currens
@@ -2104,7 +2113,7 @@ a list of keyword and value properties."
              (push (cons (car values) (cadr values)) mdata)
              (setq values (cddr values))))
           (t
-           (error "VALUES should be paired :key value pairs: %s" values)))
+           (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
     (setf (alist-get link ezeka--new-child-metadata nil nil #'string=)
           mdata)))
 
@@ -2328,8 +2337,8 @@ note, return nil."
                                ((and (> (count-windows nil 'visible) 2)
                                      (featurep 'ace-window))
                                 (aw-select " Ace - Window"))
-                               ((> (count-windows nil 'all-frames) 2)
-                                (error "There are more than one `other-window's"))
+                               ((> (count-windows nil 'visible) 2)
+                                (user-error "There are more than one `other-window's"))
                                (t
                                 (other-window-for-scrolling))))
               (other-buf (window-buffer other-win))
@@ -2863,8 +2872,8 @@ to buffers visiting files."
              ((window-minibuffer-p) nil)
              ((not (eq (window-dedicated-p) t)) 'force-same-window)
              ((pcase switch-to-buffer-in-dedicated-window
-                ('nil (user-error
-                       "Cannot switch buffers in a dedicated window"))
+                ('nil
+                 (user-error "Cannot switch buffers in a dedicated window"))
                 ('prompt
                  (if (y-or-n-p
                       (format "Window is dedicated to %s; undedicate it?"
@@ -2938,7 +2947,8 @@ the full CHOICES element. Return one of the characters."
                            ((pred stringp) (car x))
                            ((pred characterp) (string (car x)))
                            (_
-                            (error "Wrong choice: %s" x)))))
+                            (signal 'wrong-type-argument
+                                    (list 'string-or-character-p x))))))
                  choices)))
     (elt (cdr
           (assoc-string (completing-read prompt table nil t)
@@ -3172,7 +3182,7 @@ show genera verbosely or type custom category."
            (ezeka--read-label (ezeka-file-kasten target) current-prefix-arg)
            current-prefix-arg)))
   (if (not (ezeka-file-p filename))
-      (error "Not a Zettel note")
+      (user-error "Not a Zettel note")
     (let ((old-val (ezeka-file-name-label filename)))
       (ezeka--update-metadata-values filename nil :label label)
       (when (eq :tempus (ezeka-id-type filename))
@@ -3259,7 +3269,7 @@ argument), trace genealogy farther than parent."
            (read-string "Set author (family, given) to: "
                         (ezeka-file-name-citekey target)))))
   (if (not (ezeka-file-p filename))
-      (error "Not a Zettel note")
+      (user-error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil :author author)))
 
 (defvar ezeka--dynamic-keywords-cache nil
@@ -3326,7 +3336,7 @@ KEYWORD. Use METADATA if supplied."
                        (t
                         (user-error "Keywords must consist of \\w characters")))))
     (if (not (ezeka-file-p filename))
-        (user-error "This command can only be used on Zettel notes")
+        (user-error "Not a Zettel note")
       (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
           :keywords (cond (replace
@@ -3349,7 +3359,7 @@ clear the keywords without attempting to edit them."
                      nil
                      current-prefix-arg))
   (if (not (ezeka-file-p filename))
-      (user-error "This command can only be used on Zettel notes")
+      (user-error "Not a Zettel note")
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
            (keystring (string-join (alist-get :keywords mdata) " "))
            (new-keys (unless clear
@@ -3412,7 +3422,7 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
    (or prompt "Kasten: ")
    (if (listp (ezeka-kaesten))
        (mapcar #'ezeka-kasten-name (ezeka-kaesten))
-     (error "No `ezeka-kaesten' defined"))))
+     (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))))
 
 (defun ezeka-insert-header-template (&optional link label title parent citekey metadata)
   "Insert header template into the current buffer.
@@ -3696,13 +3706,10 @@ Return the new position; otherwise, nil."
   "Add :MODIFIED: property to the current heading.
 If given, set it to TIME, otherwise the latest recorded
 modification date."
-  (cond ((not ezeka-mode)
-         (user-error "This only works in Ezeka Mode"))
-        ((and (not (org-at-heading-p))
-              (not (ezeka--find-snippet-heading)))
-         (user-error "Can't find the right heading"))
+  (cond ((not (org-at-heading-p))
+         (user-error "Move to the org heading first"))
         (t
-         (if-let ((mdata (ezeka-file-metadata buffer-file-name 'noerror)))
+         (if-let ((mdata (ezeka-file-metadata buffer-file-name)))
              (org-set-property ezeka-snippet-modified-property
                                (alist-get :created mdata))))))
 
@@ -3742,7 +3749,7 @@ insert the summary before the content."
              (org-id (org-id-get-create)))
         (org-narrow-to-subtree)
         (when local?
-          (error "There are local changes (or at least :local: tag)"))
+          (user-error "There are local changes (or at least :local: tag)"))
         (when (looking-at org-outline-regexp)
           (replace-regexp (regexp-quote (elt (org-heading-components) 4))
                           (ezeka-format-metadata "%t [[%i]]" snip-mdata)))
@@ -3780,7 +3787,7 @@ insert the summary before the content."
                           content)
                     (push "\n#+end_comment\n\n" content)))
                 (or (ezeka--find-snippet-heading)
-                    (error "Can't find the Snippet or Content section"))
+                    (signal 'ezeka-error (list "Can't find the Snippet or Content section")))
                 (if (not org-id)
                     (warn "No org-id added to file %s" snip-file)
                   (org-entry-add-to-multivalued-property (point)
@@ -4018,8 +4025,9 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
   "Parse a move long line in LINE, returning an alist."
   (let ((result (read-from-string line)))
     (if (< (cdr result) (length line))
-        (error "Garbage at the end of move log line: %s"
-               (substring line (cdr result)))
+        (signal 'ezeka-error
+                (list "Garbage at the end of move log line: %s"
+                      (substring line (cdr result))))
       `((source . ,(nth 0 (car result)))
         (target . ,(nth 1 (car result)))
         (time   . ,(nth 2 (car result)))
@@ -4107,8 +4115,8 @@ If METADATA is nil, read it from SOURCE."
     (cond ((file-symlink-p target)
            (delete-file target))
           ((file-exists-p target)
-           (error "`%s' is not a symlink!"
-                  (file-relative-name target ezeka-directory)))
+           (user-error "`%s' is not a symlink, aborting!"
+                       (file-relative-name target ezeka-directory)))
           (t
            ;; TARGET is new, proceed
            ))
@@ -4230,7 +4238,7 @@ Return the target link and open it (unless NOSELECT is non-nil)."
                   (ezeka-tempus-currens-id-for source-file)
                 (ezeka--generate-id kasten)))))
     (if (not target-link)
-        (error "No target link specified")
+        (user-error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
       (ezeka--begin-moving-note source-file target-link)
       (unless noselect

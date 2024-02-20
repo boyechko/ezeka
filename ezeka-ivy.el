@@ -78,7 +78,7 @@ REQUIRE-MATCH is non-nil, do not allow entering link manually."
           ((ezeka-link-p (car choice)) ; valid link typed in
            (car choice))
           (t
-           (signal 'wrong-type-argument '("That is not a valid link"))))))
+           (signal 'wrong-type-argument (list 'ezeka-link-p choice))))))
 
 ;; TODO: Rewrite without ivy
 (defun ezeka-select-and-find-link (arg)
