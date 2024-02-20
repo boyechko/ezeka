@@ -876,7 +876,7 @@ If HEADER-ONLY is non-nil, only get the header."
               (funcall _retrieve-content))))
       (with-temp-buffer
         (insert-file-contents file)
-        (funcall _retrieve-content (current-buffer))))))
+        (funcall _retrieve-content)))))
 
 ;;;=============================================================================
 ;;; Parsing and Manipulating Time
