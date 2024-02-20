@@ -2566,8 +2566,7 @@ delete the text instead."
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
                   (text (if use-rubric
-                            (cadr (split-string (file-name-base file)
-                                                ezeka-file-name-separator 'omit-nulls))
+                            (file-name-base file)
                           (alist-get :title (ezeka-file-metadata file)))))
         (delete-region start (point))
         (unless delete
