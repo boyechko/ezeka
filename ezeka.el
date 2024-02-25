@@ -815,16 +815,22 @@ otherwise."
       (cl-case (length matches)
         (0 nil)
         (1 (car matches))
-        (t (let ((coll (mapcar (lambda (m)
-                                 (cons (file-name-base m) m))
-                               matches)))
-             (cdr
-              (assoc-string
-               (completing-read
-                (format "Multiple matches found (this-command = %s)! Select one: "
-                        real-this-command)
-                coll)
-               coll))))))))
+        (t
+         (warn "Found multiple matches for link `%s': %s"
+               link
+               (mapcar #'file-name-base matches))
+         (let* ((chosen (ezeka--select-file matches
+                                            "Multiple matches found. Select one: "
+                                            'require-match))
+                (others (cl-remove chosen matches :test #'string=))
+                (other (unless (cdr others) (car others)))
+                (attrs (when other (file-attributes other))))
+           (when (and other
+                      (y-or-n-p (format "Delete the other file `%s' (type: %s)? "
+                                        (file-name-base other)
+                                        (file-attribute-type attrs))))
+             (delete-file other 'trash))
+           chosen))))))
 
 (defun ezeka-link-path (link &optional metadata)
   "Return a full file path to the Zettel LINK.
