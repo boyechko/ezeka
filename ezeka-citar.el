@@ -39,7 +39,7 @@ citekey. With prefix argument, replace the existing link."
   (interactive
    (list current-prefix-arg
          buffer-file-name
-         (let ((citekey (alist-get :citekey
+         (let ((citekey (alist-get 'citekey
                           (ezeka-file-metadata buffer-file-name))))
            (if (string-match "^@*\\([[:alnum:]-]+\\)" citekey)
                (match-string 1 citekey)

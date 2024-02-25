@@ -14,13 +14,13 @@
            (metadata
             (ezeka-file-metadata
              (cond ((ezeka-link-at-point-p)
-                    (setq fmt-data '("%s: %s" :id :title))
+                    (setq fmt-data '("%s: %s" id title))
                     (ezeka-link-file (ezeka-link-at-point)))
                    ((ezeka-file-p buffer-file-name t)
-                    (setq fmt-data '("%s: %s" :id :title))
+                    (setq fmt-data '("%s: %s" id title))
                     buffer-file-name)
                    ((eq major-mode 'magit-status-mode)
-                    (setq fmt-data '("%s" :title))
+                    (setq fmt-data '("%s" title))
                     (magit-file-at-point))))))
       (when fmt-data
         (modify-frame-parameters
@@ -39,7 +39,7 @@ END. If BEG and END are not given, do so through the entire buffer."
   (interactive "r")
   (cl-flet ((_link-title (link)
               "Try to retrieve the title of the given LINK."
-              (alist-get :title
+              (alist-get 'title
                 (ezeka-file-metadata (ezeka-link-file link)))))
     (save-excursion
       (goto-char beg)
@@ -58,7 +58,7 @@ END. If BEG and END are not given, do so through the entire buffer."
         (let ((metadata (ezeka-decode-combined-title
                          (car (split-string line "title: " t)))))
           (message "%s | %s"
-                   (alist-get :id metadata) (alist-get :title metadata)))))))
+                   (alist-get 'id metadata) (alist-get 'title metadata)))))))
 
 ;;;=============================================================================
 ;;; Zmoving notes
@@ -138,7 +138,7 @@ encloses the last N words."
 
 (ert-deftest tests/ezeka- ()
   (let ((mdata (ezeka-link-file )))
-    (ezeka--link-with-metadata "a-1234" '(:author :title) :before )))
+    (ezeka--link-with-metadata "a-1234" '(author title) :before )))
 
 ;;;=============================================================================
 ;;; Something to do with Scriptum
@@ -161,7 +161,7 @@ usable in the other window, in which case set that as the new parent."
              (ezeka-file-link
               (ezeka-octavo-with-kasten "numerus" ; FIXME: Hardcoded
                 (octavo--select-file "Scriptum file's project: "))))))
-    (ezeka--update-metadata-values filename nil :parent new-parent)))
+    (ezeka--update-metadata-values filename nil 'parent new-parent)))
 
 ;;;=============================================================================
 ;;; Experiment with consult-grep instead of rgrep
@@ -191,15 +191,15 @@ usable in the other window, in which case set that as the new parent."
     (append (mapcar (lambda (file)
                       (when (ezeka-file-p file)
                         (let* ((metadata (ezeka-file-metadata file t))
-                               (title (alist-get :title metadata))
-                               (citekey (alist-get :citekey metadata))
+                               (title (alist-get 'title metadata))
+                               (citekey (alist-get 'citekey metadata))
                                (buf (get-file-buffer file))
                                (line (format
                                       fmt
                                       (if (and buf (buffer-modified-p buf)) "*" " ")
-                                      (or (alist-get :id metadata)
+                                      (or (alist-get 'id metadata)
                                           (file-name-base file))
-                                      (alist-get :label metadata)
+                                      (alist-get 'label metadata)
                                       (when title
                                         (cl-subseq title
                                                    0 (min (length title) tw)))

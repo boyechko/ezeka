@@ -76,6 +76,12 @@ therefore, to split the operations into two commits."
   :type 'string
   :group 'ezeka)
 
+(defcustom ezeka-note-moving-keyword "#moving"
+  "Keyword signifying that the note is being moved.
+See `ezeka-move-to-another-kasten' for details."
+  :type 'string
+  :group 'ezeka)
+
 (defcustom ezeka-dynamic-keywords t
   "If non-nil, generate a dynamic list of keywords.
 The list is then merged with `ezeka-keywords'."
@@ -659,31 +665,31 @@ It is a Zettel if all of these conditions are met:
                   (citekey . ,(match-string 5 base))))))))
 
 (defun ezeka--file-name-part (filename part)
-  "Return given PART (:id, :label, :caption, or :citekey) of FILENAME."
+  "Return given PART (id, label, caption, or citekey) of FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
       (when (string-match (ezeka-file-name-regexp) base)
-        (let ((match (match-string (cl-case part
-                                     (:id      1)
-                                     (:label   3)
-                                     (:caption 4)
-                                     (:citekey 5))
+        (let ((match (match-string (pcase part
+                                     ('id      1)
+                                     ('label   3)
+                                     ('caption 4)
+                                     ('citekey 5))
                                    base)))
           (when match
             (string-trim match)))))))
 
 (defmacro ezeka-file-name-id (filename)
   "Return the ID part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename :id))
+  `(ezeka--file-name-part ,filename 'id))
 (defmacro ezeka-file-name-label (filename)
   "Return the label part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename :label))
+  `(ezeka--file-name-part ,filename 'label))
 (defmacro ezeka-file-name-caption (filename)
   "Return the caption part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename :caption))
+  `(ezeka--file-name-part ,filename 'caption))
 (defmacro ezeka-file-name-citekey (filename)
   "Return the citekey part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename :citekey))
+  `(ezeka--file-name-part ,filename 'citekey))
 
 ;; TODO Rewrite using rubric
 (defun ezeka-format-file-name (format-string filename)
@@ -839,8 +845,8 @@ the file actually exists; its file path is simply computed
 based on LINK and METADATA (if present)."
   (let ((mdata (append metadata
                        (ezeka-metadata link
-                         :label "nil"
-                         :caption "nil"))))
+                         'label "nil"
+                         'caption "nil"))))
     (expand-file-name (file-name-with-extension
                        (if mdata
                            (ezeka-format-metadata ezeka-file-name-format mdata)
@@ -1032,25 +1038,28 @@ Return the result of the conversion."
 ;;;=============================================================================
 
 (defconst ezeka-metadata-fields
-  '((:link      :hidden t)
-    (:path      :hidden t)
-    (:caption   :hidden t)
-    (:citekey   :hidden t)
-    (:rubric    )
-    (:successor :predicate ezeka-link-p)
-    (:title     )
-    (:subtitle  )
-    (:author    )
-    (:created   :predicate ezeka--timep)
-    (:modified  :predicate ezeka--timep)
-    (:parent    :predicate ezeka-link-p)
-    (:firstborn :predicate ezeka-link-p)
-    (:oldnames  :predicate listp)
-    (:readings  :predicate listp)
-    (:keywords  :predicate listp))
+  '((id        :hidden t :predicate ezeka-link-p)
+    (link      :hidden t :predicate ezeka-link-p)
+    (path      :hidden t)
+    (category  :hidden t)
+    (label     :hidden t)
+    (caption   :hidden t)
+    (citekey   :hidden t)
+    (rubric)
+    (successor :predicate ezeka-link-p)
+    (title)
+    (subtitle)
+    (author)
+    (created   :predicate ezeka--timep)
+    (modified  :predicate ezeka--timep)
+    (parent    :predicate ezeka-link-p)
+    (firstborn :predicate ezeka-link-p)
+    (oldnames  :predicate listp)
+    (readings  :predicate listp)
+    (keywords  :predicate listp))
   "An alist of valid metadata fields and their properties.
 The format of each item should be as follows:
-    (:FIELD [:HIDDEN T] [:PREDICATE <type>]).
+    (FIELD [:HIDDEN T] [:PREDICATE <type>]).
 
 If HIDDEN is T, the field is not added to the note header.
 YAML collections are returned as Emacs lists and strings
@@ -1104,26 +1113,26 @@ The format control string may contain the following %-sequences:
       (let-alist metadata
         (string-trim
          (format-spec format-string
-                      `((?a . ,(if-let ((ck .:citekey))
+                      `((?a . ,(if-let ((ck .citekey))
                                    (format "%s's " (ezeka--citaton-key-authors ck))
                                  ""))
-                        (?c . ,(or .:caption (ezeka--pasteurize-file-name .:title)))
-                        (?C . ,(funcall _format-time .:created))
-                        (?i . ,.:id)
-                        (?k . ,(cond ((or (not .:citekey)
-                                          (string-empty-p .:citekey))
+                        (?c . ,(or .caption (ezeka--pasteurize-file-name .title)))
+                        (?C . ,(funcall _format-time .created))
+                        (?i . ,.id)
+                        (?k . ,(cond ((or (not .citekey)
+                                          (string-empty-p .citekey))
                                       "")
-                                     ((string-match-p "^[@&]" .:citekey)
-                                      .:citekey)
+                                     ((string-match-p "^[@&]" .citekey)
+                                      .citekey)
                                      (t
-                                      (concat "@" .:citekey))))
-                        (?K . ,.:kasten)
-                        (?l . ,.:label)
-                        (?M . ,(funcall _format-time .:modified))
-                        (?s . ,(if .:caption-stable
+                                      (concat "@" .citekey))))
+                        (?K . ,.kasten)
+                        (?l . ,.label)
+                        (?M . ,(funcall _format-time .modified))
+                        (?s . ,(if .caption-stable
                                    ezeka-header-stable-caption-mark
                                  ""))
-                        (?t . ,.:title))))))))
+                        (?t . ,.title))))))))
 
 (defun ezeka-metadata (file-or-link &rest values)
   "Create a metadata object from pairs of VALUES.
@@ -1135,10 +1144,10 @@ corresponding to metadata fields."
       (let* ((link (if (ezeka-link-p file-or-link)
                        file-or-link
                      (ezeka-file-link file-or-link)))
-             (mdata `((:link . ,link)
-                      (:id   . ,(ezeka-link-id link))
-                      (:file . ,(unless (ezeka-link-p file-or-link)
-                                  file-or-link)))))
+             (mdata `((link . ,link)
+                      (id . ,(ezeka-link-id link))
+                      (file . ,(unless (ezeka-link-p file-or-link)
+                                 file-or-link)))))
         (while values
           (push (cons (car values) (cadr values)) mdata)
           (setq values (cddr values)))
@@ -1155,23 +1164,23 @@ If cannot decode, return NIL."
           (caption      (match-string 4 rubric))
           (stable       (when (match-string 6 rubric) t))
           (citekey      (match-string 5 rubric)))
-      (list (cons :id id)
-            (when kasten (cons :kasten (string-trim kasten)))
-            (cons :type (ezeka-id-type id))
-            (cons :label (unless (string= "nil" label) ; HACK for new notes
+      (list (cons 'id id)
+            (when kasten (cons 'kasten (string-trim kasten)))
+            (cons 'type (ezeka-id-type id))
+            (cons 'label (unless (string= "nil" label) ; HACK for new notes
                            (ezeka--validate-label label)))
-            (when caption (cons :caption (string-trim caption)))
-            (cons :caption-stable stable)
-            (when citekey (cons :citekey (string-trim citekey)))))))
+            (when caption (cons 'caption (string-trim caption)))
+            (cons 'caption-stable stable)
+            (when citekey (cons 'citekey (string-trim citekey)))))))
 
 (defmacro ezeka-encode-rubric (metadata)
   "Return a string that encodes the given METADATA into the rubric.
 The produced string is based on `ezeka-header-rubric-format'."
   `(ezeka-format-metadata ezeka-header-rubric-format ,metadata))
 
-(defun ezeka--header-yamlify-key (keyword)
-  "Return a YAML-formatted string name of the KEYWORD symbol."
-  (cl-subseq (symbol-name keyword) 1))
+(defun ezeka--header-yamlify-key (key)
+  "Return a YAML-formatted string name of the KEY symbol."
+  (symbol-name key))
 
 (defun ezeka--timep (time)
   "If TIME is a Lisp time value then return TIME, else return nil.
@@ -1239,7 +1248,7 @@ They keys are converted to keywords."
            (lambda (line)
              (when (> (length line) 0)
                (if (string-match ezeka-header-line-regexp line)
-                   (let* ((key (intern (concat ":" (match-string 1 line))))
+                   (let* ((key (intern (match-string 1 line)))
                           (val (match-string 2 line))
                           (pred (or
                                  (plist-get (alist-get key ezeka-metadata-fields)
@@ -1256,7 +1265,7 @@ They keys are converted to keywords."
                      (cons key deval))
                  (signal 'ezeka-error (list "Malformed header line: '%s'" line)))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
-         (decoded (ezeka-decode-rubric (alist-get :rubric metadata))))
+         (decoded (ezeka-decode-rubric (alist-get 'rubric metadata))))
     (append decoded metadata)))
 
 (defun ezeka--header-region (buffer)
@@ -1294,25 +1303,26 @@ They keys are converted to keywords."
               (header (ezeka-file-content file 'just-header)))
         (let* ((mdata (ezeka--decode-header header file))
                ;; Fill in any missing values
-               (id     (or (alist-get :id mdata)
+               (id     (or (alist-get 'id mdata)
                            (ezeka-file-name-id file)
                            (file-name-base file))) ; HACK
-               (type   (or (alist-get :type mdata)
+               (type   (or (alist-get 'type mdata)
                            (ezeka-id-type file)))
-               (kasten (or (alist-get :kasten mdata)
+               (kasten (or (alist-get 'kasten mdata)
                            (ezeka-file-kasten file)))
+               (path   (file-relative-name file ezeka-directory))
                (link   (or (ignore-errors (ezeka-file-link file))
                            (ignore-errors (ezeka-make-link kasten id))
-                           (ezeka--file-name-part file :id)))
-               (title   (or (alist-get :title mdata)
-                            (alist-get :caption mdata)
-                            (alist-get :rubric mdata)))
-               (caption (or (alist-get :caption mdata)
+                           (ezeka--file-name-part file 'id)))
+               (title   (or (alist-get 'title mdata)
+                            (alist-get 'caption mdata)
+                            (alist-get 'rubric mdata)))
+               (caption (or (alist-get 'caption mdata)
                             (ezeka-file-name-caption file)
                             title)))
           (cl-mapc (lambda (key val)
                      (setf (alist-get key mdata) val))
-                   '(:id :type :kasten :link :title :caption)
+                   '(id type kasten link title caption)
                    `(,id ,type ,kasten ,link ,title ,caption))
           mdata)
       (signal 'file-error file))))
@@ -1338,10 +1348,10 @@ Return the original METADATA with the field changed."
 
 (defun ezeka--add-oldname (metadata oldname)
   "Add OLDNAME to METADATA, returning the modified one."
-  (setf (alist-get :oldnames metadata)
+  (setf (alist-get 'oldnames metadata)
         (cl-union (list oldname)
-                  (remove (alist-get :id metadata)
-                          (alist-get :oldnames metadata))))
+                  (remove (alist-get 'id metadata)
+                          (alist-get 'oldnames metadata))))
   metadata)
 
 ;; See [[https://help.dropbox.com/organize/file-names]]
@@ -1470,19 +1480,19 @@ just has date) or the time is 00:00. The created time is
 taken from tempus currens, if there is a record of one.
 Otherwise, use current time. The modification time is set to
 current time."
-  (let* ((created  (alist-get :created metadata))
-         (modified (alist-get :modified metadata))
+  (let* ((created  (alist-get 'created metadata))
+         (modified (alist-get 'modified metadata))
          (tempus (cl-find-if
                   (lambda (id)
-                    (eq (ezeka-id-type id 'noerror) :tempus))
-                  (cons (alist-get :id metadata)
-                        (alist-get :oldnames metadata)))))
-    (setf (alist-get :created metadata)
+                    (eq (ezeka-id-type id) :tempus))
+                  (cons (alist-get 'id metadata)
+                        (alist-get 'oldnames metadata)))))
+    (setf (alist-get 'created metadata)
           (ezeka--complete-time created
                                 (if tempus
                                     (ezeka--encode-time tempus)
                                   (current-time))))
-    (setf (alist-get :modified metadata)
+    (setf (alist-get 'modified metadata)
           (when modified
             (ezeka--complete-time modified)))
     metadata))
@@ -1518,10 +1528,10 @@ Whether to update is determined by `ezeka-update-modifaction-date'.
 Return the new metadata."
   (let* ((mdata (ezeka--normalize-metadata-timestamps metadata))
          (now (current-time))
-         (last-modified (or (alist-get :modified mdata)
-                            (alist-get :created mdata)
+         (last-modified (or (alist-get 'modified mdata)
+                            (alist-get 'created mdata)
                             (user-error "No created or modified time in %s"
-                                        (alist-get :link mdata))))
+                                        (alist-get 'link mdata))))
          (elapsed (- (time-to-seconds now) (time-to-seconds last-modified))))
     (unless (<= elapsed 60)             ; less than a minute
       (when (or (eq ezeka-header-update-modified 'always)
@@ -1534,7 +1544,7 @@ Return the new metadata."
                       (format "%s was last modified at %s. Update to now? "
                               (ezeka-format-metadata "%i {%l} %t" mdata)
                               (ezeka-timestamp last-modified 'full 'brackets)))))
-        (setf (alist-get :modified mdata) now)
+        (setf (alist-get 'modified mdata) now)
         (run-hooks 'ezeka-modified-updated-hook)))
     mdata))
 
@@ -1580,15 +1590,15 @@ update it unconditionally."
 (defun ezeka--reconcile-title-and-caption (file &optional metadata force)
   "Interactively reconcile title and caption in FILE's METADATA.
 Returns modifed metadata. If FORCE is non-nil, attempt
-reconciling even if :caption-stable is true."
+reconciling even if CAPTION-STABLE is true."
   (let* ((mdata (or metadata (ezeka-file-metadata file)))
-         (caption (or (alist-get :caption mdata) ""))
-         (title (or (alist-get :title mdata)
-                    (alist-get :rubric mdata)))
+         (caption (or (alist-get 'caption mdata) ""))
+         (title (or (alist-get 'title mdata)
+                    (alist-get 'rubric mdata)))
          (_capitalp (lambda (c) (and (= ?w (char-syntax c)) (= c (upcase c))))))
     (unless (or (string= (ezeka--pasteurize-file-name title) caption)
                 (and (not force)
-                     (alist-get :caption-stable mdata)))
+                     (alist-get 'caption-stable mdata)))
       (let ((choice (read-char-choice
                      (format
                       (concat
@@ -1597,22 +1607,22 @@ reconciling even if :caption-stable is true."
                        "Press [c/u] to edit caption, [t/l] to edit title;\n"
                        "      [C/U] and [T/L] to use that one for the other;\n"
                        "      [n] or [q] to leave alone as is.")
-                      (propertize caption 'face 'bold)
-                      (propertize title 'face 'italic))
+                      (propertize caption 'face :bold)
+                      (propertize title 'face :italic))
                      '(?c ?u ?t ?l ?C ?U ?T ?L ?n ?q))))
         (pcase choice
-          ((or ?c ?u ?T ?L) (setf (alist-get :caption mdata)
+          ((or ?c ?u ?T ?L) (setf (alist-get 'caption mdata)
                                   (ezeka--minibuffer-edit-string
                                    (ezeka--pasteurize-file-name
                                     (if (funcall _capitalp choice)
                                         title
                                       caption)))))
-          ((or ?t ?l ?C ?U) (setf (alist-get :title mdata)
+          ((or ?t ?l ?C ?U) (setf (alist-get 'title mdata)
                                   (ezeka--minibuffer-edit-string
                                    (if (funcall _capitalp choice)
                                        (ezeka--depasturize-for-title caption)
                                      title))))))
-      (setf (alist-get :caption-stable mdata) t))
+      (setf (alist-get 'caption-stable mdata) t))
     (funcall clear-message-function)
     mdata))
 
@@ -1626,7 +1636,7 @@ reconciling even if :caption-stable is true."
           (goto-char (point-min))
           (when (re-search-forward ezeka-header-separator-regexp nil t 1)
             (narrow-to-region (point-min) (point)))
-          (setf (alist-get :rubric metadata)
+          (setf (alist-get 'rubric metadata)
                 (ezeka-format-metadata ezeka-header-rubric-format metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
@@ -1766,7 +1776,7 @@ offer to set metadata or rename the file even if they are in agreement."
                        (or (string= (ezeka--unaccent-string file-base)
                                     (ezeka--unaccent-string mdata-base))
                            (member ezeka-rename-note-keyword
-                                   (alist-get :keywords mdata))))
+                                   (alist-get 'keywords mdata))))
             (funcall _read-user-choice))))
     (funcall clear-message-function)
     (cond ((memq keep-which '(nil ?n ?q))
@@ -1774,21 +1784,21 @@ offer to set metadata or rename the file even if they are in agreement."
            )
           ((and (memq keep-which '(?r ?R))
                 (not (member ezeka-rename-note-keyword
-                             (alist-get :keywords mdata))))
+                             (alist-get 'keywords mdata))))
            (ezeka--mark-for-rename filename mdata)
            (ezeka--save-buffer-read-only filename))
           ((memq keep-which '(?f ?F ?u ?U))
            (when (memq keep-which '(?F ?U))
              (setq file-base (ezeka--minibuffer-edit-string file-base)))
-           (setf (alist-get :id mdata)
+           (setf (alist-get 'id mdata)
                  (ezeka-file-name-id file-base)
-                 (alist-get :label mdata)
+                 (alist-get 'label mdata)
                  (ezeka-file-name-label file-base)
-                 (alist-get :caption mdata)
+                 (alist-get 'caption mdata)
                  (ezeka-file-name-caption file-base)
-                 (alist-get :citekey mdata)
+                 (alist-get 'citekey mdata)
                  (ezeka-file-name-citekey file-base)
-                 (alist-get :caption-stable mdata)
+                 (alist-get 'caption-stable mdata)
                  nil)
            (ezeka--replace-file-header filename mdata)
            (ezeka--save-buffer-read-only filename)
@@ -1797,11 +1807,11 @@ offer to set metadata or rename the file even if they are in agreement."
            (let ((pasteurized
                   (ezeka--pasteurize-file-name
                    (ezeka-format-metadata ezeka-file-name-format mdata))))
-             (setf (alist-get :keywords mdata)
+             (setf (alist-get 'keywords mdata)
                    (cl-remove ezeka-rename-note-keyword
-                              (alist-get :keywords mdata)
+                              (alist-get 'keywords mdata)
                               :test #'string=)
-                   (alist-get :caption mdata)
+                   (alist-get 'caption mdata)
                    pasteurized)
              (ezeka--rename-file filename
                                  (file-name-with-extension
@@ -2087,13 +2097,13 @@ INTERACTIVE is non-NIL when called interactively."
         (cond ((setq oldname (ezeka--resurrectable-oldname file :tempus mdata))
                ;; One of the old names was a tempus currens; just use that
                (ezeka-link-id oldname))
-              ((alist-get :created mdata)
+              ((alist-get 'created mdata)
                (error "WIP: Needs to use time values")
                (string-replace "T0000"  ; FIXME: A bit hacky?
                                (format-time-string "T%H%M")
                                (ezeka-tempus-currens
                                 (ezeka--encode-time
-                                 (alist-get :created mdata)))))
+                                 (alist-get 'created mdata)))))
               (t
                ;; Can't figure out automatically; ask the user
                (ezeka--read-id "No created metadata; make up your own name: "
@@ -2223,7 +2233,7 @@ Zettel link."
                        (format "Link `%s' doesn't exist. Create? " link))))
              (when-let ((_ (ezeka-file-p buffer-file-name))
                         (parent (ezeka-file-link buffer-file-name)))
-               (ezeka--set-new-child-metadata link :parent parent))
+               (ezeka--set-new-child-metadata link 'parent parent))
              (ezeka-find-file
               (ezeka-link-path link (ezeka--new-child-metadata link))
               same-window)
@@ -2259,13 +2269,14 @@ TARGET can be either a link or a filepath."
             (if description
                 (format "[%s]" description) ""))))
 
+;; TODO Remove, since not used anywhere
 (defun ezeka--link-with-metadata (link &optional fields where metadata)
   "Return a string with metadata FIELD(S) at place WHERE (relative to LINK).
 WHERE can be any of :before (default), :after, :instead, and
-:description. FIELDS defaults to :title, WHERE to :before.
+:description. FIELDS defaults to 'title, WHERE to :before.
 If WHERE is :instead, do not include the LINK."
   (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
-         (fields (or fields '(:title)))
+         (fields (or fields '(title)))
          (where (or where :before))
          (value (mapconcat (lambda (f) (alist-get f mdata))
                   fields " ")))
@@ -2307,16 +2318,16 @@ assumed to be contained in some of them."
 
 (defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
-WHERE (:BEFORE, :AFTER, or in :DESCRIPTION) determines where
+WHERE (:before, :after, or in :description) determines where
 the fields are added. FIELDS can be a list. If NOEDIT is
-non-NIL, insert the link without allowing the user to
+non-nil, insert the link without allowing the user to
 interactively edit the text."
   (interactive
    (list (ezeka--read-id "Link to insert: ")
+         ;; FIXME Where argument is completely ignored
          (list (intern-soft
-                (completing-read
-                 "Which metadata field? "
-                 '(":none" ":title" ":citekey" ":label"))))
+                (completing-read "Which metadata field? "
+                                 ezeka-metadata-fields nil 'require-match)))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
   (let ((link-metadata
          (if-let* ((file (or (ezeka-link-file link)
@@ -2324,7 +2335,7 @@ interactively edit the text."
                                              (string-match link (buffer-name buf)))
                                          (buffer-list))))
                    (mdata (ezeka-file-metadata file))
-                   ;; HARDCODED
+                   ;; FIXME HARDCODED
                    (fmt "%t"))
              (ezeka-format-metadata fmt mdata)
            "")))
@@ -2365,7 +2376,7 @@ already inside a link, replace it instead."
         (if (not (ezeka-link-at-point-p))
             (if arg
                 (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link '(:title) :before))
+              (ezeka-insert-link-with-metadata link '(title) :before))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
           (ezeka--insert-link-with-spaces link))
@@ -2432,7 +2443,7 @@ already inside a link, replace it instead."
         (if (not (ezeka-link-at-point-p))
             (if arg
                 (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link '(:title) :before t))
+              (ezeka-insert-link-with-metadata link '(title) :before t))
           ;; When replacing, don't including anything
           (delete-region (match-beginning 0) (match-end 0))
           (ezeka--insert-link-with-spaces link))
@@ -2449,7 +2460,7 @@ insert just the link itself."
     (when (ezeka-link-p link)
       (if arg
           (ezeka-insert-link-with-metadata link)
-        (ezeka-insert-link-with-metadata link '(:title) :before t))
+        (ezeka-insert-link-with-metadata link '(title) :before t))
       (when backlink
         (gui-set-selection 'CLIPBOARD backlink)
         (message "Backlink to %s copied to clipboard" backlink)))))
@@ -2541,7 +2552,7 @@ Called interactively, get the LINK at point or to current Zettel."
                  (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
                  (point-at-eol)))))
           (when metadata
-            (let ((words (split-string (alist-get :title metadata))))
+            (let ((words (split-string (alist-get 'title metadata))))
               (setq-local mode-line-misc-info
                           (replace-regexp-in-string
                            "/" "" (mapconcat #'identity
@@ -2573,7 +2584,7 @@ delete the text instead."
                   (file (ezeka-link-file link))
                   (text (if use-rubric
                             (file-name-base file)
-                          (alist-get :title (ezeka-file-metadata file)))))
+                          (alist-get 'title (ezeka-file-metadata file)))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
@@ -2640,8 +2651,8 @@ find the Nth link (i.e. grandparent if DEGREE is 2, child if DEGREE is
     (if (= (abs degree) 0)
         file-or-link
       (ezeka-trace-genealogy (alist-get (if (> degree 0)
-                                            :parent
-                                          :firstborn)
+                                            'parent
+                                          'firstborn)
                                         (ezeka-file-metadata
                                          (if (ezeka-link-p file-or-link)
                                              (ezeka-link-file file-or-link)
@@ -2684,8 +2695,8 @@ With a numerical prefix ARG'ument, try to find Nth ancestor. With a
          (link (ezeka-trace-genealogy buffer-file-name degree)))
     (if link
         (if arg
-            (ezeka-insert-link-with-metadata link '(:title) :before 'noedit)
-          (ezeka-insert-link-with-metadata link '(:title) :before))
+            (ezeka-insert-link-with-metadata link '(title) :before 'noedit)
+          (ezeka-insert-link-with-metadata link '(title) :before))
       (message "Could not find such ancestor"))))
 
 (defun ezeka--generate-new-child (parent &optional kasten id)
@@ -2698,7 +2709,7 @@ generating one."
           (ezeka-make-link kasten
                            (or id (ezeka--generate-id kasten)))))
     (when parent
-      (ezeka--set-new-child-metadata child-link :parent parent))
+      (ezeka--set-new-child-metadata child-link 'parent parent))
     child-link))
 
 (defun ezeka-new-note-or-child (kasten &optional parent noselect manual)
@@ -2763,12 +2774,12 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                        (t
                         (ezeka--read-kasten "Kasten for new child: "))))
          (child-link (ezeka--generate-new-child parent kasten id))
-         (metadata `((:id . ,child-link)
-                     (:kasten . ,kasten)
-                     (:title . ,title)
-                     (:caption . ,(ezeka--pasteurize-file-name title))
-                     (:parent . ,parent)
-                     (:citekey . ,citekey))))
+         (metadata `((id . ,child-link)
+                     (kasten . ,kasten)
+                     (title . ,title)
+                     (caption . ,(ezeka--pasteurize-file-name title))
+                     (parent . ,parent)
+                     (citekey . ,citekey))))
     (ezeka--insert-link-with-spaces child-link)
     (ezeka--set-new-child-metadata child-link metadata)
     (if-let* ((_ (eq 'placeholder
@@ -2777,15 +2788,17 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                               '(new-note placeholder) nil 'require))))
               (child-path (ezeka-link-path child-link
                                            ;; HARDCODED
-                                           (cons '(:label . "ψ") metadata)))
+                                           (cons '(label . "ψ") metadata)))
               (link-to (ezeka--read-id "Symbolic link to: " nil parent 'required))
               (link-target (file-relative-name
-                            (ezeka-link-file
-                             (ezeka--read-id "Symbolic link to: " nil parent 'required))
+                            (ezeka-link-file link-to)
                             (file-name-directory child-path))))
-        (progn (ezeka--add-to-move-log
-                child-link link-to (alist-get :caption metadata) "Placeholder")
-               (make-symbolic-link link-target child-path))
+        (progn
+          (ezeka--add-to-move-log child-link
+                                  link-to
+                                  (alist-get 'caption metadata)
+                                  "Placeholder")
+          (make-symbolic-link link-target child-path))
       (ezeka-find-link child-link))))
 
 ;;;=============================================================================
@@ -2830,9 +2843,9 @@ information for Zettelkasten work."
   (concat (if (ezeka-file-p buffer-file-name)
               (let ((metadata (ezeka-file-metadata buffer-file-name)))
                 (format "%s §%s@%s"
-                        (alist-get :title metadata)
-                        (alist-get :id metadata)
-                        (alist-get :kasten metadata)))
+                        (alist-get 'title metadata)
+                        (alist-get 'id metadata)
+                        (alist-get 'kasten metadata)))
             "%b")))
 
 ;; Add the following hook to enact:
@@ -2851,9 +2864,9 @@ information for Zettelkasten work."
                 (position (window-absolute-pixel-position))
                 (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
       (tooltip-show
-       (format "%s%s%s" (alist-get :title metadata)
-               (if (alist-get :citekey metadata) " " "")
-               (or (alist-get :citekey metadata) ""))))))
+       (format "%s%s%s" (alist-get 'title metadata)
+               (if (alist-get 'citekey metadata) " " "")
+               (or (alist-get 'citekey metadata) ""))))))
 
 ;; Add the following hook to enact:
 ;;
@@ -2868,9 +2881,9 @@ information for Zettelkasten work."
               (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
         (setq mode-line-misc-info
           (propertize
-           (format "%s%s%s" (alist-get :title metadata)
-                   (if (alist-get :citekey metadata) " " "")
-                   (or (alist-get :citekey metadata) ""))
+           (format "%s%s%s" (alist-get 'title metadata)
+                   (if (alist-get 'citekey metadata) " " "")
+                   (or (alist-get 'citekey metadata) ""))
            'face '(:slant italic :height 0.9)))
       (setq mode-line-misc-info octavo-index-mode-line-orig))))
 
@@ -3142,7 +3155,7 @@ exist in FILENAME."
                  (list (buffer-file-name) nil set-title set-caption)))
   (when (ezeka-file-p filename)
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
-           (caption (alist-get :caption mdata))
+           (caption (alist-get 'caption mdata))
            (change-what (cond ((and (not set-title) set-caption) "caption")
                               ((and set-title (not set-caption)) "title")
                               ((and set-title set-caption) "both title and caption")
@@ -3151,7 +3164,7 @@ exist in FILENAME."
                         (ezeka--read-title
                          (format "Change \"%s\" to what? " change-what)
                          (if set-title
-                             (alist-get :title mdata)
+                             (alist-get 'title mdata)
                            caption)))))
       (when (and set-caption (y-or-n-p "Record the change in the change log? "))
         (ezeka-add-change-log-entry
@@ -3168,13 +3181,13 @@ exist in FILENAME."
                    (format "Remove \"%s\" from caption." deletion)))
                 (t
                  (format "Change caption from \"%s\" to \"%s.\""
-                         (ezeka--demote-quotes (alist-get :caption mdata))
+                         (ezeka--demote-quotes (alist-get 'caption mdata))
                          (ezeka--demote-quotes new-val))))))
       (when set-title
-        (setf (alist-get :title mdata) new-val))
+        (setf (alist-get 'title mdata) new-val))
       (when set-caption
-        (setf (alist-get :caption mdata) (ezeka--pasteurize-file-name new-val))
-        (setf (alist-get :caption-stable mdata) nil))
+        (setf (alist-get 'caption mdata) (ezeka--pasteurize-file-name new-val))
+        (setf (alist-get 'caption-stable mdata) nil))
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-subtitle (filename subtitle)
@@ -3184,12 +3197,12 @@ exist in FILENAME."
     (let* ((mdata (ezeka-file-metadata filename))
            (subtitle (or subtitle
                          (ezeka--read-title
-                          (if (alist-get :subtitle mdata)
+                          (if (alist-get 'subtitle mdata)
                               (format "Change `%s' to what? "
-                                      (alist-get :subtitle mdata))
+                                      (alist-get 'subtitle mdata))
                             "Subtitle: ")
-                          (alist-get :subtitle mdata)))))
-      (setf (alist-get :subtitle mdata) subtitle)
+                          (alist-get 'subtitle mdata)))))
+      (setf (alist-get 'subtitle mdata) subtitle)
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-successor (filename successor)
@@ -3201,12 +3214,12 @@ exist in FILENAME."
     (let* ((mdata (ezeka-file-metadata filename))
            (successor (or (ezeka-file-link successor)
                           (ezeka--read-id
-                           (if (alist-get :successor mdata)
+                           (if (alist-get 'successor mdata)
                                (format "Change `%s' to what? "
-                                       (alist-get :successor mdata))
+                                       (alist-get 'successor mdata))
                              "Successor: ")
-                           (alist-get :successor mdata)))))
-      (setf (alist-get :successor mdata) successor)
+                           (alist-get 'successor mdata)))))
+      (setf (alist-get 'successor mdata) successor)
       (ezeka--update-metadata-values filename mdata))))
 
 (defun ezeka-set-parent (filename &optional new-parent)
@@ -3221,7 +3234,7 @@ available). If called with \\[universal-argument], clear the parent."
                            nil
                            (ezeka-file-link (ezeka-file-link owin-file))))))
   (ezeka--update-metadata-values filename nil
-    :parent (if new-parent
+    'parent (if new-parent
                 (ezeka-file-link new-parent)
               (message "Parent metadata cleared")
               nil)))
@@ -3238,7 +3251,7 @@ show genera verbosely or type custom category."
   (if (not (ezeka-file-p filename))
       (user-error "Not a Zettel note")
     (let ((old-val (ezeka-file-name-label filename)))
-      (ezeka--update-metadata-values filename nil :label label)
+      (ezeka--update-metadata-values filename nil 'label label)
       (when (eq :tempus (ezeka-id-type filename))
         (cl-pushnew label ezeka-categories))
       (when (y-or-n-p "Add a change log entry? ")
@@ -3276,7 +3289,7 @@ further than parent."
                         ""))
            (citekey (ezeka--minibuffer-edit-string citekey nil "New citekey: ")))
       (ezeka--update-metadata-values filename nil
-        :citekey (ezeka--validate-citekey citekey))
+        'citekey (ezeka--validate-citekey citekey))
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
          filename
@@ -3298,7 +3311,7 @@ further than parent."
                         (ezeka-file-name-citekey target)))))
   (if (not (ezeka-file-p filename))
       (user-error "Not a Zettel note")
-    (ezeka--update-metadata-values filename nil :author author)))
+    (ezeka--update-metadata-values filename nil 'author author)))
 
 (defvar ezeka--dynamic-keywords-cache nil
   "A list of keywords present in the current `ezeka-directory'.
@@ -3367,12 +3380,12 @@ KEYWORD. Use METADATA if supplied."
         (user-error "Not a Zettel note")
       (let ((mdata (or metadata (ezeka-file-metadata filename))))
         (ezeka--update-metadata-values filename mdata
-          :keywords (cond (replace
+          'keywords (cond (replace
                            (list keyword))
                           (keyword
                            (ezeka--add-to-keywords-cache keyword)
                            (cons ezeka-rename-note-keyword
-                                 (alist-get :keywords mdata)))
+                                 (alist-get 'keywords mdata)))
                           (t nil)))))))
 
 (defvar ezeka--keyword-history nil
@@ -3389,7 +3402,7 @@ clear the keywords without attempting to edit them."
   (if (not (ezeka-file-p filename))
       (user-error "Not a Zettel note")
     (let* ((mdata (or metadata (ezeka-file-metadata filename)))
-           (keystring (string-join (alist-get :keywords mdata) " "))
+           (keystring (string-join (alist-get 'keywords mdata) " "))
            (new-keys (unless clear
                        (ezeka--keyword-list
                         (if (string-empty-p keystring)
@@ -3401,7 +3414,7 @@ clear the keywords without attempting to edit them."
                            keystring nil
                            "Edit keywords: " '(ezeka--keyword-history . 1)))))))
       (ezeka--add-to-keywords-cache new-keys)
-      (ezeka--update-metadata-values filename mdata :keywords new-keys))))
+      (ezeka--update-metadata-values filename mdata 'keywords new-keys))))
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
@@ -3409,17 +3422,17 @@ clear the keywords without attempting to edit them."
                      (org-read-date nil nil nil nil nil nil 'inactive)))
   (let ((mdata (ezeka-file-metadata filename)))
     (ezeka--update-metadata-values filename mdata
-      :readings (cons date (alist-get :readings mdata)))))
+      'readings (cons date (alist-get 'readings mdata)))))
 
 (defun ezeka-add-oldname (filename &optional link)
   "Add LINK to the FILENAME's oldnames."
   (interactive (list (ezeka--grab-dwim-file-target)
                      (ezeka--read-id "What is the old name? ")))
   (let* ((mdata (ezeka-file-metadata filename))
-         (oldnames (alist-get :oldnames mdata)))
+         (oldnames (alist-get 'oldnames mdata)))
     (cl-pushnew link oldnames)
     (ezeka--update-metadata-values filename mdata
-      :oldnames oldnames)))
+      'oldnames oldnames)))
 
 ;;;=============================================================================
 ;;; Populating Files
@@ -3466,25 +3479,25 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
      (let-alist mdata
        (list
         link
-        (or .:label
-            (setf (alist-get :label mdata)
+        (or .label
+            (setf (alist-get 'label mdata)
                   (ezeka--read-label (ezeka-link-kasten link))))
-        (setf (alist-get :title mdata)
-              (ezeka--read-title "Title: " (or .:title .:caption)))
-        (setf (alist-get :parent mdata)
-              (ezeka--read-id "Parent? " nil .:parent))
-        (setf (alist-get :citekey mdata)
-              (ezeka--read-citekey "Citekey? " .:citekey))
+        (setf (alist-get 'title mdata)
+              (ezeka--read-title "Title: " (or .title .caption)))
+        (setf (alist-get 'parent mdata)
+              (ezeka--read-id "Parent? " nil .parent))
+        (setf (alist-get 'citekey mdata)
+              (ezeka--read-citekey "Citekey? " .citekey))
         (prog1 mdata
           (ezeka--set-new-child-metadata link mdata))))))
-  (let* ((link (or link (alist-get :link metadata)))
+  (let* ((link (or link (alist-get 'link metadata)))
          (mdata (ezeka-metadata link
-                  :link link
-                  :id (or (alist-get :id metadata) (ezeka-link-id link))
-                  :label (or label (alist-get :label metadata))
-                  :title (or title (alist-get :title metadata))
-                  :parent (or parent (alist-get :parent metadata))
-                  :citekey (or citekey (alist-get :citekey metadata))))
+                  'link link
+                  'id (or (alist-get 'id metadata) (ezeka-link-id link))
+                  'label (or label (alist-get 'label metadata))
+                  'title (or title (alist-get 'title metadata))
+                  'parent (or parent (alist-get 'parent metadata))
+                  'citekey (or citekey (alist-get 'citekey metadata))))
          (inhibit-read-only t)
          (content (buffer-substring-no-properties (point-min) (point-max))))
     (let-alist mdata
@@ -3494,21 +3507,21 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
        (concat ezeka-header-rubric-key
                ": "
                (ezeka-format-metadata ezeka-header-rubric-format mdata)))
-      (insert "\ntitle: " .:title)
+      (insert "\ntitle: " .title)
       (insert (format "\ncreated: %s\n"
                       ;; Insert creation time, making it match a tempus currens filename
-                      (ezeka-timestamp (when (eq :tempus (ezeka-id-type .:id))
-                                         (ezeka--encode-time .:id))
+                      (ezeka-timestamp (when (eq :tempus (ezeka-id-type .id))
+                                         (ezeka--encode-time .id))
                                        'full)))
-      (when (and .:parent (not (string-empty-p .:parent)))
-        (insert "parent: " (ezeka--format-link .:parent) "\n"))
+      (when (and .parent (not (string-empty-p .parent)))
+        (insert "parent: " (ezeka--format-link .parent) "\n"))
       (insert "\n" content)
       (add-hook 'after-save-hook 'ezeka--run-3f-hook nil 'local))))
 
 (defun ezeka--run-3f-hook ()
   "Run hooks in `ezeka-find-file-functions'."
   (let* ((mdata (ezeka-file-metadata buffer-file-name))
-         (parent (alist-get :parent mdata)))
+         (parent (alist-get 'parent mdata)))
     (run-hook-with-args 'ezeka-find-file-functions
                         buffer-file-name
                         (if parent
@@ -3537,7 +3550,7 @@ With \\[universal-argument] ARG, asks for a different name."
   (interactive)
   (org-set-property "ID" (org-id-get-create))
   (org-set-property "FROM" (ezeka-insert-link-with-metadata
-                            buffer-file-name '(:title) :after))
+                            buffer-file-name '(title) :after))
   (org-set-property "CREATED"
                     (ezeka-timestamp nil 'full 'brackets)))
 
@@ -3566,7 +3579,7 @@ With \\[universal-argument], use the current KASTEN without asking."
          (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
          (kstruct (ezeka-kasten kasten))
          mdata)
-    (setf (alist-get :parent mdata)
+    (setf (alist-get 'parent mdata)
           (ezeka-file-link buffer-file-name))
     (save-excursion
       (save-restriction
@@ -3576,53 +3589,53 @@ With \\[universal-argument], use the current KASTEN without asking."
                (head-title (nth 4 (org-heading-components)))
                timestamp)
           (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" head-title)
-                 (setf (alist-get :title mdata)
+                 (setf (alist-get 'title mdata)
                        (ezeka--minibuffer-edit-string
                         (match-string-no-properties 1 head-title)
                         nil
                         "Title for new note: "))
-                 (setf (alist-get :created mdata)
+                 (setf (alist-get 'created mdata)
                        (save-match-data
                          (org-timestamp-from-string (match-string 2 head-title)))))
                 ((org-get-scheduled-time nil)
-                 (setf (alist-get :created mdata)
+                 (setf (alist-get 'created mdata)
                        (org-timestamp-from-time (org-get-scheduled-time nil) t)))
                 (t
-                 (setf (alist-get :title mdata)
+                 (setf (alist-get 'title mdata)
                        (ezeka--minibuffer-edit-string
                         (buffer-substring-no-properties (point-at-bol) (point-at-eol))
                         nil
                         "Title for new note: "))
-                 (setf (alist-get :created mdata)
+                 (setf (alist-get 'created mdata)
                        (read-string "No timestamp found. Enter it here: "))))
-          (setf (alist-get :link mdata)
+          (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
                  (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
-                             (org-timestamp-has-time-p (alist-get :created mdata)))
-                        (org-timestamp-format (alist-get :created mdata)
+                             (org-timestamp-has-time-p (alist-get 'created mdata)))
+                        (org-timestamp-format (alist-get 'created mdata)
                                               "%Y%m%dT%H%M"))
                        ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                        (concat (org-timestamp-format (alist-get :created mdata)
+                        (concat (org-timestamp-format (alist-get 'created mdata)
                                                       "%Y%m%dT")
                                 (format-time-string "%H%M")))
                        (t
                         (ezeka--generate-id kasten)))))
-          (setf (alist-get :file mdata)
-                (ezeka-link-path (alist-get :link mdata)))
-          (if (file-exists-p (alist-get :file mdata))
-              (user-error "Aborting, file already exists: %s" (alist-get :file mdata))
+          (setf (alist-get 'path mdata)
+                (ezeka-link-path (alist-get 'link mdata)))
+          (if (file-exists-p (alist-get 'path mdata))
+              (user-error "Aborting, file already exists: %s" (alist-get 'path mdata))
             (let ((entry-pt (point))
                   (content (org-copy-subtree)))
-              (with-current-buffer (get-buffer-create (alist-get :file mdata))
+              (with-current-buffer (get-buffer-create (alist-get 'path mdata))
                 ;; New file buffer
                 (ezeka-insert-header-template
                  nil (ezeka--read-label kasten) nil nil nil mdata)
                 (insert "\n" org-subtree-clip)
-                (set-visited-file-name (alist-get :file mdata) t)
+                (set-visited-file-name (alist-get 'path mdata) t)
                 (basic-save-buffer)
-                (ezeka-add-change-log-entry (alist-get :file mdata)
-                  (format "Extract from %s." (alist-get :parent mdata))))
+                (ezeka-add-change-log-entry (alist-get 'path mdata)
+                  (format "Extract from %s." (alist-get 'parent mdata))))
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 ;; Back in original buffer
                 (goto-char entry-pt)
@@ -3631,7 +3644,7 @@ With \\[universal-argument], use the current KASTEN without asking."
                         " "
                         head-title
                         " "
-                        (ezeka--format-link (alist-get :link mdata)))))))))))
+                        (ezeka--format-link (alist-get 'link mdata)))))))))))
 
 (defun ezeka-open-link-at-point (&optional same-window)
   "Open a Zettel link at point even if it's not formatted as a link.
@@ -3745,7 +3758,7 @@ modification date."
         (t
          (if-let ((mdata (ezeka-file-metadata buffer-file-name)))
              (org-set-property ezeka-snippet-modified-property
-                               (alist-get :created mdata))))))
+                               (alist-get 'created mdata))))))
 
 ;;; TODO:
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
@@ -3771,8 +3784,8 @@ insert the summary before the content."
       (let* ((snip-file (ezeka-link-file link))
              ;; Get the metadata and most recent modification
              (snip-mdata (ezeka-file-metadata snip-file))
-             (their-modified (or (alist-get :modified snip-mdata)
-                                 (alist-get :created snip-mdata)))
+             (their-modified (or (alist-get 'modified snip-mdata)
+                                 (alist-get 'created snip-mdata)))
              (our-modified
               (when-let ((snip-modified (org-entry-get (point) "SNIP_MODIFIED")))
                 (ezeka--encode-time snip-modified)))
@@ -3946,7 +3959,7 @@ with :USED_IN: property, perform the reverse action."
         (org-narrow-to-subtree)
         ;; Update the heading title
         (org-edit-headline
-         (format "%s [[%s]]" (alist-get :title metadata) link))
+         (format "%s [[%s]]" (alist-get 'title metadata) link))
         ;; Delete existing text
         (org-back-to-heading t)
         (delete-region (point-at-bol 2) (org-end-of-subtree t))
@@ -4145,7 +4158,7 @@ whether to visit; if NIL, do not visit."
 If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
         (source-caption
-         (alist-get :caption
+         (alist-get 'caption
            (ezeka-decode-rubric (file-name-base source))))
         (mdata (or metadata (ezeka-file-metadata source)))
         (target-link (ezeka-file-link target)))
@@ -4157,7 +4170,7 @@ If METADATA is nil, read it from SOURCE."
           (t
            ;; TARGET is new, proceed
            ))
-    (ezeka--add-to-move-log source-link target-link source-rubric "Finish moving")
+    (ezeka--add-to-move-log source-link target-link source-caption "Finish moving")
     (ezeka-add-change-log-entry source
       (format "Finish moving +%s+ to %s." source-link target-link))
     (unwind-protect
@@ -4170,12 +4183,10 @@ If METADATA is nil, read it from SOURCE."
              (ezeka--add-oldname mdata source-link))
             (ezeka-add-change-log-entry source
               (format "Finish moving +%s+ to %s." source-link target-link))
-            (setf (alist-get :keywords mdata)
-                  (cl-remove "#moving"
-                             (cl-remove "#rename"
-                                        (alist-get :keywords mdata)
-                                        :test #'string=)
-                             :test #'string=))
+            (setf (alist-get 'keywords mdata)
+                  (cl-set-difference (alist-get 'keywords mdata)
+                                     (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
+                                     :test #'string=))
             (ezeka-harmonize-file-name target mdata t)
             (save-buffer)))
       (message "Replacing links: %s with %s" source-link target-link)
@@ -4202,38 +4213,37 @@ afterwards. SOURCE can be a link or a file."
                           source
                         (ezeka-link-file source)))
          (source-link (ezeka-file-link source-file))
-         (mdata (ezeka-file-metadata source-file))
-         (orig-caption (alist-get :caption mdata)))
+         (orig-mdata (ezeka-file-metadata source-file))
+         (mdata (copy-sequence orig-mdata)))
     (ezeka--add-to-move-log
-     source-link target-link orig-caption "Begin moving")
-    (setf (alist-get :id mdata)
+     source-link target-link (alist-get 'caption orig-mdata) "Begin moving")
+    (setf (alist-get 'id mdata)
           (ezeka-link-id target-link)
-          (alist-get :label mdata)
-          (ezeka--read-label (alist-get :kasten mdata)
+          (alist-get 'label mdata)
+          (ezeka--read-label (alist-get 'kasten mdata)
                              nil
                              nil
-                             (alist-get :label mdata))
-          (alist-get :title mdata)
+                             (alist-get 'label mdata))
+          (alist-get 'title mdata)
           (ezeka--read-title "Title: "
-                             (alist-get :title mdata))
-          (alist-get :caption mdata)
+                             (alist-get 'title mdata))
+          (alist-get 'caption mdata)
           (ezeka--read-title "Caption: "
-                             (ezeka--pasteurize-file-name (alist-get :title mdata)))
-          (alist-get :citekey mdata)
+                             (ezeka--pasteurize-file-name (alist-get 'title mdata)))
+          (alist-get 'citekey mdata)
           (ezeka--read-citekey (format "Title: %s\nCitekey: "
-                                       (alist-get :title mdata))))
-    (cl-pushnew "#moving" (alist-get :keywords mdata))
+                                       (alist-get 'title mdata)))
+          (alist-get 'keywords mdata)
+          (cl-union (alist-get 'keywords mdata)
+                    (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
+                    :test #'string=))
     (ezeka--update-file-header source-file mdata 'force)
-    (ezeka--add-to-system-log 'move-begin nil
-      :source `(:link ,source-link :caption ,orig-caption)
-      :target `(:link ,target-link :caption ,(alist-get :caption mdata)))
     (let ((target-file (ezeka-link-path target-link mdata)))
       (unless (file-exists-p (file-name-directory target-file))
         (make-directory (file-name-directory target-file)))
       (make-symbolic-link source-file target-file)
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
-after committing"
-               source-link target-link))))
+after committing" source-link target-link))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
@@ -4246,7 +4256,7 @@ appropriate oldname."
               (cadaver (cl-find-if (lambda (link)
                                      (when (ezeka-link-p link)
                                        (eq (ezeka-id-type link) id-type)))
-                                   (alist-get :oldnames mdata))))
+                                   (alist-get 'oldnames mdata))))
     (unless (ezeka-link-file cadaver)
       cadaver)))
 
@@ -4259,8 +4269,8 @@ Return the target link and open it (unless NOSELECT is non-nil)."
           (src-header (ezeka-file-content source 'just-header))
           (target (cond ((equal current-prefix-arg '(4))
                          (ezeka--read-id "Target link: "))
-                        ((string-match-p "#moving" src-header)
-                         (alist-get :id (ezeka--decode-header src-header source))))))
+                        ((string-match-p ezeka-note-moving-keyword src-header)
+                         (alist-get 'id (ezeka--decode-header src-header source))))))
      (list (ezeka--grab-dwim-file-target)
            (if target
                (ezeka-link-kasten target)
@@ -4280,11 +4290,9 @@ Return the target link and open it (unless NOSELECT is non-nil)."
     (if (not target-link)
         (user-error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (if (or (and (member :scriptum    ; HARDCODED HACK
-                     (mapcar #'ezeka-id-type (list source-link target-link))))
-              (and (member "#moving" (alist-get :keywords s-mdata))
-                   (y-or-n-p (format "Finish moving %s to %s? "
-                                     source-link target-link))))
+      (if (and (member ezeka-note-moving-keyword (alist-get 'keywords s-mdata))
+               (y-or-n-p (format "Finish moving %s to %s? "
+                                 source-link target-link)))
           (ezeka--finish-moving-note
            source-file
            (ezeka-link-path target-link s-mdata))
@@ -4360,9 +4368,9 @@ END."
                     (match-string 2 line)))))
       (setq mode-line-misc-info
         (format "%s: %s"
-                (propertize (alist-get :id mdata)
+                (propertize (alist-get 'id mdata)
                             'face '(:weight bold))
-                (propertize (alist-get :title mdata)
+                (propertize (alist-get 'title mdata)
                             'face '(:slant italic)))))))
 
 ;;;=============================================================================

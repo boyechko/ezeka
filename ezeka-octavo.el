@@ -181,7 +181,7 @@ return nil if FORMAT cannot be rendered from ID and TITLE."
           ;; FIXME: Hackish way to catch hand-edited TITLE
           (progn
             (unless (string-match "^ *{\\(.*\\)} \\(.*\\)" title)
-              (setf (alist-get :title mdata) title))
+              (setf (alist-get 'title mdata) title))
             (ezeka-format-metadata format mdata))
         (unless noerror
           (error "Cannot retrieve metadata for `%s'" id))))))
@@ -197,7 +197,7 @@ See `octavo-parse-file-function'."
            (lambda (file)
              (if (equal target 'id)
                  (ezeka-file-name-id file)
-               (alist-get :title (ezeka-file-metadata file))))
+               (alist-get 'title (ezeka-file-metadata file))))
            files)))
     (if (eq 1 (length return))
         (car return)
@@ -216,7 +216,7 @@ Return `ezeka-octavo-metadata-alist'."
        (when (ezeka-file-p file)
          (let ((metadata (ezeka-file-metadata file)))
            (list (ezeka-file-name-id file)
-                 (alist-get :title metadata)
+                 (alist-get 'title metadata)
                  file
                  (file-attribute-modification-time (file-attributes file))
                  metadata))))
@@ -395,7 +395,7 @@ minibuffer according to the value of `octavo-link-and-title': if it's
             (and (eq octavo-link-and-title 'ask)
                  ;; FIXME: Nonlocal function
                  (rb-y-or-explicit-n-p "Include (edited) title? ")))
-        (ezeka-insert-link-with-metadata link '(:title) :before)
+        (ezeka-insert-link-with-metadata link '(title) :before)
       (ezeka--insert-link-with-spaces link))
     (run-hooks 'ezeka-octavo-insert-link-hook)))
 
@@ -557,11 +557,11 @@ non-nil, check with user before replacing."
                          (_ (and (ezeka--parent-of-p f bf-id f-mdata)
                                  (or (not confirm)
                                      (y-or-n-p (format "Replace parent in %s (%s)? "
-                                                       (alist-get :title f-mdata)
-                                                       (alist-get :id f-mdata)))))))
+                                                       (alist-get 'title f-mdata)
+                                                       (alist-get 'id f-mdata)))))))
                 ;; FIXME: Worth extending to preserve multiple parents?
                 ;; Replace parent
-                (setf (alist-get :parent f-mdata) after)
+                (setf (alist-get 'parent f-mdata) after)
                 (ezeka--update-file-header f f-mdata)
                 (cl-incf count))
               (goto-char (point-min))
@@ -580,7 +580,7 @@ non-nil, check with user before replacing."
   "Return non-nil if NOTE1 is a child of NOTE2.
 METADATA is NOTE's metadata."
   (let* ((mdata (or metadata (ezeka-file-metadata note1)))
-         (parents (alist-get :parent mdata))
+         (parents (alist-get 'parent mdata))
          (note2-id (ezeka-link-id note2))) ; FIXME: What if it's a file?
     (cl-typecase parents
       (null   nil)
@@ -617,8 +617,8 @@ given, suggest the note's successor, if set. METHOD overrides
                    link-or-file
                  (ezeka-file-link link-or-file)))
          (mdata (ezeka-file-metadata file))
-         (successor (or (alist-get :successor mdata)
-                        (alist-get :parent mdata)))
+         (successor (or (alist-get 'successor mdata)
+                        (alist-get 'parent mdata)))
          (with-links (let ((octavo-directory ezeka-directory))
                        (octavo--grep-file-list
                         (format "(parent: %s|%s\\]\\])" link link))))
@@ -654,7 +654,7 @@ given, suggest the note's successor, if set. METHOD overrides
   (interactive)
   (let ((id (with-current-buffer octavo-index-buffer-name
               (octavo-index--button-at-point))))
-    (ezeka-insert-link-with-metadata id '(:title) :before t)))
+    (ezeka-insert-link-with-metadata id '(title) :before t)))
 
 ;;;=============================================================================
 ;;; Entitle
@@ -742,7 +742,7 @@ before renaming If given, use the custom PROMPT."
     (let ((id (match-string-no-properties 1 file))
           (title (match-string-no-properties 2 file)))
       (if (string= "." title)
-          (or (alist-get :title (ezeka-file-metadata file t))
+          (or (alist-get 'title (ezeka-file-metadata file t))
               "<no title>")
         title))))
 

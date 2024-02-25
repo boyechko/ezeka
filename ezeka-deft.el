@@ -128,22 +128,22 @@ the missing metadata is explicitly displayed."
   (when line
     (let* ((metadata (ezeka-decode-rubric
                       (replace-regexp-in-string "^\\(rubric: +\\)" "" line)))
-           (id (or (alist-get :id metadata)
+           (id (or (alist-get 'id metadata)
                      (if show-missing "<ID>" "")))
-           (cat (or (alist-get :category metadata)
+           (cat (or (alist-get 'category metadata)
                     (if show-missing "<category>" "")))
-           (key (or (alist-get :citekey metadata)
+           (key (or (alist-get 'citekey metadata)
                     (if show-missing "<citekey>" "")))
            (key (if (string-match "^@" key)
                     (replace-match "" nil nil key)
                   key))
-           (title (or (alist-get :title metadata)
+           (title (or (alist-get 'title metadata)
                       (if (not (zerop (length line)))
                           line
                         "<title>")))
            (ID-LEN
             (length
-             (alist-get (or (ezeka-id-type (alist-get :id metadata))
+             (alist-get (or (ezeka-id-type (alist-get 'id metadata))
                             (ezeka-kasten-id-type ezeka-deft-active-kasten)
                             :tempus)    ; assume longest
                         '((:numerus . "a-1234")
@@ -186,7 +186,7 @@ the missing metadata is explicitly displayed."
 `ezeka-deft-parse-title-function' on the first line of the given FILE."
   (or (deft-file-title file)
       (ezeka-deft-parse-title-function
-       (ezeka-file-content file t t))))
+       (ezeka-file-content file 'header-only))))
 
 (defun ezeka-deft--adv-deft-new-file-maybe-named (arg)
   "Extends `deft-new-file' to call `deft-new-file-named' if called with
@@ -262,7 +262,7 @@ changes the existing one. With prefix argument, replaces the current
                  (snippet-section (replace-regexp-in-string
                                    "ß" "Snippet "
                                    (car (split-string
-                                         (alist-get :title (ezeka-file-metadata file))
+                                         (alist-get 'title (ezeka-file-metadata file))
                                          ":")))))
              (insert (format "#+INCLUDE: \"%s::%s\" :only-contents t\n"
                              (file-relative-name file)
@@ -327,7 +327,7 @@ another window."
   (interactive)
   (setq ezeka-categories '())
   (dolist (file deft-all-files)
-    (let* ((category (alist-get :category (ezeka-file-metadata file)))
+    (let* ((category (alist-get 'category (ezeka-file-metadata file)))
            (frequency (alist-get category ezeka-categories 0 nil #'string-equal)))
       (setf (alist-get category ezeka-categories nil nil #'string-equal)
             (1+ frequency))))

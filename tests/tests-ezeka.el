@@ -118,12 +118,12 @@
           '("2018-04-14" "2019-05-01" "2019-06-27"))))
 
 (ert-deftest tests/ezeka--decode-header-make-tuple ()
-  (should (equal (ezeka--decode-header-make-tuple :created "2021-01-01")
-                 '(:created . "2021-01-01")))
-  (should (equal (ezeka--decode-header-make-tuple :readings '("2021-01-01"))
-                 '(:readings . ("2021-01-01"))))
-  (should (equal (ezeka--decode-header-make-tuple :readings '("2019-01-01" "2021-01-01"))
-                 '(:readings . ("2019-01-01" "2021-01-01")))))
+  (should (equal (ezeka--decode-header-make-tuple 'created "2021-01-01")
+                 '(created . "2021-01-01")))
+  (should (equal (ezeka--decode-header-make-tuple 'readings '("2021-01-01"))
+                 '(readings . ("2021-01-01"))))
+  (should (equal (ezeka--decode-header-make-tuple 'readings '("2019-01-01" "2021-01-01"))
+                 '(readings . ("2019-01-01" "2021-01-01")))))
 
 (ert-deftest tests/ezeka-id-type ()
   (should (eq (ezeka-id-type "a-1234") :numerus))
