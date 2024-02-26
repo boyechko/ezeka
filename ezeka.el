@@ -1736,10 +1736,17 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
   "Mark FILENAME (with METADATA) for rename."
   (interactive (list buffer-file-name))
   (let ((mdata (or metadata (ezeka-file-metadata filename))))
-    (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
-    (cl-pushnew (ezeka-file-name-id filename)
-                ezeka--marked-for-rename
-                :test #'string=)))
+    (let-alist mdata
+      (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
+      (when (y-or-n-p "Create a symbolic link meanwhile? ")
+        (condition-case nil
+            (make-symbolic-link filename
+                                (file-relative-name (ezeka-link-path \.id mdata)
+                                                    (file-name-directory filename)))
+          (error (message "File already exists"))))
+      (cl-pushnew (ezeka-file-name-id filename)
+                  ezeka--marked-for-rename
+                  :test #'string=))))
 
 (defun ezeka-harmonize-file-name (&optional filename metadata force)
   "Ensure that FILENAME's captioned name matches the METADATA.
