@@ -2559,13 +2559,14 @@ Called interactively, get the LINK at point or to current Zettel."
                                     (cl-subseq words 0 (min 5 (length words)))
                                     " "))))))))))
 
-(defun ezeka-update-link-description (&optional use-rubric delete)
+(defun ezeka-update-link-description (&optional field delete)
   "Replace text from point to next Zettel link with its title.
-If USE-RUBRIC (or \\[universal-argument]) is non-nil, instead of the title,
-use the rubric sans the ID. With DELETE (or \\[universal-argument] \\[universal-argument]),
-delete the text instead."
+If given (or called with \\[universal-argument]), FIELD specifies a different
+field (see `ezeka-metadata-fields'). With DELETE (or \\[universal-argument] \\[universal-argument]), delete
+the text instead."
   (interactive
-   (list (equal current-prefix-arg '(4))
+   (list (if (equal current-prefix-arg '(4))
+             (ezeka--read-metadata-field))
          (equal current-prefix-arg '(16))))
   (save-excursion
     ;; if already inside a link, go to the start
@@ -2575,16 +2576,17 @@ delete the text instead."
     (while (or (char-equal (following-char) ?\[)
                (= (preceding-char) 0))  ; BOF
       (backward-char))
-    (let ((start (point)))
+    (let ((start (point))
+          (eop (save-excursion
+                 (forward-paragraph)
+                 (point))))
       ;; Cannot use `org-next-link', since it ignores links in comments
-      (when (re-search-forward "\\[\\[" (point-at-eol) 'noerror)
+      (when (re-search-forward "\\[\\[" eop 'noerror)
         (goto-char (match-beginning 0)))
       (when-let* ((_ (ezeka-link-at-point-p))
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
-                  (text (if use-rubric
-                            (file-name-base file)
-                          (alist-get 'title (ezeka-file-metadata file)))))
+                  (text (alist-get (or field 'title) (ezeka-file-metadata file))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
