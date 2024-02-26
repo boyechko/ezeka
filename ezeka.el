@@ -3227,14 +3227,18 @@ exist in FILENAME."
 (defun ezeka-set-parent (filename &optional new-parent)
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If called interactively, ask user to select the parent,
-offering to use the note in the other window (if
-available). If called with \\[universal-argument], clear the parent."
+offering to use the note in the other window (if available).
+If called with \\[universal-argument], read the parent ID manually."
   (interactive
    (list (ezeka--grab-dwim-file-target)
-         (unless current-prefix-arg
-           (ezeka--read-id "Parent ID: "
-                           nil
-                           (ezeka-file-link (ezeka-file-link owin-file))))))
+         (if current-prefix-arg
+             (ezeka--read-id "New parent: "
+                             nil
+                             (ezeka-file-link (ezeka--note-in-other-window)))
+           (ezeka-file-link (ezeka--select-file
+                             (ezeka-octavo-with-kasten "numerus"
+                               (octavo--directory-files 'full))
+                             "Select new parent: " 'require-match)))))
   (ezeka--update-metadata-values filename nil
     'parent (if new-parent
                 (ezeka-file-link new-parent)
