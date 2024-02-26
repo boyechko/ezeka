@@ -3390,8 +3390,9 @@ KEYWORD. Use METADATA if supplied."
                            (list keyword))
                           (keyword
                            (ezeka--add-to-keywords-cache keyword)
-                           (cons ezeka-rename-note-keyword
-                                 (alist-get 'keywords mdata)))
+                           (cl-remove-duplicates
+                            (cons ezeka-rename-note-keyword (alist-get 'keywords mdata))
+                            :test #'string=))
                           (t nil)))))))
 
 (defvar ezeka--keyword-history nil
