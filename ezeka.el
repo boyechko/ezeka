@@ -1368,10 +1368,10 @@ Return the original METADATA with the field changed."
   metadata)
 
 (defun ezeka--add-oldname (metadata oldname)
-  "Add OLDNAME to METADATA, returning the modified one."
+  "Add OLDNAME to METADATA, returning the modified metadata."
   (setf (alist-get 'oldnames metadata)
-        (cl-union (list oldname)
-                  (remove (alist-get 'id metadata)
+        (remove (alist-get 'id metadata)
+                (cl-union (list oldname)
                           (alist-get 'oldnames metadata))))
   metadata)
 
