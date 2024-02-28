@@ -1038,23 +1038,24 @@ Return the result of the conversion."
 ;;;=============================================================================
 
 (defconst ezeka-metadata-fields
-  '((id        :hidden t :predicate ezeka-link-p)
+  '((id        :hidden t :predicate ezeka-id-valid-p)
     (link      :hidden t :predicate ezeka-link-p)
     (path      :hidden t)
+    (filename  :hidden t)
     (category  :hidden t)
     (label     :hidden t)
     (caption   :hidden t)
     (citekey   :hidden t)
     (rubric)
-    (successor :predicate ezeka-link-p)
+    (successor :predicate ezeka-id-valid-p)
     (title)
     (subtitle)
     (author)
     (created   :predicate ezeka--timep)
     (modified  :predicate ezeka--timep)
-    (parent    :predicate ezeka-link-p)
-    (firstborn :predicate ezeka-link-p)
-    (oldnames  :predicate listp)
+    (parent    :predicate ezeka-id-valid-p)
+    (firstborn :predicate ezeka-id-valid-p)
+    (oldnames  :predicate (ezeka-id-valid-p))
     (readings  :predicate listp)
     (keywords  :predicate listp))
   "An alist of valid metadata fields and their properties.
@@ -1240,9 +1241,37 @@ This is a copy of `timep' from `type-break'."
 Group 1 is the key.
 Group 2 is the value.")
 
+(defvar ezeka--validate-metadata-field-history nil
+  "History variable for `ezeka--validate-metadata-field'.")
+
+(defun ezeka--validate-metadata-field (field value &optional predicate)
+  "Return VALUE if it is valid for metadata FIELD.
+PREDICATE, if given, overrides `ezeka-metadata-fields'."
+  (let ((pred (or predicate
+                  (plist-get (alist-get field ezeka-metadata-fields)
+                             :predicate)
+                  #'identity)))
+    (cond ((and (functionp pred) (funcall pred value))
+           value)
+          ((functionp pred)
+           (ezeka--validate-metadata-field
+            field
+            (ezeka--header-deyamlify-value
+             (read-string
+              (format "`%s' does not satisfy predicate `%s'; fix it: " value pred)
+              value
+              'ezeka--validate-metadata-field-history))
+            pred))
+          ((listp pred)
+           (mapcar (lambda (v)
+                     (ezeka--validate-metadata-field field v (car pred)))
+                   value))
+          (t
+           (signal 'wrong-type-argument (cons 'functionp-or-listp pred))))))
+
 (defun ezeka--decode-header (header &optional file)
   "Return metadata alist decoded from FILE's HEADER.
-They keys are converted to keywords."
+They keys are converted to symbols."
   (let* ((metadata
           (mapcar
            (lambda (line)
@@ -1250,23 +1279,14 @@ They keys are converted to keywords."
                (if (string-match ezeka-header-line-regexp line)
                    (let* ((key (intern (match-string 1 line)))
                           (val (match-string 2 line))
-                          (pred (or
-                                 (plist-get (alist-get key ezeka-metadata-fields)
-                                            :predicate)
-                                 #'identity))
-                          (deval (ezeka--header-deyamlify-value val)))
-                     (while (not (funcall pred deval))
-                       (setq val
-                         (read-string
-                          (format "Expected `%s' to satisfy predicate `%s'. Fix it: "
-                                  val pred)))
-                       (setq deval
-                         (ezeka--header-deyamlify-value val)))
+                          (deval (ezeka--validate-metadata-field
+                                  key
+                                  (ezeka--header-deyamlify-value val))))
                      (cons key deval))
                  (signal 'ezeka-error (list "Malformed header line: '%s'" line)))))
            (split-string header "\n" 'omit-nulls "[ ]+")))
-         (decoded (ezeka-decode-rubric (alist-get 'rubric metadata))))
-    (append decoded metadata)))
+         (rubric (ezeka-decode-rubric (alist-get 'rubric metadata))))
+    (append rubric metadata)))
 
 (defun ezeka--header-region (buffer)
   "Return a tuple of (START. END) for the header in Ezeka BUFFER."
@@ -1310,6 +1330,7 @@ They keys are converted to keywords."
                            (ezeka-id-type file)))
                (kasten (or (alist-get 'kasten mdata)
                            (ezeka-file-kasten file)))
+               (filename (file-name-base file))
                (path   (file-relative-name file ezeka-directory))
                (link   (or (ignore-errors (ezeka-file-link file))
                            (ignore-errors (ezeka-make-link kasten id))
@@ -1322,8 +1343,8 @@ They keys are converted to keywords."
                             title)))
           (cl-mapc (lambda (key val)
                      (setf (alist-get key mdata) val))
-                   '(id type kasten link title caption)
-                   `(,id ,type ,kasten ,link ,title ,caption))
+                   '(id type kasten filename path link title caption)
+                   `(,id ,type ,kasten ,filename ,path ,link ,title ,caption))
           mdata)
       (signal 'file-error file))))
 
