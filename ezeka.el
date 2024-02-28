@@ -817,26 +817,36 @@ otherwise."
                 (dir (ezeka-id-directory id))
                 (matches (flatten-list
                           (file-expand-wildcards
-                           (expand-file-name basename dir)))))
-      (cl-case (length matches)
-        (0 nil)
-        (1 (car matches))
-        (t
-         (warn "Found multiple matches for link `%s': %s"
-               link
-               (mapcar #'file-name-base matches))
-         (let* ((chosen (ezeka--select-file matches
-                                            "Multiple matches found. Select one: "
-                                            'require-match))
-                (others (cl-remove chosen matches :test #'string=))
-                (other (unless (cdr others) (car others)))
-                (attrs (when other (file-attributes other))))
-           (when (and other
-                      (y-or-n-p (format "Delete the other file `%s' (type: %s)? "
-                                        (file-name-base other)
-                                        (file-attribute-type attrs))))
-             (delete-file other 'trash))
-           chosen))))))
+                           (expand-file-name basename dir))))
+                (files (or (cl-remove-if-not
+                            (lambda (f)
+                              (null (file-attribute-type (file-attributes f))))
+                            matches)
+                           t)))
+      (cond ((zerop (length matches)) nil)
+            ((not (cdr matches)) (car matches))
+            ((not (cdr files)) (car files))
+            ((eq t files)
+             (warn "Found multiple symbolic links for `%s':\n    %s"
+                   link
+                   (mapcar #'file-name-base matches))
+             (ezeka--select-file matches
+                                 "Multiple matches found. Select one: "
+                                 'require-match))
+            (t
+             (warn "Found multiple matches for `%s':\n%s"
+                   link
+                   (mapconcat (lambda (m)
+                                (list (file-name-base m)
+                                      (pcase (file-attribute-type (file-attributes m))
+                                        ((pred stringp) 'symlink)
+                                        ((pred null) 'file)
+                                        (_ 'directory))))
+                              matches
+                              "\n- "))
+             (ezeka--select-file matches
+                                 "Multiple matches found. Select one: "
+                                 'require-match))))))
 
 (defun ezeka-link-path (link &optional metadata)
   "Return a full file path to the Zettel LINK.
