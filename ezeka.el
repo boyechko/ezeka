@@ -1330,31 +1330,33 @@ They keys are converted to symbols."
   "Return an alist of metadata for FILE."
   (save-match-data
     (if-let* ((file (expand-file-name file ezeka-directory))
-              (header (ezeka-file-content file 'just-header)))
-        (let* ((mdata (ezeka--decode-header header file))
-               ;; Fill in any missing values
-               (id     (or (alist-get 'id mdata)
-                           (ezeka-file-name-id file)
-                           (file-name-base file))) ; HACK
-               (type   (or (alist-get 'type mdata)
-                           (ezeka-id-type file)))
-               (kasten (or (alist-get 'kasten mdata)
-                           (ezeka-file-kasten file)))
-               (filename (file-name-base file))
-               (path   (file-relative-name file ezeka-directory))
-               (link   (or (ignore-errors (ezeka-file-link file))
-                           (ignore-errors (ezeka-make-link kasten id))
-                           (ezeka--file-name-part file 'id)))
-               (title   (or (alist-get 'title mdata)
-                            (alist-get 'caption mdata)
-                            (alist-get 'rubric mdata)))
-               (caption (or (alist-get 'caption mdata)
-                            (ezeka-file-name-caption file)
-                            title)))
-          (cl-mapc (lambda (key val)
-                     (setf (alist-get key mdata) val))
-                   '(id type kasten filename path link title caption)
-                   `(,id ,type ,kasten ,filename ,path ,link ,title ,caption))
+              (header (ezeka-file-content file 'just-header))
+              (mdata (ezeka--decode-header header file)))
+        (let-alist mdata
+          (setf (alist-get 'id mdata)
+                (or \.id
+                    (ezeka-file-name-id file)
+                    (file-name-base file))) ; HACK
+          (setf (alist-get 'type mdata)
+                (or \.type
+                    (ezeka-id-type file)))
+          (setf (alist-get 'kasten mdata)
+                (or \.kasten
+                    (ezeka-file-kasten file)))
+          (setf (alist-get 'filename mdata)
+                (file-name-base file))
+          (setf (alist-get 'path mdata)
+                (file-relative-name file ezeka-directory))
+          (setf (alist-get 'link mdata)
+                (or (ignore-errors (ezeka-file-link file))
+                    (ignore-errors (ezeka-make-link kasten id))
+                    (ezeka--file-name-part file 'id)))
+          (setf (alist-get 'title mdata)
+                (or \.title \.caption \.rubric))
+          (setf (alist-get 'caption mdata)
+                (or \.caption
+                    (ezeka-file-name-caption file)
+                    \.title))
           mdata)
       (signal 'file-error file))))
 
