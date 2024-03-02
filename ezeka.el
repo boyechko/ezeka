@@ -4256,41 +4256,54 @@ If METADATA is nil, read it from SOURCE."
 To do that, make a symbolic link from source to target
 first, which `ezeka--finish-moving-note' will deal with
 afterwards. SOURCE can be a link or a file."
-  (let* ((source-file (if (file-exists-p source)
-                          source
-                        (ezeka-link-file source)))
-         (source-link (ezeka-file-link source-file))
-         (orig-mdata (ezeka-file-metadata source-file))
-         (mdata (copy-sequence orig-mdata)))
-    (ezeka--add-to-move-log
-     source-link target-link (alist-get 'caption orig-mdata) "Begin moving")
-    (setf (alist-get 'id mdata)
+  (cl-assert (stringp source))
+  (cl-assert (stringp target-link))
+  (let* ((s-file (if (file-exists-p source)
+                     source
+                   (ezeka-link-file source)))
+         (s-link (ezeka-file-link s-file))
+         (t-link target-link)
+         (s-mdata (ezeka-file-metadata s-file))
+         (t-mdata (ezeka-file-metadata s-file))) ; TODO Need to deep-copy s-mdata
+    (ezeka--add-to-move-log s-link target-link
+                            (alist-get 'caption s-mdata)
+                            "Begin moving")
+    (setf (alist-get 'id t-mdata)
           (ezeka-link-id target-link)
-          (alist-get 'label mdata)
-          (ezeka--read-label (alist-get 'kasten mdata)
+          (alist-get 'label t-mdata)
+          (ezeka--read-label (alist-get 'kasten t-mdata)
                              nil
                              nil
-                             (alist-get 'label mdata))
-          (alist-get 'title mdata)
+                             (alist-get 'label t-mdata))
+          (alist-get 'title t-mdata)
           (ezeka--read-title "Title: "
-                             (alist-get 'title mdata))
-          (alist-get 'caption mdata)
+                             (alist-get 'title t-mdata))
+          (alist-get 'caption t-mdata)
           (ezeka--read-title "Caption: "
-                             (ezeka--pasteurize-file-name (alist-get 'title mdata)))
-          (alist-get 'citekey mdata)
+                             (ezeka--pasteurize-file-name (alist-get 'title t-mdata)))
+          (alist-get 'citekey t-mdata)
           (ezeka--read-citekey (format "Title: %s\nCitekey: "
-                                       (alist-get 'title mdata)))
-          (alist-get 'keywords mdata)
-          (cl-union (alist-get 'keywords mdata)
+                                       (alist-get 'title t-mdata)))
+          (alist-get 'keywords t-mdata)
+          (cl-union (alist-get 'keywords t-mdata)
                     (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
-                    :test #'string=))
-    (ezeka--update-file-header source-file mdata 'force)
-    (let ((target-file (ezeka-link-path target-link mdata)))
-      (unless (file-exists-p (file-name-directory target-file))
-        (make-directory (file-name-directory target-file)))
-      (make-symbolic-link source-file target-file)
+                    :test #'string=)
+          (alist-get 'rubric t-mdata)
+          (ezeka-encode-rubric t-mdata))
+    (ezeka-add-change-log-entry s-file
+      (format "Begin moving \"%s\" to \"%s.\""
+              (alist-get 'rubric s-mdata)
+              (alist-get 'rubric t-mdata)))
+    (ezeka--update-file-header s-file t-mdata 'force)
+    ;; (ezeka--add-to-system-log 'move nil
+    ;;   :source `(link ,s-link caption ,source-caption)
+    ;;   :target `(link ,target-link caption ,(alist-get 'caption t-mdata)))
+    (let ((t-file (ezeka-link-path target-link t-mdata)))
+      (unless (file-exists-p (file-name-directory t-file))
+        (make-directory (file-name-directory t-file)))
+      (make-symbolic-link s-file t-file)
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
-after committing" source-link target-link))))
+after committing" s-link target-link))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
