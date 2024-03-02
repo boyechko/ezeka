@@ -525,18 +525,21 @@ where ARGS is the argument list to `replace-regexp-in-string'
   (replace-regexp-in-string "(\\?[0-9]+:" "(" regexp))
 
 (defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt history)
-  "Edit NEW-STRING in minibuffer, showing it parallel to OLD-STRING.
-If NEW-STRING is nil, default to OLD-STRING. If given, PROMPT is shown
-as the first line. HISTORY is passed to `read-string'."
-  (let ((new-string (or new-string old-string))
-        (prompt (or prompt "Original: ")))
-    (read-string
-     (format (format "%%s%%s\n%%%-ds" (length prompt))
-             prompt
-             (propertize old-string 'face 'italic)
-             "Edited: ")
-     new-string
-     history)))
+  "Edit NEW-STRING in minibuffer, showing it in parallel to OLD-STRING.
+If NEW-STRING is nil, default to OLD-STRING. If given,
+PROMPT is a string shown as the first line. HISTORY should
+be a variable name passed to `read-string'."
+  (let* ((old-string (or old-string ""))
+         (new-string (or new-string old-string))
+         (prompt (or prompt "Original: ")))
+    (condition-case nil
+        (read-string
+         (format (format "%%s%%s\n%%%-ds" (length prompt))
+                 prompt (propertize old-string 'face 'italic)
+                 "Edited: ")
+         new-string
+         history)
+      (minibuffer-quit old-string))))
 
 ;; See https://stackoverflow.com/a/65685019
 (defun ezeka--save-buffer-read-only (file)
