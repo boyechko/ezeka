@@ -687,6 +687,8 @@ The format control string can contain the following
 %-sequences:
 
 %c means caption (i.e. short title).
+%e means file extension.
+%f means base filename (i.e. without extension).
 %i means ID or link.
 %k means citation key.
 %K means kasten.
@@ -696,7 +698,9 @@ Unknown %-sequences are left intact."
   (let-alist (ezeka--file-name-fields filename)
     (let* ((case-fold-search nil)
            (basic (format-spec format-string
-                               `((?i . ,.id)
+                               `((?e . ,(file-name-extension filename))
+                                 (?f . ,(file-name-base filename))
+                                 (?i . ,.id)
                                  (?l . ,.label)
                                  (?c . ,.caption)
                                  (?K . ,(ezeka-kasten-name
