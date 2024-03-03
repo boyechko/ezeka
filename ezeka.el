@@ -1786,14 +1786,23 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
                   ezeka--marked-for-rename
                   :test #'string=))))
 
-(defun ezeka-harmonize-file-name (&optional filename metadata force)
-  "Ensure that FILENAME's captioned name matches the METADATA.
-When called interactively with \\[universal-argument], or FORCE is non-nil,
-offer to set metadata or rename the file even if they are in agreement."
+(defcustom ezeka-harmonize-file-name-preference 'ask
+  "Can be 'ASK, 'FILENAME, or 'METADATA."
+  :type 'symbol
+  :options '(ask filename metadata)
+  :group 'ezeka)
+
+(defun ezeka-harmonize-file-name (&optional filename metadata force preference)
+  "Ensure that FILENAME's captioned name matches the METADATA
+When called interactively with \\[universal-argument], or
+FORCE is non-nil, offer to set metadata or rename the file
+even if they are in agreement. If given, PREFERENCE
+overrides `ezeka-harmonize-file-name-preference'."
   (interactive
    (list buffer-file-name
          nil
-         current-prefix-arg))
+         current-prefix-arg
+         'ask))
   (let* ((filename (or filename buffer-file-name))
          (file-base (file-name-base filename))
          (mdata (if (null metadata)
@@ -1801,6 +1810,7 @@ offer to set metadata or rename the file even if they are in agreement."
                   (ezeka--update-file-header filename metadata)
                   metadata))
          (mdata-base (ezeka-format-metadata ezeka-file-name-format mdata))
+         (preference (or preference ezeka-harmonize-file-name-preference))
          (_read-user-choice
           (lambda ()
             "Prompt the user about which name to use."
@@ -1811,27 +1821,31 @@ offer to set metadata or rename the file even if they are in agreement."
                              "Press [f/u] to set metadata from filename (uppercase to edit),\n"
                              "      [m/l] to set filename from metadata (uppercase to edit),\n"
                              "      [r] to add %s keyword for renaming later, or\n"
-                             "      [n] or [q] to do noting: ")
+                             "      [n] or [q] to do noting:")
                      (propertize file-base 'face 'bold)
                      (propertize mdata-base 'face 'italic)
                      (propertize ezeka-rename-note-keyword 'face 'bold))
              '(?f ?F ?u ?U ?m ?M ?l ?L ?r ?R ?n ?N ?q ?Q))))
          (keep-which
-          (unless (and (not force)
-                       (or (string= (ezeka--unaccent-string file-base)
-                                    (ezeka--unaccent-string mdata-base))
-                           (member ezeka-rename-note-keyword
-                                   (alist-get 'keywords mdata))))
-            (funcall _read-user-choice))))
+          (cond ((eq preference 'metadata) ?m)
+                ((eq preference 'filename) ?f)
+                ((or force
+                     (and (not (string= (ezeka--unaccent-string file-base)
+                                        (ezeka--unaccent-string mdata-base)))
+                          (not (member ezeka-rename-note-keyword
+                                       (alist-get 'keywords mdata)))))
+                 (funcall _read-user-choice)))))
     (funcall clear-message-function)
     (cond ((memq keep-which '(nil ?n ?q))
            ;; do nothing
            )
+          ;; rename
           ((and (memq keep-which '(?r ?R))
                 (not (member ezeka-rename-note-keyword
                              (alist-get 'keywords mdata))))
            (ezeka--mark-for-rename filename mdata)
            (ezeka--save-buffer-read-only filename))
+          ;; set from filename
           ((memq keep-which '(?f ?F ?u ?U))
            (when (memq keep-which '(?F ?U))
              (setq file-base (ezeka--minibuffer-edit-string file-base)))
@@ -1848,6 +1862,7 @@ offer to set metadata or rename the file even if they are in agreement."
            (ezeka--replace-file-header filename mdata)
            (ezeka--save-buffer-read-only filename)
            (run-hooks 'ezeka-after-save-hook))
+          ;; set from metadata
           ((memq keep-which '(?m ?M ?l ?L))
            (let ((pasteurized
                   (ezeka--pasteurize-file-name
