@@ -2970,7 +2970,7 @@ If SKIP-CURRENT is non-nil, skip current buffer. If
 MODIFIED-ONLY is non-nil, show only modified buffers.
 PROMPT, if specified, replaces the default one."
   (let* ((files (nreverse (ezeka-visiting-files-list skip-current modified-only)))
-         (table (ezeka-completion-table files))
+         (table (ezeka-completion-table files 'use-metadata))
          (prompt (or prompt "Select Zettel buffer: "))
          ;; Disabling sorting preserves the same order as with `switch-to-buffer'
          ;; FIXME: How to do this without relying on vertico?
@@ -2984,9 +2984,11 @@ PROMPT, if specified, replaces the default one."
 If MODIFIED-ONLY (or \\[universal-argument]) is non-nil, show only
 modified buffers."
   (interactive "P")
-  (let ((buf (ezeka--select-buffer 'skip-current modified-only)))
-    (ezeka-breadcrumbs-drop (buffer-file-name buf) buffer-file-name)
-    (switch-to-buffer buf)))
+  (if-let ((buf (ezeka--select-buffer 'skip-current modified-only)))
+      (progn
+        (ezeka-breadcrumbs-drop (buffer-file-name buf) buffer-file-name)
+        (switch-to-buffer buf))
+    (user-error "There are no open Zettel buffers")))
 
 (defun ezeka-switch-to-buffer-other-window (&optional modified-only)
   "Select and switch to another open Zettel buffer in the other window.
