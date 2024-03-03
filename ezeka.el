@@ -2934,12 +2934,20 @@ information for Zettelkasten work."
            'face '(:slant italic :height 0.9)))
       (setq mode-line-misc-info octavo-index-mode-line-orig))))
 
-(defun ezeka-completion-table (files)
-  "Turn list of FILES into completion table suitable for `completing-read'."
+(defun ezeka-completion-table (files &optional get-metadata)
+  "Turn list of FILES into completion table suitable for `completing-read'.
+If given, GET-METADATA specifies whether to get each file's
+metadata, which can be expensive with many FILES, or rely
+purely on the file name."
   (when files
-    (let ((table (make-hash-table :test #'equal :size (length files))))
+    (let* ((n (length files))
+           (table (make-hash-table :test #'equal :size n)))
       (dolist (f files table)
-        (puthash (file-name-base f) f table)))))
+        (puthash (if get-metadata
+                     (ezeka-encode-rubric (ezeka-file-metadata f) 'omit-stable)
+                   (ezeka-format-file-name "%f" f))
+                 f
+                 table)))))
 
 (defun ezeka--select-buffer (&optional skip-current modified-only prompt)
   "Select an open Zettel buffer, returning its filename.
