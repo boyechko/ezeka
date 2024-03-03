@@ -170,7 +170,7 @@ Group 1 is the ID.
 Group 2 is the kasten, if specified."
   `(rx ,(if match-entire 'string-start 'word-start)
        (optional (group-n 2 (one-or-more alpha)) ":")
-       (group-n 1 (regexp (ezeka--id-regexp)))
+       (group-n 1 (regexp ,(ezeka--id-regexp)))
        ,(if match-entire 'string-end 'word-end)))
 
 (defcustom ezeka-file-name-format "%i {%l} %c %k"
@@ -185,7 +185,8 @@ should match `ezeka-file-name-regexp'."
   "String separating the ID from the rest of the file name.
 For example, with `ezeka-file-name-format' set to \"%i-%c\"")
 
-(defun ezeka-file-name-regexp ()        ; HARDCODED
+;; TODO See `ezeka-header-rubric-regexp' about how to unhardcode this.
+(defmacro ezeka-file-name-regexp ()     ; HARDCODED
   "Return regexp matching Zettel base file names (i.e. rubrics).
 It should match the result of `ezeka-file-name-format`.
 
@@ -195,15 +196,15 @@ Group 3 is the label (genus or category).
 Group 4 is the caption (i.e. short title).
 Group 5 is the citation key.
 Group 6 is the stable caption mark."
-  (concat (ezeka-link-regexp)             ; \1 and \2
-          ezeka-file-name-separator
-          "\\(?:"                         ; everything else is optional
-          "\\(?:\\.\\)*"                  ; FIXME: optional historic period
-          "\\(?:{\\(?3:[^}]+\\)} \\)*"    ; \3
-          "\\(?4:.+?\\)"                  ; \4
-          "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
-          "\\)*"                          ; end of everything else
-          ))
+  `(concat ,(ezeka-link-regexp)          ; \1 and \2
+           ,ezeka-file-name-separator
+           "\\(?:"                      ; everything else is optional
+           "\\(?:\\.\\)*"               ; FIXME: optional historic period
+           "\\(?:{\\(?3:[^}]+\\)} \\)*" ; \3
+           "\\(?4:.+?\\)"               ; \4
+           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
+           "\\)*"                          ; end of everything else
+           ))
 
 (defcustom ezeka-header-separator-regexp "^$"
   "Regexp that matches the separator line between header and the note text."
@@ -215,31 +216,13 @@ Group 6 is the stable caption mark."
   :type 'string
   :group 'ezeka)
 
-;; TODO Rename to `ezeka-header-stable-rubric-mark' or get rid of entirely
-(defcustom ezeka-header-stable-caption-mark "§"
-  "Mark that signifies stable caption.
-The mark is used in the rubric value to show that any
-differences between caption and title values should be
-ignored as long as filename and header match."
+(defcustom ezeka-header-rubric-stable-mark "§"
+  "Mark that signifies that the caption is stable.
+The mark is used in the rubric to show that any differences
+between caption and title values should be ignored as long
+as filename and rubric match."
   :type 'string
   :group 'ezeka)
-
-;; TODO Move `ezeka-header-stable-caption-mark' (%s) somewhere else in header?
-(defcustom ezeka-header-rubric-format
-  (concat "%s" ezeka-file-name-format)
-  "The `format-spec' string for generating the note's rubric.
-See `ezeka-format-metadata' for details.
-This should match `ezeka-header-rubric-regexp'."
-  :type 'string
-  :group 'ezeka)
-
-(defun ezeka-header-rubric-regexp ()
-  "Regular expression for the rubric string as found in the header.
-
-Groups 1-5 see `ezeka-file-name-regexp'.
-Group 6 is the stable caption mark."    ; TODO Rename to 'stable rubric'
-  (concat "\\(?6:" ezeka-header-stable-caption-mark "\\)*"
-          (ezeka-file-name-regexp)))
 
 (defcustom ezeka-header-update-modified t
   "Whether `ezeka--update-file-header' updates the modification date.
@@ -1115,7 +1098,7 @@ The format control string may contain the following %-sequences:
 %K means kasten.
 %l means label (genus or category).
 %M means modification timestamp (empty if not set).
-%s means stable mark (see `ezeka-header-stable-caption-mark').
+%s means stable mark (see `ezeka-header-rubric-stable-mark').
 %t means title."
   (let ((_format-time
          (lambda (time-string)
@@ -1144,7 +1127,7 @@ The format control string may contain the following %-sequences:
                         (?l . ,.label)
                         (?M . ,(funcall _format-time .modified))
                         (?s . ,(if .caption-stable
-                                   ezeka-header-stable-caption-mark
+                                   ezeka-header-rubric-stable-mark
                                  ""))
                         (?t . ,.title))))))))
 
@@ -1168,6 +1151,26 @@ corresponding to metadata fields."
         mdata)
     (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
 
+(defmacro ezeka-encode-rubric (metadata &optional omit-stable)
+  "Return a string that encodes the given METADATA into the rubric.
+The rubric consist of `ezeka-file-name-format' preceded by
+`ezeka-header-rubric-stable-mark', unless OMIT-STABLE is
+non-nil."
+  `(concat (unless ,omit-stable ezeka-header-rubric-stable-mark)
+           (ezeka-format-metadata ezeka-file-name-format ,metadata)))
+
+;; TODO It would be useful to generate the regexp based on
+;; `ezeka-encode-rubric' output, perhaps by passing METADATA consisting
+;; of %-sequences from `ezeka-format-metadata'. The fields in
+;; `ezeka-metadata-fields' could, then, provide their own particular regexp.
+(defmacro ezeka-header-rubric-regexp ()
+  "Regular expression for the rubric string as found in the header.
+
+Groups 1-5 see `ezeka-file-name-regexp'.
+Group 6 is the stable rubric mark."
+  `(concat "\\(?6:" ,ezeka-header-rubric-stable-mark "\\)*"
+           ,(ezeka-file-name-regexp)))
+
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
 If cannot decode, return NIL."
@@ -1186,11 +1189,6 @@ If cannot decode, return NIL."
             (when caption (cons 'caption (string-trim caption)))
             (cons 'caption-stable stable)
             (when citekey (cons 'citekey (string-trim citekey)))))))
-
-(defmacro ezeka-encode-rubric (metadata)
-  "Return a string that encodes the given METADATA into the rubric.
-The produced string is based on `ezeka-header-rubric-format'."
-  `(ezeka-format-metadata ezeka-header-rubric-format ,metadata))
 
 (defun ezeka--header-yamlify-key (key)
   "Return a YAML-formatted string name of the KEY symbol."
@@ -1673,7 +1671,7 @@ reconciling even if CAPTION-STABLE is true."
           (when (re-search-forward ezeka-header-separator-regexp nil t 1)
             (narrow-to-region (point-min) (point)))
           (setf (alist-get 'rubric metadata)
-                (ezeka-format-metadata ezeka-header-rubric-format metadata))
+                (ezeka-encode-rubric metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (when cons
@@ -3556,7 +3554,7 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
       (insert
        (concat ezeka-header-rubric-key
                ": "
-               (ezeka-format-metadata ezeka-header-rubric-format mdata)))
+               (ezeka-encode-rubric mdata)))
       (insert "\ntitle: " .title)
       (insert (format "\ncreated: %s\n"
                       ;; Insert creation time, making it match a tempus currens filename
