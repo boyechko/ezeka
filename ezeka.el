@@ -1148,7 +1148,8 @@ corresponding to metadata fields."
              (mdata `((link . ,link)
                       (id . ,(ezeka-link-id link))
                       (file . ,(unless (ezeka-link-p file-or-link)
-                                 file-or-link)))))
+                                 file-or-link))
+                      (_metadata . created))))
         (while values
           (push (cons (car values) (cadr values)) mdata)
           (setq values (cddr values)))
@@ -1185,14 +1186,15 @@ If cannot decode, return NIL."
           (caption      (match-string 4 rubric))
           (stable       (when (match-string 6 rubric) t))
           (citekey      (match-string 5 rubric)))
-      (list (cons 'id id)
-            (when kasten (cons 'kasten (string-trim kasten)))
-            (cons 'type (ezeka-id-type id))
-            (cons 'label (unless (string= "nil" label) ; HACK for new notes
-                           (ezeka--validate-label label)))
-            (when caption (cons 'caption (string-trim caption)))
-            (cons 'caption-stable stable)
-            (when citekey (cons 'citekey (string-trim citekey)))))))
+      `((id . ,id)
+        (kasten . ,(when kasten (string-trim kasten)))
+        (type . ,(ezeka-id-type id))
+        (label . ,(unless (string= "nil" label) ; HACK for new notes
+                    (ezeka--validate-label label)))
+        (caption . ,(when caption (string-trim caption)))
+        (caption-stable . ,stable)
+        (citekey . ,(when citekey (string-trim citekey)))
+        (_metadata . from-rubric)))))
 
 (defun ezeka--header-yamlify-key (key)
   "Return a YAML-formatted string name of the KEY symbol."
@@ -1338,6 +1340,8 @@ They keys are converted to symbols."
               (header (ezeka-file-content file 'just-header))
               (mdata (ezeka--decode-header header file)))
         (let-alist mdata
+          (setf (alist-get '_metadata mdata)
+                'from-file)
           (setf (alist-get 'id mdata)
                 (or \.id
                     (ezeka-file-name-id file)
