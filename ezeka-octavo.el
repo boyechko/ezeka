@@ -380,19 +380,17 @@ destination kasten."
     32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)
   (put 'vertico--define-sort 'lisp-indent-function 1))
 
-;; TODO Fold functionality into `ezeka--insert-link-with-spaces'?
 (defun ezeka-octavo-insert-link (file)
-  "Insert link to the Zettel FILE.
-Unlike `octavo-insert-link', allow editing the title in the
-minibuffer according to the value of `octavo-link-and-title': if it's
-'ask or t, the user can edit the title before it is inserted."
+  "Wrapper around `ezeka-insert-link-with-metadata' for FILE."
   (interactive (list (octavo--select-file "Insert link to: ")))
   (when-let ((link (ezeka-file-link file)))
-    (if (or (eq octavo-link-and-title 't)
-            (and (eq octavo-link-and-title 'ask)
-                 ;; FIXME: Nonlocal function
-                 (rb-y-or-explicit-n-p "Include (edited) title? ")))
-        (ezeka-insert-link-with-metadata link '(title) :before)
+    (if octavo-link-and-title
+        (ezeka-insert-link-with-metadata
+         link
+         (list (if (eq octavo-link-and-title 'ask)
+                   (ezeka--read-metadata-field "Which field? ")
+                 'title))
+         :before)
       (ezeka--insert-link-with-spaces link))))
 
 (defun ezeka-octavo-insert-link-to-kasten (&optional kasten sort)
