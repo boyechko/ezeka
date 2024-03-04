@@ -2389,24 +2389,27 @@ interactively edit the text."
   (interactive
    (list (ezeka--read-id "Link to insert: ")
          ;; FIXME Where argument is completely ignored
-         (list (intern-soft
-                (completing-read "Which metadata field? "
-                                 ezeka-metadata-fields nil 'require-match)))
+         (list (ezeka--read-metadata-field "Which field? "))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (let ((link-metadata
-         (if-let* ((file (or (ezeka-link-file link)
-                             (cl-find-if #'(lambda (buf)
-                                             (string-match link (buffer-name buf)))
-                                         (buffer-list))))
-                   (mdata (ezeka-file-metadata file))
-                   ;; FIXME HARDCODED
-                   (fmt "%t"))
-             (ezeka-format-metadata fmt mdata)
-           "")))
+  (let* ((desc-fmt (mapconcat (lambda (f)
+                                (format "%%%c"
+                                        (plist-get (alist-get f ezeka-metadata-fields)
+                                                   :format)))
+                              fields
+                              " "))
+         (desc-string
+          (if-let* ((file (or (ezeka-link-file link)
+                              (cl-find-if #'(lambda (buf)
+                                              (string-match link (buffer-name buf)))
+                                          (buffer-list))))
+                    (mdata (if (file-symlink-p file)
+                               (ezeka-decode-rubric (file-name-base file))
+                             (ezeka-file-metadata file))))
+              (ezeka-format-metadata desc-fmt mdata))))
     (ezeka--insert-link-with-spaces link
                                     (if noedit
-                                        link-metadata
-                                      (read-string "Insert: " link-metadata))
+                                        desc-string
+                                      (read-string "Insert: " desc-string))
                                     (ezeka--format-link link))))
 
 (defun ezeka--select-file (files &optional prompt require-match)
