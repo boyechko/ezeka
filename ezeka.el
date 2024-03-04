@@ -2364,6 +2364,9 @@ STRINGS are themselves concatenated with spaces in between."
           (string-trim (mapconcat #'identity strings " "))
           (if (or (eolp) (ezeka--space-or-punct-p (char-after))) "" " ")))
 
+(defvar ezeka-insert-link-hook nil
+  "Normal hook that is run after `ezeka-insert-link' and friends.")
+
 (defun ezeka--insert-link-with-spaces (link &rest strings)
   "Insert LINK at point.
 If STRINGS is non-nil, LINK is not actually inserted, just
@@ -2378,7 +2381,8 @@ assumed to be contained in some of them."
                                 already-linked)))
       (if strings
           (apply #'ezeka-insert-with-spaces strings)
-        (ezeka-insert-with-spaces (ezeka--format-link link))))))
+        (ezeka-insert-with-spaces (ezeka--format-link link)))
+      (run-hooks 'ezeka-insert-link-hook))))
 
 (defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
   "Insert the Zettel LINK, optionally adding metadata FIELD(S).
