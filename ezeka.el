@@ -2486,10 +2486,11 @@ the rubric instead."
     (cond (link-only
            (ezeka--insert-link-with-spaces other-file))
           (rubric
-           (insert (file-name-base other-file)))
+           (ezeka-insert-link-with-metadata other-file '(rubric) :before))
           (t
-           (funcall-interactively #'ezeka-insert-link-with-metadata
-                                  other-file)))))
+           (ezeka-insert-link-with-metadata
+            other-file
+            (list (ezeka--read-metadata-field "Which field? ")))))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.
