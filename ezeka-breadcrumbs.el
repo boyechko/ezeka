@@ -289,13 +289,18 @@ The control sequence %s is replaced with the xref search string.")
               (file-name-nondirectory buffer-file-name))
     (format "\"%s\"" (buffer-name))))
 
+(defvar ezeka-breadcrumbs--comment-history nil
+  "History variable for breadcrumb comments.")
+
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop-external (source &optional comment)
   "Drop breadcrumbs for the current external location.
 SOURCE should be a string or symbol; COMMENT can be a short string."
   (interactive
    (list (buffer-file-name
-          (get-buffer (read-buffer "How did you get here? " nil t)))))
+          (get-buffer (read-buffer "How did you get here? " nil t)))
+         (read-string
+          "Why are you here? " nil 'ezeka-breadcrumbs--comment-history "")))
   (unless (or (null ezeka--breadcrumbs-trail)
               (not (overlay-buffer ezeka--breadcrumbs-trail)))
     (let ((inhibit-read-only t)
@@ -303,7 +308,7 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
                       (ezeka--breadcrumbs-buffer-target))))
       (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
         (save-excursion
-          (when-let ((status (ezeka-breadcrumbs-find-trail target source)))
+          (when-let ((status (ezeka-breadcrumbs-find-trail target source 'make-duplicates)))
             (insert (ezeka--breadcrumbs-string target source comment))
             (message "Dropped breadcrumbs from `%s' as %s"
                      (file-name-nondirectory source)
