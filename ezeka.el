@@ -2395,26 +2395,28 @@ interactively edit the text."
          ;; FIXME Where argument is completely ignored
          (list (ezeka--read-metadata-field "Which field? "))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (let* ((desc-fmt (mapconcat (lambda (f)
-                                (format "%%%c"
-                                        (plist-get (alist-get f ezeka-metadata-fields)
-                                                   :format)))
-                              fields
-                              " "))
-         (desc-string
-          (if-let* ((file (or (ezeka-link-file link)
-                              (cl-find-if #'(lambda (buf)
-                                              (string-match link (buffer-name buf)))
-                                          (buffer-list))))
-                    (mdata (if (file-symlink-p file)
-                               (ezeka-decode-rubric (file-name-base file))
-                             (ezeka-file-metadata file))))
-              (ezeka-format-metadata desc-fmt mdata))))
-    (ezeka--insert-link-with-spaces link
-                                    (if noedit
-                                        desc-string
-                                      (read-string "Insert: " desc-string))
-                                    (ezeka--format-link link))))
+  (if-let* ((_ (car fields))
+            (desc-fmt (mapconcat
+                       (lambda (f)
+                         (format "%%%c"
+                                 (plist-get (alist-get f ezeka-metadata-fields)
+                                            :format)))
+                       fields
+                       " "))
+            (file (or (ezeka-link-file link)
+                      (cl-find-if #'(lambda (buf)
+                                      (string-match link (buffer-name buf)))
+                                  (buffer-list))))
+            (mdata (if (file-symlink-p file)
+                       (ezeka-decode-rubric (file-name-base file))
+                     (ezeka-file-metadata file)))
+            (desc-string (ezeka-format-metadata desc-fmt mdata)))
+      (ezeka--insert-link-with-spaces link
+                                      (if noedit
+                                          desc-string
+                                        (read-string "Insert: " desc-string))
+                                      (ezeka--format-link link))
+    (ezeka--insert-link-with-spaces link)))
 
 (defun ezeka--select-file (files &optional prompt require-match)
   "Select from among Zettel FILES, presenting optional PROMPT.
