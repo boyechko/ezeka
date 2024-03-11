@@ -3182,6 +3182,14 @@ should consist of KEY and VALUE pairs.
         (unless already-open
           (kill-buffer-if-not-modified buf))))))
 
+(defun ezeka--skip-line-and-insert (&rest args)
+  "Insert a blank line and insert ARGS."
+  (let ((pos (point)))
+    (when (re-search-backward "^[^\n]" nil 'noerror)
+      (end-of-line)
+      (delete-region (point) pos))
+    (apply #'insert "\n\n" args)))
+
 (defun ezeka-add-change-log-entry (filename entry &optional section)
   "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
@@ -3211,8 +3219,7 @@ If SECTION is nil, default to `Change Log'."
               (when entry
                 (setq entry (concat (downcase (cl-subseq entry 0 1))
                                     (cl-subseq entry 1)))))
-          (forward-line 1)
-          (insert "\n\n" date-item))
+          (ezeka--skip-line-and-insert date-item))
         (if (null entry)
             (setq entry-pos (point))
           (insert entry)
