@@ -4158,7 +4158,8 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
                                 (format "*.%s" ezeka-file-extension)
                                 ezeka-directory nil)
      nil))
-  (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice))
+  (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice)
+  (advice-add 'xref-show-location-at-point :before 'ezeka--breadcrumbs-xref-advice))
 
 ;;;=============================================================================
 ;;; Maintenance
