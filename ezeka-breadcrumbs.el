@@ -58,9 +58,10 @@ TARGET and SOURCE should be strings or symbols. Return
 breadcrumbs here), or nil if can't locate trail (i.e. don't
 drop breadcrumbs).")
 
-(defun ezeka-breadcrumbs-find-trail (target source)
-  "Call `ezeka-breadcrumbs-find-trail-function' on TARGET and SOURCE."
-  (funcall ezeka-breadcrumbs-find-trail-function target source))
+(defun ezeka-breadcrumbs-find-trail (target source &rest args)
+  "Call `ezeka-breadcrumbs-find-trail-function' for TARGET from SOURCE.
+If non-nil, ARGS are also passed along."
+  (apply ezeka-breadcrumbs-find-trail-function target source args))
 
 (defun ezeka--goto-breadcrumbs-trailhead ()
   "Go to the head of the current breadcrumb trail.
@@ -96,10 +97,11 @@ otherwise NIL."
                (match-string-no-properties 1)
                (ezeka--breadcrumbs-string target source))))))
 
-(defun ezeka-breadcrumbs-find-arboreal-trail (target source)
+(defun ezeka-breadcrumbs-find-arboreal-trail (target source &optional allow-duplicates)
   "Find where to drop breadcrumbs in an arboreal trail.
-See `ezeka-breadcrumbs-find-trail-function' for details about
-TARGET and SOURCE."
+See `ezeka-breadcrumbs-find-trail-function' for details
+about TARGET and SOURCE. If ALLOW-DUPLICATES is non-nil, add
+breadcrumbs even there are already some there."
   (let ((target (cond ((null target) (error "Target is null"))
                       ((ezeka-file-p target) (ezeka-file-link target))
                       ((ezeka-link-p target) target)
@@ -122,7 +124,8 @@ TARGET and SOURCE."
                  (let ((src-level (car (org-heading-components)))
                        (src-head (point)))
                    (cond ((and (search-forward target nil t)
-                               (org-at-heading-p))
+                               (org-at-heading-p)
+                               (not allow-duplicates))
                           (ezeka--update-breadcrumbs-heading target source)
                           (message "Breadcrumb for %s already exists under %s"
                                    target
@@ -134,7 +137,8 @@ TARGET and SOURCE."
                           'secondary))))
                 ((and (goto-char (point-min))
                       (search-forward target nil 'noerror)
-                      (org-at-heading-p))
+                      (org-at-heading-p)
+                      (not allow-duplicates))
                  ;; Breadcrumbs already dropped for TARGET
                  (ezeka--update-breadcrumbs-heading target source)
                  (when (and nil
