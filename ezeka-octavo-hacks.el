@@ -4,7 +4,7 @@
 
 ;; Author: Richard Boyechko <code@diachronic.net>
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25.1") (ezeka "0.8") (octavo "0.4") (octavo-index "0.4"))
+;; Package-Requires: ((emacs "25.1") (ezeka "0.8") (octavo "0.1") (octavo-index "0.1"))
 ;; Keywords: deft zettelkasten org
 ;; URL: https://github.com/boyechko/eclectic-zettelkasten
 
@@ -34,13 +34,13 @@
 
 ;;; Code:
 
-(defun adv--octavo-group-function (file transform)
+(defun ezeka-octavo--group-function (file transform)
   "Replace `octavo--group-function' to better TRANSFORM the given FILE.
 See `octavo--group-function' for details."
   (let ((case-fold-search t)
         (base (file-name-base file)))
     (cond ((not transform)
-           "eoctavo")
+           "ezoctavo")
           ((string-match (octavo-file-name-regexp) file)
            (let ((id (match-string 1 file))
                  (title (match-string 2 file)))
@@ -52,6 +52,12 @@ See `octavo--group-function' for details."
   "Replace `octavo--file-id' for the given FILE."
   (when (ezeka-file-p file)
     (ezeka-file-name-id file)))
+
+(defun ezeka-octavo--select-file (&optional prompt files &rest _args)
+  "Translate `octavo-select-file-function' arguments.
+Most significantly, PROMPT and FILES are switched places to
+fit `ezeka--select-file', and the rest are ignored."
+  (ezeka--select-file files prompt 'require-match))
 
 (defun ezeka-octavo-backlinks ()
   "Select from list of all notes that link to the current note.
@@ -80,32 +86,29 @@ Group 2 is the title."
           octavo-file-extension
           "$"))
 
-(defvar ezeka-octavo-hacks--zfnr-func nil)
-(defvar ezeka-octavo-hacks--zb-func nil)
-(defvar ezeka-octavo-hacks-mode nil)
+(defvar ezeka-octavo-hacks-mode nil
+  "Non-nil when `ezeka-octavo-hacks-mode' is enabled.")
 
 (define-minor-mode ezeka-octavo-hacks-mode
   "More radical customization of `octavo' than with just `ezeka-octavo'."
   :global nil
   :init-value nil
   :group 'ezeka
-  :lighter " EzzH"
+  :lighter " EzoH"
   (cond (ezeka-octavo-hacks-mode            ; enable the mode
-         (advice-add 'octavo--group-function :override 'adv--octavo-group-function)
+         (advice-add 'octavo--group-function :override 'ezeka-octavo--group-function)
          (advice-add 'octavo--file-id :override 'ezeka-octavo--file-id)
-         (setq ezeka-octavo-hacks--zfnr-func (symbol-function 'octavo-file-name-regexp)
-               ezeka-octavo-hacks--zb-func (symbol-function 'octavo-backlinks)
-               ezeka-octavo-hacks-mode t)
-         (defalias 'octavo-file-name-regexp 'ezeka-octavo-file-name-regexp)
-         (defalias 'octavo-backlinks 'ezeka-octavo-backlinks))
+         (advice-add 'octavo--select-file :override 'ezeka-octavo--select-file)
+         (advice-add 'octavo-file-name-regexp :override 'ezeka-octavo-file-name-regexp)
+         (advice-add 'octavo-backlinks :override 'ezeka-octavo-backlinks)
+         (setq ezeka-octavo-hacks-mode t))
         (t                              ; disable the mode
-         (advice-remove 'octavo--group-function 'adv--octavo-group-function)
+         (advice-remove 'octavo--group-function 'ezeka-octavo--group-function)
          (advice-remove 'octavo--file-id 'ezeka-octavo--file-id)
-         (fset 'octavo-file-name-regexp ezeka-octavo-hacks--zfnr-func)
-         (fset 'octavo-backlinks ezeka-octavo-hacks--zb-func)
-         (setq ezeka-octavo-hacks--zfnr-func nil
-               ezeka-octavo-hacks--zb-func nil
-               ezeka-octavo-hacks-mode nil))))
+         (advice-remove 'octavo--select-file 'ezeka-octavo--select-file)
+         (advice-remove 'octavo-file-name-regexp 'ezeka-octavo-file-name-regexp)
+         (advice-remove 'octavo-backlinks 'ezeka-octavo-backlinks)
+         (setq ezeka-octavo-hacks-mode nil))))
 
 (define-globalized-minor-mode global-ezeka-octavo-hacks-mode
   ezeka-octavo-hacks-mode ezeka-octavo-hacks-mode)
