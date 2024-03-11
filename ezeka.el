@@ -915,19 +915,20 @@ Groups 1-2 are hour and minute.")
 Groups 1-3 are year, month, day.
 Groups 4-5 are hour and minute.")
 
-(defun ezeka--encode-time (timestamp)
+(defun ezeka--parse-time-string (string)
   "Return the internal encoded time corresponding to STRING.
-TIMESTAMP should be an ISO8601 date/time expression or an `org-mode'
-timestamp, with or without time."
+It should be an ISO8601 date/time expression or an
+`org-mode' timestamp, with or without time. Cannot use
+`parse-time-string' because it always expects time."
   (let ((second 0) (minute 0) (hour 0) day month year)
-    (when (string-match (concat "^" ezeka-iso8601-date-regexp) timestamp)
-      (setq year  (string-to-number (match-string 1 timestamp))
-            month (string-to-number (match-string 2 timestamp))
-            day   (string-to-number (match-string 3 timestamp)))
-      (when (string-match ezeka-iso8601-time-regexp timestamp
+    (when (string-match (concat "^" ezeka-iso8601-date-regexp) string)
+      (setq year  (string-to-number (match-string 1 string))
+            month (string-to-number (match-string 2 string))
+            day   (string-to-number (match-string 3 string)))
+      (when (string-match ezeka-iso8601-time-regexp string
                           (match-end 0))
-        (setq hour   (string-to-number (match-string 1 timestamp))
-              minute (string-to-number (match-string 2 timestamp))))
+        (setq hour   (string-to-number (match-string 1 string))
+              minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
 
 (defun ezeka--complete-time (time1 &optional time2)
@@ -1250,7 +1251,7 @@ This is a copy of `timep' from `type-break'."
            (seq (= 4 digit) "-" (= 2 digit) "-" (= 2 digit) (* anychar)))
          (* "]")
          eol)
-     (ezeka--encode-time timestamp))
+     (ezeka--parse-time-string timestamp))
     ;; remaining [ ] should be lists
     ((rx bol "[ " (let inside (1+ anychar)) " ]" eol)
      (mapcar #'ezeka--header-deyamlify-value
@@ -1538,7 +1539,7 @@ current time."
     (setf (alist-get 'created metadata)
           (ezeka--complete-time created
                                 (if tempus
-                                    (ezeka--encode-time tempus)
+                                    (ezeka--parse-time-string tempus)
                                   (current-time))))
     (setf (alist-get 'modified metadata)
           (when modified
@@ -2172,7 +2173,7 @@ INTERACTIVE is non-NIL when called interactively."
                (string-replace "T0000"  ; FIXME: A bit hacky?
                                (format-time-string "T%H%M")
                                (ezeka-tempus-currens
-                                (ezeka--encode-time
+                                (ezeka--parse-time-string
                                  (alist-get 'created mdata)))))
               (t
                ;; Can't figure out automatically; ask the user
@@ -3623,7 +3624,7 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
       (insert (format "\ncreated: %s\n"
                       ;; Insert creation time, making it match a tempus currens filename
                       (ezeka-timestamp (when (eq :tempus (ezeka-id-type .id))
-                                         (ezeka--encode-time .id))
+                                         (ezeka--parse-time-string .id))
                                        'full)))
       (when (and .parent (not (string-empty-p .parent)))
         (insert "parent: " (ezeka--format-link .parent) "\n"))
@@ -3903,7 +3904,7 @@ insert the summary before the content."
                                  (alist-get 'created snip-mdata)))
              (our-modified
               (when-let ((snip-modified (org-entry-get (point) "SNIP_MODIFIED")))
-                (ezeka--encode-time snip-modified)))
+                (ezeka--parse-time-string snip-modified)))
              (current? (time-equal-p their-modified our-modified))
              (local? (string-match-p "local"
                                      (or (org-entry-get nil "TAGS")
