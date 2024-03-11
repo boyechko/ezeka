@@ -551,6 +551,9 @@ case-insensitive file systems."
                 (rename-file tempname newname t)
                 (file-exists-p newname)))
       (set-visited-file-name newname t t)
+      (ezeka--add-to-system-log 'rename nil
+        'old-name (file-relative-name filename ezeka-directory)
+        'new-name (file-relative-name newname ezeka-directory))
       newname)))
 
 ;; The following is adapted from
@@ -930,6 +933,10 @@ It should be an ISO8601 date/time expression or an
         (setq hour   (string-to-number (match-string 1 string))
               minute (string-to-number (match-string 2 string))))
       (encode-time second minute hour day month year))))
+
+(defun ezeka--iso8601-time-string (&optional time)
+  "Return a string with full ISO8601 representation of TIME (or now)."
+  (format-time-string "%FT%T%z" time))
 
 (defun ezeka--complete-time (time1 &optional time2)
   "Complete TIME1 from TIME2, returning time value.
@@ -1687,6 +1694,8 @@ reconciling even if CAPTION-STABLE is true."
             (narrow-to-region (point-min) (point)))
           (setf (alist-get 'rubric metadata)
                 (ezeka-encode-rubric metadata))
+          (ezeka--add-to-system-log 'replace-header nil
+            'note (alist-get 'rubric metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (when cons
@@ -4167,6 +4176,64 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
   (advice-add 'xref-show-location-at-point :before 'ezeka--breadcrumbs-xref-advice))
 
 ;;;=============================================================================
+;;; System Log
+;;;=============================================================================
+
+(require 'json)
+
+(defvar ezeka--system-log-file "auto/system.log"
+  "Path, relative to `ezeka-directory', to log everything.")
+
+;; Source: `cl--plist-to-alist'
+(defun ezeka--plist-to-alist (plist)
+  "Given PLIST, return an equivalent alist."
+  (let ((res '()))
+    (while plist
+      (push (cons (pop plist) (pop plist)) res))
+    (nreverse res)))
+
+(defun ezeka--add-to-system-log (action time &rest values)
+  "Add a log entry for ACTION at TIME (nil for now) with VALUES.
+VALUES should be either a plist or an alist."
+  (declare (indent 2))
+  (let* ((time (or time (current-time)))
+         (values (pcase (car values)
+                   ((pred symbolp) (ezeka--plist-to-alist values))
+                   ((pred consp) values)))
+         (record `((time . ,(ezeka--iso8601-time-string time))
+                   (action . ,action)
+                   ,@values))
+         (json (json-encode record))
+         (logfile (expand-file-name ezeka--system-log-file ezeka-directory)))
+    (unless (file-exists-p logfile)
+      (make-empty-file logfile))
+    (condition-case nil
+        (write-region (concat json "\n") nil logfile 'append)
+      (:success json))))
+
+(ert-deftest ezeka--add-to-system-log ()
+  (should (ezeka--add-to-system-log 'move nil
+            'from "k-7952"
+            'to "20150603T2323"))
+  (should (ezeka--add-to-system-log 'move nil
+            'from "20150603T2323"
+            'to "k-7952"))
+  (should-not (ezeka--system-log-trail "k-7952")))
+
+(defun ezeka--system-log-trail (note)
+  "Return the move trail (if any) for NOTE.
+If there are multiple records, they are returned in
+reverse-chronological order (i.e. latest record first)."
+  (let (trail)
+    (with-temp-buffer
+      (insert-file-contents (in-ezeka-dir ezeka--system-log-file))
+      (goto-char (point-min))
+      (while (re-search-forward (format "\"%s\"" note) nil t)
+        (beginning-of-line)
+        (push (json-read) trail)))
+    trail))
+
+;;;=============================================================================
 ;;; Maintenance
 ;;;=============================================================================
 
@@ -4264,10 +4331,8 @@ whether to visit; if NIL, do not visit."
   "Finish moving SOURCE to TARGET (both file paths).
 If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
+        (source-rubric (file-name-base source))
         (mdata (or metadata (ezeka-file-metadata source)))
-        (source-caption
-         (alist-get 'caption
-                    (ezeka-decode-rubric (file-name-base source))))
         (target-link (ezeka-file-link target)))
     (cond ((file-symlink-p target)
            (delete-file target))
@@ -4277,9 +4342,10 @@ If METADATA is nil, read it from SOURCE."
           (t
            ;; TARGET is new, proceed
            ))
-    (ezeka--add-to-move-log source-link target-link source-caption "Finish moving")
-    (ezeka-add-change-log-entry source
-      (format "Finish moving +%s+ to %s." source-link target-link))
+    (ezeka--add-to-move-log source-link target-link source-rubric "Finish moving")
+    (ezeka--add-to-system-log 'move nil
+      'source source-rubric
+      'target (ezeka-encode-rubric mdata))
     (unwind-protect
         (when-let ((_ (ezeka--rename-file source target))
                    (buf (or (get-file-buffer target)
@@ -4350,14 +4416,15 @@ afterwards. SOURCE can be a link or a file."
                     :test #'string=)
           (alist-get 'rubric t-mdata)
           (ezeka-encode-rubric t-mdata))
+    (ezeka--add-to-system-log 'move nil
+      'source (alist-get 'rubric s-mdata)
+      'target (alist-get 'rubric t-mdata)
+      'comment "Begin moving")
     (ezeka-add-change-log-entry s-file
       (format "Begin moving \"%s\" to \"%s.\""
               (alist-get 'rubric s-mdata)
               (alist-get 'rubric t-mdata)))
     (ezeka--update-file-header s-file t-mdata 'force)
-    ;; (ezeka--add-to-system-log 'move nil
-    ;;   :source `(link ,s-link caption ,source-caption)
-    ;;   :target `(link ,target-link caption ,(alist-get 'caption t-mdata)))
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))
         (make-directory (file-name-directory t-file)))
