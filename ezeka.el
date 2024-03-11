@@ -119,7 +119,7 @@ filename or a symbol describing the source."
 ;; For our purposes, a "timestamp" is a string representation of "time," the
 ;; default Emacs time value.
 (defcustom ezeka-timestamp-formats
-  '("%Y-%m-%d %a" . "%Y-%m-%d %a %H:%M")
+  '("%F %a" . "%F %a %R")
   "A cons cell of date-only and full timestamp formats.
 These timestamps are used for created and modified metadata,
 reading dates, and change log entries.
@@ -2546,16 +2546,24 @@ insert just the link itself."
     (gui-set-selection 'CLIPBOARD text))
   (message "Saved [%s] in the kill ring & clipboard" text))
 
-(defun ezeka-kill-ring-save-metadata-field (field)
+(defvar ezeka--krsmf-time-format-history nil
+  "History variable for `ezeka-kill-ring-save-metadata-field'.")
+
+(defun ezeka-kill-ring-save-metadata-field (field &optional time-format)
   "Save the given metadata FIELD to kill ring and system clipboard.
 FIELD should be one of `ezeka-metadata-fields'. If the point
-is at Zettel link, use that; otherwise, the current buffer."
+is at Zettel link, use that; otherwise, the current buffer.
+With non-nil TIME-FORMAT, format time accordingly."
   (interactive
    (list (intern-soft
           (completing-read "Which field? "
                            ezeka-metadata-fields
                            nil
-                           t))))
+                           t))
+         (read-string "How to format time values? "
+                      (concat "[" (cdr ezeka-timestamp-formats) "]")
+                      'ezeka--krsmf-time-format-history
+                      (cdr ezeka-timestamp-formats))))
   (when-let* ((file (ezeka--grab-dwim-file-target))
               (link (ezeka-file-link file))
               (mdata (ezeka-file-metadata file))
@@ -2563,7 +2571,7 @@ is at Zettel link, use that; otherwise, the current buffer."
     (ezeka--kill-ring-clipboard-save
      (pcase value
        ((pred stringp) value)
-       ((pred ezeka--timep) (ezeka-timestamp value 'full))
+       ((pred ezeka--timep) (format-time-string time-format value))
        (_ (format "%s" value))))))
 
 (defun ezeka-kill-ring-save-link (arg)
