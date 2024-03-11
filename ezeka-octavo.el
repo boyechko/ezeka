@@ -452,9 +452,10 @@ If SORT is non-nil, set `vertico-sort-function' to it."
          current-prefix-arg))
   (ezeka-octavo-with-kasten kasten
     (let* ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
-           (file (octavo--select-file (if other-window
-                                      "Find note in other window: "
-                                    "Find note: "))))
+           (file (ezeka--select-file (octavo--directory-files 'full)
+                                     (if other-window
+                                         "Find note in other window: "
+                                       "Find note: "))))
       (ezeka-find-file file (not other-window)))))
 
 (defmacro ezeka-octavo--define-kasten-finders (kasten &optional sort)
