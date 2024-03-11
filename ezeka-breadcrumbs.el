@@ -318,9 +318,11 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
   (save-excursion
     (with-current-buffer (find-file-noselect file)
      (let* ((trailhead ezeka-breadcrumbs-trail-headline)
-             (existing (org-find-exact-headline-in-buffer trailhead)))
+            (existing (org-find-exact-headline-in-buffer trailhead)))
        (cond ((and (org-at-heading-p)
-                   (y-or-n-p "Drop breadcrumbs here? "))
+                   (or (string= (nth 5 (org-heading-components))
+                                ezeka-breadcrumbs-trail-headline)
+                       (y-or-n-p "Drop breadcrumbs here? ")))
               ;; Start trail on current heading
               )
              ((and existing
@@ -334,12 +336,13 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
               (insert ezeka-breadcrumbs-trail-headline))
              (t
               (user-error "Well, what do you want, then?!")))
-        (ezeka-breadcrumbs-stop-trail)
-        (setq ezeka--breadcrumbs-trail (make-overlay (point-at-eol) (point-at-eol)))
-        (overlay-put ezeka--breadcrumbs-trail 'type 'ezeka--breadcrumbs-trail)
-        (overlay-put ezeka--breadcrumbs-trail 'after-string " (🍞)")
-        (add-hook 'kill-buffer-hook #'ezeka-breadcrumbs-stop-trail nil t)
-        (message "Breadcrumbs will be dropped in `%s'" (file-name-base file))))))
+       (ezeka-breadcrumbs-stop-trail)
+       (setq ezeka--breadcrumbs-trail (make-overlay (point-at-eol) (point-at-eol)))
+       (overlay-put ezeka--breadcrumbs-trail 'type 'ezeka--breadcrumbs-trail)
+       (overlay-put ezeka--breadcrumbs-trail 'after-string " (🍞)")
+       (add-hook 'kill-buffer-hook #'ezeka-breadcrumbs-stop-trail nil t)
+       (setq-local buffer-save-without-query t)
+       (message "Breadcrumbs will be dropped in `%s'" (file-name-base file))))))
 
 ;; TODO: Any way to mark the breadcrumb heading and buffer?
 (defun ezeka-breadcrumbs-stop-trail ()
@@ -348,7 +351,9 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
   (when (overlayp ezeka--breadcrumbs-trail)
     (message "Breadcrumbs will no longer be dropped in `%s'"
              (overlay-buffer ezeka--breadcrumbs-trail))
-    (delete-overlay ezeka--breadcrumbs-trail))
+    (delete-overlay ezeka--breadcrumbs-trail)
+    (setq-local buffer-save-without-query
+                (default-value 'buffer-save-without-query)))
   (setq ezeka--breadcrumbs-trail nil))
 
 (defun ezeka-breadcrumbs-trail-dispatch (arg)
