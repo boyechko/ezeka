@@ -3380,11 +3380,11 @@ further than parent."
     (let* ((ancestor (ezeka-trace-genealogy filename degree))
            (old-citekey (ezeka-file-name-citekey filename))
            (citekey (or citekey
-                        (and (null citekey)
-                             ancestor
-                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))
-                        ""))
-           (citekey (ezeka--minibuffer-edit-string citekey nil "New citekey: ")))
+                        (and ancestor
+                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))))
+           (citekey (ezeka--minibuffer-edit-string
+                     old-citekey citekey nil
+                     'ezeka--read-citekey-history)))
       (ezeka--update-metadata-values filename nil
         'citekey (ezeka--validate-citekey citekey))
       (when (y-or-n-p "Record the change in the change log? ")
