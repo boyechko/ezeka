@@ -556,6 +556,28 @@ case-insensitive file systems."
         'new-name (file-relative-name newname ezeka-directory))
       newname)))
 
+(defun ezeka--make-symbolic-link (target linkname)
+  "Make a symbolic link to TARGET from LINKNAME.
+This is a wrapper around `make-symbolic-link' that also adds
+an entry into the system log. Both TARGET and LINKNAME
+should be files."
+  (condition-case nil
+      (make-symbolic-link target linkname)
+    (file-already-exists (warn "File already exists"))
+    (:success
+     (ezeka--add-to-system-log 'symlink nil
+       'target (file-name-base target)
+       'link (file-name-base linkname)))))
+
+(ert-deftest ezeka--make-symbolic-link ()
+  (let ((target (make-temp-file "ezeka-target"))
+        (linkname (expand-file-name "ezeka-symlink" (temporary-file-directory))))
+    (ezeka--make-symbolic-link target linkname)
+    (should (and (file-exists-p linkname) (file-symlink-p linkname)))
+    (should-not (when (file-symlink-p linkname)
+                  (delete-file linkname)
+                  (file-exists-p linkname)))))
+
 ;; The following is adapted from
 ;; https://emacs.stackexchange.com/a/46059
 (defface ezeka-read-only '((t :slant italic))
@@ -1797,11 +1819,7 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
     (let-alist mdata
       (ezeka-add-keyword filename ezeka-rename-note-keyword nil mdata)
       (when (y-or-n-p "Create a symbolic link meanwhile? ")
-        (condition-case nil
-            (make-symbolic-link filename
-                                (file-relative-name (ezeka-link-path \.id mdata)
-                                                    (file-name-directory filename)))
-          (error (message "File already exists"))))
+        (ezeka--make-symbolic-link filename (ezeka-link-path \.id mdata)))
       (cl-pushnew (ezeka-file-name-id filename)
                   ezeka--marked-for-rename
                   :test #'string=))))
@@ -2894,7 +2912,7 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                                   link-to
                                   (alist-get 'caption metadata)
                                   "Placeholder")
-          (make-symbolic-link link-target child-path))
+          (ezeka--make-symbolic-link link-target child-path))
       (ezeka-find-link child-link))))
 
 ;;;=============================================================================
@@ -4428,7 +4446,7 @@ afterwards. SOURCE can be a link or a file."
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))
         (make-directory (file-name-directory t-file)))
-      (make-symbolic-link s-file t-file)
+      (ezeka--make-symbolic-link s-file t-file)
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
 after committing" s-link target-link))))
 
