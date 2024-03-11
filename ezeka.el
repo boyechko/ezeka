@@ -4267,10 +4267,10 @@ whether to visit; if NIL, do not visit."
   "Finish moving SOURCE to TARGET (both file paths).
 If METADATA is nil, read it from SOURCE."
   (let ((source-link (ezeka-file-link source))
+        (mdata (or metadata (ezeka-file-metadata source)))
         (source-caption
          (alist-get 'caption
-           (ezeka-decode-rubric (file-name-base source))))
-        (mdata (or metadata (ezeka-file-metadata source)))
+                    (ezeka-decode-rubric (file-name-base source))))
         (target-link (ezeka-file-link target)))
     (cond ((file-symlink-p target)
            (delete-file target))
