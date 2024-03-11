@@ -2590,18 +2590,23 @@ With non-nil TIME-FORMAT, format time accordingly."
                            ezeka-metadata-fields
                            nil
                            t))
-         (read-string "How to format time values? "
-                      (concat "[" (cdr ezeka-timestamp-formats) "]")
-                      'ezeka--krsmf-time-format-history
-                      (cdr ezeka-timestamp-formats))))
+         nil))
   (when-let* ((file (ezeka--grab-dwim-file-target))
               (link (ezeka-file-link file))
               (mdata (ezeka-file-metadata file))
               (value (alist-get field mdata)))
     (ezeka--kill-ring-clipboard-save
      (pcase value
-       ((pred stringp) value)
-       ((pred ezeka--timep) (format-time-string time-format value))
+       ((pred stringp)
+        value)
+       ((pred ezeka--timep)
+        (let ((time-format
+               (or (when (called-interactively-p 'any)
+                     (read-string "How to format time values? "
+                                  (concat "[" (cdr ezeka-timestamp-formats) "]")
+                                  'ezeka--krsmf-time-format-history))
+                   (cdr ezeka-timestamp-formats))))
+          (format-time-string time-format value)))
        (_ (format "%s" value))))))
 
 (defun ezeka-kill-ring-save-link (arg)
