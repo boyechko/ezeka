@@ -126,9 +126,16 @@
                  '(readings . ("2019-01-01" "2021-01-01")))))
 
 (ert-deftest tests/ezeka-id-type ()
+  (should-error (ezeka-id-type "1234"))
+  (should (ezeka-id-type "a-1234"))
+  (should (ezeka-id-type "20230403T1000"))
+  (should-error (ezeka-id-type "MS-123"))
   (should (eq (ezeka-id-type "a-1234") :numerus))
   (should (eq (ezeka-id-type "20221029T1534") :tempus))
-  (should-not (ezeka-id-type "abc-1234")))
+  (should-error (ezeka-id-type "abc-1234")))
+
+(ert-deftest tests/ezeka-file-kasten ()
+  (should (ezeka-file-kasten (ezeka-link-file "a-0000"))))
 
 (ert-deftest tests/ezeka-link-p ()
   (should (ezeka-link-p "a-1234"))
@@ -140,13 +147,13 @@
   (should-error (ezeka-make-link "numerus" "1234"))
   (should (ezeka-make-link "numerus" "a-1234"))
   (should (ezeka-make-link "tempus" "20230403T1000"))
-  (should (ezeka-make-link "scriptum" "ms_12a")))
+  (should (ezeka-make-link "scriptum" "a-1234~01")))
 
-(ert-deftest tests/ezeka-id-type ()
-  (should-error (ezeka-id-type "1234"))
-  (should (ezeka-id-type "a-1234"))
-  (should (ezeka-id-type "20230403T1000"))
-  (should (ezeka-id-type "MS-123")))
+(ert-deftest tests/ezeka--validate-citekey ()
+  (should (string= "@Blah1999" (ezeka--validate-citekey "Blah1999")))
+  (should (string= "&Blah1999" (ezeka--validate-citekey "&Blah1999")))
+  (should (string= "@Blah1999" (ezeka--validate-citekey "@Blah1999")))
+  (should-not (ezeka--validate-citekey "Zoomba Blah 1999")))
 
 (ert-deftest tests/adv--octavo-group-function ()
   (let ((file "/Users/richard/Zettelkasten/os/2022/20221030T1409.txt"))
