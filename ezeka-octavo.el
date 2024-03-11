@@ -599,11 +599,13 @@ given, suggest the note's successor, if set. METHOD overrides
   (interactive
    (list (ezeka--grab-dwim-file-target)
          nil
-         (intern-soft
-          (completing-read "Deletion method: "
-                           '(delete rename)
-                           nil
-                           'require-match))))
+         (when (or (null ezeka-octavo-delete-note-method)
+                   current-prefix-arg)
+           (intern-soft
+            (completing-read "Deletion method: "
+                             '(delete archive)
+                             nil
+                             'require-match)))))
   (let* ((method (or method ezeka-octavo-delete-note-method))
          (file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)
@@ -630,18 +632,21 @@ given, suggest the note's successor, if set. METHOD overrides
       (ezeka-octavo-replace-links link change-to))
     (ezeka--add-to-move-log link
                             (concat (symbol-name method) "d")
-                            (alist-get :caption mdata)
-                            (format "Replaced links with %s" change-to))
-    (when (y-or-n-p (format "Really delete %s %s? "
-                            link (alist-get :title mdata)))
+                            (alist-get 'caption mdata)
+                            (if with-links
+                                (format "Replace %d links with %s"
+                                        (length with-links) change-to)
+                              "No links"))
+    (when (y-or-n-p (format "Really %s note `%s'? "
+                            (symbol-name method)
+                            (alist-get 'rubric mdata)))
       (if (eq method 'delete)
           (delete-file file)
         (ezeka--rename-file file
-                            (file-name-with-extension
-                             (file-name-base file)
-                             (replace-regexp-in-string
-                              ".$" "_"
-                              ezeka-file-extension))))
+                            (file-name-with-extension (file-name-base file)
+                                                      (replace-regexp-in-string
+                                                       ".$" "_"
+                                                       ezeka-file-extension))))
       (kill-buffer-ask (get-file-buffer file)))))
 
 (defun ezeka-octavo-insert-link-to-index ()
