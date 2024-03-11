@@ -2169,12 +2169,8 @@ INTERACTIVE is non-NIL when called interactively."
                ;; One of the old names was a tempus currens; just use that
                (ezeka-link-id oldname))
               ((alist-get 'created mdata)
-               (error "WIP: Needs to use time values")
-               (string-replace "T0000"  ; FIXME: A bit hacky?
-                               (format-time-string "T%H%M")
-                               (ezeka-tempus-currens
-                                (ezeka--parse-time-string
-                                 (alist-get 'created mdata)))))
+               (ezeka-tempus-currens
+                (ezeka--complete-time (alist-get 'created mdata))))
               (t
                ;; Can't figure out automatically; ask the user
                (ezeka--read-id "No created metadata; make up your own name: "
@@ -3726,17 +3722,11 @@ With \\[universal-argument], use the current KASTEN without asking."
           (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
-                 (let ((tempus (ezeka-tempus-currens (alist-get 'created mdata))))
-                   (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
-                               (decoded-time-minute
-                                (decode-time (alist-get 'created mdata))))
-                          tempus)
-                         ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                          ;; FIXME HACK
-                          (replace-regexp-in-string
-                           "T[0-9]\\{4\\}$" (format-time-string "T%H%M") tempus))
-                         (t
-                          (ezeka--generate-id kasten))))))
+                 (cond ((eq (ezeka-kasten-id-type kstruct) :tempus)
+                        (ezeka-tempus-currens
+                         (ezeka--complete-time (alist-get 'created mdata))))
+                       (t
+                        (ezeka--generate-id kasten)))))
           (setf (alist-get 'path mdata)
                 (ezeka-link-path (alist-get 'link mdata)))
           (if (file-exists-p (alist-get 'path mdata))
