@@ -983,37 +983,43 @@ org-time-stamp. Return the result of the conversion."
         (replace-match text)
         (setq beg (match-beginning 0)
               end (point))))
-    (cond ((iso8601-valid-p text)       ; ISO-8601 -> Org timestamp
-           (let ((timestamp (iso8601-parse text)))
-             (delete-region beg end)
-             (org-insert-time-stamp (iso8601--encode-time timestamp)
-                                    (integerp (car timestamp)) t)
-             org-last-inserted-timestamp))
-          ((setq timestamp              ; org timestamp -> ISO-8601
-             (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
-                                            text
-                                          (format "[%s]" text))))
-           (let ((iso8601 (org-timestamp-format timestamp "%Y%m%dT%H%M")))
-             (delete-region beg end)
-             (insert iso8601)
-             iso8601))
-          ((integerp (car (parse-time-string text))) ; datetime -> org timestamp
-           (delete-region beg end)
-           (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
-           org-last-inserted-timestamp)
-          ((integerp (nth 4 (setq parsed (parse-time-string text)))) ; date -> ISO-8601
-           (setf (decoded-time-second parsed) 0
-                 (decoded-time-minute parsed) 0
-                 (decoded-time-hour   parsed) 0)
-           (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
-             (when (y-or-n-p
-                    (format "Is %s same as %s? " text timestamp))
-               (delete-region beg end)
-               (insert timestamp)
-               timestamp)))
-          (t
-           (display-warning 'ezeka-dwim-with-this-timestring
-                            "`%s' doesn't look like a timestring" text)))))
+    (cond
+     ;; ISO-8601 -> org timestamp ==============================================
+     ((iso8601-valid-p text)
+      (let ((timestamp (iso8601-parse text)))
+        (delete-region beg end)
+        (org-insert-time-stamp (iso8601--encode-time timestamp)
+                               (integerp (car timestamp)) t)
+        org-last-inserted-timestamp))
+     ;; org timestamp -> ISO-8601 ==============================================
+     ((setq timestamp
+        (org-timestamp-from-string (if (string-match-p "[[<].*[]>]" text)
+                                       text
+                                     (format "[%s]" text))))
+      (let ((iso8601 (org-timestamp-format timestamp "%Y%m%dT%H%M")))
+        (delete-region beg end)
+        (insert iso8601)
+        iso8601))
+     ;; datetime -> org timestamp ==============================================
+     ((integerp (car (parse-time-string text)))
+      (delete-region beg end)
+      (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
+      org-last-inserted-timestamp)
+     ;; date -> ISO-8601 =======================================================
+     ((integerp (nth 4 (setq parsed (parse-time-string text))))
+      (setf (decoded-time-second parsed) 0
+            (decoded-time-minute parsed) 0
+            (decoded-time-hour parsed) 0)
+      (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
+        (when (y-or-n-p
+               (format "Is %s same as %s? " text timestamp))
+          (delete-region beg end)
+          (insert timestamp)
+          timestamp)))
+     ;; something else =========================================================
+     (t
+      (display-warning 'ezeka-dwim-with-this-timestring
+                       "`%s' doesn't look like a timestring" text)))))
 
 (defun ezeka-insert-or-convert-timestamp (&optional beg end)
   "Insert or convert timestamp at point or between BEG and END.
