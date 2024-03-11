@@ -3685,10 +3685,11 @@ With \\[universal-argument], use the current KASTEN without asking."
                         "Title for new note: "))
                  (setf (alist-get 'created mdata)
                        (save-match-data
-                         (org-timestamp-from-string (match-string 2 head-title)))))
+                         (org-timestamp-to-time
+                          (org-timestamp-from-string (match-string 2 head-title))))))
                 ((org-get-scheduled-time nil)
                  (setf (alist-get 'created mdata)
-                       (org-timestamp-from-time (org-get-scheduled-time nil) t)))
+                       (org-get-scheduled-time nil)))
                 (t
                  (setf (alist-get 'title mdata)
                        (ezeka--minibuffer-edit-string
@@ -3696,20 +3697,22 @@ With \\[universal-argument], use the current KASTEN without asking."
                         nil
                         "Title for new note: "))
                  (setf (alist-get 'created mdata)
-                       (read-string "No timestamp found. Enter it here: "))))
+                       (parse-time-string
+                        (read-string "No timestamp found. Enter it here: ")))))
           (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
-                 (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
-                             (org-timestamp-has-time-p (alist-get 'created mdata)))
-                        (org-timestamp-format (alist-get 'created mdata)
-                                              "%Y%m%dT%H%M"))
-                       ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                        (concat (org-timestamp-format (alist-get 'created mdata)
-                                                      "%Y%m%dT")
-                                (format-time-string "%H%M")))
-                       (t
-                        (ezeka--generate-id kasten)))))
+                 (let ((tempus (ezeka-tempus-currens (alist-get 'created mdata))))
+                   (cond ((and (eq (ezeka-kasten-id-type kstruct) :tempus)
+                               (decoded-time-minute
+                                (decode-time (alist-get 'created mdata))))
+                          tempus)
+                         ((eq (ezeka-kasten-id-type kstruct) :tempus)
+                          ;; FIXME HACK
+                          (replace-regexp-in-string
+                           "T[0-9]\\{4\\}$" (format-time-string "T%H%M") tempus))
+                         (t
+                          (ezeka--generate-id kasten))))))
           (setf (alist-get 'path mdata)
                 (ezeka-link-path (alist-get 'link mdata)))
           (if (file-exists-p (alist-get 'path mdata))
