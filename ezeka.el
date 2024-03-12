@@ -1192,12 +1192,11 @@ corresponding to metadata fields."
         mdata)
     (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
 
-(defmacro ezeka-encode-rubric (metadata &optional omit-stable)
+(defmacro ezeka-encode-rubric (metadata &optional stable-mark)
   "Return a string that encodes the given METADATA into the rubric.
-The rubric consist of `ezeka-file-name-format' preceded by
-`ezeka-header-rubric-stable-mark', unless OMIT-STABLE is
-non-nil."
-  `(concat (unless ,omit-stable ezeka-header-rubric-stable-mark)
+The rubric consist of `ezeka-file-name-format', preceded by
+`ezeka-header-rubric-stable-mark' if STABLE-MARK is given."
+  `(concat (when ,stable-mark ezeka-header-rubric-stable-mark)
            (ezeka-format-metadata ezeka-file-name-format ,metadata)))
 
 ;; TODO It would be useful to generate the regexp based on
@@ -1715,7 +1714,7 @@ reconciling even if CAPTION-STABLE is true."
           (when (re-search-forward ezeka-header-separator-regexp nil t 1)
             (narrow-to-region (point-min) (point)))
           (setf (alist-get 'rubric metadata)
-                (ezeka-encode-rubric metadata))
+                (ezeka-encode-rubric metadata 'stable-mark))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (when cons
@@ -3014,7 +3013,7 @@ purely on the file name."
            (table (make-hash-table :test #'equal :size n)))
       (dolist (f files table)
         (puthash (if get-metadata
-                     (ezeka-encode-rubric (ezeka-file-metadata f) 'omit-stable)
+                     (ezeka-encode-rubric (ezeka-file-metadata f))
                    (ezeka-format-file-name "%f" f))
                  f
                  table)))))
