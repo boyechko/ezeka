@@ -1716,8 +1716,6 @@ reconciling even if CAPTION-STABLE is true."
             (narrow-to-region (point-min) (point)))
           (setf (alist-get 'rubric metadata)
                 (ezeka-encode-rubric metadata))
-          (ezeka--add-to-system-log 'replace-header nil
-            'note (alist-get 'rubric metadata))
           (delete-region (point-min) (point-max))
           (mapc (lambda (cons)
                   (when cons
