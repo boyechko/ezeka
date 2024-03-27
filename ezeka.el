@@ -4561,17 +4561,17 @@ END."
 ;;
 ;; Add the following to emacs config file:
 ;;
-;; (add-hook 'post-command-hook 'ezeka--magit-show-title-in-mode-line)
+;; (add-hook 'post-command-hook 'ezeka--magit-mode-line-show-file-type)
 ;; (add-hook 'magit-mode-hook
 ;;   (lambda ()
 ;;     (setq ezeka--original-mode-line mode-line-misc-info)
-;;     (add-hook 'post-command-hook 'ezeka--magit-show-title-in-mode-line nil t)))
+;;     (add-hook 'post-command-hook 'ezeka--magit-mode-line-show-file-type nil t)))
 
 (defvar ezeka--original-mode-line nil
   "Value of `mode-line-misc-info' before we override it.")
 
-(defun ezeka--magit-show-title-in-mode-line ()
-  "Display Zettel title of the file under cursor in the mode line."
+(defun ezeka--magit-mode-line-show-file-type ()
+  "Display in the mode line the type of the file under cursor."
   (while-no-input
     (redisplay)
     (when-let* ((file
@@ -4581,17 +4581,13 @@ END."
                    (wdired-mode (dired-file-name-at-point))
                    (t (setq mode-line-misc-info ezeka--original-mode-line)
                       nil)))
-                (line (magit-file-line file))
-                (mdata
-                 (ezeka-decode-rubric
-                  (when (string-match ezeka-header-line-regexp line)
-                    (match-string 2 line)))))
+                (line (magit-file-line file)))
       (setq mode-line-misc-info
-        (format "%s: %s"
-                (propertize (alist-get 'id mdata)
-                            'face '(:weight bold))
-                (propertize (alist-get 'title mdata)
-                            'face '(:slant italic)))))))
+        (format "%s"
+                (propertize (if (file-symlink-p file)
+                                (concat "symlink to " (file-name-base (file-symlink-p file)))
+                              "regular file")
+                            'face '(:weight bold)))))))
 
 ;;;=============================================================================
 ;;; Mode
