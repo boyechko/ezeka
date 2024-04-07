@@ -686,15 +686,14 @@ It is a Zettel if all of these conditions are met:
   "Return given PART (id, label, caption, or citekey) of FILENAME."
   (let ((base (file-name-base filename)))
     (save-match-data
-      (when (string-match (ezeka-file-name-regexp) base)
-        (let ((match (match-string (pcase part
-                                     ('id      1)
-                                     ('label   3)
-                                     ('caption 4)
-                                     ('citekey 5))
-                                   base)))
-          (when match
-            (string-trim match)))))))
+      (when-let ((_ (string-match (ezeka-file-name-regexp) base))
+                 (match (match-string (pcase part
+                                        ('id 1)
+                                        ('label 3)
+                                        ('caption 4)
+                                        ('citekey 5))
+                                      base)))
+        (string-trim match)))))
 
 (defmacro ezeka-file-name-id (filename)
   "Return the ID part of the given Zettel FILENAME."
