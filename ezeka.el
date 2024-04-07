@@ -970,11 +970,18 @@ It should be an ISO8601 date/time expression or an
   "Complete TIME1 from TIME2, returning time value.
 If TIME2 is not given, use current time."
   (let* ((dt1 (decode-time time1))
-         (dt2 (decode-time time2)))
+         (dt2 (decode-time time2))
+         (dt-now (decode-time)))
     (when (and (zerop (decoded-time-hour dt1))
                (zerop (decoded-time-minute dt1)))
-      (setf (decoded-time-hour dt1) (decoded-time-hour dt2)
-            (decoded-time-minute dt1) (decoded-time-minute dt2)))
+      (setf (decoded-time-hour dt1)
+            (if (zerop (decoded-time-hour dt2))
+                (decoded-time-hour dt-now)
+              (decoded-time-hour dt2))
+            (decoded-time-minute dt1)
+            (if (zerop (decoded-time-minute dt2))
+                (decoded-time-minute dt-now)
+              (decoded-time-minute dt2))))
     (encode-time dt1)))
 
 (defun ezeka-timestamp (&optional time full brackets noweekday)
