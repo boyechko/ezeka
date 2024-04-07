@@ -2252,22 +2252,20 @@ If TIME is nil, default to current time."
   "An alist of new children and their metadata.")
 
 ;; TODO Metadata really should be a `defstruct'
-(defun ezeka--set-new-child-metadata (link &rest values)
+(defun ezeka--set-new-child-metadata (link metadata &rest plist)
   "Set the metadata property values for LINK.
-If VALUES is a list, assume it's a metadata alist, and just
-set the child metadata to that. Otherwise, VALUES should be
-a list of keyword and value properties."
-  (declare (indent 1))
-  (let ((mdata (when (listp (car values)) (car values))))
-    (cond ((not (null mdata)))
-          ((and values (zerop (mod (length values) 2)))
-           (while values
-             (push (cons (car values) (cadr values)) mdata)
-             (setq values (cddr values))))
-          (t
-           (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
-    (setf (alist-get link ezeka--new-child-metadata nil nil #'string=)
-          mdata)))
+If METADATA is given, set the child metadata to that with
+modificationbs specified in PLIST."
+  (declare (indent 2))
+  (cond ((not (null metadata)))
+        ((and plist (zerop (mod (length plist) 2)))
+         (while plist
+           (push (cons (car plist) (cadr plist)) metadata)
+           (setq plist (cddr plist))))
+        (t
+         (signal 'wrong-type-argument (list 'key-value-pairs-p plist))))
+  (setf (alist-get link ezeka--new-child-metadata nil nil #'string=)
+        metadata))
 
 (defun ezeka--new-child-metadata (link)
   "Return metadata alist for child LINK."
@@ -2337,7 +2335,7 @@ Zettel link."
                        (format "Link `%s' doesn't exist. Create? " link))))
              (when-let ((_ (ezeka-file-p buffer-file-name))
                         (parent (ezeka-file-link buffer-file-name)))
-               (ezeka--set-new-child-metadata link 'parent parent))
+               (ezeka--set-new-child-metadata link nil 'parent parent))
              (ezeka-find-file
               (ezeka-link-path link (ezeka--new-child-metadata link))
               same-window)
@@ -2838,7 +2836,7 @@ generating one."
           (ezeka-make-link kasten
                            (or id (ezeka--generate-id kasten)))))
     (when parent
-      (ezeka--set-new-child-metadata child-link 'parent parent))
+      (ezeka--set-new-child-metadata child-link nil 'parent parent))
     child-link))
 
 (defun ezeka-new-note-or-child (kasten &optional parent noselect manual)
