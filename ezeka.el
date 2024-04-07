@@ -561,6 +561,13 @@ case-insensitive file systems."
 This is a wrapper around `make-symbolic-link' that also adds
 an entry into the system log. Both TARGET and LINKNAME
 should be files."
+  (interactive
+   (list buffer-file-name
+         (read-file-name "Symbolic link to: "
+                         ezeka-directory
+                         (file-name-nondirectory buffer-file-name)
+                         nil
+                         (file-name-nondirectory buffer-file-name))))
   (condition-case nil
       (make-symbolic-link target linkname)
     (file-already-exists (warn "File already exists"))
