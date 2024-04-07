@@ -1635,6 +1635,8 @@ Return the new metadata."
                               (ezeka-format-metadata "%i {%l} %t" mdata)
                               (ezeka-timestamp last-modified 'full 'brackets)))))
         (setf (alist-get 'modified mdata) now)
+        (ezeka--add-to-system-log 'update-modified nil
+          'note (ezeka-encode-rubric metadata))
         (run-hooks 'ezeka-modified-updated-hook)))
     mdata))
 
@@ -2909,6 +2911,9 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                      (citekey . ,citekey))))
     (ezeka--insert-link-with-spaces child-link)
     (ezeka--set-new-child-metadata child-link metadata)
+    (ezeka--add-to-system-log 'new-child nil
+      'child (ezeka-encode-rubric metadata)
+      'parent parent)
     (if-let* ((_ (eq 'placeholder
                      (intern (completing-read
                               "Create a new note or just a placeholder? "
@@ -4227,24 +4232,51 @@ If PLIST is already an alist, leave it alone."
        (nreverse res)))
     ((pred consp) plist)))
 
-(defun ezeka--add-to-system-log (action time &rest values)
-  "Add a log entry for ACTION at TIME (nil for now) with VALUES.
-VALUES should be either a plist or an alist."
+(defun ezeka--system-log-record (time action &rest props)
+  "Create a system log record with TIME, ACTION, and PROPS."
+  (append `((time . ,(ezeka--iso8601-time-string time))
+            (action . ,action))
+          (ezeka--plist-to-alist props)))
+
+(ert-deftest ezeka--system-log-record ()
+  (should (ezeka--system-log-record nil 'update-modified 'note "a-1234"))
+  (should (ezeka--system-log-record
+           (parse-time-string "2024-01-01T00:00:00")
+           'update-modified 'note "a-1234")))
+
+(defun ezeka--system-log-repeat-record-p (object previous)
+  "Return non-nil if OBJECT and PREVIOUS differ only in time."
+  (let ((object (cl-remove 'time object :key #'car))
+        (previous (cl-remove 'time previous :key #'car)))
+    (cl-every #'equal object previous)))
+
+(ert-deftest ezeka--system-log-repeat-record-p ()
+  (should (ezeka--system-log-repeat-record-p
+           (ezeka--system-log-record nil 'update-modified 'note "a-1234")
+           (ezeka--system-log-record
+            (parse-time-string "2024-01-01T00:00:00")
+            'update-modified 'note "a-1234"))))
+
+(defun ezeka--add-to-system-log (action time &rest props)
+  "Add a log entry for ACTION at TIME (nil for now) with PROPS.
+PROPS should be either a plist or an alist."
   (declare (indent 2))
   (let* ((time (or time (current-time)))
-         (values (pcase (car values)
-                   ((pred symbolp) (ezeka--plist-to-alist values))
-                   ((pred consp) values)))
-         (record `((time . ,(ezeka--iso8601-time-string time))
-                   (action . ,action)
-                   ,@values))
+         (record (apply #'ezeka--system-log-record time action props))
          (json (json-encode record))
-         (logfile (expand-file-name ezeka--system-log-file ezeka-directory)))
-    (unless (file-exists-p logfile)
-      (make-empty-file logfile))
-    (condition-case nil
-        (write-region (concat json "\n") nil logfile 'append)
-      (:success json))))
+         (logfile (expand-file-name ezeka--system-log-file ezeka-directory))
+         (logbuf (find-file-noselect logfile)))
+    (with-current-buffer logbuf
+      (goto-char (point-max))
+      (if-let* ((_ (re-search-backward "^{" nil 'noerror))
+                (previous (json-read))
+                (_ (ezeka--system-log-repeat-record-p
+                    (json-read-from-string json)
+                    previous)))
+          (forward-line)
+        (insert json "\n"))
+      (delete-trailing-whitespace)
+      (save-buffer))))
 
 (ert-deftest ezeka--add-to-system-log ()
   (should (ezeka--add-to-system-log 'move nil
