@@ -4217,11 +4217,15 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
 
 ;; Source: `cl--plist-to-alist'
 (defun ezeka--plist-to-alist (plist)
-  "Given PLIST, return an equivalent alist."
-  (let ((res '()))
-    (while plist
-      (push (cons (pop plist) (pop plist)) res))
-    (nreverse res)))
+  "Given PLIST, return an equivalent alist.
+If PLIST is already an alist, leave it alone."
+  (pcase (car plist)
+    ((pred symbolp)
+     (let ((res '()))
+       (while plist
+         (push (cons (pop plist) (pop plist)) res))
+       (nreverse res)))
+    ((pred consp) plist)))
 
 (defun ezeka--add-to-system-log (action time &rest values)
   "Add a log entry for ACTION at TIME (nil for now) with VALUES.
