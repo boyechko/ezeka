@@ -2931,9 +2931,10 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                      (intern (completing-read
                               "Create a new note or just a placeholder? "
                               '(new-note placeholder) nil 'require))))
-              (child-path (ezeka-link-path child-link
-                                           ;; HARDCODED
-                                           (cons '(label . "ψ") metadata)))
+              (genus (ezeka--read-genus "Genus" 'verbose "ψ" 'require-match))
+              (child-path (ezeka-link-path
+                           child-link
+                           (cons `(label . ,genus) metadata)))
               (link-to (ezeka--read-id "Symbolic link to: " nil parent 'required))
               (link-target (file-relative-name
                             (ezeka-link-file link-to)
