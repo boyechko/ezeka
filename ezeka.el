@@ -3202,12 +3202,12 @@ DEFAULT is the genus used if user just presses [return]."
                                            ", or RETURN to leave blank")
                                           (t "")))
                           (unless prompt ": ")))
-                (append '(?? ?) (mapcar #'car ezeka-genera))))))
-        (cond ((or (= result ??)
-                   (and (= result ?) require-match))
-               (setq verbose 'choices))
-              ((= result ?)
+                (append '(?? ?\C-m) (mapcar #'car ezeka-genera))))))
+        (cond ((and (= result ?\C-m) (stringp default))
                (throw 'done default))
+              ((or (= result ??)
+                   (and (= result ?\C-m) require-match))
+               (setq verbose 'choices))
               ((assq result ezeka-genera)
                (throw 'done
                       (char-to-string (cadr (assq result ezeka-genera)))))
