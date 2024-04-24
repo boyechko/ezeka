@@ -2424,11 +2424,15 @@ STRINGS are themselves concatenated with spaces in between."
   "Insert LINK at point.
 If STRINGS is non-nil, LINK is not actually inserted, just
 assumed to be contained in some of them."
-  (let ((already-linked
-         (cond ((save-excursion (re-search-backward link nil 'noerror))
-                'above)
-               ((save-excursion (re-search-forward link nil 'noerror))
-                'below))))
+  (let* ((breadcrumbs
+          (save-excursion
+            (re-search-forward
+             ezeka-breadcrumbs-trail-headline nil 'noerror)))
+         (already-linked
+          (cond ((save-excursion (re-search-backward link nil 'noerror))
+                 'above)
+                ((save-excursion (re-search-forward link breadcrumbs 'noerror))
+                 'below))))
     (when (or (not already-linked)
               (y-or-n-p (format "There's already a link there %s. Insert anyway? "
                                 already-linked)))
@@ -4216,8 +4220,10 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
    (list (ezeka--read-regexp "Regexp to find: ")
          (when current-prefix-arg
            (ezeka--read-kasten "Kasten to search: "))))
-  (ezeka-breadcrumbs-drop
-   (format ezeka-find-regexp-buffer-format regexp) (buffer-file-name))
+  (ezeka-breadcrumbs-drop nil
+                          buffer-file-name
+                          (format ezeka-find-regexp-buffer-format
+                                  (regexp-quote regexp)))
   (require 'xref)
   (let ((xref-buffer-name (format ezeka-find-regexp-buffer-format regexp)))
     (xref--show-xrefs
