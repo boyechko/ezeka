@@ -326,32 +326,32 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
   (interactive (list buffer-file-name))
   (save-excursion
     (with-current-buffer (find-file-noselect file)
-     (let* ((trailhead ezeka-breadcrumbs-trail-headline)
-            (existing (org-find-exact-headline-in-buffer trailhead)))
-       (cond ((and (org-at-heading-p)
-                   (or (string= (nth 5 (org-heading-components))
-                                ezeka-breadcrumbs-trail-headline)
-                       (y-or-n-p "Drop breadcrumbs here? ")))
-              ;; Start trail on current heading
-              )
-             ((and existing
-                   (y-or-n-p
-                    (format "There is a `%s' headline in this buffer. Use that? "
-                            trailhead)))
-              (goto-char (marker-position existing)))
-             ((and (not (org-at-heading-p))
-                   (y-or-n-p (format "Insert `%s' heading here? " trailhead)))
-              (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
-              (insert ezeka-breadcrumbs-trail-headline))
-             (t
-              (user-error "Well, what do you want, then?!")))
-       (ezeka-breadcrumbs-stop-trail)
-       (setq ezeka--breadcrumbs-trail (make-overlay (point-at-eol) (point-at-eol)))
-       (overlay-put ezeka--breadcrumbs-trail 'type 'ezeka--breadcrumbs-trail)
-       (overlay-put ezeka--breadcrumbs-trail 'after-string " (🍞)")
-       (add-hook 'kill-buffer-hook #'ezeka-breadcrumbs-stop-trail nil t)
-       (setq-local buffer-save-without-query t)
-       (message "Breadcrumbs will be dropped in `%s'" (file-name-base file))))))
+      (let* ((trailhead ezeka-breadcrumbs-trail-headline)
+             (existing (org-find-exact-headline-in-buffer trailhead)))
+        (cond ((and (org-at-heading-p)
+                    (or (string= (nth 5 (org-heading-components))
+                                 ezeka-breadcrumbs-trail-headline)
+                        (y-or-n-p "Drop breadcrumbs here? ")))
+               ;; Start trail on current heading
+               )
+              ((and existing
+                    (y-or-n-p
+                     (format "There is a `%s' headline in this buffer. Use that? "
+                             trailhead)))
+               (goto-char (marker-position existing)))
+              ((and (not (org-at-heading-p))
+                    (y-or-n-p (format "Insert `%s' heading here? " trailhead)))
+               (ezeka--insert-heading-after-current (1+ (or (org-current-level) 0)))
+               (insert ezeka-breadcrumbs-trail-headline))
+              (t
+               (user-error "Well, what do you want, then?!")))
+        (ezeka-breadcrumbs-stop-trail)
+        (setq ezeka--breadcrumbs-trail (make-overlay (point-at-eol) (point-at-eol)))
+        (overlay-put ezeka--breadcrumbs-trail 'type 'ezeka--breadcrumbs-trail)
+        (overlay-put ezeka--breadcrumbs-trail 'after-string " (🍞)")
+        (add-hook 'kill-buffer-hook #'ezeka-breadcrumbs-stop-trail nil t)
+        (setq-local buffer-save-without-query t)
+        (message "Breadcrumbs will be dropped in `%s'" (file-name-base file))))))
 
 ;; TODO: Any way to mark the breadcrumb heading and buffer?
 (defun ezeka-breadcrumbs-stop-trail ()
