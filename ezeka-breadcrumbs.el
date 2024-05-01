@@ -316,6 +316,10 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
 ;; (advice-add 'find-function :after 'ezeka--find-function-drop-breadcrumbs)
 ;; (advice-remove 'find-function 'ezeka--find-function-drop-breadcrumbs)
 
+(defun ezeka--breadcrumbs-heading ()
+  "Return non-nil if there is a breadcrumb heading in current buffer."
+  (org-find-exact-headline-in-buffer ezeka-breadcrumbs-trail-headline))
+
 ;;;###autoload
 (defun ezeka-breadcrumbs-start-trail (file)
   "Start a new breadcrumb trail in FILE at the current heading."
@@ -364,15 +368,24 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
 (defun ezeka-breadcrumbs-trail-dispatch (arg)
   "Start, switch to, or reset breadcrumb trail based on ARG."
   (interactive "p")
-  (pcase arg
-    (1 (if (and (org-at-heading-p)
-                (string= (nth 4 (org-heading-components))
-                         ezeka-breadcrumbs-trail-headline))
+  (cond ((and (= arg 1)
+              (org-at-heading-p)
+              (or (string= (nth 4 (org-heading-components))
+                           ezeka-breadcrumbs-trail-headline)
+                  (y-or-n-p "Drop breadcrumbs under this heading? ")))
+         (call-interactively 'ezeka-breadcrumbs-start-trail))
+        ((and (= arg 1)
+              (ezeka--breadcrumbs-heading)
+              (y-or-n-p (format "There is a %s heading in this buffer, switch to it? "
+                                ezeka-breadcrumbs-trail-headline)))
+         (save-excursion
            (call-interactively 'ezeka-breadcrumbs-start-trail)
+           (goto-char (marker-position (ezeka--breadcrumbs-heading)))))
+        ((= arg 1)
          (or (ezeka-breadcrumbs-visit-trailhead)
-             (call-interactively 'ezeka-breadcrumbs-start-trail))))
-    (4 (ezeka-breadcrumbs-stop-trail))
-    (_ (user-error "Not a valid option"))))
+             (call-interactively 'ezeka-breadcrumbs-start-trail)))
+        ((= arg 4)
+         (ezeka-breadcrumbs-stop-trail))))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
