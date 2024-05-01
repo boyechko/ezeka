@@ -2456,10 +2456,13 @@ If WHERE is :instead, do not include the LINK."
 
 (defun ezeka-insert-with-spaces (&rest strings)
   "Insert STRINGS at point surrounded by spaces as appropriate.
-STRINGS are themselves concatenated with spaces in between."
-  (insert (if (or (bolp) (ezeka--space-or-punct-p (char-before))) "" " ")
-          (string-trim (mapconcat #'identity strings " "))
-          (if (or (eolp) (ezeka--space-or-punct-p (char-after))) "" " ")))
+If the point is between punctuation symbols, no spaces are
+added. STRINGS are themselves concatenated with spaces in
+between."
+  (insert
+   (concat (unless (or (bolp) (ezeka--space-or-punct-p (char-before))) " ")
+           (string-trim (mapconcat #'identity strings " "))
+           (unless (or (eolp) (ezeka--space-or-punct-p (char-after))) " "))))
 
 (defvar ezeka-insert-link-hook nil
   "Normal hook that is run after `ezeka-insert-link' and friends.")
