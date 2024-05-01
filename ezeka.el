@@ -2981,27 +2981,13 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                      (citekey . ,citekey))))
     (ezeka--insert-link-with-spaces child-link)
     (ezeka--set-new-child-metadata child-link metadata)
-    (ezeka--add-to-system-log 'new-child nil
-      'child (ezeka-encode-rubric metadata)
-      'parent parent)
-    (if-let* ((_ (eq 'placeholder
-                     (intern (completing-read
-                              "Create a new note or just a placeholder? "
-                              '(new-note placeholder) nil 'require))))
-              (genus (ezeka--read-genus "Genus" 'verbose "ψ" 'require-match))
-              (child-path (ezeka-link-path
-                           child-link
-                           (cons `(label . ,genus) metadata)))
-              (link-to (ezeka--read-id "Symbolic link to: " nil parent 'required))
-              (link-target (file-relative-name
-                            (ezeka-link-file link-to)
-                            (file-name-directory child-path))))
-        (progn
-          (ezeka--add-to-move-log child-link
-                                  link-to
-                                  (alist-get 'caption metadata)
-                                  "Placeholder")
-          (ezeka--make-symbolic-link link-target child-path))
+    (if (string= "placeholder"
+                 (completing-read "Create a new note or just a placeholder? "
+                                  '(new-note placeholder) nil 'require))
+        (ezeka--create-placeholder child-link metadata)
+      (ezeka--add-to-system-log 'new-note nil
+        'note (ezeka-encode-rubric metadata)
+        'parent parent)
       (ezeka-find-link child-link))))
 
 ;;;=============================================================================
@@ -4574,6 +4560,26 @@ afterwards. SOURCE can be a link or a file."
       (ezeka--make-symbolic-link s-file t-file)
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
 after committing" s-link target-link))))
+
+(defun ezeka--create-placeholder (id metadata)
+  "Create a placeholder for ID with METADATA alist."
+  (unless (alist-get 'label metadata)
+    (push (cons 'label (ezeka--read-genus "Genus" 'verbose "ψ" 'require-match))
+          metadata))
+  (let-alist metadata
+    (let* ((path (ezeka-link-path id metadata))
+           (link-to (ezeka--read-id "Symbolic link to: " nil \.parent 'required))
+           (link-target (file-relative-name
+                         (ezeka-link-file link-to)
+                         (file-name-directory path))))
+      (ezeka--add-to-system-log 'placeholder nil
+        'note (ezeka-encode-rubric metadata)
+        'target (file-name-base link-target))
+      (ezeka--add-to-move-log id link-to .caption "Placeholder")
+      (ezeka--make-symbolic-link link-target path))))
+
+(ert-deftest ezeka--create-placeholder ()
+  (should (ezeka--create-placeholder "a-1234")))
 
 (defun ezeka--placeholders ()
   "Return a list of all placeholder symbolic links."
