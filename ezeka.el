@@ -2548,18 +2548,18 @@ Zettel metadata. If the user selects a Zettel that does not exist in
 the list, just insert the link to what was selected. If the cursor in
 already inside a link, replace it instead."
   (interactive "P")
-  (let ((link (ezeka-file-link
-               (ezeka--select-file (ezeka-visiting-files-list)
-                                   "Insert link to: " t))))
-    (if link
-        (if (not (ezeka-link-at-point-p))
-            (if arg
-                (funcall-interactively #'ezeka-insert-link-with-metadata link)
-              (ezeka-insert-link-with-metadata link '(title) :before))
-          ;; When replacing, don't including anything
-          (delete-region (match-beginning 0) (match-end 0))
-          (ezeka--insert-link-with-spaces link))
-      (message "No visiting Zettel"))))
+  (if-let ((link (ezeka-file-link
+                  (ezeka--select-file (ezeka-visiting-files-list)
+                                      "Insert link to: " t))))
+      (cond ((ezeka-link-at-point-p)
+             (delete-region (match-beginning 0) (match-end 0))
+             (ezeka--insert-link-with-spaces link))
+            (t
+             (ezeka-insert-link-with-metadata
+              link
+              (list (ezeka--read-metadata-field "Which field? " 'title))
+              :before)))
+    (message "No visiting Zettel")))
 
 (defun ezeka--note-in-other-window ()
   "Return the file name to the Zettel note in the other window.
