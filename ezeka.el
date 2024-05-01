@@ -2655,11 +2655,12 @@ insert just the link itself."
 (defvar ezeka--krsmf-time-format-history nil
   "History variable for `ezeka-kill-ring-save-metadata-field'.")
 
-(defun ezeka-kill-ring-save-metadata-field (field &optional time-format)
-  "Save the given metadata FIELD to kill ring and system clipboard.
+(defun ezeka-kill-ring-save-metadata-field (field &optional time-format insert)
+  "Save the value of metadata FIELD to kill ring and system clipboard.
 FIELD should be one of `ezeka-metadata-fields'. If the point
 is at Zettel link, use that; otherwise, the current buffer.
-With non-nil TIME-FORMAT, format time accordingly."
+With non-nil TIME-FORMAT, format time accordingly. If INSERT
+is non-nil, also insert the value at point."
   (interactive
    (list (intern-soft
           (completing-read "Which field? "
