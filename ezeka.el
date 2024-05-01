@@ -383,9 +383,18 @@ If MATCH-ENTIRE is non-nil, enclose the regexp in string boundaries."
 (defun ezeka-id-valid-p (id &optional id-type)
   "Return non-nil if ID matches the ID-TYPE.
 If ID-TYPE is not given, check ID against all known types."
-  (let ((kasten (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)))
+  (let ((kasten (if id-type
+                    (cl-find id-type (ezeka-kaesten) :key #'ezeka-kasten-id-type)
+                  (cl-find id (ezeka-kaesten)
+                           :key #'ezeka-kasten-id-regexp
+                           :test #'string-match-p))))
     (and (stringp id)
          (string-match-p (ezeka--id-regexp id-type 'match-entire) id))))
+
+(ert-deftest ezeka-id-valid-p ()
+  (should-not (ezeka-id-valid-p "goggly-gook"))
+  (should (ezeka-id-valid-p "a-1234"))
+  (should (ezeka-id-valid-p "327-C-02-A")))
 
 (defvar ezeka--read-id-history nil
   "History of IDs that the user entered manually.")
