@@ -196,11 +196,11 @@ a brief explanation; TIME is Emacs-encoded time."
       (when time (format-time-string "@ [%F %a %R]" time)))))
 
 ;;;###autoload
-(defun ezeka-breadcrumbs-drop (&optional target source)
+(defun ezeka-breadcrumbs-drop (&optional target source comment)
   "Add the Zettel TARGET to the current breadcrumbs trail.
 TARGET should be a Zettel filename; SOURCE can be one too,
 or a symbol describing where the function is being called
-from."
+from. COMMENT can be added instead of TARGET."
   (interactive (list buffer-file-name 'interactive))
   (when ezeka-breadcrumbs-leave-trail
     (save-excursion
@@ -210,8 +210,6 @@ from."
                  (problem nil)
                  (t-file (cond ((ezeka-file-p target) target)
                                ((ezeka-link-p target) (ezeka-link-file target))
-                               ((and (null target) (ezeka-file-p buffer-file-name))
-                                buffer-file-name)
                                (t nil)))
                  (s-file (cond ((ezeka-file-p source) source)
                                ((ezeka-link-p source) (ezeka-link-file source))
@@ -226,13 +224,15 @@ from."
                          (if t-file (ezeka-file-link t-file) target)
                          (if s-file (ezeka-file-link s-file) source)
                          problem)
-              (let ((status (ezeka-breadcrumbs-find-trail target source)))
+              (let ((status (ezeka-breadcrumbs-find-trail (or target comment) source)))
                 (pcase status
                   ((pred null)
                    nil)
                   ((pred symbolp)
                    (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
-                     (insert (ezeka--breadcrumbs-string target source))
+                     (insert (ezeka--breadcrumbs-string :target target
+                                                        :source source
+                                                        :comment comment))
                      (message "Dropped breadcrumbs for `%s' as %s"
                               (ezeka-file-name-id t-file)
                               status)))
