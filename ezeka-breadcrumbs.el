@@ -95,7 +95,7 @@ otherwise NIL."
       (replace-match
        (format "%s %s"
                (match-string-no-properties 1)
-               (ezeka--breadcrumbs-string target source))))))
+               (ezeka--breadcrumbs-string :target target :source source))))))
 
 (defun ezeka-breadcrumbs-find-arboreal-trail (target source &optional allow-duplicates)
   "Find where to drop breadcrumbs in an arboreal trail.
@@ -185,28 +185,15 @@ TARGET and SOURCE."
                (ezeka--insert-heading-after-current (1+ head-level))
                'primary))))))
 
-(defun ezeka--breadcrumbs-string (target source &optional comment)
-  "Return a breadcrumb string for TARGET from SOURCE.
-Optionally, add COMMENT after TARGET."
+(cl-defun ezeka--breadcrumbs-string (&key target source comment time)
+  "Return a breadcrumbs string based on supplied keywords.
+TARGET and SOURCE are file paths to Zettel notes; COMMENT is
+a brief explanation; TIME is Emacs-encoded time."
   (save-match-data
-    (let* ((t-file (cond ((ezeka-file-p target) target)
-                         ((ezeka-link-p target) (ezeka-link-file target))))
-           (s-file (cond ((ezeka-file-p source) source)
-                         ((ezeka-link-p source) (ezeka-link-file source))))
-           (timestamp (format-time-string (cdr org-time-stamp-formats))))
-      (ezeka--concat-strings " "
-        (if t-file
-            (or (ezeka-format-file-name "{%l} %c [[%i]]" t-file)
-                (format "%s" (file-name-nondirectory target)))
-          target)
-        comment
-        ;; TODO Implement `format-spec' for breadcrumb strings?
-        ;; Perhaps having different entries for ezeka and non-ezeka targets?
-        (when (and source ezeka-breadcrumbs-record-source)
-          (format "(%s)"
-                  (cond (s-file (ezeka-file-name-id s-file))
-                        ((stringp source) (file-name-nondirectory source))
-                        (t source))))))))
+    (ezeka--concat-strings " "
+      (when target (ezeka-format-file-name "{%l} %c [[%i]]" target))
+      (when comment (format "%s" comment))
+      (when time (format-time-string "@ [%F %a %R]" time)))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source)
@@ -316,7 +303,9 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
       (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
         (save-excursion
           (when-let ((status (ezeka-breadcrumbs-find-trail target source 'make-duplicates)))
-            (insert (ezeka--breadcrumbs-string target source comment))
+            (insert (ezeka--breadcrumbs-string
+                     :time (current-time)
+                     :comment (format "%s: %s" target comment)))
             (message "Dropped breadcrumbs from `%s' as %s"
                      (file-name-nondirectory source)
                      status)))))))
