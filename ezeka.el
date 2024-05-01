@@ -355,7 +355,7 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
                   :subdir-func (lambda (id)
                                  (car (split-string id "~"))))
 (ezeka-kasten-new "v1"
-                  :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)\\)*"
+                  :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)*\\)*"
                   :minimal-id "123")
 (ezeka-kasten-new "v2"
                   :id-regexp "[0-9]\\{3\\}\\(-[a-z]+\\)*"
