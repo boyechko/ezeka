@@ -839,7 +839,7 @@ To do that, try wildcard expansion for the file name
 beginning with LINK, returning it if found, or NIL
 otherwise."
   (save-match-data
-    (when-let* ((link (substring-no-properties link))
+    (when-let* ((link (and (stringp link) (substring-no-properties link)))
                 (id (ezeka-link-id link))
                 (basename (file-name-with-extension
                            (concat id "*")
