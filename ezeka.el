@@ -2313,14 +2313,18 @@ modificationbs specified in PLIST."
   (alist-get link ezeka--new-child-metadata nil nil #'string=))
 
 (defun ezeka-link-at-point-p (&optional freeform)
-  "Return non-nil if the thing at point is a wiki link (i.e. [[XXX]]).
-The first group is the link target. If FREEFORM is non-nil, also
-consider Zettel links that are not enclosed in square brackets."
+  "Return non-nil if the thing at point is a wiki link (i.e. [[xxx#YYY]]).
+The first group is the Zettel ID for the target. The second
+group contains the `org-mode' link target, if any. If
+FREEFORM is non-nil, also consider Zettel links that are not
+enclosed in square brackets."
   (thing-at-point-looking-at
-   (let ((regexp (ezeka--regexp-strip-named-groups (ezeka-link-regexp))))
+   (let ((link (ezeka--regexp-strip-named-groups (ezeka-link-regexp))))
      (if freeform
-         (concat "\\(?1:" regexp "\\)")
-       (concat "\\[\\[\\(?1:" regexp "\\)\\]\\(\\[[^]]+\\]\\)*\\]")))))
+         (concat "\\(?1:" link "\\)")
+       (rx (seq "[[" (group-n 1 (regexp link)) "]"
+                (0+ (group "[" (1+ (not "]")) "]"))
+                "]"))))))
 
 (defun ezeka-link-at-point ()
   "Return the Zettel link at point.
