@@ -1100,11 +1100,11 @@ Return the result of the conversion."
     (link      :format ?L :hidden t :predicate ezeka-link-p)
     (path      :format ?P :hidden t)
     (filename  :format ?F :hidden t)
-    (rubric)
+    (rubric    :format ?R)
     (category  :format ?l :hidden t)
     (label     :format ?l :hidden t)
     (caption   :format ?c :hidden t)
-    (citekey   :format ?C :hidden t)
+    (citekey   :format ?k :hidden t)
     (successor :format ?s :predicate ezeka-id-valid-p)
     (title     :format ?t)
     (subtitle  :format ?T)
@@ -1168,11 +1168,14 @@ The format control string may contain the following %-sequences:
 %a means list of cited authors.
 %c means caption (i.e. short title).
 %C means creation timestamp.
+%F means filename.
 %i means ID or link.
 %k means citation key.
 %K means kasten.
 %l means label (genus or category).
 %M means modification timestamp (empty if not set).
+%p means parent.
+%R means rubric.
 %s means stable mark (see `ezeka-header-rubric-stable-mark').
 %t means title."
   (let ((_format-time
@@ -1190,6 +1193,7 @@ The format control string may contain the following %-sequences:
                                  ""))
                         (?c . ,(or .caption (ezeka--pasteurize-file-name .title)))
                         (?C . ,(funcall _format-time .created))
+                        (?F . ,.filename)
                         (?i . ,.id)
                         (?k . ,(cond ((or (not .citekey)
                                           (string-empty-p .citekey))
@@ -1201,6 +1205,8 @@ The format control string may contain the following %-sequences:
                         (?K . ,.kasten)
                         (?l . ,.label)
                         (?M . ,(funcall _format-time .modified))
+                        (?p . ,.parent)
+                        (?R . ,.rubric)
                         (?s . ,(if .caption-stable
                                    ezeka-header-rubric-stable-mark
                                  ""))
