@@ -102,23 +102,30 @@ otherwise NIL."
 See `ezeka-breadcrumbs-find-trail-function' for details
 about TARGET and SOURCE. If ALLOW-DUPLICATES is non-nil, add
 breadcrumbs even there are already some there."
-  (let ((target (cond ((null target) (error "Target is null"))
-                      ((ezeka-file-p target) (ezeka-file-link target))
-                      ((ezeka-link-p target) target)
-                      ((symbolp target) (symbol-name target))
-                      (t target)))
-        (source (cond ((ezeka-file-p source) (ezeka-file-link source))
-                      ((ezeka-link-p source) source)
-                      ((symbolp source) (symbol-name source))
-                      (t source))))
+  (let (t-file s-file)
+    (cond ((null target)
+           (error "Target is null"))
+          ((ezeka-file-p target)
+           (setq t-file target
+                 target (ezeka-file-link target)))
+          ((ezeka-link-p target)
+           (setq t-file (ezeka-link-file target)))
+          ((symbolp target)
+           (setq target (symbol-name target))))
+    (cond ((ezeka-file-p source)
+           (setq s-file source
+                 source (ezeka-file-link source)))
+          ((ezeka-link-p source)
+           (setq s-file (ezeka-link-file source)))
+          ((symbolp source)
+           (setq source (symbol-name source))))
     (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
       (save-restriction
         (goto-char (overlay-end ezeka--breadcrumbs-trail))
         (org-narrow-to-subtree)
         (let ((org-blank-before-new-entry '((heading . nil)))
               (head-level (org-current-level)))
-          (cond ((and (stringp source)
-                      (search-forward source nil t)
+          (cond ((and (search-forward source nil t)
                       (org-at-heading-p))
                  ;; Breadcrumb for SOURCE found, so add one for TARGET
                  (let ((src-level (car (org-heading-components)))
@@ -126,7 +133,7 @@ breadcrumbs even there are already some there."
                    (cond ((and (search-forward target nil t)
                                (org-at-heading-p)
                                (not allow-duplicates))
-                          (ezeka--update-breadcrumbs-heading target source)
+                          (ezeka--update-breadcrumbs-heading t-file s-file)
                           (message "Breadcrumb for %s already exists under %s"
                                    target
                                    source)
@@ -140,7 +147,7 @@ breadcrumbs even there are already some there."
                       (org-at-heading-p)
                       (not allow-duplicates))
                  ;; Breadcrumbs already dropped for TARGET
-                 (ezeka--update-breadcrumbs-heading target source)
+                 (ezeka--update-breadcrumbs-heading t-file s-file)
                  (when (and nil
                             (y-or-n-p (format "Breadcrumbs already exist for %s. Visit it?" target)))
                    (point-marker)))
