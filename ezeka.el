@@ -2327,6 +2327,20 @@ same window."
         (nil (find-file truename))
         (t (find-file-other-frame truename))))))
 
+(defun ezeka-find-file-replace-placeholder (file &optional same-window)
+  "Find the given FILE, offering to replace it if it's a placeholder.
+If SAME-WINDOW is non-NIL, open the buffer visiting the file
+in the same window."
+  (if (or (not (file-symlink-p file))
+          (and (file-symlink-p file)
+               (string= "follow"
+                        (completing-read "What to do with this symbolic link? "
+                                         '(follow create)
+                                         nil 'require-match nil nil "follow"))))
+      (ezeka-find-file file same-window)
+    (when (y-or-n-p "Delete symlink and create a new note? ")
+      (ezeka-replace-placeholder file))))
+
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
 If SAME-WINDOW (or \\[universal-argument]) is non-NIL, opens
@@ -2339,7 +2353,7 @@ Zettel link."
           (buf (cl-find link (buffer-list)
                         :key #'buffer-name
                         :test #'string-match-p)))
-      (cond (file (ezeka-find-file file same-window))
+      (cond (file (ezeka-find-file-replace-placeholder file same-window))
             (buf  (if same-window
                       (pop-to-buffer-same-window buf)
                     (pop-to-buffer buf)))
@@ -4524,6 +4538,71 @@ afterwards. SOURCE can be a link or a file."
       (ezeka--make-symbolic-link s-file t-file)
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
 after committing" s-link target-link))))
+
+(defun ezeka--placeholders ()
+  "Return a list of all placeholder symbolic links."
+  (directory-files-recursively
+   (ezeka-kasten-directory (ezeka-kasten "numerus"))
+   ".*{ψ}.*.txt" nil nil nil))
+
+(defun ezeka-replace-placeholder (placeholder &optional note metadata)
+  "Replace PLACEHOLDER with NOTE (both file paths).
+If METADATA is nil, read it from PLACEHOLDER's filename. If
+NOTE is nil, create a new file."
+  (interactive
+   (list (ezeka-octavo-with-kasten "numerus"
+           (ezeka--select-file (ezeka--placeholders)
+                               "Placeholder to replace: "
+                               'require-match))))
+  (let* ((note-id (ezeka-file-link (or note placeholder)))
+         (note-rubric (file-name-base (or note placeholder)))
+         (ph-id (ezeka-file-link placeholder))
+         (ph-rubric (file-name-base placeholder))
+         (mdata (or metadata (ezeka-decode-rubric ph-rubric)))
+         (parent (ezeka-file-link (file-symlink-p placeholder))))
+    (cond ((file-symlink-p placeholder)
+           (delete-file placeholder))
+          ((file-exists-p placeholder)
+           (user-error "`%s' is not a symlink, aborting!"
+                       (file-relative-name placeholder ezeka-directory)))
+          (t
+           (error "Unknown error")))
+    (ezeka--add-to-move-log note-id ph-id note-rubric "Replace placeholder")
+    (ezeka--add-to-system-log 'replace-placeholder nil
+      'placeholder (ezeka-encode-rubric mdata)
+      'parent parent
+      'note note-rubric)
+    (if note
+        (unwind-protect
+            (when-let ((_ (ezeka--rename-file note placeholder))
+                       (buf (or (get-file-buffer placeholder)
+                                (find-file-noselect placeholder))))
+              (with-current-buffer buf
+                (ezeka--update-file-header
+                 placeholder
+                 (ezeka--add-oldname mdata note-id))
+                (ezeka-add-change-log-entry note
+                  (format "Repurpose +%s+ in place of \"%s\"."
+                          note-rubric ph-rubric))
+                (ezeka-harmonize-file-name placeholder mdata t)
+                (save-buffer)))
+          (message "Replacing links: %s with %s" note-id ph-id)
+          (condition-case nil
+              (let ((replaced (ezeka-octavo-replace-links note-id ph-id)))
+                (ezeka-add-change-log-entry
+                    note
+                  (format "Replace %d links in %d files."
+                          (or (car replaced) 0) (or (cdr replaced) 0)))
+                (message "Moved %s to %s, replacing %d links in %d files"
+                         note-id ph-id
+                         (or (car replaced) 0) (or (cdr replaced) 0)))
+            (error
+             (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
+                               note-id ph-id))
+             (message "Replacing links failed; try manually"))))
+      (ezeka--set-new-child-metadata ph-id mdata
+        'parent parent)
+      (ezeka-find-file placeholder 'same-window))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
