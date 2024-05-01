@@ -2522,10 +2522,11 @@ interactively edit the text."
                                       (ezeka--format-link link))
     (ezeka--insert-link-with-spaces link)))
 
-(defun ezeka--select-file (files &optional prompt require-match)
+(defun ezeka--select-file (files &optional prompt require-match initial-input)
   "Select from among Zettel FILES, presenting optional PROMPT.
-If REQUIRE-MATCH is non-nil, require match, otherwise treat entered
-text as a Zettel link."
+If REQUIRE-MATCH is non-nil, require match, otherwise treat
+entered text as a Zettel link. INITIAL-INPUT is passed to
+`completing-read'."
   (when files
     (let* ((table (ezeka-completion-table files))
            (_collection (lambda (string predicate action)
@@ -2536,7 +2537,8 @@ text as a Zettel link."
       (gethash (completing-read (or prompt "Select Zettel: ")
                                 _collection
                                 nil
-                                require-match)
+                                require-match
+                                initial-input)
                table))))
 
 (defun ezeka-insert-link-to-visiting (arg)
