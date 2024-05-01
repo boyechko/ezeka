@@ -1414,7 +1414,8 @@ They keys are converted to symbols."
   (save-match-data
     (if-let* ((file (expand-file-name file ezeka-directory))
               (header (ezeka-file-content file 'just-header))
-              (mdata (ezeka--decode-header header file)))
+              (mdata (ezeka--decode-header header file))
+              (rubric (ezeka-decode-rubric (file-name-base file))))
         (let-alist mdata
           (setf (alist-get '_metadata mdata)
                 'from-file)
@@ -1436,12 +1437,18 @@ They keys are converted to symbols."
                 (or (ignore-errors (ezeka-file-link file))
                     (ignore-errors (ezeka-make-link kasten id))
                     (ezeka--file-name-part file 'id)))
-          (setf (alist-get 'title mdata)
-                (or \.title \.caption \.rubric))
           (setf (alist-get 'caption mdata)
                 (or \.caption
                     (ezeka-file-name-caption file)
                     \.title))
+          (setf (alist-get 'title mdata)
+                (or \.title
+                    \.caption))
+          (setf (alist-get 'created mdata)
+                (or (ezeka--parse-time-string (alist-get 'id rubric))
+                    \.created))
+          (setf (alist-get 'rubric mdata)
+                (ezeka-encode-rubric mdata))
           mdata)
       (signal 'file-error file))))
 
