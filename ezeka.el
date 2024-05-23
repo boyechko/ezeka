@@ -3933,15 +3933,17 @@ return NIL."
         (when (ezeka-link-at-point-p)
           (ezeka-link-at-point))))))
 
-(defun ezeka--org-move-after-properties ()
-  "Move point after the properties drawer, if any.
+(defun ezeka--org-move-after-drawers ()
+  "Move point after the properties and logbook drawers, if any.
 Return the resulting point."
-  (when (org-get-property-block)
-    (goto-char (cdr (org-get-property-block)))
-    ;; `org-get-property-block' ends on :END:
-    (unless (zerop (forward-line 2))
-      (insert "\n\n"))
-    (point)))
+  (when (looking-at org-property-drawer-re)
+    (goto-char (match-end 0))           ; move right after :END:
+    (unless (zerop (forward-line))
+      (insert "\n")))
+  (when (looking-at org-logbook-drawer-re)
+    (goto-char (match-end 0))           ; move right after :END:
+    (unless (zerop (forward-line))
+      (insert "\n"))))
 
 (defun ezeka--find-snippet-heading ()
   "Go to the first snippet heading in the current buffer.
@@ -4021,7 +4023,7 @@ insert the summary before the content."
             (when (org-at-comment-p)
               (org-insert-subheading nil))
             ;; Delete existing text
-            (ezeka--org-move-after-properties)
+            (ezeka--org-move-after-drawers)
             (let ((start (point))
                   (comments-removed 0)
                   (footnotes-removed 0)
@@ -4049,7 +4051,7 @@ insert the summary before the content."
                                                          "USED_IN+"
                                                          (format "id:%s" org-id)))
                 (basic-save-buffer)
-                (ezeka--org-move-after-properties)
+                (ezeka--org-move-after-drawers)
                 (let ((content-start (point)))
                   (org-end-of-subtree)
                   (push (buffer-substring-no-properties content-start (point))
@@ -4059,7 +4061,7 @@ insert the summary before the content."
               (goto-char start)
               (while (re-search-forward "^[*]+ " nil t) ; remove headings
                 (goto-char (match-beginning 0))
-                (ezeka--org-move-after-properties)
+                (ezeka--org-move-after-drawers)
                 (kill-region (match-beginning 0) (point)))
               ;; Remove <<tags>>
               (goto-char start)
@@ -4069,9 +4071,9 @@ insert the summary before the content."
               (goto-char start)
               (while (re-search-forward " ?\\[\\[[^]]+]]" nil t)
                 (replace-match ""))
-              ;; Remove inline @@...@@ and {...~} comments, but not {{...}}
+              ;; Remove inline @@...@@ and <...> comments, but not {...}
               (goto-char start)
-              (while (re-search-forward " ?\\(@@\\|{[^{]\\).*\\(@@\\|~}\\)\n*" nil t)
+              (while (re-search-forward " ?\\(@@\\|<\\).+?\\(@@\\|>\\)\n*" nil t)
                 (cl-incf comments-removed)
                 (replace-match ""))
               ;; Remove footnotes if need be
