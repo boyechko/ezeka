@@ -4612,7 +4612,9 @@ NOTE is nil, create a new file."
    (list (ezeka-octavo-with-kasten "numerus"
            (ezeka--select-file (ezeka--directory-files "numerus" ".*{ψ}.*")
                                "Placeholder to replace: "
-                               'require-match))))
+                               'require-match))
+         (when (ezeka-file-p buffer-file-name)
+           buffer-file-name)))
   (let* ((note-id (ezeka-file-link (or note placeholder)))
          (note-rubric (file-name-base (or note placeholder)))
          (ph-id (ezeka-file-link placeholder))
@@ -4628,7 +4630,7 @@ NOTE is nil, create a new file."
            (error "Unknown error")))
     (ezeka--add-to-move-log note-id ph-id note-rubric "Replace placeholder")
     (ezeka--add-to-system-log 'replace-placeholder nil
-      'placeholder (ezeka-encode-rubric mdata)
+      'placeholder ph-rubric
       'parent parent
       'note note-rubric)
     (if note
