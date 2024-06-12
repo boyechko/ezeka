@@ -4570,7 +4570,8 @@ after committing" s-link target-link))))
           metadata))
   (let-alist metadata
     (let* ((path (ezeka-link-path id metadata))
-           (link-to (ezeka--read-id "Symbolic link to: " nil \.parent 'required))
+           (link-to (ezeka--select-file
+                     (ezeka--directory-files "numerus") nil 'require-match \.parent))
            (link-target (file-relative-name
                          (ezeka-link-file link-to)
                          (file-name-directory path))))
@@ -4583,11 +4584,16 @@ after committing" s-link target-link))))
 (ert-deftest ezeka--create-placeholder ()
   (should (ezeka--create-placeholder "a-1234")))
 
-(defun ezeka--placeholders ()
-  "Return a list of all placeholder symbolic links."
+(defun ezeka--directory-files (&optional kasten regexp)
+  "Return a list of all Ezeka files in KASTEN matching REGEXP.
+Unless KASTEN is specified, return a list of all Ezeka
+files. The REGEXP should match the `base-file-name' of the
+desired file(s)."
   (directory-files-recursively
-   (ezeka-kasten-directory (ezeka-kasten "numerus"))
-   ".*{ψ}.*.txt" nil nil nil))
+   (if (ezeka-kasten "numerus")
+       (ezeka-kasten-directory (ezeka-kasten "numerus"))
+     ezeka-directory)
+   (concat regexp "\." ezeka-file-extension "$") nil nil nil))
 
 (defun ezeka-replace-placeholder (placeholder &optional note metadata)
   "Replace PLACEHOLDER with NOTE (both file paths).
@@ -4595,7 +4601,7 @@ If METADATA is nil, read it from PLACEHOLDER's filename. If
 NOTE is nil, create a new file."
   (interactive
    (list (ezeka-octavo-with-kasten "numerus"
-           (ezeka--select-file (ezeka--placeholders)
+           (ezeka--select-file (ezeka--directory-files "numerus" ".*{ψ}.*")
                                "Placeholder to replace: "
                                'require-match))))
   (let* ((note-id (ezeka-file-link (or note placeholder)))
