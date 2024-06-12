@@ -583,7 +583,7 @@ should be files."
     (:success
      (ezeka--add-to-system-log 'symlink nil
        'target (file-name-base target)
-       'link (file-name-base linkname)))))
+       'note (file-name-base linkname)))))
 
 (ert-deftest ezeka--make-symbolic-link ()
   (let ((target (make-temp-file "ezeka-target"))
@@ -4579,7 +4579,16 @@ after committing" s-link target-link))))
         'note (ezeka-encode-rubric metadata)
         'target (file-name-base link-target))
       (ezeka--add-to-move-log id link-to .caption "Placeholder")
-      (ezeka--make-symbolic-link link-target path))))
+      (ezeka--make-symbolic-link link-target path)
+      (when-let ((_ (y-or-n-p (format "Add something to `%s'? "
+                                      (file-name-base link-to))))
+                 (buf (find-file-noselect link-to)))
+        (with-current-buffer buf
+          (goto-char (point-max))
+          (org-insert-heading nil nil 'top)
+          (insert (ezeka-encode-rubric metadata) " ")
+          (org-insert-time-stamp nil 'with-hm 'inactive))
+        (switch-to-buffer buf)))))
 
 (ert-deftest ezeka--create-placeholder ()
   (should (ezeka--create-placeholder "a-1234")))
