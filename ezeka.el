@@ -4507,6 +4507,25 @@ whether to visit; if NIL, do not visit."
           (t
            (message (mapconcat _pprint_record (nreverse trail) "\n"))))))
 
+(defun ezeka--replace-links (before after &optional confirm)
+  "Replace links to BEFORE to AFTER.
+With CONFIRM non-nil (or \\[universal-argument]), ask for confirmations."
+  (condition-case nil
+      (let ((replaced (ezeka-octavo-replace-links before after nil confirm)))
+        (ezeka-add-change-log-entry
+            source
+          (format "Replace %d links in %d files."
+                  (or (car replaced) 0) (or (cdr replaced) 0)))
+        (message "Replaced links %s to %s, replacing %d links in %d files"
+                 before after
+                 (or (car replaced) 0) (or (cdr replaced) 0))
+        (ezeka-force-save-buffer)
+        (magit-stage-file buffer-file-name))
+    (error
+     (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
+                       before after))
+     (message "Replacing links failed; try manually"))))
+
 (defun ezeka--finish-moving-note (source target &optional metadata)
   "Finish moving SOURCE to TARGET (both file paths).
 If METADATA is nil, read it from SOURCE."
@@ -4543,19 +4562,7 @@ If METADATA is nil, read it from SOURCE."
             (ezeka-harmonize-file-name target mdata t)
             (save-buffer)))
       (message "Replacing links: %s with %s" source-link target-link)
-      (condition-case nil
-          (let ((replaced (ezeka-octavo-replace-links source-link target-link)))
-            (ezeka-add-change-log-entry
-                source
-              (format "Replace %d links in %d files."
-                      (or (car replaced) 0) (or (cdr replaced) 0)))
-            (message "Moved %s to %s, replacing %d links in %d files"
-                     source-link target-link
-                     (or (car replaced) 0) (or (cdr replaced) 0)))
-        (error
-         (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
-                           source-link target-link))
-         (message "Replacing links failed; try manually"))))))
+      (ezeka--replace-links source-link target-link))))
 
 (defun ezeka--begin-moving-note (source target-link)
   "Begin moving Zettel note from SOURCE to TARGET-LINK.
