@@ -4717,7 +4717,7 @@ NOTE is nil, create a new file."
       'note note-rubric)
     (if note
         (unwind-protect
-            (when-let ((_ (ezeka--rename-file note placeholder))
+            (when-let ((_ (ezeka--make-symbolic-link note placeholder))
                        (buf (or (get-file-buffer placeholder)
                                 (find-file-noselect placeholder))))
               (with-current-buffer buf
@@ -4728,21 +4728,7 @@ NOTE is nil, create a new file."
                   (format "Repurpose +%s+ in place of \"%s\"."
                           note-rubric ph-rubric))
                 (ezeka-harmonize-file-name placeholder mdata t)
-                (save-buffer)))
-          (message "Replacing links: %s with %s" note-id ph-id)
-          (condition-case nil
-              (let ((replaced (ezeka-octavo-replace-links note-id ph-id)))
-                (ezeka-add-change-log-entry
-                    note
-                  (format "Replace %d links in %d files."
-                          (or (car replaced) 0) (or (cdr replaced) 0)))
-                (message "Moved %s to %s, replacing %d links in %d files"
-                         note-id ph-id
-                         (or (car replaced) 0) (or (cdr replaced) 0)))
-            (error
-             (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
-                               note-id ph-id))
-             (message "Replacing links failed; try manually"))))
+                (save-buffer))))
       (ezeka--set-new-child-metadata ph-id mdata
         'parent parent)
       (ezeka-find-file placeholder 'same-window))))
