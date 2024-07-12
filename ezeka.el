@@ -556,11 +556,11 @@ case-insensitive file systems."
                      (file-name-directory filename)))))
     (when (or (not (file-exists-p filename)) ; filename not saved yet
               (progn
-                (rename-file filename tempname t)
-                (rename-file tempname newname t)
+                (rename-file filename tempname 'okay-if-exists)
+                (rename-file tempname newname 'okay-if-exists)
                 (file-exists-p newname)))
       (set-visited-file-name newname t t)
-      (ezeka--add-to-system-log 'rename nil
+      (ezeka--add-to-system-log 'rename-file nil
         'old-name (file-relative-name filename ezeka-directory)
         'new-name (file-relative-name newname ezeka-directory))
       newname)))
