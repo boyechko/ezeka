@@ -503,10 +503,11 @@ If LITERAL is non-nil, search for STRING literallyl."
 
 (defun ezeka-octavo-replace-links (before after &optional directory confirm)
   "Replace BEFORE links to AFTER links in DIRECTORY.
-DIRECTORY defaults to `ezeka-directory' if not given. If AFTER is nil,
-replace the link with {{BEFORE}}. Returns a tuple of number of links
-replaced in number of files. If CONFIRM (or \\[universal-argument]) is
-non-nil, check with user before replacing."
+DIRECTORY defaults to `ezeka-directory' if not given. If
+AFTER is nil, replace the link with +BEFORE+. Return a tuple
+of number of links replaced in number of files. If
+CONFIRM (or \\[universal-argument]) is non-nil, check with
+user before replacing."
   (interactive
    (if (save-excursion
          (beginning-of-line)
@@ -542,18 +543,17 @@ non-nil, check with user before replacing."
         (progn (message "No links to %s found" before) nil)
       (dolist (f with-links count)
         (let ((open-buffer (get-file-buffer f))
+              (f-mdata (ezeka-file-metadata f))
               (inhibit-read-only t))
           (save-excursion
             (with-current-buffer (or open-buffer
                                      (find-file-noselect f))
               (when confirm (switch-to-buffer (current-buffer)))
-              (when-let ((_ (ezeka-file-p f t))
-                         (f-mdata (ezeka-file-metadata f))
-                         (_ (and (ezeka--parent-of-p f bf-id f-mdata)
-                                 (or (not confirm)
-                                     (y-or-n-p (format "Replace parent in %s (%s)? "
-                                                       (alist-get 'title f-mdata)
-                                                       (alist-get 'id f-mdata)))))))
+              (when (and (ezeka--parent-of-p f bf-id f-mdata)
+                         (or (not confirm)
+                             (y-or-n-p (format "Replace parent in %s (%s)? "
+                                               (alist-get 'title f-mdata)
+                                               (alist-get 'id f-mdata)))))
                 ;; FIXME: Worth extending to preserve multiple parents?
                 ;; Replace parent
                 (setf (alist-get 'parent f-mdata) after)
@@ -566,6 +566,10 @@ non-nil, check with user before replacing."
                   (replace-match replacement t)
                   (cl-incf count)))
               (save-buffer)
+              (ezeka--add-to-system-log 'replace-links nil
+                'note (ezeka-encode-rubric f-mdata)
+                'original bf-id
+                'new replacement)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
       (message "Replaced %d link(s) in %d files" count (length with-links))
