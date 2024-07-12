@@ -62,6 +62,14 @@ Each element should be in the form
   :type 'list
   :group 'ezeka)
 
+(defcustom ezeka-placeholder-genus nil
+  "Genus used in numerus currens Kasten to signify a placeholder.
+Such placeholders are symbolic links that are not added to
+the version control manifest, making it easye to replace
+them."
+  :type 'character
+  :group 'ezeka)
+
 (defcustom ezeka-keywords nil
   "A list of frequently-used keywords.
 Each element should be a string beginning with #."
@@ -4635,7 +4643,10 @@ after committing" s-link target-link))))
 (defun ezeka--create-placeholder (id metadata)
   "Create a placeholder for ID with METADATA alist."
   (unless (alist-get 'label metadata)
-    (push (cons 'label (ezeka--read-genus "Genus" 'verbose "ψ" 'require-match))
+    (push (cons 'label
+                (ezeka--read-genus "Genus" 'verbose
+                                   ezeka-placeholder-genus
+                                   'require-match))
           metadata))
   (let-alist metadata
     (let* ((path (ezeka-link-path id metadata))
@@ -4679,7 +4690,9 @@ If METADATA is nil, read it from PLACEHOLDER's filename. If
 NOTE is nil, create a new file."
   (interactive
    (list (ezeka-octavo-with-kasten "numerus"
-           (ezeka--select-file (ezeka--directory-files "numerus" ".*{ψ}.*")
+           (ezeka--select-file (ezeka--directory-files
+                                (ezeka-kasten "numerus")
+                                (format ".*{%c}.*" ezeka-placeholder-genus))
                                "Placeholder to replace: "
                                'require-match))
          (when (ezeka-file-p buffer-file-name)
