@@ -565,6 +565,23 @@ case-insensitive file systems."
         'new-name (file-relative-name newname ezeka-directory))
       newname)))
 
+(defun ezeka--copy-file (filename newname)
+  "Create NEWNAME as a copy of FILENAME."
+  (let ((newname (if (file-name-absolute-p newname)
+                     newname
+                   (expand-file-name
+                    newname
+                    (file-name-directory filename)))))
+    (when (or (not (file-exists-p filename)) ; filename not saved yet
+              (progn
+                (copy-file filename newname nil 'keep-time)
+                (file-exists-p newname)))
+      (set-visited-file-name newname t t)
+      (ezeka--add-to-system-log 'copy-file nil
+        'old-name (file-relative-name filename ezeka-directory)
+        'new-name (file-relative-name newname ezeka-directory))
+      newname)))
+
 (defun ezeka--make-symbolic-link (target linkname)
   "Make a symbolic link to TARGET from LINKNAME.
 This is a wrapper around `make-symbolic-link' that also adds
