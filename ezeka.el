@@ -586,7 +586,7 @@ case-insensitive file systems."
   "Make a symbolic link to TARGET from LINKNAME.
 This is a wrapper around `make-symbolic-link' that also adds
 an entry into the system log. Both TARGET and LINKNAME
-should be files."
+should be files. On success, return LINKNAME."
   (interactive
    (list buffer-file-name
          (read-file-name "Symbolic link to: "
@@ -600,7 +600,8 @@ should be files."
     (:success
      (ezeka--add-to-system-log 'symlink nil
        'target (file-name-base target)
-       'note (file-name-base linkname)))))
+       'note (file-name-base linkname))
+     linkname)))
 
 (ert-deftest ezeka--make-symbolic-link ()
   (let ((target (make-temp-file "ezeka-target"))
