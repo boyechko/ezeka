@@ -612,6 +612,37 @@ should be files. On success, return LINKNAME."
                   (delete-file linkname)
                   (file-exists-p linkname)))))
 
+(defun ezeka--update-symbolic-link (linkname &optional select-kasten new-name)
+  "Update the symbolic link LINKNAME, selecting a new target for it.
+If SELECT-KASTEN is non-nil (or with \\[universal-argument]), interactively select
+the Kasten; otherwise default to the same Kasten as the
+original target. If NEW-NAME is non-nil (or \\[universal-argument] \\[universal-argument]),
+ask for a new name."
+  (interactive
+   (list (ezeka--grab-dwim-file-target nil 'interactive)
+         (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
+  (if-let* ((target (file-symlink-p linkname))
+            (kasten (if (not select-kasten)
+                        (ezeka-file-kasten target)
+                      (ezeka-kasten
+                       (ezeka--read-kasten
+                        "Select symbolic link target in which Kasten? "))))
+            (new-target (ezeka--select-file (ezeka--directory-files kasten)
+                                            "Symbolic link to: "
+                                            'require-match
+                                            (ezeka-file-name-id target)))
+            (new-name (when new-name
+                        (read-string "New link name: " linkname))))
+      (progn
+        (ezeka--add-to-system-log 'delete-symlink nil
+          'note linkname
+          'target target)
+        (delete-file linkname)
+        (when (ezeka--make-symbolic-link new-target (or new-name linkname))
+          (message "Symbolic link updated")))
+    (user-error "This is not a symbolic link")))
+
 ;; The following is adapted from
 ;; https://emacs.stackexchange.com/a/46059
 (defface ezeka-read-only '((t :slant italic))
