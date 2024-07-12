@@ -3022,6 +3022,7 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                        (t
                         (ezeka--read-kasten "Kasten for new child: "))))
          (child-link (ezeka--generate-new-child parent kasten id))
+         (child-file (ezeka-link-file child-link))
          (metadata `((id . ,child-link)
                      (kasten . ,kasten)
                      (title . ,title)
@@ -3030,14 +3031,26 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
                      (citekey . ,citekey))))
     (ezeka--insert-link-with-spaces child-link)
     (ezeka--set-new-child-metadata child-link metadata)
-    (if (string= "placeholder"
-                 (completing-read "Create a new note or just a placeholder? "
-                                  '(new-note placeholder) nil 'require))
-        (ezeka--create-placeholder child-link metadata)
-      (ezeka--add-to-system-log 'new-note nil
-        'note (ezeka-encode-rubric metadata)
-        'parent parent)
-      (ezeka-find-link child-link))))
+    (cond ((string= "placeholder"
+                    (completing-read "Create a new note or just a placeholder? "
+                                     '(new-note placeholder) nil 'require))
+           (ezeka--create-placeholder child-link metadata))
+          ((and child-file
+                (file-exists-p child-file)
+                (file-symlink-p child-file)
+                (y-or-n-p (format "Remove placeholder %s first? "
+                                  (file-name-base child-file))))
+           (ezeka-replace-placeholder child-file
+                                      (ezeka-link-path child-link metadata)))
+          ((and child-file
+                (file-exists-p child-file)
+                (file-symlink-p child-file))
+           (ezeka-find-link child-link))
+          (t
+           (ezeka--add-to-system-log 'new-note nil
+             'note (ezeka-encode-rubric metadata)
+             'parent parent)
+           (ezeka-find-link child-link)))))
 
 ;;;=============================================================================
 ;;; Buffers and Frames
