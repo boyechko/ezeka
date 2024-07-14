@@ -1199,14 +1199,16 @@ into the file header.")
   "Read a metadata field from the user after PROMPT.
 The result is returned as a symbol. If there is no input,
 return DEFAULT."
-  (intern-soft
-   (completing-read (or prompt "Whic field? ")
-                    ezeka-metadata-fields
-                    nil
-                    'require-match
-                    nil
-                    nil
-                    default)))
+  (if-let ((field (completing-read (or prompt "Which field? ")
+                                   ezeka-metadata-fields
+                                   nil
+                                   'require-match
+                                   nil
+                                   nil
+                                   default))
+           (_ (not (string-empty-p field))))
+      (intern-soft field)
+    default))
 
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors for citation KEY."
