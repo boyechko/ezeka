@@ -4064,6 +4064,8 @@ return NIL."
 (defun ezeka--org-move-after-drawers ()
   "Move point after the properties and logbook drawers, if any.
 Return the resulting point."
+  (when (org-at-heading-p)
+    (forward-line))
   (when (looking-at org-property-drawer-re)
     (goto-char (match-end 0))           ; move right after :END:
     (unless (zerop (forward-line))
