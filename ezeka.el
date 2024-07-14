@@ -1798,8 +1798,7 @@ update it unconditionally."
           (set-buffer-modified-p t)
           (ezeka--update-file-header nil nil
                                      (eq ezeka-header-update-modified 'always))
-          (save-buffer)
-          (shell-command (format "git add -f \"%s\"" buffer-file-name)))
+          (save-buffer))
       (set-buffer-modified-p modified))
     (set-buffer-modified-p nil)))
 
