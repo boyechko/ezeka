@@ -2883,7 +2883,13 @@ the text instead."
       (when-let* ((_ (ezeka-link-at-point-p))
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
-                  (text (alist-get (or field 'title) (ezeka-file-metadata file))))
+                  (value (alist-get (or field 'title) (ezeka-file-metadata file)))
+                  (text (cond ((stringp value)
+                               value)
+                              ((ezeka--timep value)
+                               (format-time-string "[%F %a %R]" value))
+                              (t
+                               (format "%s" value)))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
