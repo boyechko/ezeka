@@ -4808,13 +4808,14 @@ appropriate oldname."
 With \\[universal-argument], ask for an explicit TARGET-LINK instead.
 Return the target link and open it (unless NOSELECT is non-nil)."
   (interactive
-   (let* ((source (ezeka--grab-dwim-file-target))
+   (let* ((source (or (ezeka--grab-dwim-file-target)
+                      buffer-file-name))
           (src-header (ezeka-file-content source 'just-header))
           (target (cond ((equal current-prefix-arg '(4))
                          (ezeka--read-id "Target link: "))
                         ((string-match-p ezeka-note-moving-keyword src-header)
                          (alist-get 'id (ezeka--decode-header src-header source))))))
-     (list (ezeka--grab-dwim-file-target)
+     (list source
            (if target
                (ezeka-link-kasten target)
              (completing-read "Which kasten to move to? "
@@ -4833,7 +4834,8 @@ Return the target link and open it (unless NOSELECT is non-nil)."
     (if (not target-link)
         (user-error "No target link specified")
       (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (if (and (member ezeka-note-moving-keyword (alist-get 'keywords s-mdata))
+      (if (and (member ezeka-note-moving-keyword
+                       (alist-get 'keywords s-mdata))
                (y-or-n-p (format "Finish moving %s to %s? "
                                  source-link target-link)))
           (ezeka--finish-moving-note
