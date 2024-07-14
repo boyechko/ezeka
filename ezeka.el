@@ -4456,8 +4456,8 @@ PROPS should be either a plist or an alist."
                 (_ (ezeka--system-log-repeat-record-p
                     (json-read-from-string json)
                     previous)))
-          (forward-line)
-        (insert json "\n"))
+          (goto-char (point-max))
+        (insert "\n" json "\n"))
       (delete-trailing-whitespace)
       (save-buffer))))
 
