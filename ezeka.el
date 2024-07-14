@@ -3916,17 +3916,27 @@ With \\[universal-argument], use the current KASTEN without asking."
         (goto-char (point-min))
         (let* ((head-level (nth 1 (org-heading-components)))
                (head-title (nth 4 (org-heading-components)))
+               match-data
                timestamp)
           (cond ((string-match "\\(.*\\) \\([[<].*[]>]\\)" head-title)
+                 (setq match-data (match-data))
                  (setf (alist-get 'title mdata)
                        (ezeka--minibuffer-edit-string
                         (match-string-no-properties 1 head-title)
                         nil
                         "Title for new note: "))
                  (setf (alist-get 'created mdata)
-                       (save-match-data
-                         (org-timestamp-to-time
-                          (org-timestamp-from-string (match-string 2 head-title))))))
+                       (org-timestamp-to-time
+                        (org-timestamp-from-string
+                         (progn
+                           (set-match-data match-data)
+                           (match-string 2 head-title)))))
+                 (when (string-match "^\\([[:alpha:]]+\\): .*" head-title)
+                   (setf (alist-get 'label mdata)
+                         (ezeka--minibuffer-edit-string
+                          (match-string 1 head-title)
+                          nil
+                          "Label: "))))
                 ((org-get-scheduled-time nil)
                  (setf (alist-get 'created mdata)
                        (org-get-scheduled-time nil)))
