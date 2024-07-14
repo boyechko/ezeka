@@ -3878,11 +3878,10 @@ With \\[universal-argument] ARG, asks for a different name."
 (defun ezeka-org-set-todo-properties ()
   "Set the FROM, CREATED, and ID properties for the current org heading."
   (interactive)
-  (org-set-property "ID" (org-id-get-create))
-  (org-set-property "FROM" (ezeka-insert-link-with-metadata
-                            buffer-file-name '(title) :after))
-  (org-set-property "CREATED"
-                    (ezeka-timestamp nil 'full 'brackets)))
+  (org-set-property "FROM"
+                    (ezeka--link-with-metadata
+                     (ezeka-file-link buffer-file-name) '(title) :after))
+  (org-set-property "CREATED" (ezeka-timestamp nil 'full 'brackets)))
 
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
