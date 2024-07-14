@@ -2004,7 +2004,7 @@ Return one of the options for `ezeka-harmonize-file-name-preference'."
            'metadata))))
 
 (defun ezeka-harmonize-file-name (&optional filename metadata force preference)
-  "Ensure that FILENAME's captioned name matches the METADATA
+  "Ensure that FILENAME's captioned name matches the METADATA.
 When called interactively with \\[universal-argument], or
 FORCE is non-nil, offer to set metadata or rename the file
 even if they are in agreement. If given, PREFERENCE
@@ -2014,7 +2014,8 @@ overrides `ezeka-harmonize-file-name-preference'."
          nil
          current-prefix-arg
          'ask))
-  (let* ((filename (or filename buffer-file-name))
+  (let* ((filename (or (and filename (file-truename filename))
+                       buffer-file-name))
          (file-base (file-name-base filename))
          (mdata (if (null metadata)
                     (ezeka-file-metadata filename)
