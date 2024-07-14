@@ -393,13 +393,15 @@ destination kasten."
          :before)
       (ezeka--insert-link-with-spaces link))))
 
-(defun ezeka-octavo-insert-link-to-kasten (&optional kasten sort)
-  "Temporarily set octavo variables for KASTEN and call `octavo-insert-link'.
+(defun ezeka-octavo-insert-link-to-kasten (kasten &optional sort)
+  "Insert a link to KASTEN.
 If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive (list (ezeka--read-kasten)))
   (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha)))
-    (ezeka-octavo-with-kasten kasten
-      (call-interactively 'ezeka-octavo-insert-link))))
+    (ezeka-insert-link-with-metadata
+     (ezeka--select-file
+      (ezeka--directory-files (ezeka-kasten kasten))
+      "Insert link to: "))))
 
 (defun ezeka-octavo--link-context ()
   "Return a string of context to search for."
