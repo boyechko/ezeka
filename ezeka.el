@@ -1443,22 +1443,35 @@ PREDICATE, if given, overrides `ezeka-metadata-fields'."
           (t
            (signal 'wrong-type-argument (cons 'functionp-or-listp pred))))))
 
+(defun ezeka--decode-header-line (line &optional file)
+  "Return the (KEY . VALUE) tuple from header LINE of FILE.
+If LINE doesn't match `ezeka-header-line-regexp', prompt the
+user to fix it."
+  (cond ((string-empty-p line) nil)
+        ((string-match ezeka-header-line-regexp line)
+         (let* ((key (intern (match-string 1 line)))
+                (val (match-string 2 line))
+                (deval (ezeka--validate-metadata-field
+                        key
+                        (ezeka--header-deyamlify-value val))))
+           (cons key deval)))
+        (t
+         (let ((edited
+                (read-string (format "Malformed header line while reading %s:\n%s\nFix it? "
+                                     (if file
+                                         (file-name-base file)
+                                       "unspecified file")
+                                     line)
+                             line nil line)))
+           (if (equal edited line)
+               (signal 'ezeka-error (list "Malformed header line: '%s'" line))
+             (ezeka--decode-header-line edited))))))
+
 (defun ezeka--decode-header (header &optional file)
   "Return metadata alist decoded from FILE's HEADER.
 They keys are converted to symbols."
-  (let* ((metadata
-          (mapcar
-           (lambda (line)
-             (when (> (length line) 0)
-               (if (string-match ezeka-header-line-regexp line)
-                   (let* ((key (intern (match-string 1 line)))
-                          (val (match-string 2 line))
-                          (deval (ezeka--validate-metadata-field
-                                  key
-                                  (ezeka--header-deyamlify-value val))))
-                     (cons key deval))
-                 (signal 'ezeka-error (list "Malformed header line: '%s'" line)))))
-           (split-string header "\n" 'omit-nulls "[ ]+")))
+  (let* ((metadata (mapcar #'ezeka--decode-header-line
+                           (split-string header "\n" 'omit-nulls "[ ]+")))
          (rubric (ezeka-decode-rubric (alist-get 'rubric metadata))))
     (append rubric metadata)))
 
