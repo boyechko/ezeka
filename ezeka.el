@@ -2364,18 +2364,20 @@ INTERACTIVE is non-NIL when called interactively."
 (defun ezeka-scriptum-id (&optional project time)
   "Return a scriptum ID based on PROJECT and Emacs TIME object.
 If TIME is nil, default to current time."
-  (let ((_scriptum-id (lambda (project n)
-                       "Return scriptum ID as a string based on PROJECT and N."
-                       (format "%s~%02d" project n))))
+  (let ((_scriptum-id
+         (lambda (project n)
+           "Return scriptum ID as a string based on PROJECT and N."
+           (format "%s~%02d" project n))))
     (while (not project)
-      ;; FIXME: Do I need a native function for this?
       (setq project
-        (if (fboundp #'octavo--select-file)
-            (ezeka-octavo-with-kasten "numerus"
-              (ezeka-file-link (octavo--select-file "Select project: ")))
-          (ezeka--read-id "Scriptum project (numerus currens): " :numerus)))
-      (unless (ezeka-link-file project)
-        (setq project nil)))
+        (or (ezeka--select-file
+             (ezeka--directory-files (ezeka-kasten "numerus"))
+             "Select project: ")
+            (ezeka-link-file
+             (ezeka--read-id
+              "Scriptum project (numerus currens): "
+              :numerus)))))
+    (setq project (ezeka-file-link project))
     ;; TODO: If this is first entry in scriptum project, create a project
     ;; heading <numerus>~00 with caption for the project? Or a symbolic link
     ;; to numerus?
