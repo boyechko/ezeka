@@ -204,8 +204,8 @@ Group 3 is the label (genus or category).
 Group 4 is the caption (i.e. short title).
 Group 5 is the citation key.
 Group 6 is the stable caption mark."
-  `(concat ,(ezeka-link-regexp)          ; \1 and \2
-           ,ezeka-file-name-separator
+  `(concat (ezeka-link-regexp)          ; \1 and \2
+           ezeka-file-name-separator
            "\\(?:"                      ; everything else is optional
            "\\(?:\\.\\)*"               ; FIXME: optional historic period
            "\\(?:{\\(?3:[^}]+\\)} \\)*" ; \3
