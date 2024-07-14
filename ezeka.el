@@ -3186,13 +3186,13 @@ information for Zettelkasten work."
     (if-let* ((link (and (ezeka-link-at-point-p)
                          (ezeka-link-at-point)))
               (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-        (setq mode-line-misc-info
-          (propertize
-           (format "%s%s%s" (alist-get 'title metadata)
-                   (if (alist-get 'citekey metadata) " " "")
-                   (or (alist-get 'citekey metadata) ""))
-           'face '(:slant italic :height 0.9)))
-      (setq mode-line-misc-info octavo-index-mode-line-orig))))
+        (setq-local mode-line-misc-info
+                    (propertize
+                     (format "%s%s%s" (alist-get 'title metadata)
+                             (if (alist-get 'citekey metadata) " " "")
+                             (or (alist-get 'citekey metadata) ""))
+                     'face '(:slant italic :height 0.9)))
+      (setq-local mode-line-misc-info (symbol-value mode-line-misc-info)))))
 
 (defun ezeka-completion-table (files &optional get-metadata)
   "Turn list of FILES into completion table suitable for `completing-read'.
