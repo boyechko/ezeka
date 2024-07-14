@@ -1967,6 +1967,11 @@ If CONFIRM (\\[universal-argument]) is non-nil, confirm each rename."
                   ezeka--marked-for-rename
                   :test #'string=))))
 
+(defun ezeka--marked-for-rename-p (filename)
+  "Return non-nil if FILENAME is marked for rename."
+  (string-match-p ezeka-rename-note-keyword
+                  (ezeka-file-content filename 'just-header)))
+
 (defcustom ezeka-harmonize-file-name-preference 'ask
   "Can be 'ASK, 'FILENAME, or 'METADATA."
   :type 'symbol
