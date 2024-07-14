@@ -640,14 +640,15 @@ ask for a new name."
                                             "Symbolic link to: "
                                             'require-match
                                             (ezeka-file-name-id target)))
-            (new-name (when new-name
-                        (read-string "New link name: " linkname))))
+            (new-name (if new-name
+                          (read-string "New link name: " linkname)
+                        linkname)))
       (progn
         (ezeka--add-to-system-log 'delete-symlink nil
           'note linkname
           'target target)
         (delete-file linkname)
-        (when (ezeka--make-symbolic-link new-target (or new-name linkname))
+        (when (ezeka--make-symbolic-link new-target new-name)
           (message "Symbolic link updated")))
     (user-error "This is not a symbolic link")))
 
