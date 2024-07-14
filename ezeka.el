@@ -3788,11 +3788,12 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
 
 (defun ezeka--read-kasten (&optional prompt)
   "Read a valid Kasten with `completing-read' and given PROMPT, if any."
-  (completing-read
-   (or prompt "Kasten: ")
-   (if (listp (ezeka-kaesten))
-       (mapcar #'ezeka-kasten-name (ezeka-kaesten))
-     (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))))
+  (completing-read (or prompt "Kasten: ")
+                   (if (listp (ezeka-kaesten))
+                       (mapcar #'ezeka-kasten-name (ezeka-kaesten))
+                     (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))
+                   nil
+                   t))                  ; = user cannot exit w/o selecting
 
 (defun ezeka-insert-header-template
     (&optional link label title parent citekey metadata)
