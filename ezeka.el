@@ -1182,7 +1182,7 @@ Return the result of the conversion."
     (keywords  :format ?k :predicate listp))
   "An alist of valid metadata fields and their properties.
 The format of each item should be as follows:
-    (FIELD [:HIDDEN T] [:PREDICATE <type>]).
+    (FIELD [:FORMAT ?<character>] [:HIDDEN T] [:PREDICATE <type>]).
 
 If HIDDEN is T, the field is not added to the note header.
 YAML collections are returned as Emacs lists and strings
@@ -1194,6 +1194,18 @@ de-YAMLified value.
 
 The order of items will affect how the metadata is written
 into the file header.")
+
+(defun ezeka--metadata-field-format (field)
+  "Return the format character for FIELD."
+  (plist-get (cdr (assq field ezeka-metadata-fields)) :format))
+
+(defun ezeka--metadata-field-hidden-p (field)
+  "Return non-nil if FIELD should is hidden."
+  (plist-get (cdr (assq field ezeka-metadata-fields)) :hidden))
+
+(defun ezeka--metadata-field-predicate (field)
+  "Return predicate for FIELD."
+  (plist-get (cdr (assq field ezeka-metadata-fields)) :predicate))
 
 (defun ezeka--read-metadata-field (&optional prompt default)
   "Read a metadata field from the user after PROMPT.
@@ -1413,11 +1425,13 @@ PREDICATE, if given, overrides `ezeka-metadata-fields'."
     (cond ((and (functionp pred) (funcall pred value))
            value)
           ((functionp pred)
+           ;; TODO Any way to save the fixed value?
            (ezeka--validate-metadata-field
             field
             (ezeka--header-deyamlify-value
              (read-string
-              (format "`%s' does not satisfy predicate `%s'; fix it: " value pred)
+              (format "Value `%s' for %s doesn't satisfy `%s'; fix it: "
+                      value field pred)
               value
               'ezeka--validate-metadata-field-history))
             pred))
