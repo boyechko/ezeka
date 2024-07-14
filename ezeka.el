@@ -4731,13 +4731,13 @@ after committing" s-link target-link))))
 (defun ezeka--directory-files (&optional kasten regexp)
   "Return a list of all Ezeka files in KASTEN matching REGEXP.
 Unless KASTEN is specified, return a list of all Ezeka
-files. The REGEXP should match the `base-file-name' of the
-desired file(s)."
+files. The REGEXP should match the entire `base-file-name'
+of the desired file(s)."
   (directory-files-recursively
-   (if (ezeka-kasten "numerus")
-       (ezeka-kasten-directory (ezeka-kasten "numerus"))
+   (if kasten
+       (ezeka-kasten-directory (ezeka-kasten kasten))
      ezeka-directory)
-   (concat regexp "\." ezeka-file-extension "$") nil nil nil))
+   (concat regexp "\." ezeka-file-extension) nil nil nil))
 
 (defun ezeka-replace-placeholder (placeholder &optional note metadata)
   "Replace PLACEHOLDER with NOTE (both file paths).
