@@ -913,14 +913,20 @@ otherwise."
                            t)))
       (cond ((zerop (length matches)) nil)
             ((not (cdr matches)) (car matches))
-            ((not (cdr files)) (car files))
             ((eq t files)
              (warn "Found multiple symbolic links for `%s':\n    %s"
                    link
                    (mapcar #'file-name-base matches))
-             (ezeka--select-file matches
-                                 "Multiple matches found. Select one: "
-                                 'require-match))
+             (setq result (ezeka--select-file matches
+                                              "Multiple matches found. Select one: "
+                                              'require-match))
+             (kill-new (mapconcat (lambda (m)
+                                    (format "(delete-file \"%s\")" m))
+                                  (cl-remove result matches :test #'string=)
+                                  " "))
+             (message "delete-file call saved to kill ring")
+             result)
+            ((not (cdr files)) (car files))
             (t
              (warn "Found multiple matches for `%s':\n%s"
                    link
