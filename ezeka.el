@@ -4375,7 +4375,7 @@ The control sequence %s is replaced with the xref search string."
 If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
   (interactive
    (list (ezeka--read-regexp "Regexp to find: ")
-         (when current-prefix-arg
+         (unless current-prefix-arg
            (ezeka--read-kasten "Kasten to search: "))))
   (ezeka-breadcrumbs-drop nil
                           buffer-file-name
@@ -4386,7 +4386,10 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
     (xref--show-xrefs
      (xref-matches-in-directory regexp
                                 (format "*.%s" ezeka-file-extension)
-                                ezeka-directory nil)
+                                (if kasten
+                                    (ezeka-kasten-directory (ezeka-kasten kasten))
+                                  ezeka-directory)
+                                nil)
      nil))
   (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice)
   (advice-add 'xref-show-location-at-point :before 'ezeka--breadcrumbs-xref-advice))
