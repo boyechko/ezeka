@@ -1348,6 +1348,7 @@ If cannot decode, return NIL."
         (caption . ,(when caption (string-trim caption)))
         (caption-stable . ,stable)
         (citekey . ,(when citekey (string-trim citekey)))
+        (rubric . ,rubric)
         (_metadata . from-rubric)))))
 
 (defun ezeka--header-yamlify-key (key)
