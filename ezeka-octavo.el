@@ -414,10 +414,12 @@ If SORT is non-nil, set `vertico-sort-function' to it."
   "Insert a link to KASTEN based on the previous word.
 If KASTEN is not given, assume one with highest order. If
 SORT is non-nil, set `vertico-sort-function' to it."
-  (interactive (list (if (and current-prefix-arg
-                              (not (integerp current-prefix-arg)))
-                         (ezeka--read-kasten)
-                       "numerus")))     ; HARDCODED
+  (interactive
+   (list (prefix-numeric-value current-prefix-arg)
+         (if (and current-prefix-arg
+                  (not (integerp current-prefix-arg)))
+             (ezeka--read-kasten)
+           "numerus")))     ; HARDCODED
   (let ((pos (point))
         (vertico-sort-function (or sort 'vertico-sort-history-alpha))
         (octavo-link-and-title nil)
@@ -430,8 +432,10 @@ SORT is non-nil, set `vertico-sort-function' to it."
       (goto-char (match-beginning 0)))
     (ezeka-octavo-with-kasten kasten
       (ezeka-octavo-insert-link
-       (octavo--select-file "Insert link to: " nil nil nil
-                            (string-trim context "[[:punct:]]" "[[:punct:]]"))))))
+       (ezeka--select-file (octavo--directory-files 'full)
+                           "Insert link to: "
+                           'require-match
+                           (string-trim context "[[:punct:]]" "[[:punct:]]"))))))
 
 (cmd-named ezeka-octavo-insert-link-to-numerus
   (ezeka-octavo-insert-link-to-kasten "numerus"))
