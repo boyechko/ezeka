@@ -4917,6 +4917,16 @@ END."
       (setq mode-line-misc-info
         (or (ezeka-describe-file-at-point) ezeka--original-mode-line)))))
 
+(defun ezeka--magit-file-creation-date (file)
+  "Save the file creation date of FILE to kill ring."
+  (interactive (list (magit-file-at-point 'expand 'assert)))
+  (let ((time-string
+         (format-time-string
+          "[%F %a %R]"
+          (file-attribute-modification-time (file-attributes file)))))
+    (kill-new time-string)
+    (message "Saved %s to kill ring" time-string)))
+
 ;;;=============================================================================
 ;;; Mode
 ;;;=============================================================================
