@@ -2599,8 +2599,8 @@ non-nil, insert the link without allowing the user to
 interactively edit the text."
   (interactive
    (list (ezeka--read-id "Link to insert: ")
+         (list (ezeka--read-metadata-field))
          ;; FIXME Where argument is completely ignored
-         (list (ezeka--read-metadata-field "Which field? "))
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
   (if-let* ((_ (car fields))
             (desc-fmt (mapconcat
@@ -2660,7 +2660,7 @@ already inside a link, replace it instead."
             (t
              (ezeka-insert-link-with-metadata
               link
-              (list (ezeka--read-metadata-field "Which field? " 'title))
+              (list (ezeka--read-metadata-field nil 'title))
               :before)))
     (message "No visiting Zettel")))
 
