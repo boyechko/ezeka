@@ -4882,24 +4882,40 @@ END."
 (defvar ezeka--original-mode-line nil
   "Value of `mode-line-misc-info' before we override it.")
 
+(defun ezeka-describe-file-at-point (&optional file)
+  "Return a description of the FILE at point."
+  (interactive)
+  (let* ((file (cl-case major-mode
+                 (magit-status-mode (magit-file-at-point))
+                 (dired-mode (dired-file-name-at-point))
+                 (wdired-mode (dired-file-name-at-point))))
+         (symlink-p (and file
+                         (file-symlink-p file)
+                         (expand-file-name (file-symlink-p file)
+                                           (ezeka-id-directory
+                                            (ezeka-file-name-id file)))))
+         (desc (when file
+                 (if symlink-p
+                     (concat (unless (file-exists-p symlink-p)
+                               "BROKEN ")
+                             (when (ezeka--marked-for-rename-p symlink-p)
+                               "[renaming] ")
+                             "symlink to "
+                             (propertize
+                              (file-name-base symlink-p)
+                              'face '(:weight bold)))
+                   "regular file"))))
+    (when (called-interactively-p 'any)
+      (message desc))
+    desc))
+
 (defun ezeka--magit-mode-line-show-file-type ()
   "Display in the mode line the type of the file under cursor."
   (while-no-input
     (redisplay)
-    (when-let* ((file
-                 (cl-case major-mode
-                   (magit-status-mode (magit-file-at-point))
-                   (dired-mode (dired-file-name-at-point))
-                   (wdired-mode (dired-file-name-at-point))
-                   (t (setq mode-line-misc-info ezeka--original-mode-line)
-                      nil)))
-                (line (magit-file-line file)))
+    (when (eq major-mode 'magit-status-mode)
       (setq mode-line-misc-info
-        (format "%s"
-                (propertize (if (file-symlink-p file)
-                                (concat "symlink to " (file-name-base (file-symlink-p file)))
-                              "regular file")
-                            'face '(:weight bold)))))))
+        (or (ezeka-describe-file-at-point) ezeka--original-mode-line)))))
 
 ;;;=============================================================================
 ;;; Mode
