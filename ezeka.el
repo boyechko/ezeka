@@ -2758,36 +2758,33 @@ insert just the link itself."
 (defvar ezeka--krsmf-time-format-history nil
   "History variable for `ezeka-kill-ring-save-metadata-field'.")
 
-(defun ezeka-kill-ring-save-metadata-field (field &optional time-format insert)
-  "Save the value of metadata FIELD to kill ring and system clipboard.
-FIELD should be one of `ezeka-metadata-fields'. If the point
-is at Zettel link, use that; otherwise, the current buffer.
-With non-nil TIME-FORMAT, format time accordingly. If INSERT
-is non-nil, also insert the value at point."
+(defun ezeka-kill-ring-save-metadata-field (file field &optional time-format insert)
+  "Save the value of FILE's metadata FIELD to kill ring and system clipboard.
+FIELD should be one of `ezeka-metadata-fields'. If called
+interactively and the point is at Zettel link, use that as
+the target FILE; otherwise, the current buffer. With non-nil
+TIME-FORMAT, format time accordingly. If INSERT is non-nil (or \\[universal-argument])
+also insert the value at point."
   (interactive
-   (list (intern-soft
-          (completing-read "Which field? "
-                           ezeka-metadata-fields
-                           nil
-                           t))
-         nil
-         current-prefix-arg))
-  (when-let* ((file (ezeka--grab-dwim-file-target))
-              (link (ezeka-file-link file))
-              (mdata (ezeka-file-metadata file))
+   (let ((file (ezeka--grab-dwim-file-target))
+         (field (ezeka--read-metadata-field)))
+     (list file
+           field
+           (when (eq 'ezeka--timep (ezeka--metadata-field-predicate field))
+             (read-string "How to format time values? "
+                          (concat "[" (cdr ezeka-timestamp-formats) "]")
+                          'ezeka--krsmf-time-format-history))
+           current-prefix-arg)))
+  (when-let* ((mdata (ezeka-file-metadata file))
               (value (alist-get field mdata))
               (formatted
                (pcase value
                  ((pred stringp)
                   value)
                  ((pred ezeka--timep)
-                  (let ((time-format
-                         (or (when (called-interactively-p 'any)
-                               (read-string "How to format time values? "
-                                            (concat "[" (cdr ezeka-timestamp-formats) "]")
-                                            'ezeka--krsmf-time-format-history))
-                             (cdr ezeka-timestamp-formats))))
-                    (format-time-string time-format value)))
+                  (format-time-string
+                   (or time-format (cdr ezeka-timestamp-formats))
+                   value))
                  (_ (format "%s" value)))))
     (ezeka--kill-ring-clipboard-save formatted)
     (when insert (insert formatted))))
