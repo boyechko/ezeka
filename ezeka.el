@@ -1705,7 +1705,8 @@ current time."
                   (lambda (id)
                     (eq (ezeka-id-type id) :tempus))
                   (cons (alist-get 'id metadata)
-                        (alist-get 'oldnames metadata)))))
+                        (cons (ezeka-file-name-id (alist-get 'filename metadata))
+                              (alist-get 'oldnames metadata))))))
     (setf (alist-get 'created metadata)
           (ezeka--complete-time created
                                 (if tempus
