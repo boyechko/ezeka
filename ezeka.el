@@ -4703,7 +4703,10 @@ after committing" s-link target-link))))
   (let-alist metadata
     (let* ((path (ezeka-link-path id metadata))
            (link-to (ezeka--select-file
-                     (ezeka--directory-files "numerus") nil 'require-match \.parent))
+                     (ezeka--directory-files
+                      (ezeka-kasten
+                       (ezeka--read-kasten "Kasten for symbolic link target: ")))
+                     nil 'require-match \.parent))
            (link-target (file-relative-name
                          (ezeka-link-file link-to)
                          (file-name-directory path))))
