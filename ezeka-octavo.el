@@ -403,15 +403,17 @@ If SORT is non-nil, set `vertico-sort-function' to it."
       (ezeka--directory-files (ezeka-kasten kasten))
       "Insert link to: "))))
 
-(defun ezeka-octavo--link-context ()
-  "Return a string of context to search for."
-  (or (word-at-point 'no-props)
-      (save-excursion
-        (backward-to-word 1)
-        (word-at-point 'no-props))))
+(defun ezeka-octavo--link-context (&optional n)
+  "Return a string of N words before point."
+  (string-trim
+   (buffer-substring-no-properties
+    (save-excursion
+      (backward-word-strictly (or n 1))
+      (point))
+    (point))))
 
-(defun ezeka-octavo-insert-contextual-link (&optional kasten sort)
-  "Insert a link to KASTEN based on the previous word.
+(defun ezeka-octavo-insert-contextual-link (&optional n kasten sort)
+  "Insert a link to KASTEN based on the previous N words.
 If KASTEN is not given, assume one with highest order. If
 SORT is non-nil, set `vertico-sort-function' to it."
   (interactive
@@ -423,12 +425,13 @@ SORT is non-nil, set `vertico-sort-function' to it."
   (let ((pos (point))
         (vertico-sort-function (or sort 'vertico-sort-history-alpha))
         (octavo-link-and-title nil)
-        (context (downcase (ezeka-octavo--link-context))))
+        (context (downcase (ezeka-octavo--link-context n))))
     (when (save-excursion
             (re-search-backward "[[:space:].,;:?!]"
                                 (or (re-search-backward "\\sw" (point-at-bol) t)
                                     (point-at-bol))
-                                t))
+                                'noerror
+                                n))
       (goto-char (match-beginning 0)))
     (ezeka-octavo-with-kasten kasten
       (ezeka-octavo-insert-link
