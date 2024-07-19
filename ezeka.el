@@ -496,11 +496,8 @@ file interactively."
         ((eq major-mode 'octavo-index-mode)
          (or (button-get (button-at (point)) 'button-data)
              (octavo--select-file)))
-        ((and (featurep 'octavo)
-              interactive)
-         ;; FIXME Rather than calling `octavo--select-file' directly, need a native
-         ;; function that would at least allow selecting Kasten.
-         (octavo--select-file))))
+        (interactive
+         (ezeka--select-file (ezeka--directory-files (ezeka--read-kasten))))))
 
 (defun ezeka--replace-in-string (string &rest replacements)
   "Replace in STRING all the regexp/replacement pairs in REPLACEMENTS.
