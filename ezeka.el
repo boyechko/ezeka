@@ -624,19 +624,25 @@ the Kasten; otherwise default to the same Kasten as the
 original target. If NEW-NAME is non-nil (or \\[universal-argument] \\[universal-argument]),
 ask for a new name."
   (interactive
-   (list (ezeka--grab-dwim-file-target nil 'interactive)
+   (list (ezeka--grab-dwim-file-target 'grab-from-links 'interactive)
          (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
-  (if-let* ((target (file-symlink-p linkname))
-            (kasten (if (not select-kasten)
+  (if-let* ((linkname linkname)
+            (target (file-symlink-p linkname))
+            (kasten (if (and (not select-kasten)
+                             (ezeka-file-kasten target))
                         (ezeka-file-kasten target)
                       (ezeka-kasten
                        (ezeka--read-kasten
-                        "Select symbolic link target in which Kasten? "))))
-            (new-target (ezeka--select-file (ezeka--directory-files kasten)
-                                            "Symbolic link to: "
-                                            'require-match
-                                            (ezeka-file-name-id target)))
+                        (format "`%s' points to `%s'%s. Select new target in which Kasten? "
+                                (ezeka-file-name-id linkname)
+                                (file-name-base target)
+                                (unless (file-exists-p target) " (doesn't exist)"))))))
+            (new-target (ezeka--select-file
+                         (ezeka--directory-files kasten)
+                         "Symbolic link to: "
+                         'require-match
+                         (file-name-base target)))
             (new-name (if new-name
                           (read-string "New link name: " linkname)
                         linkname)))
