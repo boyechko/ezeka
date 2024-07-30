@@ -270,7 +270,7 @@ The control sequence %s is replaced with the xref search string.")
 
 (defun ezeka--breadcrumbs-elisp-target ()
   "Return a breadcrumbs target for the current Emacs Lisp function."
-  (when-let ((defname (rb-kill-ring-save-def-name)))
+  (when-let ((defname (ignore-errors (rb-kill-ring-save-def-name))))
     (format "[[elisp:(find-function '%s)][%s]]" defname defname)))
 
 (defun ezeka--breadcrumbs-buffer-target ()
