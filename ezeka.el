@@ -1242,7 +1242,7 @@ return DEFAULT."
               (t
                author1))))))
 
-(defun ezeka-format-metadata (format-string metadata)
+(defun ezeka-format-metadata (format-string metadata &optional time-format)
   "Format a string out of FORMAT-STRING and METADATA.
 The format control string may contain the following %-sequences:
 
@@ -1254,12 +1254,15 @@ The format control string may contain the following %-sequences:
 %k means citation key.
 %K means kasten.
 %l means label (genus or category).
-%M means modification timestamp (empty if not set).
+%M means modification timestamp.
 %p means parent.
 %R means rubric.
 %s means stable mark (see `ezeka-header-rubric-stable-mark').
 %t means title.
-%T means subtitle."
+%T means subtitle.
+
+For time values, use TIME-FORMAT if specified; otherwise,
+use `ezeka-timestamp-formats'."
   (save-match-data
     (let-alist metadata
       (let ((_format-time
@@ -1274,30 +1277,30 @@ The format control string may contain the following %-sequences:
                       "<unknown>")))))
         (string-trim
          (format-spec format-string
-                      `((?a . ,(if-let ((ck .citekey))
+                      `((?a . ,(if-let ((ck \.citekey))
                                    (format "%s's " (ezeka--citaton-key-authors ck))
                                  ""))
-                        (?c . ,(or .caption (ezeka--pasteurize-file-name .title)))
-                        (?C . ,(funcall _format-time .created))
-                        (?F . ,.filename)
-                        (?i . ,.id)
-                        (?k . ,(cond ((or (not .citekey)
-                                          (string-empty-p .citekey))
+                        (?c . ,(or \.caption (ezeka--pasteurize-file-name \.title)))
+                        (?C . ,(funcall _format-time \.created))
+                        (?F . ,\.filename)
+                        (?i . ,\.id)
+                        (?k . ,(cond ((or (not \.citekey)
+                                          (string-empty-p \.citekey))
                                       "")
-                                     ((string-match-p "^[@&]" .citekey)
-                                      .citekey)
+                                     ((string-match-p "^[@&]" \.citekey)
+                                      \.citekey)
                                      (t
-                                      (concat "@" .citekey))))
-                        (?K . ,.kasten)
-                        (?l . ,.label)
-                        (?M . ,(funcall _format-time .modified))
-                        (?p . ,.parent)
-                        (?R . ,.rubric)
-                        (?s . ,(if .caption-stable
+                                      (concat "@" \.citekey))))
+                        (?K . ,\.kasten)
+                        (?l . ,\.label)
+                        (?M . ,(funcall _format-time \.modified))
+                        (?p . ,\.parent)
+                        (?R . ,\.rubric)
+                        (?s . ,(if \.caption-stable
                                    ezeka-header-rubric-stable-mark
                                  ""))
-                        (?t . ,.title)
-                        (?T . ,(or .subtitle .title))))))))) ; FIXME HACK
+                        (?t . ,\.title)
+                        (?T . ,(or \.subtitle \.title))))))))) ; FIXME HACK
 
 (ert-deftest ezeka-format-metadata ()
   (let* ((file (ezeka-link-file "a-0000"))
@@ -2795,7 +2798,8 @@ also insert the value at point."
   (if-let* ((mdata (ezeka-file-metadata file))
             (text (ezeka-format-metadata
                    (ezeka--metadata-field-format field)
-                   mdata)))
+                   mdata
+                   time-format)))
       (prog1 (ezeka--kill-ring-clipboard-save text)
         (when insert (insert text)))
     (user-error "Could not retrieve metadata for %s" (file-name-base file))))
