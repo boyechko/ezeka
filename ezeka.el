@@ -1258,15 +1258,20 @@ The format control string may contain the following %-sequences:
 %p means parent.
 %R means rubric.
 %s means stable mark (see `ezeka-header-rubric-stable-mark').
-%t means title."
-  (let ((_format-time
-         (lambda (time-string)
-           (if (and (stringp time-string)
-                    (not (string-match-p ezeka-iso8601-date-regexp time-string)))
-               "UNKNOWN"
-             (format-time-string (cdr ezeka-timestamp-formats) time-string)))))
-    (save-match-data
-      (let-alist metadata
+%t means title.
+%T means subtitle."
+  (save-match-data
+    (let-alist metadata
+      (let ((_format-time
+             (lambda (time)
+               (cond ((ezeka--timep time)
+                      (format-time-string (cdr ezeka-timestamp-formats) time))
+                     ((and (stringp time)
+                           (string-match-p ezeka-iso8601-date-regexp time))
+                      time)
+                     (t
+                      (warn "Unknown time value `%s' in note %s" time .id)
+                      "<unknown>")))))
         (string-trim
          (format-spec format-string
                       `((?a . ,(if-let ((ck .citekey))
@@ -1291,7 +1296,17 @@ The format control string may contain the following %-sequences:
                         (?s . ,(if .caption-stable
                                    ezeka-header-rubric-stable-mark
                                  ""))
-                        (?t . ,.title))))))))
+                        (?t . ,.title)
+                        (?T . ,(or .subtitle .title))))))))) ; FIXME HACK
+
+(ert-deftest ezeka-format-metadata ()
+  (let* ((file (ezeka-link-file "a-0000"))
+         (mdata (ezeka-file-metadata file)))
+    (should (string= "a-0000" (ezeka-format-metadata "%i" mdata)))
+    (should (string= "2022-08-08 Mon 18:25" (ezeka-format-metadata "%C" mdata)))
+    (should (string= (ezeka-format-metadata "%t" mdata)
+                     (ezeka-format-metadata "%T" mdata)))
+    (should (string= (file-name-base file) (ezeka-format-metadata "%R" mdata)))))
 
 (defun ezeka-metadata (file-or-link &rest values)
   "Create a metadata object from pairs of VALUES.
