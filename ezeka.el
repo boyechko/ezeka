@@ -126,14 +126,16 @@ filename or a symbol describing the source."
 
 ;; For our purposes, a "timestamp" is a string representation of "time," the
 ;; default Emacs time value.
-(defcustom ezeka-timestamp-formats
-  '("%F %a" . "%F %a %R")
-  "A cons cell of date-only and full timestamp formats.
-These timestamps are used for created and modified metadata,
-reading dates, and change log entries.
+(defcustom ezeka-long-timestamp-format "%F %a %R"
+  "Format string used for created and modified timestamps.
+See `format-time-string' for details about details."
+  :type 'string
+  :group 'ezeka)
 
-See `format-time-string' for details about format string."
-  :type 'cons
+(defcustom ezeka-short-timestamp-format "%F %a"
+  "Format string used for reading dates and change log entries.
+See `format-time-string' for details about details."
+  :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-new-numerus-currens-method 'auto
@@ -1060,14 +1062,16 @@ If TIME2 is not given, use current time."
               (decoded-time-minute dt2))))
     (encode-time dt1)))
 
+;; FIXME: The NOWEEKDAY argument is a hack to avoid having yet another custom
+;; variable for short timestamp without the weekday.
 (defun ezeka-timestamp (&optional time full brackets noweekday)
-  "Return Emacs TIME formatted according to `ezeka-timestamp-formats'.
-If FULL is non-nil, include hour and minute. If BRACKETS is
+  "Return properly formatted Emacs TIME.
+If FULL is non-nil, use `ezeka-long-timestamp-format';
+otherwise use `ezeka-short-timestamp-format'. If BRACKETS is
 non-nil, surround the timestamp with square brackets. If
 NOWEEKDAY is non-nil, do not include the abbreviated weekday
 in date-only timestamp."
-  (let ((fmt (funcall (if full #'cdr #'car)
-                      ezeka-timestamp-formats)))
+  (let ((fmt (if full ezeka-long-timestamp-format ezeka-short-timestamp-format)))
     (format (if brackets "[%s]" "%s")
             (format-time-string (if (and (not full) noweekday)
                                     (string-replace " %a" "" fmt)
@@ -1262,13 +1266,13 @@ The format control string may contain the following %-sequences:
 %T means subtitle.
 
 For time values, use TIME-FORMAT if specified; otherwise,
-use `ezeka-timestamp-formats'."
+use `ezeka-long-timestamp-format'."
   (save-match-data
     (let-alist metadata
       (let ((_format-time
              (lambda (time)
                (cond ((ezeka--timep time)
-                      (format-time-string (cdr ezeka-timestamp-formats) time))
+                      (format-time-string ezeka-long-timestamp-format time))
                      ((and (stringp time)
                            (string-match-p ezeka-iso8601-date-regexp time))
                       time)
@@ -2792,7 +2796,7 @@ also insert the value at point."
            field
            (when (eq 'ezeka--timep (ezeka--metadata-field-predicate field))
              (read-string "How to format time values? "
-                          (concat "[" (cdr ezeka-timestamp-formats) "]")
+                          (concat "[" ezeka-long-timestamp-format "]")
                           'ezeka--krsmf-time-format-history))
            current-prefix-arg)))
   (if-let* ((mdata (ezeka-file-metadata file))
