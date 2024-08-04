@@ -2777,19 +2777,13 @@ also insert the value at point."
                           (concat "[" (cdr ezeka-timestamp-formats) "]")
                           'ezeka--krsmf-time-format-history))
            current-prefix-arg)))
-  (when-let* ((mdata (ezeka-file-metadata file))
-              (value (alist-get field mdata))
-              (formatted
-               (pcase value
-                 ((pred stringp)
-                  value)
-                 ((pred ezeka--timep)
-                  (format-time-string
-                   (or time-format (cdr ezeka-timestamp-formats))
-                   value))
-                 (_ (format "%s" value)))))
-    (ezeka--kill-ring-clipboard-save formatted)
-    (when insert (insert formatted))))
+  (if-let* ((mdata (ezeka-file-metadata file))
+            (text (ezeka-format-metadata
+                   (ezeka--metadata-field-format field)
+                   mdata)))
+      (prog1 (ezeka--kill-ring-clipboard-save text)
+        (when insert (insert text)))
+    (user-error "Could not retrieve metadata for %s" (file-name-base file))))
 
 (defun ezeka-kill-ring-save-link (arg)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
@@ -2885,13 +2879,8 @@ the text instead."
       (when-let* ((_ (ezeka-link-at-point-p))
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
-                  (value (alist-get (or field 'title) (ezeka-file-metadata file)))
-                  (text (cond ((stringp value)
-                               value)
-                              ((ezeka--timep value)
-                               (format-time-string "[%F %a %R]" value))
-                              (t
-                               (format "%s" value)))))
+                  (text (ezeka-format-metadata
+                         (ezeka--metadata-field-format (or field 'title)))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
