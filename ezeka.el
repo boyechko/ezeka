@@ -1199,8 +1199,8 @@ The order of items will affect how the metadata is written
 into the file header.")
 
 (defun ezeka--metadata-field-format (field)
-  "Return the format character for FIELD."
-  (plist-get (cdr (assq field ezeka-metadata-fields)) :format))
+  "Return the format string for FIELD."
+  (string (plist-get (cdr (assq field ezeka-metadata-fields)) :format)))
 
 (defun ezeka--metadata-field-hidden-p (field)
   "Return non-nil if FIELD should is hidden."
