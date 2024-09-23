@@ -1203,8 +1203,8 @@ The order of items will affect how the metadata is written
 into the file header.")
 
 (defun ezeka--metadata-field-format (field)
-  "Return the format string for FIELD."
-  (string (plist-get (cdr (assq field ezeka-metadata-fields)) :format)))
+  "Return the format string (e.g. '%t') for FIELD."
+  (string ?% (plist-get (cdr (assq field ezeka-metadata-fields)) :format)))
 
 (defun ezeka--metadata-field-hidden-p (field)
   "Return non-nil if FIELD should is hidden."
@@ -2800,10 +2800,9 @@ also insert the value at point."
                           'ezeka--krsmf-time-format-history))
            current-prefix-arg)))
   (if-let* ((mdata (ezeka-file-metadata file))
-            (text (ezeka-format-metadata
-                   (ezeka--metadata-field-format field)
-                   mdata
-                   time-format)))
+            (text (ezeka-format-metadata (ezeka--metadata-field-format field)
+                                         mdata
+                                         time-format)))
       (prog1 (ezeka--kill-ring-clipboard-save text)
         (when insert (insert text)))
     (user-error "Could not retrieve metadata for %s" (file-name-base file))))
@@ -2903,7 +2902,8 @@ the text instead."
                   (link (ezeka-link-at-point))
                   (file (ezeka-link-file link))
                   (text (ezeka-format-metadata
-                         (ezeka--metadata-field-format (or field 'title)))))
+                         (ezeka--metadata-field-format (or field 'title))
+                         (ezeka-file-metadata file))))
         (delete-region start (point))
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
