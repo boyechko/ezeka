@@ -4647,21 +4647,24 @@ If METADATA is nil, read it from SOURCE."
     (unwind-protect
         (when-let ((_ (ezeka--rename-file source target))
                    (buf (or (get-file-buffer target)
-                            (find-file-noselect target))))
+                            (find-file-noselect target)))
+                   (mdata (ezeka--add-oldname mdata source-link)))
           (with-current-buffer buf
-            (ezeka--update-file-header
-             target
-             (ezeka--add-oldname mdata source-link))
+            (ezeka--update-file-header target mdata)
             (ezeka-add-change-log-entry source
               (format "Finish moving +%s+ to %s." source-link target-link))
             (setf (alist-get 'keywords mdata)
                   (cl-set-difference (alist-get 'keywords mdata)
                                      (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
                                      :test #'string=))
-            (ezeka-harmonize-file-name target mdata t)
+            (when (y-or-n-p (format "Edit caption \"%s\"? "
+                                    (propertize (alist-get 'caption mdata)
+                                                'face :bold)))
+              (ezeka-harmonize-file-name target mdata 'force))
             (save-buffer)))
       (message "Replacing links: %s with %s" source-link target-link)
-      (ezeka--replace-links source-link target-link))))
+      (ezeka--replace-links source-link target-link)
+      (ezeka--git-stage-file target))))
 
 (defun ezeka--begin-moving-note (source target-link)
   "Begin moving Zettel note from SOURCE to TARGET-LINK.
