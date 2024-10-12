@@ -2514,7 +2514,7 @@ Zettel link."
             (buf  (if same-window
                       (pop-to-buffer-same-window buf)
                     (pop-to-buffer buf)))
-            ((ezeka-note-moved-p link nil 'ask))
+            ((ezeka-note-moved-p link nil 'ask 'nosearch))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
@@ -4561,17 +4561,18 @@ reverse-chronological order (i.e. latest record first)."
               trail)))
     trail))
 
-(defun ezeka-note-moved-p (note &optional confirm visit)
+(defun ezeka-note-moved-p (note &optional confirm visit nosearch)
   "Check whether NOTE appears in the `ezeka--move-log-file'.
 If CONFIRM is non-nil, confirm the note to check. If VISIT
 is 'VISIT, visit the new note; if 'ASK or T, ask the user
-whether to visit; if NIL, do not visit."
+whether to visit; if NIL, do not visit. If NOSEARCH is
+non-nil, do not offer to do a text search."
   (interactive
    (let ((file (ezeka--grab-dwim-file-target 'link-at-point)))
      (list (if (or current-prefix-arg (null file))
                (ezeka--read-id "Link of note to check: "
                                nil
-                               (word-at-point)
+                               (word-at-point 'no-properties)
                                'required)
              (ezeka-file-link file))
            nil
@@ -4593,8 +4594,11 @@ whether to visit; if NIL, do not visit."
     (cond ((and (null trail) (ezeka-link-file note))
            (when (y-or-n-p (format "No record of moving %s, but it exists. Visit? " note))
              (ezeka-find-file (ezeka-link-file note))))
+          ((and (null trail) nosearch)
+           nil)
           ((null trail)
-           (message "No record of moving %s" note)
+           (when (y-or-n-p (format "No record of moving %s. Do text search? " note))
+             (ezeka-find-regexp note))
            nil)
           ((and (ezeka-link-p (alist-get 'target (car trail)))
                 (or (eq visit 'visit)
