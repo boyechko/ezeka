@@ -347,6 +347,10 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
   (:method ((thing ezeka-kasten))
    thing))
 
+;;------------------------------------------------------------------------------
+;; Add contemporary Kästen
+;;------------------------------------------------------------------------------
+
 (setq ezeka--kaesten nil)
 (ezeka-kasten-new "numerus"
                   :id-regexp "[a-z]-[0-9]\\{4\\}"
@@ -364,15 +368,27 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
                   :directory "scriptum"
                   :subdir-func (lambda (id)
                                  (car (split-string id "~"))))
+
+;;------------------------------------------------------------------------------
+;; Add historic Kästen
+;;------------------------------------------------------------------------------
+
+(defun ezeka--kasten-hundreds-subdir-func (id)
+  "Return the hundreds subdirectory for ID."
+  (format "%c00-%c99" (elt id 0) (elt id 0)))
+
 (ezeka-kasten-new "v1"
                   :id-regexp "[0-9]\\{3\\}\\(-[A-Z]\\(-[0-9][0-9]\\)*\\)*"
-                  :minimal-id "123")
+                  :minimal-id "123"
+                  :subdir-func #'ezeka--kasten-hundreds-subdir-func)
 (ezeka-kasten-new "v2"
                   :id-regexp "[0-9]\\{3\\}\\(-[a-z]+\\)*"
-                  :minimal-id "123")
+                  :minimal-id "123"
+                  :subdir-func #'ezeka--kasten-hundreds-subdir-func)
 (ezeka-kasten-new "v3"
                   :id-regexp "[0-9]\\{3\\}-[a-z]\\{3\\}"
-                  :minimal-id "123-abc")
+                  :minimal-id "123-abc"
+                  :subdir-func #'ezeka--kasten-hundreds-subdir-func)
 
 (defun ezeka--id-regexp (&optional id-type match-entire)
   "Return the regexp for the given ID-TYPE based on `ezeka-kaesten'.
