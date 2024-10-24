@@ -933,16 +933,9 @@ otherwise."
              result)
             ((not (cdr files)) (car files))
             (t
-             (warn "Found multiple matches for `%s':\n%s"
+             (warn "Found multiple matches for `%s':\n- %s"
                    link
-                   (mapconcat (lambda (m)
-                                (list (file-name-base m)
-                                      (pcase (file-attribute-type (file-attributes m))
-                                        ((pred stringp) 'symlink)
-                                        ((pred null) 'file)
-                                        (_ 'directory))))
-                              matches
-                              "\n- "))
+                   (mapconcat #'file-name-base matches "\n- "))
              (ezeka--select-file matches
                                  "Multiple matches found. Select one: "
                                  'require-match))))))
