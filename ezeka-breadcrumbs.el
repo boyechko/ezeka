@@ -281,17 +281,29 @@ The control sequence %s is replaced with the xref search string.")
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop-external (source &optional comment)
   "Drop breadcrumbs for the current external location.
-SOURCE should be a string or symbol; COMMENT can be a short string."
+SOURCE should be a buffer, a filename, or a symbol; COMMENT
+can be a short string."
   (interactive
-   (list (buffer-file-name
-          (get-buffer (read-buffer "How did you get here? " nil t)))
-         (read-string
-          "Why are you here? " nil 'ezeka-breadcrumbs--comment-history "")))
+   (list
+    (get-buffer (read-buffer "How did you get here? " nil t))
+    (read-string "Why are you here? " nil 'ezeka-breadcrumbs--comment-history "")))
   (unless (or (null ezeka--breadcrumbs-trail)
               (not (overlay-buffer ezeka--breadcrumbs-trail)))
-    (let ((inhibit-read-only t)
-          (target (or (ezeka--breadcrumbs-elisp-target)
-                      (ezeka--breadcrumbs-buffer-target))))
+    (let* ((inhibit-read-only t)
+           (source (pcase source
+                     ((pred bufferp)
+                      (if (buffer-file-name source)
+                          (buffer-file-name source)
+                        (buffer-name source)))
+                     ((pred stringp)
+                      source)
+                     ((and source (pred 'symbolp))
+                      source)
+                     (_
+                      (signal 'wrong-type-argument
+                              (list 'buffer-string-or-symbol-p source)))))
+           (target (or (ezeka--breadcrumbs-elisp-target)
+                       (ezeka--breadcrumbs-buffer-target))))
       (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
         (save-excursion
           (when-let ((status (ezeka-breadcrumbs-find-trail target source 'make-duplicates)))
