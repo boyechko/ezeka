@@ -52,7 +52,7 @@
   :group 'ezeka)
 
 (defcustom ezeka-breadcrumbs-find-trail-function #'ezeka-breadcrumbs-find-linear-trail
-  "Function called with TARGET and SROUCE to find the trail.
+  "Function called with TARGET and SOURCE to find the trail.
 TARGET and SOURCE should be strings or symbols. Return
 'primary or 'secondary if the trail was found (i.e. drop
 breadcrumbs here), or nil if can't locate trail (i.e. don't
@@ -307,7 +307,9 @@ SOURCE should be a string or symbol; COMMENT can be a short string."
                      :time (current-time)
                      :comment (format "%s: %s" target comment)))
             (message "Dropped breadcrumbs from `%s' as %s"
-                     (file-name-nondirectory source)
+                     (if (stringp source)
+                         (file-name-nondirectory source)
+                       source)
                      status)))))))
 
 (defun ezeka--find-function-drop-breadcrumbs (&rest _)
