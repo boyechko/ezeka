@@ -566,6 +566,10 @@ be a variable name passed to `read-string'."
       (save-buffer)
       (read-only-mode 0))))
 
+(defun ezeka--git-stage-file (filename)
+  "Stage FILENAME in git."
+  (shell-command (format "git add -f \"%s\"" filename)))
+
 (defun ezeka--rename-file (filename newname)
   "Rename the given FILENAME to NEWNAME in two steps.
 If NEWNAME is relative, fill missing values from FILENAME.
@@ -2104,6 +2108,7 @@ overrides `ezeka-harmonize-file-name-preference'."
                                   (ezeka--minibuffer-edit-string pasteurized)
                                   ezeka-file-extension))
              (run-hooks 'ezeka-after-save-hook)
+             (ezeka--git-stage-file filename)
              (when t                    ; TODO check if filename changed
                (message "You might want to do `ezeka-harmonize-file-name' again")))))))
 
@@ -4632,7 +4637,7 @@ With CONFIRM non-nil (or \\[universal-argument]), ask for confirmations."
                  before after
                  (or (car replaced) 0) (or (cdr replaced) 0))
         (ezeka-force-save-buffer)
-        (magit-stage-file buffer-file-name))
+        (ezeka--git-stage-file buffer-file-name))
     (error
      (kill-new (format "(ezeka-octavo-replace-links \"%s\" \"%s\")"
                        before after))
@@ -4903,8 +4908,8 @@ END."
       (let ((file (ezeka-link-file (match-string 1))))
         (message "Staging %s %s..."
                  (ezeka-file-name-id file) (ezeka-file-name-caption file))
-        (magit-stage-file file))))
-  (magit-stage-file buffer-file-name))
+        (ezeka--git-stage-file file))))
+  (ezeka--git-stage-file buffer-file-name))
 
 (defun ezeka-generate-n-new-ids (how-many kasten)
   "Generate HOW-MANY new IDs for KASTEN, making sure there are no dulicates."
