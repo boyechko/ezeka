@@ -469,7 +469,7 @@ asking until a valid ID is entered."
   "Return T if the CHARACTER is a space or punctuation."
   (when character
     ;; [:punct:] is too permissive, since includes (), [], {}, etc.
-    (string-match-p "[[:space:].,;:'\"]" (char-to-string character))))
+    (string-match-p "[[:space:].,;:+=~!?'\"-]" (char-to-string character))))
 
 (defmacro ezeka--with-space (value &optional where)
   "If VALUE is non-nil, return a string with specified space.
