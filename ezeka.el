@@ -3928,11 +3928,15 @@ With \\[universal-argument] ARG, asks for a different name."
        (optional (or "]" ">"))))
   "Regexp matching Org timestamp, either with or without time.")
 
-(defun ezeka-org-export-as-new-note (&optional kasten)
-  "Create new Zettel in KASTEN (a string) from the current org subtree.
-With \\[universal-argument], use the current KASTEN without asking."
-  (interactive (list (unless current-prefix-arg
-                       (ezeka--read-kasten "Zettel Kasten: "))))
+(defun ezeka-extract-subtree-as-new-note (&optional id kasten)
+  "Create new Zettel with ID or in KASTEN from the current org subtree.
+With \\[universal-argument], use the current KASTEN without asking.
+With \\[universal-argument] \\[universal-argument], query for ID."
+  (interactive
+   (list (when (equal current-prefix-arg '(16))
+           (ezeka--read-id "ID for new note: "))
+         (unless current-prefix-arg
+           (ezeka--read-kasten "Zettel Kasten: "))))
   (let* ((parent-file buffer-file-name)
          (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
          (kstruct (ezeka-kasten kasten))
@@ -3981,11 +3985,10 @@ With \\[universal-argument], use the current KASTEN without asking."
           (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
-                 (cond ((eq (ezeka-kasten-id-type kstruct) :tempus)
-                        (ezeka-tempus-currens
-                         (ezeka--complete-time (alist-get 'created mdata))))
-                       (t
-                        (ezeka--generate-id kasten)))))
+                 (if (eq (ezeka-kasten-id-type kstruct) :tempus)
+                     (ezeka-tempus-currens
+                      (ezeka--complete-time (alist-get 'created mdata)))
+                   (or id (ezeka--generate-id kasten)))))
           (setf (alist-get 'path mdata)
                 (ezeka-link-path (alist-get 'link mdata)))
           (if (file-exists-p (alist-get 'path mdata))
@@ -4000,7 +4003,7 @@ With \\[universal-argument], use the current KASTEN without asking."
                 (set-visited-file-name (alist-get 'path mdata) t)
                 (basic-save-buffer)
                 (ezeka-add-change-log-entry (alist-get 'path mdata)
-                  (format "Extract from %s." (alist-get 'parent mdata))))
+                  (ezeka-format-metadata "Extract from [[%p]]." mdata)))
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 ;; Back in original buffer
                 (goto-char entry-pt)
