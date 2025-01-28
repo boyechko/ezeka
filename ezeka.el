@@ -4742,6 +4742,57 @@ afterwards. SOURCE can be a link or a file."
       (message "Began moving `%s' to `%s'; re-run `ezeka-move-to-another-kasten' \
 after committing" s-link target-link))))
 
+(defun ezeka--copy-note (source target-link)
+  "Copy Zettel note from SOURCE to TARGET-LINK.
+SOURCE can be a link or a file."
+  (cl-assert (stringp source))
+  (cl-assert (stringp target-link))
+  (let* ((s-file (if (file-exists-p source)
+                     source
+                   (ezeka-link-file source)))
+         (s-link (ezeka-file-link s-file))
+         (t-link target-link)
+         (s-mdata (ezeka-file-metadata s-file))
+         (t-mdata (copy-sequence (ezeka-file-metadata s-file))))
+    (ezeka--add-to-move-log s-link target-link
+                            (alist-get 'caption s-mdata)
+                            "Copy note")
+    (setf (alist-get 'id t-mdata)
+          (ezeka-link-id target-link)
+          (alist-get 'label t-mdata)
+          (ezeka--read-label (alist-get 'kasten t-mdata)
+                             nil
+                             nil
+                             (alist-get 'label t-mdata))
+          (alist-get 'title t-mdata)
+          (ezeka--read-title "Title: "
+                             (alist-get 'title t-mdata))
+          (alist-get 'caption t-mdata)
+          (ezeka--read-title "Caption: "
+                             (ezeka--pasteurize-file-name (alist-get 'title t-mdata)))
+          (alist-get 'citekey t-mdata)
+          (ezeka--read-citekey (format "Title: %s\nCitekey: "
+                                       (alist-get 'title t-mdata)))
+          (alist-get 'rubric t-mdata)
+          (ezeka-encode-rubric t-mdata))
+    (ezeka--add-to-system-log 'copy nil
+      'source (alist-get 'rubric s-mdata)
+      'target (alist-get 'rubric t-mdata))
+    (ezeka-add-change-log-entry s-file
+      (format "Copy \"%s\" [[%s]] to \"%s.\""
+              (alist-get 'rubric s-mdata)
+              (alist-get 'id s-mdata)
+              (alist-get 'rubric t-mdata)))
+    (ezeka--update-file-header s-file t-mdata 'force)
+    (let ((t-file (ezeka-link-path target-link t-mdata)))
+      (unless (file-exists-p (file-name-directory t-file))
+        (make-directory (file-name-directory t-file)))
+      (ezeka--copy-file s-file t-file)
+      (ezeka--update-file-header t-file
+                                 (ezeka--add-oldname t-mdata
+                                                     (alist-get 'id s-mdata)))
+      (message "Copied `%s' to `%s'" s-link target-link))))
+
 (defun ezeka--create-placeholder (id metadata)
   "Create a placeholder for ID with METADATA alist."
   (unless (alist-get 'label metadata)
@@ -4881,19 +4932,23 @@ Return the target link and open it (unless NOSELECT is non-nil)."
               (if (eq id-type :tempus)  ; HARDCODED
                   (ezeka-tempus-currens-id-for source-file)
                 (ezeka--generate-id kasten)))))
-    (if (not target-link)
-        (user-error "No target link specified")
-      (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
-      (if (and (member ezeka-note-moving-keyword
-                       (alist-get 'keywords s-mdata))
-               (y-or-n-p (format "Finish moving %s to %s? "
-                                 source-link target-link)))
-          (ezeka--finish-moving-note
-           source-file
-           (ezeka-link-path target-link s-mdata))
-        (ezeka--begin-moving-note source-file target-link))
-      (unless noselect
-        (ezeka-find-link target-link t)))))
+    (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
+    (cond ((not target-link)
+           (user-error "No target link specified"))
+          ((and (member ezeka-note-moving-keyword
+                        (alist-get 'keywords s-mdata))
+                (y-or-n-p (format "Finish moving %s to %s? "
+                                  source-link target-link)))
+           (ezeka--finish-moving-note source-file
+                                      (ezeka-link-path target-link s-mdata))
+           (unless noselect
+             (ezeka-find-link target-link t)))
+          ((and (not (equal (ezeka-link-kasten source-link)
+                            (ezeka-link-kasten target-link)))
+                (y-or-n-p "Moving between Kaesten. Copy instead? "))
+           (ezeka--copy-note source-link target-link))
+          (t
+           (ezeka--begin-moving-note source-file target-link)))))
 
 (defun ezeka-stage-links-in-subtree (&optional start end)
   "Stage all links in the current `org-mode' subtree.
