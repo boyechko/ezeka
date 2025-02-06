@@ -4853,41 +4853,48 @@ NOTE is nil, create a new file."
                                'require-match))
          (when (ezeka-file-p buffer-file-name)
            buffer-file-name)))
-  (let* ((note-id (ezeka-file-link (or note placeholder)))
-         (note-rubric (file-name-base (or note placeholder)))
-         (ph-id (ezeka-file-link placeholder))
+  (let* ((ph-id (ezeka-file-link placeholder))
          (ph-rubric (file-name-base placeholder))
-         (mdata (or metadata (ezeka-decode-rubric ph-rubric)))
-         (parent (ezeka-file-link (file-symlink-p placeholder))))
-    (cond ((file-symlink-p placeholder)
-           (delete-file placeholder))
-          ((file-exists-p placeholder)
-           (user-error "`%s' is not a symlink, aborting!"
-                       (file-relative-name placeholder ezeka-directory)))
-          (t
-           (error "Unknown error")))
-    (ezeka--add-to-move-log note-id ph-id note-rubric "Replace placeholder")
-    (ezeka--add-to-system-log 'replace-placeholder nil
-      'placeholder ph-rubric
-      'parent parent
-      'note note-rubric)
-    (if note
-        (unwind-protect
-            (when-let ((_ (ezeka--make-symbolic-link note placeholder))
-                       (buf (or (get-file-buffer placeholder)
-                                (find-file-noselect placeholder))))
-              (with-current-buffer buf
-                (ezeka--update-file-header
-                 placeholder
-                 (ezeka--add-oldname mdata note-id))
-                (ezeka-add-change-log-entry note
-                  (format "Repurpose +%s+ in place of \"%s\"."
-                          note-rubric ph-rubric))
-                (ezeka-harmonize-file-name placeholder mdata t)
-                (save-buffer))))
-      (ezeka--set-new-child-metadata ph-id mdata
-        'parent parent)
-      (ezeka-find-file placeholder 'same-window))))
+         (ph-mdata (or metadata (ezeka-decode-rubric ph-rubric)))
+         (ph-linkto (ezeka-file-link (file-symlink-p placeholder)))
+         (ph-date (file-attribute-modification-time
+                   (file-attributes placeholder))))
+    (unwind-protect
+        (progn
+          (cond ((file-symlink-p placeholder)
+                 (rename-file placeholder (concat placeholder ".bak")))
+                ((file-exists-p placeholder)
+                 (user-error "`%s' is not a symlink, aborting!"
+                             (file-relative-name placeholder ezeka-directory)))
+                (t
+                 (error "Unknown error")))
+          (let* ((existing-p note)
+                 (note-id (if existing-p (ezeka-file-link note) ph-id))
+                 (note-rubric (if existing-p (file-name-base note) ph-rubric)))
+            (with-current-buffer (find-file-noselect (or note placeholder))
+              (unless existing-p
+                (ezeka-insert-header-template note-id nil nil nil nil ph-mdata))
+              (ezeka-add-change-log-entry note
+                (concat (if existing-p
+                            (format "Repurpose +%s+" note-rubric)
+                          "Create a new note")
+                        (format " in place of \"%s\" (created on %s, linked to [[%s]])"
+                                ph-rubric
+                                (format-time-string "%F" ph-date)
+                                ph-linkto)))
+              (save-buffer)
+              (ezeka--add-to-move-log note-id ph-id note-rubric "Replace placeholder")
+              (ezeka--add-to-system-log 'replace-placeholder nil
+                'placeholder ph-rubric
+                'parent ph-linkto
+                'note note-rubric)
+              (when existing-p
+                (ezeka-move-to-another-kasten note "numerus" ph-id))
+              (when (file-exists-p (concat placeholder ".bak"))
+                (delete-file (concat placeholder ".bak"))))))
+      (when (file-exists-p (concat placeholder ".bak"))
+        (rename-file (buf (find-file-noselect note)) placeholder)
+        (error "Replacing placeholder %s aborted" ph-rubric)))))
 
 (defun ezeka--resurrectable-oldname (source-file id-type &optional metadata)
   "Check SOURCE-FILE's oldnames for an oldname of ID-TYPE.
