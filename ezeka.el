@@ -1349,6 +1349,58 @@ corresponding to metadata fields."
         mdata)
     (signal 'wrong-type-argument (list 'key-value-pairs-p values))))
 
+(defun ezeka-file-metadata (file)
+  "Return an alist of metadata for FILE."
+  (save-match-data
+    (if-let* ((file (expand-file-name file ezeka-directory))
+              (header (ezeka-file-content file 'just-header))
+              (mdata (ezeka--decode-header header file))
+              (rubric (ezeka-decode-rubric (file-name-base file))))
+        (let-alist mdata
+          (setf (alist-get '_metadata mdata)
+                'from-file)
+          (setf (alist-get 'id mdata)
+                (or \.id
+                    (ezeka-file-name-id file)
+                    (file-name-base file))) ; HACK
+          (setf (alist-get 'type mdata)
+                (or \.type
+                    (ezeka-id-type file)))
+          (setf (alist-get 'kasten mdata)
+                (or \.kasten
+                    (ezeka-file-kasten file)))
+          (setf (alist-get 'filename mdata)
+                (file-name-base file))
+          (setf (alist-get 'path mdata)
+                (file-relative-name file ezeka-directory))
+          (setf (alist-get 'link mdata)
+                (or (ignore-errors (ezeka-file-link file))
+                    (ignore-errors (ezeka-make-link kasten id))
+                    (ezeka--file-name-part file 'id)))
+          (setf (alist-get 'caption mdata)
+                (or \.caption
+                    (ezeka-file-name-caption file)
+                    \.title))
+          (setf (alist-get 'title mdata)
+                (or \.title
+                    \.caption))
+          (setf (alist-get 'created mdata)
+                (or (ezeka--parse-time-string (alist-get 'id rubric))
+                    \.created))
+          (setf (alist-get 'rubric mdata)
+                (ezeka-encode-rubric mdata))
+          mdata)
+      (signal 'file-error file))))
+
+(defun ezeka--symlink-metadata (file)
+  "Return metadata alist for symlinked FILE."
+  (save-match-data
+    (when-let ((truename (file-symlink-p file))
+               (rubric (ezeka-decode-rubric (file-name-base file))))
+      (setf (alist-get 'created rubric)
+            (file-attribute-modification-time (file-attributes file)))
+      rubric)))
+
 (defmacro ezeka-encode-rubric (metadata &optional stable-mark)
   "Return a string that encodes the given METADATA into the rubric.
 The rubric consist of `ezeka-file-name-format', preceded by
@@ -1540,49 +1592,6 @@ They keys are converted to symbols."
                       (overlays-at (car beg-end)))
           (ezeka--writeable-region (car beg-end) (cdr beg-end))
         (ezeka--read-only-region (car beg-end) (cdr beg-end))))))
-
-(defun ezeka-file-metadata (file)
-  "Return an alist of metadata for FILE."
-  (save-match-data
-    (if-let* ((file (expand-file-name file ezeka-directory))
-              (header (ezeka-file-content file 'just-header))
-              (mdata (ezeka--decode-header header file))
-              (rubric (ezeka-decode-rubric (file-name-base file))))
-        (let-alist mdata
-          (setf (alist-get '_metadata mdata)
-                'from-file)
-          (setf (alist-get 'id mdata)
-                (or \.id
-                    (ezeka-file-name-id file)
-                    (file-name-base file))) ; HACK
-          (setf (alist-get 'type mdata)
-                (or \.type
-                    (ezeka-id-type file)))
-          (setf (alist-get 'kasten mdata)
-                (or \.kasten
-                    (ezeka-file-kasten file)))
-          (setf (alist-get 'filename mdata)
-                (file-name-base file))
-          (setf (alist-get 'path mdata)
-                (file-relative-name file ezeka-directory))
-          (setf (alist-get 'link mdata)
-                (or (ignore-errors (ezeka-file-link file))
-                    (ignore-errors (ezeka-make-link kasten id))
-                    (ezeka--file-name-part file 'id)))
-          (setf (alist-get 'caption mdata)
-                (or \.caption
-                    (ezeka-file-name-caption file)
-                    \.title))
-          (setf (alist-get 'title mdata)
-                (or \.title
-                    \.caption))
-          (setf (alist-get 'created mdata)
-                (or (ezeka--parse-time-string (alist-get 'id rubric))
-                    \.created))
-          (setf (alist-get 'rubric mdata)
-                (ezeka-encode-rubric mdata))
-          mdata)
-      (signal 'file-error file))))
 
 (defun ezeka-point-at-bob ()
   "Return point at the beginning of the body (BoB)."
