@@ -1653,39 +1653,6 @@ This list is then passed to `ezeka--replace-in-string'.")
                  (char-to-string (or (funcall _decompose c) c)))
                s "")))
 
-;; Any way to make this more general without re-implementing half of BibTeX?
-(defun ezeka--citekey-from-note-title (title)
-  "Parse note's TITLE into a citekey suggestion or NIL."
-  (save-match-data
-    (let* ((given-name '(1+ (in "A-Z" "a-z" "." "-" " ")))
-           (family-name '(1+ (in "A-Za-z-")))
-           (title-delimiters '(in "/\"'_"))
-           (work-title `(seq ,title-delimiters
-                             (1+ anychar)
-                             ,title-delimiters))
-           (date '(>= 4 (in "0-9" "-" ",")))
-           ;; Common patterns
-           (first-edition
-            (rx-to-string `(seq ,given-name
-                                " " word-start
-                                (group-n 1 ,family-name)
-                                "'s "
-                                (group-n 2 ,work-title)
-                                " "
-                                "(" (group-n 3 ,date) ")")
-                          'no-group))
-           (republished
-            (rx-to-string `(seq ,given-name
-                                " " word-start
-                                (group-n 1 ,family-name)
-                                "'s "
-                                (group-n 2 ,work-title)
-                                "(" (group-n 3 ,date) ")")
-                          'no-group)))
-      (when (or (string-match first-edition title)
-                (string-match republished title))
-        (concat (match-string 1 title) (match-string 3 title))))))
-
 ;; See https://help.dropbox.com/organize/file-names
 (defun ezeka--pasteurize-file-name (title)
   "Return TITLE after making it safe to use as file caption.
@@ -3628,6 +3595,39 @@ show genera verbosely or type custom category."
             filename
           (format "Change label from {%s} to {%s}." old-val label))))))
 
+;; Any way to make this more general without re-implementing half of BibTeX?
+(defun ezeka--citekey-from-note-title (title)
+  "Parse note's TITLE into a citekey suggestion or NIL."
+  (save-match-data
+    (let* ((given-name '(1+ (in "A-Z" "a-z" "." "-" " ")))
+           (family-name '(1+ (in "A-Za-z-")))
+           (title-delimiters '(in "/\"'_"))
+           (work-title `(seq ,title-delimiters
+                             (1+ anychar)
+                             ,title-delimiters))
+           (date '(>= 4 (in "0-9" "-" ",")))
+           ;; Common patterns
+           (first-edition
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                " "
+                                "(" (group-n 3 ,date) ")")
+                          'no-group))
+           (republished
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                "(" (group-n 3 ,date) ")")
+                          'no-group)))
+      (when (or (string-match first-edition title)
+                (string-match republished title))
+        (concat (match-string 1 title) (match-string 3 title))))))
+
 (defun ezeka--validate-citekey (citekey)
   "Return validated version of the CITEKEY or NIL.
 If CITEKEY is a string that does not start with @ or &,
@@ -3647,29 +3647,39 @@ further than parent."
                      (if (integerp current-prefix-arg)
                          current-prefix-arg
                        1)))
-  (if (not (ezeka-file-p filename))
-      (user-error "Not a Zettel note")
-    (let* ((ancestor (ezeka-trace-genealogy filename degree))
-           (old-citekey (ezeka-file-name-citekey filename))
-           (citekey (or citekey
-                        (and ancestor
-                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))))
-           (citekey (ezeka--minibuffer-edit-string
-                     old-citekey citekey nil
-                     'ezeka--read-citekey-history)))
-      (ezeka--update-metadata-values filename nil
-        'citekey (ezeka--validate-citekey citekey))
+  (unless (ezeka-file-p filename)
+    (user-error "Not a Zettel note"))
+  (let* ((ancestor (ezeka-trace-genealogy filename degree))
+         (mdata (ezeka-file-metadata filename))
+         (old-citekey (or (ezeka-file-name-citekey filename)
+                          (alist-get 'citekey mdata)))
+         (title (alist-get 'title mdata))
+         (citekey (or citekey
+                      (and ancestor
+                           (ezeka-file-name-citekey (ezeka-link-file ancestor)))
+                      (ezeka--citekey-from-note-title title)))
+         (citekey (ezeka--validate-citekey
+                   (ezeka--minibuffer-edit-string
+                    old-citekey
+                    (or citekey
+                        (concat title
+                                (format-time-string "%F"
+                                                    (alist-get 'created mdata))))
+                    nil
+                    'ezeka--read-citekey-history))))
+    (when citekey
+      (ezeka--update-metadata-values filename nil 'citekey citekey)
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
-         filename
-         (cond ((and old-citekey (string-empty-p citekey))
-                (format "Remove citekey %s." old-citekey))
-               ((not old-citekey)
-                (format "Add citekey %s." citekey))
-               ((not (string= old-citekey citekey))
-                (format "Change citekey from %s to %s." old-citekey citekey))
-               (t
-                (format "Old citekey: %s, new citekey: %s" old-citekey citekey))))))))
+            filename
+          (cond ((and old-citekey (string-empty-p citekey))
+                 (format "Remove citekey %s." old-citekey))
+                ((not old-citekey)
+                 (format "Add citekey %s." citekey))
+                ((not (string= old-citekey citekey))
+                 (format "Change citekey from %s to %s." old-citekey citekey))
+                (t
+                 (format "Old citekey: %s, new citekey: %s" old-citekey citekey))))))))
 
 (defun ezeka-set-author (filename author)
   "Set the AUTHOR metadata in Zettel FILENAME."
