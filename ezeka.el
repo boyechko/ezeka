@@ -4723,15 +4723,18 @@ afterwards. SOURCE can be a link or a file."
                    (ezeka-link-file source)))
          (s-link (ezeka-file-link s-file))
          (t-link target-link)
+         (t-path (ezeka-link-path t-link))
          (s-mdata (ezeka-file-metadata s-file))
-         (t-mdata (ezeka-file-metadata s-file))) ; TODO Need to deep-copy s-mdata
+         (t-mdata (if t-path
+                      (ezeka--symlink-metadata t-path)
+                    (ezeka-file-metadata s-file)))) ; FIXME deep-copy s-mdata
     (ezeka--add-to-move-log s-link target-link
                             (alist-get 'caption s-mdata)
                             "Begin moving")
     (setf (alist-get 'id t-mdata)
           (ezeka-link-id target-link)
           (alist-get 'label t-mdata)
-          (ezeka--read-label (alist-get 'kasten t-mdata)
+          (ezeka--read-label (ezeka-link-kasten t-link)
                              nil
                              nil
                              (alist-get 'label t-mdata))
