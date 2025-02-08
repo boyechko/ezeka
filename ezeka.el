@@ -4700,9 +4700,11 @@ If METADATA is nil, read it from SOURCE."
                   (cl-set-difference (alist-get 'keywords mdata)
                                      (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
                                      :test #'string=))
-            (when (y-or-n-p (format "Edit caption \"%s\"? "
-                                    (propertize (alist-get 'caption mdata)
-                                                'face :bold)))
+            (ezeka--update-metadata-values target mdata)
+            (when (and (called-interactively-p 'any)
+                       (equal '(4) current-prefix-arg)
+                       (y-or-n-p (format "Edit caption \"%s\"? "
+                                         (alist-get 'caption mdata))))
               (ezeka-harmonize-file-name target mdata 'force))
             (save-buffer)))
       (message "Replacing links: %s with %s" source-link target-link)
