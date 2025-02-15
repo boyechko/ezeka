@@ -4820,8 +4820,9 @@ SOURCE can be a link or a file."
                                                      (alist-get 'id s-mdata)))
       (message "Copied `%s' to `%s'" s-link target-link))))
 
-(defun ezeka--create-placeholder (id metadata)
-  "Create a placeholder for ID with METADATA alist."
+(defun ezeka--create-placeholder (id metadata &optional quietly)
+  "Create a placeholder for ID with METADATA alist.
+If QUIETLY is non-nil, don't add anything to the logs."
   (unless (alist-get 'label metadata)
     (push (cons 'label
                 (ezeka--read-genus "Genus" 'verbose
@@ -4829,7 +4830,10 @@ SOURCE can be a link or a file."
                                    'require-match))
           metadata))
   (let-alist metadata
-    (let* ((path (ezeka-link-path id metadata))
+    (let* ((path (ezeka-link-path
+                  id
+                  (cons (cons 'label (string ezeka-placeholder-genus))
+                        metadata)))
            (link-to (ezeka--select-file
                      (ezeka--directory-files
                       (ezeka-kasten
@@ -4838,23 +4842,35 @@ SOURCE can be a link or a file."
            (link-target (file-relative-name
                          (ezeka-link-file link-to)
                          (file-name-directory path))))
-      (ezeka--add-to-system-log 'placeholder nil
-        'note (ezeka-encode-rubric metadata)
-        'target (file-name-base link-target))
-      (ezeka--add-to-move-log id link-to .caption "Placeholder")
-      (ezeka--make-symbolic-link link-target path)
-      (when-let ((_ (y-or-n-p (format "Add something to `%s'? "
+      (unless quietly
+        (ezeka--add-to-system-log 'placeholder nil
+          'note (ezeka-encode-rubric metadata)
+          'target (file-name-base link-target))
+        (ezeka--add-to-move-log id link-to .caption "Placeholder"))
+      (when (ezeka--make-symbolic-link link-target path)
+        (if-let ((_ (y-or-n-p (format "Add something to `%s'? "
                                       (file-name-base link-to))))
                  (buf (find-file-noselect link-to)))
-        (with-current-buffer buf
-          (goto-char (point-max))
-          (org-insert-heading nil nil 'top)
-          (insert (ezeka-encode-rubric metadata) " ")
-          (org-insert-time-stamp nil 'with-hm 'inactive))
-        (switch-to-buffer buf)))))
+            (with-current-buffer buf
+              (goto-char (point-max))
+              (org-insert-heading nil nil 'top)
+              (insert (ezeka-encode-rubric metadata) " ")
+              (org-insert-time-stamp nil 'with-hm 'inactive)
+              (switch-to-buffer buf))
+          t)))))
 
 (ert-deftest ezeka--create-placeholder ()
-  (should (ezeka--create-placeholder "a-1234")))
+  (let* ((mdata (ezeka-metadata "a-1234"
+                  'label "ψ"
+                  'caption "ezeka--create-placeholder test"))
+         (path (ezeka-link-path "a-1234" mdata)))
+    (should (and (ezeka--create-placeholder "a-1234"
+                                            mdata
+                                            'quietly)
+                 (file-symlink-p path)
+                 (if (y-or-n-p (format "Delete placeholder `%s'?" path))
+                     (delete-file path)
+                   (message "Placeholder not deleted: %s" path))))))
 
 (defun ezeka--directory-files (&optional kasten regexp)
   "Return a list of all Ezeka files in KASTEN matching REGEXP.
