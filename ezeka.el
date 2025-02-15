@@ -904,7 +904,9 @@ explicitly given."
   "Return the full directory under KASTEN where ID should be."
   (let ((eka (ezeka-kasten (or kasten (ezeka-link-kasten id)))))
     (file-name-as-directory
-     (file-name-concat (ezeka-kasten-directory eka)
+     (file-name-concat (expand-file-name
+                        (ezeka-kasten-directory eka)
+                        ezeka-directory)
                        (or (funcall (ezeka-kasten-subdir-func eka) id)
                            "")))))
 
@@ -4451,9 +4453,11 @@ If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
     (xref--show-xrefs
      (xref-matches-in-directory regexp
                                 (format "*.%s" ezeka-file-extension)
-                                (if kasten
-                                    (ezeka-kasten-directory (ezeka-kasten kasten))
-                                  ezeka-directory)
+                                (expand-file-name
+                                 (if kasten
+                                     (ezeka-kasten-directory (ezeka-kasten kasten))
+                                   "")
+                                 ezeka-directory)
                                 nil)
      nil))
   (advice-add 'xref-goto-xref :before 'ezeka--breadcrumbs-xref-advice)
@@ -4878,10 +4882,12 @@ Unless KASTEN is specified, return a list of all Ezeka
 files. The REGEXP should match the entire `base-file-name'
 of the desired file(s)."
   (directory-files-recursively
-   (if kasten
-       (ezeka-kasten-directory (ezeka-kasten kasten))
-     ezeka-directory)
-   (concat regexp "\." ezeka-file-extension) nil nil nil))
+   (expand-file-name
+    (if kasten
+        (ezeka-kasten-directory (ezeka-kasten kasten))
+      "")
+    ezeka-directory)
+   (concat "^[^#.].*" regexp ezeka-file-extension "$")))
 
 (defun ezeka-replace-placeholder (placeholder &optional note metadata)
   "Replace PLACEHOLDER with NOTE (both file paths).
