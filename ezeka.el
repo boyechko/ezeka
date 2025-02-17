@@ -835,7 +835,8 @@ Unknown %-sequences are left intact."
 
 (defun ezeka-file-kasten (file)
   "Return the Kasten of the given Zettel FILE."
-  (when-let ((id (ezeka-file-name-id file)))
+  (when-let ((id (or (ezeka-file-name-id file)
+                     (file-name-base file))))
     (cl-find-if (lambda (re) (string-match-p (rx bos (regexp re) eos) id))
                 (ezeka-kaesten)
                 :key #'ezeka-kasten-id-regexp)))
