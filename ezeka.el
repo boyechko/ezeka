@@ -2749,21 +2749,21 @@ note, return nil."
 
 (defun ezeka-insert-link-to-other-window (&optional link-only rubric)
   "Insert the link to the Zettel note in the other window.
-By default, include the title. With LINK-ONLY (or
-\\[universal-argument]), insert just the link; with RUBRIC,
-(or \\[universal-argument] \\[universal-argument]) insert
-the rubric instead."
+By default, include the title. With LINK-ONLY (or \\[universal-argument]),
+insert just the link; with RUBRIC (or \\[universal-argument] \\[universal-argument]),
+insert the rubric instead."
   (interactive
    (list (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
-  (let ((other-file (ezeka--note-in-other-window)))
+  (let* ((other-file (ezeka--note-in-other-window))
+         (other-link (ezeka-file-link other-file)))
     (cond (link-only
-           (ezeka--insert-link-with-spaces other-file))
+           (ezeka--insert-link-with-spaces other-link))
           (rubric
-           (ezeka-insert-link-with-metadata other-file '(rubric) :before))
+           (ezeka-insert-link-with-metadata other-link '(rubric) :before))
           (t
            (ezeka-insert-link-with-metadata
-            other-file
+            other-link
             (list (ezeka--read-metadata-field "Which field? ")))))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
