@@ -2648,8 +2648,9 @@ question."
         (ezeka-insert-with-spaces (ezeka--format-link link)))
       (run-hooks 'ezeka-insert-link-hook))))
 
-(defun ezeka-insert-link-with-metadata (link &optional fields where noedit)
-  "Insert the Zettel LINK, optionally adding metadata FIELD(S).
+(defun ezeka-insert-link-with-metadata (zettel &optional fields where noedit)
+  "Insert link to ZETTEL, optionally adding metadata FIELD(S).
+ZETTEL can be a buffer, a file name, or a link.
 WHERE (:before, :after, or in :description) determines where
 the fields are added. FIELDS can be a list. If NOEDIT is
 non-nil, insert the link without allowing the user to
@@ -2659,28 +2660,33 @@ interactively edit the text."
          (list (ezeka--read-metadata-field))
          ;; FIXME Where argument is completely ignored
          (intern-soft (completing-read "Where? " '(":before" ":after")))))
-  (if-let* ((_ (car fields))
-            (desc-fmt (mapconcat
-                       (lambda (f)
-                         (format "%%%c"
-                                 (plist-get (alist-get f ezeka-metadata-fields)
-                                            :format)))
-                       fields
-                       " "))
-            (file (or (ezeka-link-file link)
-                      (cl-find-if #'(lambda (buf)
-                                      (string-match link (buffer-name buf)))
-                                  (buffer-list))))
-            (mdata (if (file-symlink-p file)
-                       (ezeka-decode-rubric (file-name-base file))
-                     (ezeka-file-metadata file)))
-            (desc-string (ezeka-format-metadata desc-fmt mdata)))
-      (ezeka--insert-link-with-spaces link
-                                      (if noedit
-                                          desc-string
-                                        (read-string "Insert: " desc-string))
-                                      (ezeka--format-link link))
-    (ezeka--insert-link-with-spaces link)))
+  (let* ((file (pcase zettel
+                 ((pred ezeka-link-p) (ezeka-link-file zettel))
+                 ((pred bufferp) (buffer-file-name zettel))
+                 ((pred ezeka-file-p) zettel)
+                 (_ (signal 'wrong-type-argument (list 'link-file-or-buffer zettel)))))
+         (link (ezeka-file-link file)))
+    (if-let* ((_ (car fields))
+              (desc-fmt (mapconcat
+                         (lambda (f)
+                           (format "%%%c"
+                                   (plist-get (alist-get f ezeka-metadata-fields)
+                                              :format)))
+                         fields
+                         " "))
+              (mdata (if (file-symlink-p file)
+                         (ezeka-decode-rubric (file-name-base file))
+                       (ezeka-file-metadata file)))
+              (desc-string (ezeka-format-metadata
+                            desc-fmt
+                            mdata
+                            (format "[%s]" ezeka-long-timestamp-format))))
+        (ezeka--insert-link-with-spaces link
+                                        (if noedit
+                                            desc-string
+                                          (read-string "Insert: " desc-string))
+                                        (ezeka--format-link link))
+      (ezeka--insert-link-with-spaces link))))
 
 (defun ezeka--select-file (files &optional prompt require-match initial-input)
   "Select from among Zettel FILES, presenting optional PROMPT.
