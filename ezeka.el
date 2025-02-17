@@ -3059,9 +3059,9 @@ With a numerical prefix ARG'ument, try to find Nth ancestor. With a
 
 (defun ezeka--generate-new-child (parent &optional kasten id)
   "Generate a new child in the same Kasten as PARENT link.
-If KASTEN is given, use that kasten instead. Return a fully qualified
-link to the new child. If ID is non-nil, use that instead of
-generating one."
+If KASTEN name is given, use that Kasten instead. Return a
+fully qualified link to the new child. If ID is non-nil, use
+that instead of generating one."
   (let* ((kasten (or kasten (ezeka-link-kasten parent)))
          (child-link
           (ezeka-make-link kasten
