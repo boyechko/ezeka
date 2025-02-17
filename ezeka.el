@@ -4115,6 +4115,12 @@ With non-nil SAME-WINDOW (or \\[universal-argument]), open in the same window."
   (mouse-set-point ev)
   (ezeka-open-link-at-point same-window))
 
+(defun ezeka-open-link-at-mouse-same-window (ev)
+  "Open in the same window the Zettel link at mouse point EV."
+  (interactive "e")
+  (mouse-set-point ev)
+  (ezeka-open-link-at-point 'same-window 'freeform))
+
 ;; Org links
 (eval-after-load "org"
   '(progn
@@ -5204,8 +5210,7 @@ END."
             ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
-            ([C-down-mouse-1] . ezeka-open-link-at-mouse)
-            ([mouse-1] . ezeka-open-link-at-mouse)
+            ([S-mouse-1] . ezeka-open-link-at-mouse-same-window)
             ;;
             ;; Unsafe: reserved for major modes
             ;;
