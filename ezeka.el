@@ -996,6 +996,14 @@ based on LINK and METADATA (if present)."
                        ezeka-file-extension)
                       (ezeka-id-directory (ezeka-link-id link)))))
 
+(ert-deftest ezeka-link-path ()
+  (should
+   (string-match-p "numerus/a/a-1234 {ψ} ezeka--create-placeholder test.txt$"
+                   (ezeka-link-path "a-1234"
+                                    '((link . "a-1234")
+                                      (label . "ψ")
+                                      (caption . "ezeka--create-placeholder test"))))))
+
 (defun ezeka-id-type (id-or-file)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`."
   (if-let* ((id (or (ezeka-file-name-id id-or-file)
