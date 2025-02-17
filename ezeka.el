@@ -3926,7 +3926,11 @@ CITEKEY. Anything not specified is taken from METADATA, if available."
                   'link link
                   'id (or (alist-get 'id metadata) (ezeka-link-id link))
                   'label (or label (alist-get 'label metadata))
-                  'title (or title (alist-get 'title metadata))
+                  'title (or title
+                             (alist-get 'title metadata)
+                             (alist-get 'caption metadata)
+                             (ezeka-file-name-caption
+                              (alist-get 'rubric metadata)))
                   'parent (or parent (alist-get 'parent metadata))
                   'citekey (or citekey (alist-get 'citekey metadata))))
          (inhibit-read-only t)
