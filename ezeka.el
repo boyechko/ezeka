@@ -1316,10 +1316,14 @@ use `ezeka-long-timestamp-format'."
       (let ((_format-time
              (lambda (time)
                (cond ((ezeka--timep time)
-                      (format-time-string ezeka-long-timestamp-format time))
+                      (format-time-string
+                       (or time-format ezeka-long-timestamp-format)
+                       time))
                      ((and (stringp time)
                            (string-match-p ezeka-iso8601-date-regexp time))
                       time)
+                     ((null time)
+                      "")
                      (t
                       (warn "Unknown time value `%s' in note %s" time .id)
                       "<unknown>")))))
