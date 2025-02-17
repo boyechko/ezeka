@@ -4498,8 +4498,8 @@ The control sequence %s is replaced with the xref search string."
                  ezeka--read-regexp-history)))
 
 (defun ezeka-find-regexp (regexp &optional kasten)
-  "Find all matches of REGEXP in `ezeka-directory'.
-If KASTEN is non-nil (or with \\[universal-argument]), limit to only to it."
+  "Find all matches of REGEXP in KASTEN or `ezeka-directory'.
+Called interactively, ask for KASTEN unless called with \\[universal-argument]."
   (interactive
    (list (ezeka--read-regexp "Regexp to find: ")
          (unless current-prefix-arg
