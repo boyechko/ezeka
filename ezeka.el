@@ -5112,7 +5112,7 @@ END."
 ;; (add-hook 'post-command-hook 'ezeka--magit-mode-line-show-file-type)
 ;; (add-hook 'magit-mode-hook
 ;;   (lambda ()
-;;     (setq ezeka--original-mode-line mode-line-misc-info)
+;;     (setq ezeka--original-mode-line nil)
 ;;     (add-hook 'post-command-hook 'ezeka--magit-mode-line-show-file-type nil t)))
 
 (defvar ezeka--original-mode-line nil
@@ -5130,17 +5130,18 @@ END."
                          (expand-file-name (file-symlink-p file)
                                            (ezeka-id-directory
                                             (ezeka-file-name-id file)))))
-         (desc (when file
-                 (if symlink-p
-                     (concat (unless (file-exists-p symlink-p)
-                               "BROKEN ")
-                             (when (ezeka--marked-for-rename-p symlink-p)
-                               "[renaming] ")
-                             "symlink to "
-                             (propertize
-                              (file-name-base symlink-p)
-                              'face '(:weight bold)))
-                   "regular file"))))
+         (desc (cond ((null file))
+                     (symlink-p
+                      (concat (unless (file-exists-p symlink-p)
+                                "BROKEN ")
+                              (when (ezeka--marked-for-rename-p symlink-p)
+                                "[renaming] ")
+                              "symlink to "
+                              (propertize
+                               (file-name-base symlink-p)
+                               'face :bold)))
+                     ((file-directory-p file) "directory")
+                     (t "regular file"))))
     (when (called-interactively-p 'any)
       (message desc))
     desc))
@@ -5150,8 +5151,9 @@ END."
   (while-no-input
     (redisplay)
     (when (eq major-mode 'magit-status-mode)
-      (setq mode-line-misc-info
-        (or (ezeka-describe-file-at-point) ezeka--original-mode-line)))))
+      (setq-local mode-line-misc-info
+                  (or (ezeka-describe-file-at-point)
+                      ezeka--original-mode-line)))))
 
 (defun ezeka--magit-file-creation-date (file)
   "Save the file creation date of FILE to kill ring."
