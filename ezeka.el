@@ -877,21 +877,22 @@ Unknown %-sequences are left intact."
   (when (stringp string)
     (string-match-p (ezeka-link-regexp 'match-entire) string)))
 
-(defun ezeka-link-kasten (link &optional explicit)
-  "Return the Kasten part of the given LINK.
-If the link does not specify a Kasten, return the default one for the
-given ID type. If EXPLICIT is non-nil, return nil if Kasten is not
-explicitly given."
-  (if (string-match (ezeka-link-regexp) link)
+(defun ezeka-link-kasten (link)
+  "Return the name of the Kasten that matches LINK's ID type."
+  (if (string-match (ezeka-link-regexp 'match-entire) link)
       (let* ((id (match-string 1 link))
              (kasten (match-string 2 link)))
         (or kasten
-            (and (not explicit)
-                 (ezeka-kasten-name
-                  (cl-find (ezeka-id-type id)
-                           (ezeka-kaesten)
-                           :key #'ezeka-kasten-id-type)))))
+            (ezeka-kasten-name
+             (cl-find (ezeka-id-type id)
+                      (ezeka-kaesten)
+                      :key #'ezeka-kasten-id-type))))
     (signal 'wrong-type-argument (list 'ezeka-link-p link))))
+
+(ert-deftest ezeka-link-kasten ()
+  (should (string= (ezeka-link-kasten "a-1234") "numerus"))
+  (should (string= (ezeka-link-kasten "20240729T1511") "tempus"))
+  (should (string= (ezeka-link-kasten "a-1234~56") "scriptum")))
 
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
