@@ -2444,25 +2444,25 @@ If TIME is nil, default to current time."
 (defvar ezeka--new-child-metadata nil
   "An alist of new children and their metadata.")
 
+(defmacro ezeka--new-child-metadata (link)
+  "Return metadata alist for child LINK."
+  `(alist-get ,link ezeka--new-child-metadata nil nil #'string=))
+
 ;; TODO Metadata really should be a `defstruct'
 (defun ezeka--set-new-child-metadata (link metadata &rest plist)
   "Set the metadata property values for LINK.
 If METADATA is given, set the child metadata to that with
-modificationbs specified in PLIST."
+modifications specified in PLIST."
   (declare (indent 2))
-  (cond ((not (null metadata)))
-        ((and plist (zerop (mod (length plist) 2)))
-         (while plist
-           (push (cons (car plist) (cadr plist)) metadata)
-           (setq plist (cddr plist))))
-        (t
-         (signal 'wrong-type-argument (list 'key-value-pairs-p plist))))
-  (setf (alist-get link ezeka--new-child-metadata nil nil #'string=)
-        metadata))
-
-(defun ezeka--new-child-metadata (link)
-  "Return metadata alist for child LINK."
-  (alist-get link ezeka--new-child-metadata nil nil #'string=))
+  (let ((mdata (or metadata (ezeka--new-child-metadata link))))
+    (cond ((null plist))
+          ((and plist (zerop (mod (length plist) 2)))
+           (while plist
+             (push (cons (car plist) (cadr plist)) mdata)
+             (setq plist (cddr plist)))
+           (setf (ezeka--new-child-metadata link) mdata))
+          (t
+           (signal 'wrong-type-argument (list 'key-value-pairs-p plist))))))
 
 (defun ezeka-link-at-point-p (&optional freeform)
   "Return non-nil if the thing at point is a wiki link (i.e. [[xxx#YYY]]).
