@@ -656,10 +656,11 @@ ask for a new name."
                         (ezeka-file-kasten target)
                       (ezeka-kasten
                        (ezeka--read-kasten
-                        (format "`%s' points to `%s'%s. Select new target in which Kasten? "
+                        (format "`%s' %s. Select new target in which Kasten? "
                                 (ezeka-file-name-id linkname)
-                                (file-name-base target)
-                                (unless (file-exists-p target) " (doesn't exist)"))))))
+                                (if (file-exists-p target)
+                                    (concat "points to " (file-name-base target))
+                                  " doesn't exist"))))))
             (new-target (ezeka--select-file
                          (ezeka--directory-files kasten)
                          "Symbolic link to: "
