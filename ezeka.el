@@ -5046,16 +5046,19 @@ Return the target link and open it (unless NOSELECT is non-nil)."
               (ezeka--resurrectable-oldname source-file id-type s-mdata)
               (if (eq id-type :tempus)  ; HARDCODED
                   (ezeka-tempus-currens-id-for source-file)
-                (ezeka--generate-id kasten)))))
+                (ezeka--generate-id kasten))))
+         (target-path (when target-link
+                        (ezeka-link-path target-link s-mdata))))
     (save-some-buffers nil (lambda () (ezeka-file-p buffer-file-name t)))
     (cond ((not target-link)
            (user-error "No target link specified"))
+          ((ezeka-same-file-p source-link target-link)
+           (user-error "Source and target links are the same"))
           ((and (member ezeka-note-moving-keyword
                         (alist-get 'keywords s-mdata))
                 (y-or-n-p (format "Finish moving %s to %s? "
                                   source-link target-link)))
-           (ezeka--finish-moving-note source-file
-                                      (ezeka-link-path target-link s-mdata))
+           (ezeka--finish-moving-note source-file target-path)
            (unless noselect
              (ezeka-find-link target-link t)))
           ((and (not (equal (ezeka-link-kasten source-link)
