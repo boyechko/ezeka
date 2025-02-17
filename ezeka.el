@@ -5195,7 +5195,7 @@ END."
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-edit-keywords)
-            ("C-c $" . ezeka-kill-ring-save-link-at-point)
+            ;; ("C-c $" . ) ; `flyspell-correct-word-before-point'
             ("C-c %" . ezeka-kill-ring-save-link)
             ("C-c ^" . ezeka-find-ancestor)
             ;; ("C-c &" . ) ; yasnippet
@@ -5209,13 +5209,14 @@ END."
             ("C-c [" . ezeka-update-link-description) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
-            ("C-c '" . ezeka-set-label)                     ; `org-edit-special'
+            ("C-c ;" . ezeka-set-label)
+            ("C-c :" . ezeka-set-author)
+            ;; ("C-c '" . ) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
-            ("C-c ." . ezeka-insert-or-convert-timestamp) ; `org-table-eval-formula'
-            ("C-c /" . ezeka-set-author)                  ; `org-sparse-tree'
-            ("C-c /" . ezeka-convert-timestamp)             ; `org-sparse-tree'
-            ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
+            ("C-c ." . ezeka-octavo-insert-contextual-link) ; `org-table-eval-formula'
+            ("C-c /" . ezeka-convert-timestamp) ; `org-sparse-tree'
+            ("C-c ?" . ezeka-links-to) ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([S-mouse-1] . ezeka-open-link-at-mouse-same-window)
