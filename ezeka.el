@@ -4005,16 +4005,18 @@ With \\[universal-argument] ARG, asks for a different name."
   "Regexp matching Org timestamp, either with or without time.")
 
 (defun ezeka-extract-subtree-as-new-note (&optional id kasten)
-  "Create new Zettel with ID or in KASTEN from the current org subtree.
-With \\[universal-argument], use the current KASTEN without asking.
-With \\[universal-argument] \\[universal-argument], query for ID."
+  "Create new Zettel from the current org subtree.
+With \\[universal-argument], query for ID. With \\[universal-argument] \\[universal-argument],
+use the current KASTEN without asking."
   (interactive
-   (list (when (equal current-prefix-arg '(16))
-           (ezeka--read-id "ID for new note: "))
-         (unless current-prefix-arg
-           (ezeka--read-kasten "Zettel Kasten: "))))
+   (let ((id (when current-prefix-arg
+               (ezeka--read-id "ID for new note: "))))
+     (list id
+           (or (ezeka-file-kasten id)
+               (if (equal current-prefix-arg '(16))
+                   (ezeka-file-kasten buffer-file-name)
+                 (ezeka--read-kasten "New note in which Kasten? "))))))
   (let* ((parent-file buffer-file-name)
-         (kasten (or kasten (ezeka-file-kasten buffer-file-name)))
          (kstruct (ezeka-kasten kasten))
          mdata)
     (setf (alist-get 'parent mdata)
@@ -4061,10 +4063,11 @@ With \\[universal-argument] \\[universal-argument], query for ID."
           (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
-                 (if (eq (ezeka-kasten-id-type kstruct) :tempus)
-                     (ezeka-tempus-currens
-                      (ezeka--complete-time (alist-get 'created mdata)))
-                   (or id (ezeka--generate-id kasten)))))
+                 (or id
+                     (if (eq (ezeka-kasten-id-type kstruct) :tempus)
+                         (ezeka-tempus-currens
+                          (ezeka--complete-time (alist-get 'created mdata)))
+                       (ezeka--generate-id kasten)))))
           (setf (alist-get 'path mdata)
                 (ezeka-link-path (alist-get 'link mdata)))
           (if (file-exists-p (alist-get 'path mdata))
