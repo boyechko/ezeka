@@ -1182,26 +1182,29 @@ org-time-stamp. Return the result of the conversion."
       (display-warning 'ezeka-dwim-with-this-timestring
                        "`%s' doesn't look like a timestring" text)))))
 
-(defun ezeka-insert-or-convert-timestamp (&optional beg end)
-  "Insert or convert timestamp at point or between BEG and END.
-If there is no timestamp at point, insert one. Otherwise, if
-it's IS8601, make it into an org-time-stamp, and vice-versa.
-If it's something else, try to make it into org-time-stamp.
-Return the result of the conversion."
+(defun ezeka-convert-timestamp (&optional beg end)
+  "Convert timestamp at point or between BEG and END.
+If it's IS8601, make it into an org-time-stamp, and
+vice-versa. If it's something else, try to make it into
+org-time-stamp. Return the result of the conversion."
   (interactive (if (region-active-p)
                    (list (region-beginning) (region-end))
                  (list)))
-  (cond ((and beg end)
-         (ezeka-dwim-with-this-timestring beg end))
-        ((and (unless (looking-at "[0-9]")
-                (when (re-search-forward "[0-9]" (pos-eol) 'noerror)
-                  (backward-char)))
-              (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
+  (save-excursion
+    (let ((ts-char "[0-9-T:/]"))
+      (if (and beg end)
+          (ezeka-dwim-with-this-timestring beg end)
+        (cond ((looking-at ts-char)
+               (while (looking-at ts-char)
+                 (backward-char)))
+              ((re-search-forward "[0-9]" (pos-eol) 'noerror)
+               (backward-char))
+              (t
+               (user-error "No timestamp to convert here")))
+        (when (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
                   (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
-                  (thing-at-point-looking-at ezeka-iso8601-date-regexp)))
-         (ezeka-dwim-with-this-timestring (match-beginning 0) (match-end 0)))
-        (t
-         (insert (ezeka-timestamp nil 'full 'brackets)))))
+                  (thing-at-point-looking-at ezeka-iso8601-date-regexp))
+          (ezeka-dwim-with-this-timestring (match-beginning 0) (match-end 0)))))))
 
 ;;;=============================================================================
 ;;; Metadata: Internal
@@ -5170,6 +5173,7 @@ END."
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-insert-or-convert-timestamp) ; `org-table-eval-formula'
             ("C-c /" . ezeka-set-author)                  ; `org-sparse-tree'
+            ("C-c /" . ezeka-convert-timestamp)             ; `org-sparse-tree'
             ("C-c ?" . ezeka-links-to)  ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
