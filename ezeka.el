@@ -4095,10 +4095,9 @@ use the current KASTEN without asking."
 
 (defun ezeka-open-link-at-point (&optional same-window freeform)
   "Open a Zettel link at point even if it's not formatted as a link.
-If SAME-WINDOW is non-nil, or the command is called with \\[universal-argument],
-open the link in the same window. With FREEFORM non-nil,
-also open links without org-link markup."
-  (interactive "p")
+If SAME-WINDOW is non-nil (or \\[universal-argument]), open the link in the same window.
+With FREEFORM non-nil (also \\[universal-argument]), also open freeform links."
+  (interactive "p\np")
   (if-let ((_ (ezeka-link-at-point-p freeform))
            (link (ezeka-link-at-point)))
       ;; This function is later added to `org-open-at-point-functions', so "must
