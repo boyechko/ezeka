@@ -3605,16 +3605,19 @@ exist in FILENAME."
   "Set parent metadata of FILENAME to NEW-PARENT (a link).
 If called interactively, ask user to select the parent,
 offering to use the note in the other window (if available).
-If called with \\[universal-argument], read the parent ID manually."
+If called with \\[universal-argument], select Kasten first.
+With \\[universal-argument] \\[universal-argument], read the parent ID manually."
   (interactive
    (list (ezeka--grab-dwim-file-target)
-         (if current-prefix-arg
+         (if (equal current-prefix-arg '(16))
              (ezeka--read-id "New parent: "
                              nil
                              (ezeka-file-link (ezeka--note-in-other-window)))
            (ezeka-file-link (ezeka--select-file
-                             (ezeka-octavo-with-kasten "numerus"
-                               (octavo--directory-files 'full))
+                             (ezeka--directory-files
+                              (if current-prefix-arg
+                                  (ezeka--read-kasten)
+                                "numerus"))
                              "Select new parent: " 'require-match)))))
   (ezeka--update-metadata-values filename nil
     'parent (if new-parent
