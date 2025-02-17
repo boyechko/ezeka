@@ -896,8 +896,9 @@ Unknown %-sequences are left intact."
 
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
-  (when (string-match (ezeka-link-regexp) link)
-    (match-string 1 link)))
+  (save-match-data
+    (when (string-match (ezeka-link-regexp) link)
+      (match-string 1 link))))
 
 (defun ezeka-make-link (kasten id)
   "Make a new proper link to ID in KASTEN (string or `ezeka-kasten')."
