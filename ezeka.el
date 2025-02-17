@@ -1351,7 +1351,7 @@ use `ezeka-long-timestamp-format'."
                         (?s . ,(if \.caption-stable
                                    ezeka-header-rubric-stable-mark
                                  ""))
-                        (?t . ,\.title)
+                        (?t . ,(or \.title \.caption))
                         (?T . ,(or \.subtitle \.title))))))))) ; FIXME HACK
 
 (ert-deftest ezeka-format-metadata ()
