@@ -1169,14 +1169,11 @@ org-time-stamp. Return the result of the conversion."
       (delete-region beg end)
       (org-insert-time-stamp (encode-time (parse-time-string text)) t t)
       org-last-inserted-timestamp)
-     ;; date -> ISO-8601 =======================================================
+     ;; something -> org timestamp =============================================
      ((integerp (nth 4 (setq parsed (parse-time-string text))))
-      (setf (decoded-time-second parsed) 0
-            (decoded-time-minute parsed) 0
-            (decoded-time-hour parsed) 0)
-      (let ((timestamp (format-time-string "%F" (encode-time timestamp))))
-        (when (y-or-n-p
-               (format "Is %s same as %s? " text timestamp))
+      (setq parsed (mapcar (lambda (x) (or x 0)) parsed))
+      (let ((timestamp (ezeka-timestamp (encode-time parsed) 'full 'brackets)))
+        (when (setq timestamp (read-string "Best attempt: " timestamp))
           (delete-region beg end)
           (insert timestamp)
           timestamp)))
