@@ -3144,7 +3144,8 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
     (cond ((string= "placeholder"
                     (completing-read "Create a new note or just a placeholder? "
                                      '(new-note placeholder) nil 'require))
-           (ezeka--create-placeholder child-link metadata))
+           (ezeka--create-placeholder child-link metadata)
+           (ezeka-breadcrumbs-drop child-link parent "(Placeholder)"))
           ((and child-file
                 (file-exists-p child-file)
                 (file-symlink-p child-file)
