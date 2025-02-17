@@ -858,6 +858,20 @@ Unknown %-sequences are left intact."
         ((string= (ezeka-file-link file1)
                   (ezeka-file-link file2)))))
 
+(defun ezeka-file-describe (file)
+  "Describe everything known about Ezeka FILE."
+  (interactive (list (ezeka--select-file (ezeka--directory-files))))
+  (let* (attribs
+         (slinkp (file-symlink-p file)))
+    (when (file-exists-p file)
+      (push "- exists" attribs))
+    (when slinkp
+      (push (format "- is a symbolic link to `%s'"
+                    (file-relative-name slinkp ezeka-directory))
+            attribs))
+    (message (concat "File `" (file-name-base file) "'...\n"
+                     (mapconcat #'identity (nreverse attribs) "\n")))))
+
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (when (stringp string)
