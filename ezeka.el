@@ -4942,12 +4942,11 @@ of the desired file(s)."
 If METADATA is nil, read it from PLACEHOLDER's filename. If
 NOTE is nil, create a new file."
   (interactive
-   (list (ezeka-octavo-with-kasten "numerus"
-           (ezeka--select-file (ezeka--directory-files
-                                (ezeka-kasten "numerus")
-                                (format ".*{%c}.*" ezeka-placeholder-genus))
-                               "Placeholder to replace: "
-                               'require-match))
+   (list (ezeka--select-file (ezeka--directory-files
+                              (ezeka-kasten "numerus")
+                              (format ".*{%c}.*" ezeka-placeholder-genus))
+                             "Placeholder to replace: "
+                             'require-match)
          (when (ezeka-file-p buffer-file-name)
            buffer-file-name)))
   (let* ((ph-id (ezeka-file-link placeholder))
