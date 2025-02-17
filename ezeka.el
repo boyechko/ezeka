@@ -2627,9 +2627,10 @@ between."
   "Normal hook that is run after `ezeka-insert-link' and friends.")
 
 (defun ezeka--insert-link-with-spaces (link &rest strings)
-  "Insert LINK at point.
-If STRINGS is non-nil, LINK is not actually inserted, just
-assumed to be contained in some of them."
+  "Insert LINK at point, confirming first if it exists already.
+If STRINGS is non-nil, do not insert LINK itself, but rather
+just STRINGS, which are assumed to include the link in
+question."
   (let* ((breadcrumbs
           (save-excursion
             (re-search-forward
