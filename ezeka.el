@@ -5157,7 +5157,10 @@ END."
 
 (defun ezeka--magit-file-creation-date (file)
   "Save the file creation date of FILE to kill ring."
-  (interactive (list (magit-file-at-point 'expand 'assert)))
+  (interactive
+   (list (or (magit-file-at-point 'expand)
+             (and (ezeka-link-at-point-p)
+                  (ezeka-link-file (ezeka-link-at-point))))))
   (let ((time-string
          (format-time-string
           "[%F %a %R]"
