@@ -2509,19 +2509,25 @@ same window."
         (nil (find-file truename))
         (t (find-file-other-frame truename))))))
 
-(defun ezeka-find-file-replace-placeholder (file &optional same-window)
-  "Find the given FILE, offering to replace it if it's a placeholder.
-If SAME-WINDOW is non-NIL, open the buffer visiting the file
-in the same window."
-  (if (or (not (file-symlink-p file))
-          (and (file-symlink-p file)
-               (string= "follow"
-                        (completing-read "What to do with this symbolic link? "
-                                         '(follow create)
-                                         nil 'require-match nil nil "follow"))))
-      (ezeka-find-file file same-window)
-    (when (y-or-n-p "Delete symlink and create a new note? ")
-      (ezeka-replace-placeholder file))))
+(defun ezeka-handle-symlink (file &optional same-window)
+  "Prompt how to handle FILE if it is a symlink.
+If SAME-WINDOW is non-NIL, open the file interactive he same
+window. Return T if an action was taken, nil otherwise."
+  (when (file-symlink-p file)
+    (let ((action (intern-soft
+                   (completing-read "What to do with this symbolic link? "
+                                    '(follow create update delete)
+                                    nil 'require-match nil nil "follow"))))
+      (cond ((eq action 'follow) (ezeka-find-file file same-window))
+            ((eq action 'update) (ezeka--update-symbolic-link file))
+            ((eq action 'delete)
+             (when (y-or-n-p "Really delete this symbolic link? ")
+               (delete-file file)))
+            ((eq action 'create)
+             (when (y-or-n-p "Delete symlink and create a new note? ")
+               (ezeka-replace-placeholder file)))
+            (t (message "No action taken.")))
+      t)))
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
@@ -2535,10 +2541,11 @@ Zettel link."
           (buf (cl-find link (buffer-list)
                         :key #'buffer-name
                         :test #'string-match-p)))
-      (cond (file (ezeka-find-file-replace-placeholder file same-window))
-            (buf  (if same-window
-                      (pop-to-buffer-same-window buf)
-                    (pop-to-buffer buf)))
+      (cond (file (unless (ezeka-handle-symlink file same-window)
+                    (ezeka-find-file file same-window)))
+            (buf (if same-window
+                     (pop-to-buffer-same-window buf)
+                   (pop-to-buffer buf)))
             ((ezeka-note-moved-p link nil 'ask 'nosearch))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
