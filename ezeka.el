@@ -3690,8 +3690,8 @@ prepend @ to it."
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
 If CITEKEY is not given, get it from the parent, leting the
-user edit it before setting. With DEGREE, trace genealogy
-further than parent."
+user edit it before setting. With DEGREE (or numerical
+prefix arg), trace genealogy further than parent."
   (interactive (list (buffer-file-name)
                      nil
                      (if (integerp current-prefix-arg)
@@ -3704,25 +3704,25 @@ further than parent."
          (old-citekey (or (ezeka-file-name-citekey filename)
                           (alist-get 'citekey mdata)))
          (title (alist-get 'title mdata))
-         (citekey (or citekey
-                      (and ancestor
-                           (ezeka-file-name-citekey (ezeka-link-file ancestor)))
-                      (ezeka--citekey-from-note-title title)))
          (citekey (ezeka--validate-citekey
                    (ezeka--minibuffer-edit-string
                     old-citekey
-                    (or citekey
+                    (or old-citekey
+                        (and ancestor
+                             (ezeka-file-name-citekey (ezeka-link-file ancestor)))
+                        (ezeka--citekey-from-note-title title)
                         (concat title
-                                (format-time-string "%F"
+                                (format-time-string " %F"
                                                     (alist-get 'created mdata))))
                     nil
                     'ezeka--read-citekey-history))))
-    (when citekey
+    (if (equal old-citekey citekey)
+        (message "No changes")
       (ezeka--update-metadata-values filename nil 'citekey citekey)
       (when (y-or-n-p "Record the change in the change log? ")
         (ezeka-add-change-log-entry
             filename
-          (cond ((and old-citekey (string-empty-p citekey))
+          (cond ((and old-citekey (not citekey))
                  (format "Remove citekey %s." old-citekey))
                 ((not old-citekey)
                  (format "Add citekey %s." citekey))
