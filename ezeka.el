@@ -1195,7 +1195,7 @@ org-time-stamp. Return the result of the conversion."
       (if (and beg end)
           (ezeka-dwim-with-this-timestring beg end)
         (cond ((looking-at ts-char)
-               (while (looking-at ts-char)
+               (while (string-match-p ts-char (string (char-before)))
                  (backward-char)))
               ((re-search-forward "[0-9]" (pos-eol) 'noerror)
                (backward-char))
@@ -1204,7 +1204,9 @@ org-time-stamp. Return the result of the conversion."
         (when (or (thing-at-point-looking-at ezeka--org-timestamp-regexp)
                   (thing-at-point-looking-at ezeka-iso8601-datetime-regexp)
                   (thing-at-point-looking-at ezeka-iso8601-date-regexp))
-          (ezeka-dwim-with-this-timestring (match-beginning 0) (match-end 0)))))))
+          (save-restriction
+            (narrow-to-region (match-beginning 0) (match-end 0))
+            (ezeka-dwim-with-this-timestring)))))))
 
 ;;;=============================================================================
 ;;; Metadata: Internal
