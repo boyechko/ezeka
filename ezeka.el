@@ -639,42 +639,43 @@ should be files. On success, return LINKNAME."
                   (delete-file linkname)
                   (file-exists-p linkname)))))
 
-(defun ezeka--update-symbolic-link (linkname &optional select-kasten new-name)
+(defun ezeka--update-symbolic-link (linkname &optional kasten new-name)
   "Update the symbolic link LINKNAME, selecting a new target for it.
-If SELECT-KASTEN is non-nil (or with \\[universal-argument]), interactively select
-the Kasten; otherwise default to the same Kasten as the
-original target. If NEW-NAME is non-nil (or \\[universal-argument] \\[universal-argument]),
-ask for a new name."
+Unless KASTEN is specified, default to the same Kasten as
+the original target; if not a string (or called with \\[universal-argument]), select
+interactively. If NEW-NAME is a string, update the name of the link; if not a string (or
+with \\[universal-argument] \\[universal-argument]), ask for a new name interactively."
   (interactive
    (list (ezeka--grab-dwim-file-target 'grab-from-links 'interactive)
          (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
   (if-let* ((linkname linkname)
             (target (file-symlink-p linkname))
-            (kasten (if (and (not select-kasten)
-                             (ezeka-file-kasten target))
-                        (ezeka-file-kasten target)
-                      (ezeka-kasten
-                       (ezeka--read-kasten
-                        (format "`%s' %s. Select new target in which Kasten? "
-                                (ezeka-file-name-id linkname)
-                                (if (file-exists-p target)
-                                    (concat "points to " (file-name-base target))
-                                  " doesn't exist"))))))
+            (kasten (cond ((and (not kasten) (ezeka-file-kasten target))
+                           (ezeka-file-kasten target))
+                          ((stringp kasten)
+                           (ezeka-kasten kasten))
+                          (t
+                           (ezeka-kasten
+                            (ezeka--read-kasten
+                             (format "`%s' %s. Select new target in which Kasten? "
+                                     (ezeka-file-name-id linkname)
+                                     (if (file-exists-p target)
+                                         (concat "points to " (file-name-base target))
+                                       " doesn't exist")))))))
             (new-target (ezeka--select-file
                          (ezeka--directory-files kasten)
                          "Symbolic link to: "
                          'require-match
                          (file-name-base target)))
-            (new-name (if new-name
-                          (read-string "New link name: " linkname)
-                        linkname)))
+            (new-name (cond ((stringp new-name) new-name)
+                            (new-name (read-string "New link name: " linkname)))))
       (progn
         (ezeka--add-to-system-log 'delete-symlink nil
           'note linkname
           'target target)
         (delete-file linkname)
-        (when (ezeka--make-symbolic-link new-target new-name)
+        (when (ezeka--make-symbolic-link new-target (or new-name linkname))
           (message "Symbolic link updated")))
     (user-error "This is not a symbolic link")))
 
