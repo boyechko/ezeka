@@ -4899,7 +4899,11 @@ SOURCE can be a link or a file."
           (ezeka--read-citekey (format "Title: %s\nCitekey: "
                                        (alist-get 'title t-mdata)))
           (alist-get 'rubric t-mdata)
-          (ezeka-encode-rubric t-mdata))
+          (ezeka-encode-rubric t-mdata)
+          (alist-get 'oldnames t-mdata)
+          (cl-remove (ezeka-link-id target-link)
+                     (alist-get 'oldnames s-mdata)
+                     :test #'string=))
     (ezeka--add-to-system-log 'copy nil
       'source (alist-get 'rubric s-mdata)
       'target (alist-get 'rubric t-mdata))
