@@ -5057,6 +5057,25 @@ appropriate oldname."
     (unless (ezeka-link-file cadaver)
       cadaver)))
 
+(defun ezeka--git-dissimilarity-index (filename)
+  "Return numerical value of the dissimilarity index for FILENAME."
+  (interactive (list (or (magit-file-at-point) (buffer-file-name))))
+  (let ((di (with-temp-buffer
+              (shell-command (format "git diff -B1%%/1%% \"%s\"" filename)
+                             'current-buffer)
+              (goto-char (point-min))
+              (when (re-search-forward "^dissimilarity index \\([0-9]+\\)%"
+                                       nil
+                                       'noerror)
+                (match-string 1)))))
+    (when (called-interactively-p 'any)
+      (message "Dissimilarity index %s"
+               (if di
+                   (concat di "%")
+                 "unknown")))
+    (when di
+      (string-to-number di))))
+
 (defun ezeka-move-to-another-kasten (source-file kasten &optional target-link noselect)
   "Move SOURCE-FILE Zettel to a generated link in KASTEN.
 With \\[universal-argument], ask for an explicit TARGET-LINK instead.
