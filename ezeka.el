@@ -4641,7 +4641,7 @@ reverse-chronological order (i.e. latest record first)."
     (with-temp-buffer
       (insert-file-contents (in-ezeka-dir ezeka--system-log-file))
       (goto-char (point-min))
-      (while (re-search-forward (format "\"%s\"" note) nil t)
+      (while (re-search-forward (format "%s" note) nil t)
         (beginning-of-line)
         (push (json-read) trail)))
     trail))
