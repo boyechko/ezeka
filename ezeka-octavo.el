@@ -399,9 +399,9 @@ If SORT is non-nil, set `vertico-sort-function' to it."
   (interactive (list (ezeka--read-kasten)))
   (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha)))
     (ezeka-insert-link-with-metadata
-     (ezeka--select-file
-      (ezeka--directory-files (ezeka-kasten kasten))
-      "Insert link to: "))))
+     (ezeka--select-file (ezeka--directory-files (ezeka-kasten kasten))
+                         "Insert link to: ")
+     (list (ezeka--read-metadata-field)))))
 
 (defun ezeka-octavo--link-context (&optional n)
   "Return a string of N words before point."
