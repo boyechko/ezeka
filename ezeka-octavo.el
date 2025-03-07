@@ -667,11 +667,13 @@ given, suggest the note's successor, if set. METHOD overrides
                             (alist-get 'rubric mdata)))
       (if (eq method 'delete)
           (delete-file file)
-        (ezeka--rename-file file
-                            (file-name-with-extension (file-name-base file)
-                                                      (replace-regexp-in-string
-                                                       ".$" "_"
-                                                       ezeka-file-extension))))
+        (let ((archived
+               (file-name-with-extension (file-name-base file)
+                                         (replace-regexp-in-string
+                                          ".$" "_"
+                                          ezeka-file-extension))))
+          (ezeka--rename-file file archived)
+          (ezeka--git-stage-file archived)))
       (kill-buffer-ask (get-file-buffer file)))))
 
 (defun ezeka-octavo-insert-link-to-index ()
