@@ -533,7 +533,9 @@ user before replacing."
             (after (read-string (format "Replace `%s' with link: " before)
                                 nil
                                 'ezeka--octavo-replace-links-after-history)))
-       (list before after nil
+       (list before
+             (if (string-empty-p after) nil after)
+             nil
              (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
          (ezeka-breadcrumbs-leave-trail nil)
@@ -547,10 +549,11 @@ user before replacing."
          (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
          (replacement (if after
                           (ezeka--format-link after)
-                        (format "{%s~}" before)))
-         (count 0))
+                        (format "+%s+" before)))
+         (count 0)
+         message)
     (if (not with-links)
-        (progn (message "No links to %s found" before) nil)
+        (message "No links to %s found" before)
       (dolist (f with-links count)
         (let ((open-buffer (get-file-buffer f))
               (f-mdata (ezeka-file-metadata f))
@@ -582,7 +585,15 @@ user before replacing."
                 'new replacement)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
-      (message "Replaced %d link(s) in %d files" count (length with-links))
+      (setq message
+        (format "Replace %d link(s) to %s in %d files"
+                count
+                before
+                (length with-links)))
+      (ezeka-add-change-log-entry (ezeka-link-file after)
+        message)
+      (kill-new message)
+      (message message)
       (cons count (length with-links)))))
 
 (defun ezeka--parent-of-p (note1 note2 &optional metadata)
