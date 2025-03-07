@@ -4041,7 +4041,7 @@ use the current KASTEN without asking."
    (let ((id (when current-prefix-arg
                (ezeka--read-id "ID for new note: "))))
      (list id
-           (or (ezeka-file-kasten id)
+           (or (and id (ezeka-link-kasten id))
                (if (equal current-prefix-arg '(16))
                    (ezeka-file-kasten buffer-file-name)
                  (ezeka--read-kasten "New note in which Kasten? "))))))
@@ -4089,6 +4089,8 @@ use the current KASTEN without asking."
                  (setf (alist-get 'created mdata)
                        (parse-time-string
                         (read-string "No timestamp found. Enter it here: ")))))
+          (setf (alist-get 'label mdata)
+                (ezeka--read-label kasten))
           (setf (alist-get 'link mdata)
                 (ezeka-make-link
                  kasten
@@ -4099,14 +4101,15 @@ use the current KASTEN without asking."
                        (ezeka--generate-id kasten)))))
           (setf (alist-get 'path mdata)
                 (ezeka-link-path (alist-get 'link mdata)))
+          (setf (alist-get 'rubric mdata)
+                (ezeka-encode-rubric mdata))
           (if (file-exists-p (alist-get 'path mdata))
               (user-error "Aborting, file already exists: %s" (alist-get 'path mdata))
             (let ((entry-pt (point))
                   (content (org-copy-subtree)))
               (with-current-buffer (get-buffer-create (alist-get 'path mdata))
                 ;; New file buffer
-                (ezeka-insert-header-template
-                 nil (ezeka--read-label kasten) nil nil nil mdata)
+                (ezeka-insert-header-template nil nil nil nil nil mdata)
                 (insert "\n" org-subtree-clip)
                 (set-visited-file-name (alist-get 'path mdata) t)
                 (basic-save-buffer)
@@ -4120,7 +4123,9 @@ use the current KASTEN without asking."
                         " "
                         head-title
                         " "
-                        (ezeka--format-link (alist-get 'link mdata)))))))))))
+                        (ezeka--format-link (alist-get 'link mdata)))
+                (ezeka-add-change-log-entry (file-truename parent-file)
+                  (ezeka-format-metadata "Extract \"%R\" [[%i]]." mdata))))))))))
 
 (defun ezeka-open-link-at-point (&optional same-window freeform)
   "Open a Zettel link at point even if it's not formatted as a link.
