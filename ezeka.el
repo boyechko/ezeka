@@ -1227,6 +1227,7 @@ org-time-stamp. Return the result of the conversion."
     (title     :format ?t)
     (subtitle  :format ?T)
     (author    :format ?a)
+    (date      :format ?d :hidden t)
     (created   :format ?C :predicate ezeka--timep)
     (modified  :format ?M :predicate ezeka--timep)
     (parent    :format ?p :predicate ezeka-id-valid-p)
@@ -1276,8 +1277,8 @@ return DEFAULT."
       (intern-soft field)
     default))
 
-(defun ezeka--citaton-key-authors (key)
-  "Return a human-readable list of authors for citation KEY."
+(defun ezeka--parse-citation-key (key)
+  "Parse the citation KEY, returning a plist of values."
   (let ((case-fold-search nil))
     (when (string-match (concat "^[@&]*\\(?1:[A-Z][a-z]+\\)"
                                 "\\(?:\\(?2:[A-Z][a-z]+\\)"
@@ -1286,12 +1287,29 @@ return DEFAULT."
             (author2 (match-string 2 key))
             (etal (match-string 3 key))
             (date (match-string 4 key)))
-        (cond (etal
-               (format "%s, %s, et al." author1 author2))
-              (author2
-               (format "%s and %s" author1 author2))
-              (t
-               author1))))))
+        (list 'author1 author1
+              'author2 author2
+              'date date
+              'authors (cond (etal
+                              (format "%s, %s, et al." author1 author2))
+                             (author2
+                              (format "%s and %s" author1 author2))
+                             (t
+                              author1)))))))
+
+(ert-deftest ezeka--parse-citation-key ()
+  (should (equal '(author1 "Horkheimer" author2 "Adorno" date "1989" authors "Horkheimer and Adorno")
+                 (ezeka--parse-citation-key "HorkheimerAdorno1989")))
+  (should (equal '(author1 "Chiang" author2 nil date "1998" authors "Chiang")
+                 (ezeka--parse-citation-key "&Chiang1998"))))
+
+(defun ezeka--citaton-key-authors (key)
+  "Return a human-readable list of authors in citation KEY."
+  (plist-get 'authors (ezeka--parse-citation-key key)))
+
+(defun ezeka--citaton-key-date (key)
+  "Return the date in citation KEY."
+  (plist-get 'date (ezeka--parse-citation-key key)))
 
 (defun ezeka-format-metadata (format-string metadata &optional time-format)
   "Format a string out of FORMAT-STRING and METADATA.
@@ -1311,6 +1329,9 @@ The format control string may contain the following %-sequences:
 %s means stable mark (see `ezeka-header-rubric-stable-mark').
 %t means title.
 %T means subtitle.
+
+See `ezeka-metadata-fields' for the full list of available
+metadata.
 
 For time values, use TIME-FORMAT if specified; otherwise,
 use `ezeka-long-timestamp-format'."
@@ -1337,6 +1358,9 @@ use `ezeka-long-timestamp-format'."
                                  ""))
                         (?c . ,(or \.caption (ezeka--pasteurize-file-name \.title)))
                         (?C . ,(funcall _format-time \.created))
+                        (?d . ,(if-let ((ck \.citekey))
+                                   (or \.date (ezeka--citaton-key-date ck))
+                                 ""))
                         (?F . ,\.filename)
                         (?i . ,\.id)
                         (?k . ,(cond ((or (not \.citekey)
