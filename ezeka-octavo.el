@@ -414,8 +414,9 @@ If SORT is non-nil, set `vertico-sort-function' to it."
 
 (defun ezeka-octavo-insert-contextual-link (&optional n kasten sort)
   "Insert a link to KASTEN based on the previous N words.
-If KASTEN is not given, assume one with highest order. If
-SORT is non-nil, set `vertico-sort-function' to it."
+If KASTEN is not given, assume one with highest order or,
+with \\[universal-argument], select Kasten interactively. If SORT is
+non-nil, set `vertico-sort-function' to it."
   (interactive
    (list (prefix-numeric-value current-prefix-arg)
          (if (and current-prefix-arg
@@ -433,12 +434,11 @@ SORT is non-nil, set `vertico-sort-function' to it."
                                 'noerror
                                 n))
       (goto-char (match-beginning 0)))
-    (ezeka-octavo-with-kasten kasten
-      (ezeka-octavo-insert-link
-       (ezeka--select-file (octavo--directory-files 'full)
-                           "Insert link to: "
-                           'require-match
-                           (string-trim context "[[:punct:]]" "[[:punct:]]"))))))
+    (ezeka-insert-link-with-metadata
+     (ezeka--select-file (ezeka--directory-files (ezeka-kasten kasten))
+                         "Insert link to: "
+                         'require-match
+                         (string-trim context "[[:punct:]]" "[[:punct:]]")))))
 
 (cmd-named ezeka-octavo-insert-link-to-numerus
   (ezeka-octavo-insert-link-to-kasten "numerus"))
