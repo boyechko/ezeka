@@ -866,10 +866,12 @@ Unknown %-sequences are left intact."
          (slinkp (file-symlink-p file)))
     (when (file-exists-p file)
       (push "- exists" attribs))
-    (when slinkp
-      (push (format "- is a symbolic link to `%s'"
-                    (file-relative-name slinkp ezeka-directory))
-            attribs))
+    (push (if slinkp
+              (format "- is a symbolic link to `%s'"
+                      (file-relative-name slinkp ezeka-directory))
+            (format "- is a regular file of %s bytes"
+                    (file-attribute-size (file-attributes file))))
+          attribs)
     (message (concat "File `" (file-name-base file) "'...\n"
                      (mapconcat #'identity (nreverse attribs) "\n")))))
 
