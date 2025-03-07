@@ -465,7 +465,8 @@ If SORT is non-nil, set `vertico-sort-function' to it."
                                      (if other-window
                                          "Find note in other window: "
                                        "Find note: "))))
-      (ezeka-find-file file (not other-window)))))
+      (unless (ezeka-handle-symlink file (not other-window))
+        (ezeka-find-file file (not other-window))))))
 
 (defmacro ezeka-octavo--define-kasten-finders (kasten &optional sort)
   "Define a set of new commands for finding notes in KASTEN.
