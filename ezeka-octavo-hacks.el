@@ -59,18 +59,18 @@ Most significantly, PROMPT and FILES are switched places to
 fit `ezeka--select-file', and the rest are ignored."
   (ezeka--select-file files prompt 'require-match))
 
-(defun ezeka-octavo-backlinks ()
-  "Select from list of all notes that link to the current note.
+(defun ezeka-octavo-backlinks (file)
+  "Select from list of all notes that link to FILE.
 Unlike `octavo-backlinks', search in the entire `ezeka-directory' as well
 as list the note's children."
-  (interactive)
-  (let* ((id (ezeka-file-name-id buffer-file-name))
-         (octavo-directory ezeka-directory)
-         (files (octavo--grep-file-list
-                 (concat "\\(parent: " id "\\|" (octavo-link-regexp id) "\\)"))))
-    (if files
-        (ezeka-find-file (funcall octavo-select-file-function "Backlinks: " files))
-      (user-error "No backlinks found"))))
+  (interactive (list (buffer-file-name)))
+  (if-let* ((_ file)
+            (id (ezeka-file-name-id file))
+            (octavo-directory ezeka-directory)
+            (files (octavo--grep-file-list
+                    (concat "\\(parent: " id "\\|" (octavo-link-regexp id) "\\)"))))
+      (ezeka-find-file (funcall octavo-select-file-function "Backlinks: " files))
+    (user-error "No backlinks found")))
 
 (defun ezeka-octavo-file-name-regexp ()
   "Return the correct regexp matching Ezeka file names.
