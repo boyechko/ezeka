@@ -658,18 +658,18 @@ with \\[universal-argument] \\[universal-argument]), ask for a new name interact
                           (t
                            (ezeka-kasten
                             (ezeka--read-kasten
-                             (format "`%s' %s. Select new target in which Kasten? "
+                             (format "`%s' %s.\nSelect new target in which Kasten? "
                                      (ezeka-file-name-id linkname)
                                      (if (file-exists-p target)
-                                         (concat "points to " (file-name-base target))
+                                         (format "points to `%s'" (file-name-base target))
                                        " doesn't exist")))))))
             (new-target (ezeka--select-file
                          (ezeka--directory-files kasten)
-                         "Symbolic link to: "
+                         "Select symbolic link target: "
                          'require-match
                          (file-name-base target)))
             (new-name (cond ((stringp new-name) new-name)
-                            (new-name (read-string "New link name: " linkname)))))
+                            (t (read-string "New link name: " linkname)))))
       (progn
         (ezeka--add-to-system-log 'delete-symlink nil
           'note linkname
