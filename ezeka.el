@@ -5075,7 +5075,9 @@ NOTE is nil, create a new file."
               (when existing-p
                 (ezeka-move-to-another-kasten note "numerus" ph-id))
               (when (file-exists-p (concat placeholder ".bak"))
-                (delete-file (concat placeholder ".bak"))))))
+                (delete-file (concat placeholder ".bak")))
+              (message "Visiting placeholder target [[%s]]..." ph-linkto)
+              (ezeka-find-link ph-linkto))))
       (when (file-exists-p (concat placeholder ".bak"))
         (rename-file (buf (find-file-noselect note)) placeholder)
         (error "Replacing placeholder %s aborted" ph-rubric)))))
