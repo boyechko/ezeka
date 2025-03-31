@@ -5152,7 +5152,10 @@ Return the target link and open it (unless NOSELECT is non-nil)."
            (user-error "Source and target links are the same"))
           ((and (member ezeka-note-moving-keyword
                         (alist-get 'keywords s-mdata))
-                (y-or-n-p (format "Finish moving %s to %s? "
+                (y-or-n-p (format "Dissimilarity index %s. Finish moving %s to %s? "
+                                  (if-let ((di (ezeka--git-dissimilarity-index source-file)))
+                                      (format "%d%%" di)
+                                    "unknown")
                                   source-link target-link)))
            (ezeka--finish-moving-note source-file target-path)
            (unless noselect
