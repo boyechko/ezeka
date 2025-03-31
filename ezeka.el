@@ -65,9 +65,15 @@ Each element should be in the form
 (defcustom ezeka-placeholder-genus nil
   "Genus used in numerus currens Kasten to signify a placeholder.
 Such placeholders are symbolic links that are not added to
-the version control manifest, making it easye to replace
-them."
+the version control manifest, making it easier to find them."
   :type 'character
+  :group 'ezeka)
+
+(defcustom ezeka-placeholder-marker-format "%R %L"
+  "Format of the text added to placeholder target.
+See `ezeka-format-metadata' for details. The resulting
+string is followed by the timestamp."
+  :type 'string
   :group 'ezeka)
 
 (defcustom ezeka-keywords nil
@@ -4986,9 +4992,10 @@ If QUIETLY is non-nil, don't add anything to the logs."
             (with-current-buffer buf
               (goto-char (point-max))
               (org-insert-heading nil nil 'top)
-              (insert (ezeka-encode-rubric metadata) " ")
+              (insert (ezeka-format-metadata
+                       ezeka-placeholder-marker-format metadata)
+                      " ")
               (org-insert-time-stamp nil 'with-hm 'inactive)
-              (insert " " (ezeka--format-link id))
               (switch-to-buffer buf))
           t)))))
 
