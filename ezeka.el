@@ -1321,10 +1321,11 @@ The format control string may contain the following %-sequences:
 %c means caption (i.e. short title).
 %C means creation timestamp.
 %F means filename.
-%i means ID or link.
+%i means ID (e.g. a-1234).
 %k means citation key.
 %K means kasten.
 %l means label (genus or category).
+%L means formatted link (using `ezeka--format-link').
 %M means modification timestamp.
 %p means parent.
 %R means rubric.
@@ -1374,6 +1375,7 @@ use `ezeka-long-timestamp-format'."
                                       (concat "@" \.citekey))))
                         (?K . ,\.kasten)
                         (?l . ,\.label)
+                        (?L . ,(ezeka--format-link \.id))
                         (?M . ,(funcall _format-time \.modified))
                         (?p . ,\.parent)
                         (?R . ,\.rubric)
