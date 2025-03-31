@@ -4937,10 +4937,11 @@ SOURCE can be a link or a file."
       'source (alist-get 'rubric s-mdata)
       'target (alist-get 'rubric t-mdata))
     (ezeka-add-change-log-entry s-file
-      (format "Copy \"%s\" [[%s]] to \"%s.\""
+      (format "Copy \"%s\" [[%s]] to \"%s.\" [[%s]]"
               (alist-get 'rubric s-mdata)
               (alist-get 'id s-mdata)
-              (alist-get 'rubric t-mdata)))
+              (alist-get 'rubric t-mdata)
+              (alist-get 'id t-mdata)))
     (ezeka--update-file-header s-file t-mdata 'force)
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))
