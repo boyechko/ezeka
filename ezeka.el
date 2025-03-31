@@ -4988,6 +4988,7 @@ If QUIETLY is non-nil, don't add anything to the logs."
               (org-insert-heading nil nil 'top)
               (insert (ezeka-encode-rubric metadata) " ")
               (org-insert-time-stamp nil 'with-hm 'inactive)
+              (insert " " (ezeka--format-link id))
               (switch-to-buffer buf))
           t)))))
 
