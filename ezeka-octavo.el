@@ -545,7 +545,8 @@ user before replacing."
             ;; NOTE: Requires `octavo--grep-file-list' after PR #68 that translates
             ;; Emacs regexp into POSIX form and defaults to extended regexps
             (octavo--grep-file-list
-             (format "\\(parent: [a-z:]*%s$\\|%s][][]\\)" bf-id bf-id))))
+             (format "\\(parent: [a-z:]*%s$\\|firstborn: %s$\\|%s][][]\\)"
+                     bf-id bf-id bf-id))))
          (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
          (replacement (if after
                           (ezeka--format-link after)
@@ -586,8 +587,9 @@ user before replacing."
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
       (setq message
-        (format "Replace %d link(s) to %s in %d files"
+        (format "Replace %d link%s to %s in %d files"
                 count
+                (if (= count 1) "" "s")
                 before
                 (length with-links)))
       (ezeka-add-change-log-entry (ezeka-link-file after)
@@ -643,7 +645,8 @@ given, suggest the note's successor, if set. METHOD overrides
                         (alist-get 'parent mdata)))
          (with-links (let ((octavo-directory ezeka-directory))
                        (octavo--grep-file-list
-                        (format "(parent: %s|%s\\]\\])" link link))))
+                        (format "(firstborn: %s|parent: %s|%s\\]\\])"
+                                link link link))))
          (change-to
           (or change-to
               (and (not (zerop (length with-links)))
