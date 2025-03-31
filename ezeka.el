@@ -1729,35 +1729,50 @@ troublesome characters."
                            (1+ anychar)
                            ,title-delimiters))
          (date '(>= 4 (in "0-9" "-" ",")))
-         (one (list
-               (rx-to-string `(seq ,given-name
-                                   " " word-start
-                                   (group-n 1 ,family-name)
-                                   "'s "
-                                   (group-n 2 ,work-title)
-                                   " "
-                                   "(" (group-n 3 ,date) ")"
-                                   (0+ " " (group-n 4 (seq (any "&@")
-                                                           (1+ word)
-                                                           (backref 3)))))
-                             'no-group)
-               "\\2\\4"
-               'regexp))
-         (two (list
-               (rx-to-string `(seq ,given-name
-                                   " " word-start
-                                   (group-n 1 ,family-name)
-                                   "'s "
-                                   (group-n 2 ,work-title)
-                                   "(" (group-n 3 ,date) ")"
-                                   (0+ " " (group-n 4 (any "&@") (1+ word) (1+ digit))))
-                             'no-group)
-               "\\2 (\\3) \\4"
-               'regexp))
-         (complex-replacements (list one two))
+
+         (work-title-with-same-date
+          ;; e.g. John Doe's "Something About Something" (2025) @Doe2025
+          (list (rx-to-string `(seq ,given-name
+                                    " " word-start
+                                    (group-n 1 ,family-name)
+                                    "'s "
+                                    (group-n 2 ,work-title)
+                                    " "
+                                    "(" (group-n 3 ,date) ")"
+                                    (0+ " " (group-n 4 (seq (any "&@")
+                                                            (1+ word)
+                                                            (backref 3)))))
+                              'no-group)
+                "\\2\\4"
+                'regexp))
+         (work-title-with-different-dates
+          (list (rx-to-string `(seq ,given-name
+                                    " " word-start
+                                    (group-n 1 ,family-name)
+                                    "'s "
+                                    (group-n 2 ,work-title)
+                                    "(" (group-n 3 ,date) ")"
+                                    (0+ " " (group-n 4 (any "&@") (1+ word) (1+ digit))))
+                              'no-group)
+                "\\2 (\\3) \\4"
+                'regexp))
+         (movie-title
+          (list (rx-to-string `(seq (group-n 2 ,work-title)
+                                    " "
+                                    "(dir."
+                                    ,given-name
+                                    (group-n 1 ,family-name)
+                                    ", "
+                                    (group-n 3 ,date)
+                                    ")"))
+                "\\2"))
+         (complex-replacements (list work-title-with-same-date
+                                     work-title-with-different-dates
+                                     movie-title))
          (simple-replacements
           '(("\"\\<\\([^\"]+\\)\\>\"" "'\\1'" regexp)
             ("\\</\\([^/]+\\)/\\>" "_\\1_" regexp)
+            ("\\(\\w\\)/\\(\\w\\)" "\\1-\\2" regexp) ; slash between words
             ("(\\(ß.+\\))" "[\\1]" regexp)
             ("\\(?1:.*\\) \\(?2:ß.+\\): \\(?3:.*\\)" "\\1 \\3 [\\2]" regexp))))
     (string-trim (apply #'ezeka--replace-in-string
@@ -1765,6 +1780,10 @@ troublesome characters."
                         (append complex-replacements
                                 simple-replacements
                                 ezeka--pasturize-characters)))))
+
+(ert-deftest ezeka--pasteurize-file-name ()
+  (should (string= (ezeka--pasteurize-file-name "/Mickey 17/ (dir. Bong Joon-ho, 2025)")
+                   "_Mickey 17_")))
 
 (defun ezeka--depasturize-for-title (caption)
   "Return CAPTION after trying to reverse `ezeka--pasteurize-file-name'."
