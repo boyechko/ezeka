@@ -4786,14 +4786,13 @@ non-nil, do not offer to do a text search."
   "Replace links to BEFORE to AFTER.
 With CONFIRM non-nil (or \\[universal-argument]), ask for confirmations."
   (condition-case nil
-      (let ((replaced (ezeka-octavo-replace-links before after nil confirm)))
-        (ezeka-add-change-log-entry
-            source
-          (format "Replace %d links in %d files."
-                  (or (car replaced) 0) (or (cdr replaced) 0)))
-        (message "Replaced links %s to %s, replacing %d links in %d files"
-                 before after
-                 (or (car replaced) 0) (or (cdr replaced) 0))
+      (let* ((replaced (ezeka-octavo-replace-links before after nil confirm))
+             (basemsg (format "Replace %d instances in %d files"
+                              (or (car replaced) 0) (or (cdr replaced) 0)))
+             (fullmsg (format "%s of links from %s to %s" basemsg before after)))
+        (ezeka-add-change-log-entry source (concat basemsg " to " after))
+        (message fullmsg)
+        (kill-new fullmsg)
         (ezeka-force-save-buffer)
         (ezeka--git-stage-file buffer-file-name))
     (error
