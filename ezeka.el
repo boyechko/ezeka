@@ -2795,7 +2795,7 @@ insert the rubric instead."
    (list (equal current-prefix-arg '(4))
          (equal current-prefix-arg '(16))))
   (let* ((other-file (ezeka--note-in-other-window))
-         (other-link (ezeka-file-link other-file)))
+         (other-link (alist-get 'id (ezeka-file-metadata other-file))))
     (cond (link-only
            (ezeka--insert-link-with-spaces other-link))
           (rubric
