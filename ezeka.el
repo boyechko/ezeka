@@ -2666,18 +2666,26 @@ question."
           (save-excursion
             (re-search-forward
              ezeka-breadcrumbs-trail-headline nil 'noerror)))
-         (already-linked
+         (existing
           (cond ((save-excursion (re-search-backward link nil 'noerror))
                  'above)
                 ((save-excursion (re-search-forward link breadcrumbs 'noerror))
-                 'below))))
-    (when (or (not already-linked)
-              (y-or-n-p (format "There's already a link there %s. Insert anyway? "
-                                already-linked)))
-      (if strings
-          (apply #'ezeka-insert-with-spaces strings)
-        (ezeka-insert-with-spaces (ezeka--format-link link)))
-      (run-hooks 'ezeka-insert-link-hook))))
+                 'below)))
+         (strings (or strings (list (ezeka--format-link link))))
+         (insert-how
+          (when existing
+            (completing-read (format "Link already exists %s. Proceed how? " existing)
+                             '("insert anyway" "don't include the link" "never mind")
+                             nil
+                             'require-match))))
+    (cond ((or (not existing) (string= insert-how "insert anyway"))
+           (apply #'ezeka-insert-with-spaces strings)
+           (run-hooks 'ezeka-insert-link-hook))
+          ((string= insert-how "don't include the link")
+           ;; FIXME: The link might not be the last element
+           (apply #'ezeka-insert-with-spaces (butlast strings)))
+          (t
+           (message "Okay, have it your way")))))
 
 (defun ezeka-insert-link-with-metadata (zettel &optional fields where noedit)
   "Insert link to ZETTEL, optionally adding metadata FIELD(S).
