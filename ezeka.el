@@ -795,18 +795,18 @@ It is a Zettel if all of these conditions are met:
                                       base)))
         (string-trim match)))))
 
-(defmacro ezeka-file-name-id (filename)
+(defun ezeka-file-name-id (filename)
   "Return the ID part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename 'id))
-(defmacro ezeka-file-name-label (filename)
+  (ezeka--file-name-part filename 'id))
+(defun ezeka-file-name-label (filename)
   "Return the label part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename 'label))
-(defmacro ezeka-file-name-caption (filename)
+  (ezeka--file-name-part filename 'label))
+(defun ezeka-file-name-caption (filename)
   "Return the caption part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename 'caption))
-(defmacro ezeka-file-name-citekey (filename)
+  (ezeka--file-name-part filename 'caption))
+(defun ezeka-file-name-citekey (filename)
   "Return the citekey part of the given Zettel FILENAME."
-  `(ezeka--file-name-part ,filename 'citekey))
+  (ezeka--file-name-part filename 'citekey))
 
 ;; TODO Rewrite using rubric
 (defun ezeka-format-file-name (format-string filename)
