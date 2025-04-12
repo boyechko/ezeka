@@ -4985,6 +4985,10 @@ If QUIETLY is non-nil, don't add anything to the logs."
            (link-target (file-relative-name
                          (ezeka-link-file link-to)
                          (file-name-directory path))))
+      (setf (alist-get 'path metadata) path
+            (alist-get 'filename metadata) (file-name-base path))
+      (unless (alist-get 'rubric metadata)
+        (setf (alist-get 'rubric metadata) (ezeka-encode-rubric metadata)))
       (unless quietly
         (ezeka--add-to-system-log 'placeholder nil
           'note (ezeka-encode-rubric metadata)
