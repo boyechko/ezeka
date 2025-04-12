@@ -563,7 +563,7 @@ user before replacing."
             (with-current-buffer (or open-buffer (find-file-noselect file))
               (when confirm (switch-to-buffer (current-buffer)))
               ;; Replace parent
-              (when (and (ezeka--parent-of-p (ezeka-file-name-id file) before file-mdata)
+              (when (and (ezeka--child-p (ezeka-file-name-id file) before file-mdata)
                          (or (not confirm)
                              (y-or-n-p (format "Replace parent in %s (%s)? "
                                                (alist-get 'title file-mdata)
@@ -602,17 +602,17 @@ user before replacing."
       (message message)
       (cons count (length with-links)))))
 
-(defun ezeka--parent-of-p (note1 note2 &optional metadata)
-  "Return non-nil if NOTE1 is a child of NOTE2.
-METADATA is NOTE's metadata."
-  (let* ((mdata (or metadata (ezeka-file-metadata note1)))
-         (parents (alist-get 'parent mdata))
-         (note2-id (ezeka-link-id note2))) ; FIXME: What if it's a file?
+(defun ezeka--child-p (child parent &optional child-metadata)
+  "Return non-nil if CHILD is a child of PARENT.
+Both CHILD and PARENT are note IDs. If CHILD-METADATA is not
+provided, read it from CHILD."
+  (let* ((mdata (or child-metadata (ezeka-file-metadata child)))
+         (parents (alist-get 'parent mdata)))
     (cl-typecase parents
       (null   nil)
-      (string (string= parents note2-id))
-      (cons   (cl-find note2-id parents :test #'string=))
-      (t (error "Don't know how to handle" (type-of parents))))))
+      (string (string= parents parent))
+      (cons   (cl-find parent parents :test #'string=))
+      (t (error "Don't know how to handle " (type-of parents))))))
 
 (defcustom ezeka-octavo-delete-note-method 'archive
   "How to actually delete Octavo notes.
