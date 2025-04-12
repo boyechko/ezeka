@@ -4914,7 +4914,8 @@ SOURCE can be a link or a file."
          (s-link (ezeka-file-link s-file))
          (t-link target-link)
          (s-mdata (ezeka-file-metadata s-file))
-         (t-mdata (copy-sequence (ezeka-file-metadata s-file))))
+         (t-mdata (copy-sequence (ezeka-file-metadata s-file)))
+         change-log-entry)
     (ezeka--add-to-move-log s-link target-link
                             (alist-get 'caption s-mdata)
                             "Copy note")
@@ -4944,11 +4945,12 @@ SOURCE can be a link or a file."
       'source (alist-get 'rubric s-mdata)
       'target (alist-get 'rubric t-mdata))
     (ezeka-add-change-log-entry s-file
-      (format "Copy \"%s\" [[%s]] to \"%s.\" [[%s]]"
-              (alist-get 'rubric s-mdata)
-              (alist-get 'id s-mdata)
-              (alist-get 'rubric t-mdata)
-              (alist-get 'id t-mdata)))
+      (setq change-log-entry
+        (format "Copy \"%s\" [[%s]] to \"%s.\" [[%s]]"
+                (alist-get 'rubric s-mdata)
+                (alist-get 'id s-mdata)
+                (alist-get 'rubric t-mdata)
+                (alist-get 'id t-mdata))))
     (ezeka--update-file-header s-file t-mdata 'force)
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))
@@ -4957,7 +4959,9 @@ SOURCE can be a link or a file."
       (ezeka--update-file-header t-file
                                  (ezeka--add-oldname t-mdata
                                                      (alist-get 'id s-mdata)))
-      (message "Copied `%s' to `%s'" s-link target-link))))
+      (message "Copied `%s' to `%s'" s-link target-link))
+    (ezeka-find-file s-file 'same-window)
+    (ezeka-add-change-log-entry s-file change-log-entry)))
 
 (defun ezeka--create-placeholder (id metadata &optional quietly)
   "Create a placeholder for ID with METADATA alist.
