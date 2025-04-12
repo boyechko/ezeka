@@ -4129,16 +4129,16 @@ use the current KASTEN without asking."
                         (read-string "No timestamp found. Enter it here: ")))))
           (setf (alist-get 'label mdata)
                 (ezeka--read-label kasten))
+          (setf (alist-get 'id mdata)
+                (or id
+                    (if (eq (ezeka-kasten-id-type kstruct) :tempus)
+                        (ezeka-tempus-currens
+                         (ezeka--complete-time (alist-get 'created mdata)))
+                      (ezeka--generate-id kasten))))
           (setf (alist-get 'link mdata)
-                (ezeka-make-link
-                 kasten
-                 (or id
-                     (if (eq (ezeka-kasten-id-type kstruct) :tempus)
-                         (ezeka-tempus-currens
-                          (ezeka--complete-time (alist-get 'created mdata)))
-                       (ezeka--generate-id kasten)))))
+                (ezeka-make-link kasten (alist-get 'id mdata)))
           (setf (alist-get 'path mdata)
-                (ezeka-link-path (alist-get 'link mdata)))
+                (ezeka-link-path (alist-get 'link mdata) mdata))
           (setf (alist-get 'rubric mdata)
                 (ezeka-encode-rubric mdata))
           (if (file-exists-p (alist-get 'path mdata))
