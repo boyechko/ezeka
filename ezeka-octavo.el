@@ -555,23 +555,31 @@ user before replacing."
          message)
     (if (not with-links)
         (message "No links to %s found" before)
-      (dolist (f with-links count)
-        (let ((open-buffer (get-file-buffer f))
-              (f-mdata (ezeka-file-metadata f))
+      (dolist (file with-links count)
+        (let ((open-buffer (get-file-buffer file))
+              (file-mdata (ezeka-file-metadata file))
               (inhibit-read-only t))
           (save-excursion
-            (with-current-buffer (or open-buffer
-                                     (find-file-noselect f))
+            (with-current-buffer (or open-buffer (find-file-noselect file))
               (when confirm (switch-to-buffer (current-buffer)))
-              (when (and (ezeka--parent-of-p f bf-id f-mdata)
+              ;; Replace parent
+              (when (and (ezeka--parent-of-p file bf-id file-mdata)
                          (or (not confirm)
                              (y-or-n-p (format "Replace parent in %s (%s)? "
-                                               (alist-get 'title f-mdata)
-                                               (alist-get 'id f-mdata)))))
+                                               (alist-get 'title file-mdata)
+                                               (alist-get 'id file-mdata)))))
                 ;; FIXME: Worth extending to preserve multiple parents?
-                ;; Replace parent
-                (setf (alist-get 'parent f-mdata) after)
-                (ezeka--update-file-header f f-mdata)
+                (setf (alist-get 'parent file-mdata) after)
+                (ezeka--update-file-header file file-mdata)
+                (cl-incf count))
+              ;; Replace firstborn
+              (when (and (string= bf-id (alist-get 'firstborn file-mdata))
+                         (or (not confirm)
+                             (y-or-n-p (format "Replace firstborn in %s (%s)? "
+                                               (alist-get 'title file-mdata)
+                                               (alist-get 'id file-mdata)))))
+                (setf (alist-get 'firstborn file-mdata) after)
+                (ezeka--update-file-header file file-mdata)
                 (cl-incf count))
               (goto-char (point-min))
               (if confirm
@@ -581,17 +589,13 @@ user before replacing."
                   (cl-incf count)))
               (save-buffer)
               (ezeka--add-to-system-log 'replace-links nil
-                'note (ezeka-encode-rubric f-mdata)
+                'note (ezeka-encode-rubric file-mdata)
                 'original bf-id
                 'new replacement)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
       (setq message
-        (format "Replace %d link%s to %s in %d files"
-                count
-                (if (= count 1) "" "s")
-                before
-                (length with-links)))
+        (format "Replace %d link%s to %s" count (if (= count 1) "" "s") before))
       (ezeka-add-change-log-entry (ezeka-link-file after)
         message)
       (kill-new message)
