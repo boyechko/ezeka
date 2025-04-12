@@ -4859,9 +4859,7 @@ afterwards. SOURCE can be a link or a file."
          (t-link target-link)
          (t-path (ezeka-link-path t-link))
          (s-mdata (ezeka-file-metadata s-file))
-         (t-mdata (if t-path
-                      (ezeka--symlink-metadata t-path)
-                    (ezeka-file-metadata s-file)))) ; FIXME deep-copy s-mdata
+         (t-mdata (ezeka-file-metadata s-file))) ; FIXME deep-copy s-mdata
     (ezeka--add-to-move-log s-link target-link
                             (alist-get 'caption s-mdata)
                             "Begin moving")
