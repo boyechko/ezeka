@@ -2569,21 +2569,24 @@ same window."
   "Prompt how to handle FILE if it is a symlink.
 If SAME-WINDOW is non-NIL, open the file interactive he same
 window. Return T if an action was taken, nil otherwise."
-  (when (file-symlink-p file)
-    (let ((action (intern-soft
-                   (completing-read "What to do with this symbolic link? "
-                                    '(follow create update delete)
-                                    nil 'require-match nil nil "follow"))))
-      (cond ((eq action 'follow) (ezeka-find-file file same-window))
-            ((eq action 'update) (ezeka--update-symbolic-link file))
-            ((eq action 'delete)
-             (when (y-or-n-p "Really delete this symbolic link? ")
-               (delete-file file)))
-            ((eq action 'create)
-             (when (y-or-n-p "Delete symlink and create a new note? ")
-               (ezeka-replace-placeholder file)))
-            (t (message "No action taken.")))
-      t)))
+  (when-let* ((target (file-symlink-p file))
+              (action (intern-soft
+                       (completing-read "What to do with this symbolic link? "
+                                        '(follow create update delete)
+                                        nil 'require-match nil nil "follow"))))
+    (cond ((eq action 'follow) (ezeka-find-file file same-window))
+          ((eq action 'update) (ezeka--update-symbolic-link file))
+          ((eq action 'delete)
+           (when (y-or-n-p "Really delete this symbolic link? ")
+             (ezeka--add-to-system-log 'delete-symlink nil
+               'note (file-name-base file)
+               'target (file-name-base target))
+             (delete-file file)))
+          ((eq action 'create)
+           (when (y-or-n-p "Delete symlink and create a new note? ")
+             (ezeka-replace-placeholder file)))
+          (t (message "No action taken.")))
+    t))
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
