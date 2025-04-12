@@ -539,15 +539,15 @@ user before replacing."
              (y-or-n-p "Confirm before replacing? ")))))
   (let* ((ezeka-header-update-modified nil)
          (ezeka-breadcrumbs-leave-trail nil)
-         (bf-id (ezeka-link-id before))
+         (before (ezeka-link-id before)) ; remove any explicit Kasten part
          (with-links
           (let ((octavo-directory (or directory ezeka-directory)))
             ;; NOTE: Requires `octavo--grep-file-list' after PR #68 that translates
             ;; Emacs regexp into POSIX form and defaults to extended regexps
             (octavo--grep-file-list
              (format "\\(parent: [a-z:]*%s$\\|firstborn: %s$\\|%s][][]\\)"
-                     bf-id bf-id bf-id))))
-         (link-regexp (format "\\[\\[[a-z:]*%s]]" bf-id))
+                     before before before))))
+         (link-regexp (format "\\[\\[[a-z:]*%s]]" before))
          (replacement (if after
                           (ezeka--format-link after)
                         (format "+%s+" before)))
@@ -563,7 +563,7 @@ user before replacing."
             (with-current-buffer (or open-buffer (find-file-noselect file))
               (when confirm (switch-to-buffer (current-buffer)))
               ;; Replace parent
-              (when (and (ezeka--parent-of-p file bf-id file-mdata)
+              (when (and (ezeka--parent-of-p (ezeka-file-name-id file) before file-mdata)
                          (or (not confirm)
                              (y-or-n-p (format "Replace parent in %s (%s)? "
                                                (alist-get 'title file-mdata)
@@ -573,7 +573,7 @@ user before replacing."
                 (ezeka--update-file-header file file-mdata)
                 (cl-incf count))
               ;; Replace firstborn
-              (when (and (string= bf-id (alist-get 'firstborn file-mdata))
+              (when (and (string= before (alist-get 'firstborn file-mdata))
                          (or (not confirm)
                              (y-or-n-p (format "Replace firstborn in %s (%s)? "
                                                (alist-get 'title file-mdata)
@@ -590,7 +590,7 @@ user before replacing."
               (save-buffer)
               (ezeka--add-to-system-log 'replace-links nil
                 'note (ezeka-encode-rubric file-mdata)
-                'original bf-id
+                'original before
                 'new replacement)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
