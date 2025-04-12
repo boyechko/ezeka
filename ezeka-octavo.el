@@ -632,7 +632,7 @@ given, suggest the note's successor, if set. METHOD overrides
             (completing-read "Deletion method: "
                              '(delete archive)
                              nil
-                             'require-match)))))
+                             t)))))
   (let* ((method (or method ezeka-octavo-delete-note-method))
          (file (if (ezeka-link-p link-or-file)
                    (ezeka-link-file link-or-file)

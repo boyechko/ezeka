@@ -1277,7 +1277,7 @@ return DEFAULT."
   (if-let ((field (completing-read (or prompt "Which field? ")
                                    ezeka-metadata-fields
                                    nil
-                                   'require-match
+                                   t
                                    nil
                                    nil
                                    default))
@@ -2573,7 +2573,7 @@ window. Return T if an action was taken, nil otherwise."
               (action (intern-soft
                        (completing-read "What to do with this symbolic link? "
                                         '(follow create update delete)
-                                        nil 'require-match nil nil "follow"))))
+                                        nil t nil nil "follow"))))
     (cond ((eq action 'follow) (ezeka-find-file file same-window))
           ((eq action 'update) (ezeka--update-symbolic-link file))
           ((eq action 'delete)
@@ -2705,7 +2705,7 @@ question."
             (completing-read (format "Link already exists %s. Proceed how? " existing)
                              '("insert anyway" "don't include the link" "never mind")
                              nil
-                             'require-match))))
+                             t))))
     (cond ((or (not existing) (string= insert-how "insert anyway"))
            (apply #'ezeka-insert-with-spaces strings)
            (run-hooks 'ezeka-insert-link-hook))
@@ -2726,7 +2726,7 @@ interactively edit the text."
    (list (ezeka--read-id "Link to insert: ")
          (list (ezeka--read-metadata-field))
          ;; FIXME Where argument is completely ignored
-         (intern-soft (completing-read "Where? " '(":before" ":after")))))
+         (intern-soft (completing-read "Where? " '(":before" ":after") nil t))))
   (let* ((file (pcase zettel
                  ((pred ezeka-link-p) (ezeka-link-file zettel))
                  ((pred bufferp) (buffer-file-name zettel))
@@ -2770,7 +2770,7 @@ entered text as a Zettel link. INITIAL-INPUT is passed to
       (gethash (completing-read (or prompt "Select Zettel: ")
                                 _collection
                                 nil
-                                require-match
+                                (and require-match) ; `completing-read' needs `t'
                                 initial-input)
                table))))
 
@@ -3210,7 +3210,7 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
     (ezeka--set-new-child-metadata child-link metadata)
     (cond ((string= "placeholder"
                     (completing-read "Create a new note or just a placeholder? "
-                                     '(new-note placeholder) nil 'require))
+                                     '(new-note placeholder) nil t))
            (ezeka--create-placeholder child-link metadata)
            (ezeka-breadcrumbs-drop child-link parent "(Placeholder)"))
           ((and child-file
@@ -3961,7 +3961,7 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
                        (mapcar #'ezeka-kasten-name (ezeka-kaesten))
                      (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))
                    nil
-                   t))                  ; = user cannot exit w/o selecting
+                   t))
 
 (defun ezeka-insert-header-template
     (&optional link label title parent citekey metadata)
