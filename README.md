@@ -1,0 +1,104 @@
+# ezeka: Eclectic Zettelkasten (ezeka.el)
+
+This is my evolving Emacs-based Zettelkasten system. This package
+handles primarily the content of the Zettel themselves, leaving most of
+the interaction (listing, searching, etc.) to Octavo (my fork of Grant
+Rosson's excellent Zk, Zk-Desktop, and Zk-Index).
+
+****Note****: This project is undergoing a major modular refactor. Many
+functions are being moved from `ezeka.el` (nearly 5,500 lines) into
+smaller files. See `CHANGELOG.md` for current progress.
+
+## Structure of the Zettelkasten
+
+The "note cabinet" is divided into a few different "boxes" (Kästen) that
+reside in separate directories, contain different types of notes, and
+have distinct ID formats:
+
+tempus (ISO8601 timestamp, e.g. `20250412T2239`)  
+fleeting notes; freewrites; journal entries; memos; technical notes
+
+numerus (1L-4D, e.g. `a-1234`)  
+literature and permanent notes; project descriptions; indices
+
+scriptum (numerus~2D, e.g. `a-1234~04`)  
+drafts of public-facing writing
+
+## Format of the Notes
+
+Each Zettel file begins with a header encoding metadata in a very
+simplified version of [YAML](https://yaml.org/). The structure I am
+using is as follows:
+
+1.  The first line of the header contains the rubric line condensing
+    various key pieces of information about the note.
+
+    ``` example
+    rubric: §r-8526 {χ} using metadata block in notes
+    ```
+
+    The rubric consists of the following elements:
+
+    a\) Character '§' signifies that differences between caption and
+    title are acknowledged and should remain as they are without further
+    confirmations; b) Note ID ("r-8526" in the example above); c) Genus
+    or category in squiggly brackets ("{χ}" above); d) Note's caption,
+    that is a sanitized and possibly shortened title; e) A citation key
+    if the note is about a specific work.
+
+    The rubric (sans any '§') should match the actual filename.
+
+2.  The rest of the metadata follows in YAML mappings:
+
+    Each line consists of key (scalar) and value (scalar or flow
+    sequence). Currently recognized keys are:
+
+    `title`  
+    human-Formatted Title used when inserting links
+
+    `created`  
+    org-mode time stamp of note's creation time
+
+    `modified`  
+    org-mode time stamp of last modification time
+
+    `parent`  
+    ID of the parent note, if any
+
+    `firstborn`  
+    ID of the first child note, if any
+
+    `oldnames`  
+    list of IDs that used to identify the note in the past
+
+    `readings`  
+    list of ISO8601 dates of when the work was consumed
+
+    `keywords`  
+    list of \#-prefixed words used as keywords
+
+    For example:
+
+    ``` example
+    rubric: §r-8526 {χ} format of Zettel content and metadata, YAML header
+    title: format of Zettel content and metadata, YAML header
+    created: 2015-05-24 Sun 14:56
+    modified: 2025-04-12 Sat 13:37
+    parent: f-4144
+    oldnames: [ 028-ada, 548-uqm, 20150524T1456 ]
+    ```
+
+3.  Blank line[^1] to separate the header from the note content.
+
+4.  Text of the note, usually consisting of:
+
+    - brief introduction about the note's origin
+    - series of org-mode headings for relevant sections
+    - (optional) `Change Log` heading with notable numbering and naming
+      changes
+
+# Footnotes
+
+[^1]: I was tempted to use YAML's `---` at the beginning and/or end of
+    the "directives" section (i.e. the header), but it mostly just adds
+    visual noise.
