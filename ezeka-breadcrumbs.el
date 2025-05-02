@@ -201,10 +201,14 @@ a brief explanation; TIME is Emacs-encoded time."
 TARGET should be a Zettel filename; SOURCE can be one too,
 or a symbol describing where the function is being called
 from. COMMENT can be added instead of TARGET."
-  (interactive (list buffer-file-name 'interactive))
+  (interactive
+   (list buffer-file-name
+         'interactive
+         (ezeka-breadcrumbs-read-comment)))
   (when ezeka-breadcrumbs-leave-trail
     (save-excursion
-      (let* ((inhibit-read-only t)
+      (let* ((target (or target buffer-file-name))
+             (inhibit-read-only t)
              ;; (trail ezeka--breadcrumbs-trail)
              ;; (trail-buf (overlay-buffer trail))
              (t-file (cond ((ezeka-file-p target) target)
@@ -230,7 +234,8 @@ from. COMMENT can be added instead of TARGET."
                                                     :comment comment))
                  (message "Dropped breadcrumbs for `%s' as %s"
                           (ezeka-file-name-id t-file)
-                          status)))
+                          status))
+               (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail)))
               ((pred markerp)
                (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
                (goto-char (marker-position status)))))))))
@@ -238,6 +243,7 @@ from. COMMENT can be added instead of TARGET."
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
+(add-hook 'ezeka-after-save-hook #'ezeka-breadcrumbs-drop)
 
 (defvar ezeka--breadcrumbs-xref-format "Find Regexp: %s"
   "Format-like string for dropping bookmarks from *xref* buffer.
