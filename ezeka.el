@@ -640,30 +640,6 @@ TARGET can be either a link or a filepath."
             (if description
                 (format "[%s]" description) ""))))
 
-;; TODO Remove, since not used anywhere
-(defun ezeka--link-with-metadata (link &optional fields where metadata)
-  "Return a string with metadata FIELD(S) at place WHERE (relative to LINK).
-WHERE can be any of :before (default), :after, :instead, and
-:description. FIELDS defaults to 'title, WHERE to :before.
-If WHERE is :instead, do not include the LINK."
-  (let* ((mdata (or metadata (ezeka-file-metadata (ezeka-link-file link))))
-         (fields (or fields '(title)))
-         (where (or where :before))
-         (value (mapconcat (lambda (f) (alist-get f mdata))
-                  fields " ")))
-    (concat (if (eq where :before)
-                (concat value " ")
-              "")
-            (if (eq where :instead)
-                ""
-              (ezeka--format-link
-               link
-               (when (eq where :description)
-                 value)))
-            (if (eq where :after)
-                (concat " " value)
-              ""))))
-
 (defun ezeka-insert-with-spaces (&rest strings)
   "Insert STRINGS at point surrounded by spaces as appropriate.
 If the point is between punctuation symbols, no spaces are
@@ -2132,14 +2108,6 @@ Return the result of the conversion."
             (narrow-to-region (match-beginning 0) (match-end 0))
             (ezeka-dwim-with-this-timestring)))))))
 
-(defun ezeka-org-set-todo-properties ()
-  "Set the FROM, CREATED, and ID properties for the current org heading."
-  (interactive)
-  (org-set-property "FROM"
-                    (ezeka--link-with-metadata
-                     (ezeka-file-link buffer-file-name) '(title) :after))
-  (org-set-property "CREATED" (ezeka-timestamp nil 'full 'brackets)))
-
 (defun ezeka-org-interactive-tempus ()
   "Use org-mode's `org-time-stamp' command to insert a tempus currens."
   (interactive)
@@ -3190,20 +3158,6 @@ END."
         (ezeka--git-stage-file file))))
   (ezeka--git-stage-file buffer-file-name))
 
-(defun ezeka-generate-n-new-ids (how-many kasten)
-  "Generate HOW-MANY new IDs for KASTEN, making sure there are no dulicates."
-  (interactive
-   (list (read-number "How many? " 10)
-         (ezeka--read-kasten "Which kasten? ")))
-  (goto-char (point-max))
-  (let (ids)
-    (dotimes (n how-many)
-      (push (ezeka--generate-id kasten 'batch) ids))
-    (mapc (lambda (s)
-            (insert s "\n"))
-          (delete-dups ids))
-    (delete-duplicate-lines (point-min) (point-max))))
-
 ;;;=============================================================================
 ;;; Mode Line
 ;;;=============================================================================
@@ -3294,7 +3248,7 @@ END."
           ;;------------------------------------------------------------------
           '(
             ("C-c `" . ezeka-toggle-header-read-only) ; `org-table-edit-field'
-            ("C-c ~" . ezeka-set-title-or-caption) ; `org-table-create-with-table\.el'
+            ("C-c ~" . ezeka-set-title-or-caption) ; `org-table-create-with-table.el'
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-edit-keywords)
@@ -3322,20 +3276,7 @@ END."
             ("C-c ?" . ezeka-links-to) ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
-            ([S-mouse-1] . ezeka-open-link-at-mouse-same-window)
-            ;;
-            ;; Unsafe: reserved for major modes
-            ;;
-            ;; Shadows `org-schedule'
-            ;; ("C-c C-s" . ezeka-select-and-find-link)
-            ;; Shadows `kill-sexp' in global-map
-            ;; ("C-M-k" . ezeka-kill-link-or-sexp-at-point)
-            ;; Shadows `org-ctrl-c-tab'
-            ;; ("C-c C-i" . 'ezeka-org-include-cached-file)
-            ;; Shadows `org-set-property-and-value'
-            ("C-c C-x F" . ezeka-org-set-todo-properties)
-            ("C-c C-x z" . ezeka-move-to-another-kasten)
-            ))                          ; end of :keymap
+            ([S-mouse-1] . ezeka-open-link-at-mouse-same-window))) ; end of :keymap
   (cond (ezeka-mode
          (when (or (ezeka-file-p (current-buffer))
                    (y-or-n-p "This doesn't look like an Ezeka note. Still enable `ezeka-mode'? "))

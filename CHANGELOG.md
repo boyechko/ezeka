@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ezeka-meta.el`
   - `ezeka-syslog.el`
 
+### Removed
+
+- `ezeka--link-with-metadata`
+- `ezeka-org-set-todo-properties`
+- `ezeka-generate-n-new-ids`
+
 ## [0.1.1] - 2022-08-31
 
 ### Changed
