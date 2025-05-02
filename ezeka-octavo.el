@@ -672,6 +672,8 @@ given, suggest the note's successor, if set. METHOD overrides
     (when (y-or-n-p (format "Really %s note `%s'? "
                             (symbol-name method)
                             (alist-get 'rubric mdata)))
+      (ezeka--add-to-system-log method nil
+        'note link)
       (if (eq method 'delete)
           (delete-file file)
         (let ((archived
