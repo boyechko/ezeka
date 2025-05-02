@@ -755,7 +755,8 @@ update it unconditionally."
           (set-buffer-modified-p t)
           (ezeka--update-file-header nil nil
                                      (eq ezeka-header-update-modified 'always))
-          (save-buffer))
+          (save-buffer)
+          (run-hooks 'ezeka-after-save-hook))
       (set-buffer-modified-p modified))
     (set-buffer-modified-p nil)))
 
