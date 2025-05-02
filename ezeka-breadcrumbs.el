@@ -191,8 +191,10 @@ TARGET and SOURCE are file paths to Zettel notes; COMMENT is
 a brief explanation; TIME is Emacs-encoded time."
   (save-match-data
     (ezeka--concat-strings " "
-      (when target (ezeka-format-file-name "{%l} %c [[%i]]" target))
       (when comment (format "%s" comment))
+      (when target (if (file-exists-p target)
+                       (ezeka-format-metadata "%t [[%i]]" (ezeka-file-metadata target))
+                     (ezeka-format-file-name "%c [[%i]]" target)))
       (when time (format-time-string "@ [%F %a %R]" time)))))
 
 ;;;###autoload
@@ -284,6 +286,10 @@ The control sequence %s is replaced with the xref search string.")
 (defvar ezeka-breadcrumbs--comment-history nil
   "History variable for breadcrumb comments.")
 
+(defun ezeka-breadcrumbs-read-comment (&optional prompt)
+  "Interactively read a comment after PROMPT."
+  (read-string (or prompt "Breadcrumbs comment: ") nil 'ezeka-breadcrumbs--comment-history))
+
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop-external (source &optional comment)
   "Drop breadcrumbs for the current external location.
@@ -292,7 +298,7 @@ can be a short string."
   (interactive
    (list
     (get-buffer (read-buffer "How did you get here? " nil t))
-    (read-string "Why are you here? " nil 'ezeka-breadcrumbs--comment-history "")))
+    (ezeka-breadcrumbs-read-comment "Why are you here? ")))
   (unless (or (null ezeka--breadcrumbs-trail)
               (not (overlay-buffer ezeka--breadcrumbs-trail)))
     (let* ((inhibit-read-only t)
