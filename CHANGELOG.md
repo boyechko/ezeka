@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `README.md` with installation instructions and basic reference.
 - `CHANGELOG.md` with major milestones.
+- `ezeka-system-log-trail` and `ezeka-view-system-log-entries` to display
+  relevant system log entries.
 
 ### Refactored
 
@@ -19,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ezeka-base.el`
   - `ezeka-file.el`
   - `ezeka-meta.el`
+  - `ezeka-syslog.el`
 
 ## [0.1.1] - 2022-08-31
 

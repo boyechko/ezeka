@@ -119,5 +119,99 @@ Returns a list of plists: each contains :line and :entry keys."
         (forward-line 1)))
     trail))
 
+(defun ezeka-view-system-log-entries (file-or-id)
+  "Show system log entries related to FILE-OR-ID in a temporary buffer."
+  (interactive
+   (list (if (eq major-mode 'magit-status-mode)
+             (magit-file-at-point)
+           (ezeka--read-id "Show system log entries for ID: "))))
+  (let* ((file (if (ezeka-id-valid-p file-or-id)
+                   (ezeka-link-file file-or-id)
+                 file-or-id))
+         (id (ezeka-file-name-id file))
+         (buffer (get-buffer-create "*EZeKa System Log*"))
+         (trail (ezeka--system-log-trail id)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "System log entries for note ID: %s\n\n" id))
+        (dolist (item (nreverse trail))
+          (insert (format "%s" (plist-get item :entry)) "\n")))
+      (goto-char (point-min))
+      (view-mode))
+    (display-buffer buffer)))
+
+(defun ezeka--jump-to-log-entry ()
+  "Jump to the corresponding entry in `ezeka--system-log-file`."
+  (interactive)
+  (let ((line (get-text-property (point) 'ezeka-log-line)))
+    (when line
+      (find-file ezeka--system-log-file)
+      (goto-char (point-min))
+      (forward-line (1- line)))))
+
+(defun ezeka--file (arg)
+  "Return Ezeka file path from the fuzzy ARG.
+ARG can be file name, ID, or rubric."
+  (let ((arg (when (stringp arg)
+               (substring-no-properties arg))))
+    (cond ((or (null arg) (string-empty-p arg))
+           nil)
+          ((ezeka-id-valid-p arg)
+           (ezeka-link-file arg))
+          ((ezeka-file-p arg)
+           arg)
+          ((setq mdata (ezeka-decode-rubric arg))
+           (let-alist mdata
+             (or (ezeka-link-file .id)
+                 (ezeka-link-path .id mdata))))
+          (t
+           (error "`%s' is not a valid Ezeka file, ID, or rubric" arg)))))
+
+(defun ezeka-system-log-trail (file-or-id)
+  "Show system log trail for FILE-OR-ID in a human-readable Org buffer.
+Press RET on a line to jump to its entry in the system log."
+  (interactive
+   (list (if (eq major-mode 'magit-status-mode)
+             (magit-file-at-point)
+           (ezeka--read-id "System log trail for ID: "))))
+  (let* ((file (ezeka--file file-or-id))
+         (id (ezeka-file-name-id file))
+         (buf (get-buffer-create "*System Log Trail*"))
+         (fields-to-check '(note target source old-name new-name original parent placeholder))
+         (trail (ezeka--system-log-trail id)))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t)
+            (fmt "%-23s %-18s %-13s %-13s %-13s\n")
+            (map (let ((km (make-sparse-keymap)))
+                   (define-key km (kbd "RET") #'ezeka--jump-to-log-entry)
+                   km)))
+        (erase-buffer)
+        (insert (format "System log trail for: %s\n\n" (ezeka--format-link id)))
+        (insert (format fmt "TIME" "ACTION" "NOTE" "SOURCE" "TARGET"))
+        (dolist (entry (nreverse trail))
+          (let-alist (plist-get entry :entry)
+            (let* ((note (if .note (ezeka-file-name-id (ezeka--file \.note)) "-"))
+                   (source (ezeka--file (or \.source \.old-name \.parent \.original)))
+                   (source (if source (ezeka-file-name-id source) "-"))
+                   (target (ezeka--file (or \.target \.new-name \.placeholder \.new)))
+                   (target (if target (ezeka-file-name-id target) "-"))
+                   (time-str (format-time-string
+                              (org-time-stamp-format 'long 'inactive)
+                              (encode-time (parse-time-string \.time)))))
+              (insert (format fmt
+                              time-str
+                              (propertize \.action
+                                          'ezeka-log-line (plist-get entry :line)
+                                          'mouse-face 'highlight
+                                          'keymap map)
+                              note
+                              (truncate-string-to-width source 13 nil nil 'ellipsis)
+                              (truncate-string-to-width target 13 nil nil 'ellipsis)))))))
+      (org-mode)
+      (view-mode)
+      (setq-local show-trailing-whitespace nil)
+      (pop-to-buffer buf))))
+
 (provide 'ezeka-syslog)
 ;;; ezeka-syslog.el ends here
