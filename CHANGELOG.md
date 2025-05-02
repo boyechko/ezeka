@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ezeka-file.el`
   - `ezeka-meta.el`
   - `ezeka-syslog.el`
+  - `ezeka-compose.el`
 
 ### Removed
 
