@@ -170,19 +170,21 @@ TARGET and SOURCE."
                       ((ezeka-link-p source) source)
                       ((symbolp source) (symbol-name source))
                       (t source))))
-    (save-restriction
-      (ezeka--goto-breadcrumbs-trailhead)
-      (org-narrow-to-subtree)
-      (let ((org-blank-before-new-entry '((heading . nil)))
-            (head-level (org-current-level)))
+    (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
+      (save-restriction
+        (widen)
+        (ezeka--goto-breadcrumbs-trailhead)
+        (org-narrow-to-subtree)
         (cond ((search-forward target nil t)
                ;; Breadcrumbs already dropped for TARGET
+               (ezeka--update-breadcrumbs-heading t-file s-file)
                (message "Breadcrumbs already exist for %s" target)
                nil)
               (t
                ;; No breadcrumbs dropped for TARGET
-               (org-end-of-subtree)
-               (ezeka--insert-heading-after-current (1+ head-level))
+               (goto-char (point-max))
+               (unless (org-insert-item)
+                 (insert "\n- "))
                'primary))))))
 
 (cl-defun ezeka--breadcrumbs-string (&key target source comment time)
