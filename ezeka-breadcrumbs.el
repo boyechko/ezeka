@@ -209,40 +209,42 @@ from. COMMENT can be added instead of TARGET."
    (list buffer-file-name
          'interactive
          (ezeka-breadcrumbs-read-comment)))
-  (when ezeka-breadcrumbs-leave-trail
-    (save-excursion
-      (let* ((target (or target buffer-file-name))
-             (inhibit-read-only t)
-             ;; (trail ezeka--breadcrumbs-trail)
-             ;; (trail-buf (overlay-buffer trail))
-             (t-file (cond ((ezeka-file-p target) target)
-                           ((ezeka-link-p target) (ezeka-link-file target))
-                           (t nil)))
-             (s-file (cond ((ezeka-file-p source) source)
-                           ((ezeka-link-p source) (ezeka-link-file source))
-                           (t nil))))
-        ;; (when (ezeka-same-file-p s-file (buffer-file-name trail-buf))
-        ;;   ;; FIXME: There has to be a better way to do this
-        ;;   (setq s-file nil))
-        (if-let ((trail ezeka--breadcrumbs-trail)
-                 (trail-buf (overlay-buffer trail))
-                 (useful-target-p
-                  (not (or (string= "Log" (ezeka-file-name-label t-file))
-                           (ezeka-same-file-p t-file (buffer-file-name trail-buf)))))
-                 (status (ezeka-breadcrumbs-find-trail (or target comment) source)))
-            (pcase status
-              ((pred symbolp)
-               (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
-                 (insert (ezeka--breadcrumbs-string :target t-file
-                                                    :source s-file
-                                                    :comment comment))
-                 (message "Dropped breadcrumbs for `%s' as %s"
-                          (ezeka-file-name-id t-file)
-                          status))
-               (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail)))
-              ((pred markerp)
-               (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
-               (goto-char (marker-position status)))))))))
+  (cond ((not ezeka-breadcrumbs-leave-trail)
+         ;; Silently return, since no need to leave breadcrumb trail
+         nil)
+        (ezeka--breadcrumbs-trail
+         (save-excursion
+           (let* ((target (or target buffer-file-name))
+                  (inhibit-read-only t)
+                  ;; (trail ezeka--breadcrumbs-trail)
+                  ;; (trail-buf (overlay-buffer trail))
+                  (t-file (cond ((ezeka-file-p target) target)
+                                ((ezeka-link-p target) (ezeka-link-file target))
+                                (t nil)))
+                  (s-file (cond ((ezeka-file-p source) source)
+                                ((ezeka-link-p source) (ezeka-link-file source))
+                                (t nil))))
+             (if-let ((trail-buf (overlay-buffer ezeka--breadcrumbs-trail))
+                      (_ (not (ezeka-same-file-p t-file (buffer-file-name trail-buf))))
+                      (status (ezeka-breadcrumbs-find-trail (or target comment) source)))
+                 (pcase status
+                   ((pred symbolp)
+                    (with-current-buffer (overlay-buffer ezeka--breadcrumbs-trail)
+                      (insert (ezeka--breadcrumbs-string :target t-file
+                                                         :source s-file
+                                                         :comment comment))
+                      (message "Dropped breadcrumbs for `%s' as %s"
+                               (ezeka-file-name-id t-file)
+                               status))
+                    (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail)))
+                   ((pred markerp)
+                    (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
+                    (goto-char (marker-position status)))
+                   (_ (message "Unknown status type: %s" status)))
+               ;; Silently ignore dropping breadcrumbs for breadcrumbs file
+               nil))))
+        (t
+         (message "There is no active breadcrumbs trail"))))
 
 ;;; TODO: Since this is needed to actually drop breadcrumbs, the breadcrumb
 ;;; dropping should perhaps be a minor mode?
