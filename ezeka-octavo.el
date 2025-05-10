@@ -388,7 +388,7 @@ destination kasten."
         (ezeka-insert-link-with-metadata
          link
          (list (if (eq octavo-link-and-title 'ask)
-                   (ezeka--read-metadata-field "Which field? ")
+                   (ezeka--read-metadata-field)
                  'title))
          :before)
       (ezeka--insert-link-with-spaces link))))

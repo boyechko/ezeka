@@ -759,7 +759,7 @@ already inside a link, replace it instead."
             (t
              (ezeka-insert-link-with-metadata
               link
-              (list (ezeka--read-metadata-field nil 'title))
+              (list (ezeka--read-metadata-field nil))
               :before)))
     (message "No visiting Zettel")))
 
@@ -800,7 +800,7 @@ insert the rubric instead."
           (t
            (ezeka-insert-link-with-metadata
             other-link
-            (list (ezeka--read-metadata-field "Which field? ")))))))
+            (list (ezeka--read-metadata-field)))))))
 
 (defun ezeka-insert-link-to-bookmark (arg)
   "Insert a link to a bookmark.

@@ -89,14 +89,16 @@ into the file header.")
   "Read a metadata field from the user after PROMPT.
 The result is returned as a symbol. If there is no input,
 return DEFAULT."
-  (if-let ((field (completing-read (or prompt "Which field? ")
-                                   ezeka-metadata-fields
-                                   nil
-                                   t
-                                   nil
-                                   nil
-                                   default))
-           (_ (not (string-empty-p field))))
+  (if-let* ((nothing "<nothing>")
+            (field (completing-read (or prompt "Which field? ")
+                                    (cons nothing ezeka-metadata-fields)
+                                    nil
+                                    t
+                                    nil
+                                    nil
+                                    default))
+            (_ (and (not (string-empty-p field))
+                    (not (string= field nothing)))))
       (intern-soft field)
     default))
 
