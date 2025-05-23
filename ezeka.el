@@ -175,10 +175,10 @@ file interactively."
 
 (defun ezeka--update-symbolic-link (linkname &optional kasten new-name)
   "Update the symbolic link LINKNAME, selecting a new target for it.
-Unless KASTEN is specified, default to the same Kasten as
-the original target; if not a string (or called with \\[universal-argument]), select
-interactively. If NEW-NAME is a string, update the name of the link; if not a string (or
-with \\[universal-argument] \\[universal-argument]), ask for a new name interactively."
+Unless KASTEN is specified, default to the same Kasten as the
+original target; if not a string (or called with \\[universal-argument]), select
+interactively. If NEW-NAME is a string, update the name of the link;
+if not a string (or with \\[universal-argument] \\[universal-argument]), ask for a new name interactively."
   (interactive
    (list (ezeka--grab-dwim-file-target 'grab-from-links 'interactive)
          (equal current-prefix-arg '(4))
