@@ -198,7 +198,7 @@ use `ezeka-long-timestamp-format'."
                                      (t
                                       (concat "@" \.citekey))))
                         (?K . ,\.kasten)
-                        (?l . ,\.label)
+                        (?l . ,(or \.label "nil"))
                         (?L . ,(ezeka--format-link \.id))
                         (?M . ,(funcall _format-time \.modified))
                         (?p . ,\.parent)
