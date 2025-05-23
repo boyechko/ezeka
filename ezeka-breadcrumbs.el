@@ -356,15 +356,12 @@ can be a short string."
       (with-current-buffer (find-file-noselect file)
         (let* ((trailhead ezeka-breadcrumbs-trail-headline)
                (existing (org-find-exact-headline-in-buffer trailhead)))
-          (cond ((and (org-at-heading-p)
-                      (or (string= (nth 5 (org-heading-components))
-                                   ezeka-breadcrumbs-trail-headline)
-                          (y-or-n-p "Drop breadcrumbs here? ")))
+          (cond ((org-at-heading-p)
                  ;; Start trail on current heading
                  )
                 ((and existing
                       (y-or-n-p
-                       (format "There is a `%s' headline in this buffer. Use that? "
+                       (format "There is an existing trail `%s' in this buffer. Use that? "
                                trailhead)))
                  (goto-char (marker-position existing)))
                 ((and (not (org-at-heading-p))
