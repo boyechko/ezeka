@@ -332,8 +332,8 @@ The rubric consist of `ezeka-file-name-format', preceded by
 
 Groups 1-5 see `ezeka-file-name-regexp'.
 Group 6 is the stable rubric mark."
-  `(concat "\\(?6:" ,ezeka-header-rubric-stable-mark "\\)*"
-           ,(ezeka-file-name-regexp)))
+  `(concat "\\(?6:" ezeka-header-rubric-stable-mark "\\)*"
+           (ezeka-file-name-regexp)))
 
 (defun ezeka-decode-rubric (rubric)
   "Return alist of metadata from the RUBRIC line.
