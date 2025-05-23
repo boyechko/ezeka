@@ -175,10 +175,24 @@ should be files. On success, return LINKNAME."
     (message (concat "File `" (file-name-base file) "'...\n"
                      (mapconcat #'identity (nreverse attribs) "\n")))))
 
+(defun ezeka--directory-files (&optional kasten regexp)
+  "Return a list of all Ezeka files in KASTEN matching REGEXP.
+Unless KASTEN is specified, return a list of all Ezeka
+files. The REGEXP should match the entire `base-file-name'
+of the desired file(s)."
+  (directory-files-recursively
+   (expand-file-name
+    (if kasten
+        (ezeka-kasten-directory (ezeka-kasten kasten))
+      "")
+    ezeka-directory)
+   (concat "^[^#.].*" regexp ezeka-file-extension "$")))
+
 ;;;=============================================================================
 ;;; File Names
 ;;;=============================================================================
 ;; See [[https://help.dropbox.com/organize/file-names]]
+
 (defvar ezeka--pasturize-characters
   '(("/" "_")
     ("\\" "-")
@@ -510,7 +524,9 @@ Group 2 is the kasten, if specified."
        (optional (group-n 2 (one-or-more alpha)) ":")
        (group-n 1 (regexp ,(ezeka--id-regexp)))
        ,(if match-entire 'string-end 'word-end)))
+
 ;; TODO Replace with `ezeka-file-name-id'?
+;; TODO Replace "link" with "id," reserving "link" term for actual links
 (defun ezeka-file-link (file)
   "Return a fully qualified link to FILE or nil."
   (when (and (stringp file)
@@ -528,11 +544,14 @@ Group 2 is the kasten, if specified."
         ((string= (ezeka-file-link file1)
                   (ezeka-file-link file2)))))
 
+;; TODO Replace "link" with "id," reserving "link" term for actual links
+;; TODO Replace with `ezeka-id-valid-p'?
 (defun ezeka-link-p (string)
   "Return non-NIL if the STRING could be a link to a Zettel."
   (when (stringp string)
     (string-match-p (ezeka-link-regexp 'match-entire) string)))
 
+;; TODO Replace "link" with "id," reserving "link" term for actual links
 ;; TODO Replace with `ezeka-id-kasten'?
 (defun ezeka-link-kasten (link)
   "Return the name of the Kasten that matches LINK's ID type."
@@ -551,12 +570,14 @@ Group 2 is the kasten, if specified."
   (should (string= (ezeka-link-kasten "20240729T1511") "tempus"))
   (should (string= (ezeka-link-kasten "a-1234~56") "scriptum")))
 
+;; TODO Deprecate?
 (defun ezeka-link-id (link)
   "Return the ID part of the given LINK."
   (save-match-data
     (when (string-match (ezeka-link-regexp) link)
       (match-string 1 link))))
 
+;; TODO Deprecate?
 (defun ezeka-make-link (kasten id)
   "Make a new proper link to ID in KASTEN (string or `ezeka-kasten')."
   (let ((e-k (pcase kasten
@@ -593,6 +614,7 @@ Group 2 is the kasten, if specified."
                                 (eq (cadr x) type))
                               (ezeka-kaesten)))))
 
+;; TODO Replace "link" with "id," reserving "link" term for actual links
 (defun ezeka-link-file (link)
   "Return a full file path to the Zettel LINK.
 To do that, try wildcard expansion for the file name
@@ -637,6 +659,7 @@ otherwise."
                                  "Multiple matches found. Select one: "
                                  'require-match))))))
 
+;; TODO Replace "link" with "id," reserving "link" term for actual links
 (defun ezeka-link-path (link &optional metadata)
   "Return a full file path to the Zettel LINK.
 Unlike `ezeka-link-file', no attempts are made to check if
@@ -673,6 +696,319 @@ based on LINK and METADATA (if present)."
       (ezeka-kasten-id-type kasten)
     (signal 'ezeka-unknown-id-type-error (cons id kasten))))
 
+;;------------------------------------------------------------------------------
+;; Numerus Currens
+;;------------------------------------------------------------------------------
+
+(defun ezeka-make-numerus (letter numbers)
+  "Return new numerus currens ID based on LETTER and NUMBERS.
+Both LETTER and NUMBERS are strings."
+  (let ((result (concat letter "-" numbers)))
+    (if (string-match-p (ezeka--id-regexp :numerus) result)
+        result
+      (signal 'ezeka-error (list "Invalid numerus: %s" result)))))
+
+(defun ezeka-numerus-letter (id)
+  "Return the letter part of the ID as a string."
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (cl-subseq id 2)))
+
+(defun ezeka-numerus-numbers (id)
+  "Return the numbers part of the ID as a string."
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (cl-subseq id 0 1)))
+
+(defun ezeka-numerus-parts (id)
+  "Return a list of two elements: the letter and numbers parts of ID.
+Return NIL if the ID is not a numerus currens ID."
+  (when (string-match-p (ezeka--id-regexp :numerus) id)
+    (split-string id "-")))
+
+(defun abase26-letter-to-decimal (letter)
+  "Return the decimal number corresponding to LETTER, a string.
+Case-insensitive."
+  (if (string-match "[a-zA-Z]" letter)
+      (- (string-to-char (downcase letter)) ?a)
+    (signal 'wrong-type-argument (list 'stringp letter))))
+
+(defun abase26-decimal-to-letter (n)
+  "Return a string of number in abase26 corresponding decimal N."
+  (if (< -1 n 26)
+      (char-to-string (+ n ?a))
+    (signal 'wrong-type-argument (list '0-to-25-p n))))
+
+(defun abase26-encode (n &optional width)
+  "Return string representating integer N in 'alphabetic' base 26.
+If WIDTH is given, returns the string at least WIDTH wide, padded with
+abase26 equivalent of 0, namely 'a'."
+  (let (digits)
+    (while (> n 25)
+      (push (% n 26) digits)
+      (setq n (/ n 26)))
+    (push n digits)
+    (when width
+      (while (> width (length digits))
+        (push 0 digits)))
+    (apply #'concat (mapcar #'abase26-decimal-to-letter digits))))
+
+(defun abase26-decode (string)
+  "Return decimal integer for STRING representation in the 'alphabetic' base 26."
+  (let ((n (1- (length string)))
+        (total 0))
+    (dolist (d (split-string string "" t))
+      (setq total (+ total (* (abase26-letter-to-decimal d) (expt 26 n))))
+      (setq n (1- n)))
+    total))
+
+(defun ezeka--numerus-subdir-counts (&optional sort-test sort-key)
+  "Return an alist of numerus subdirs and number of notes in each.
+SORT-TEST is the predicate for sorting based on that SORT-
+KEY; the default is #'> (i.e. ascending). SORT-KEY is a
+function to access either `car' (the default) or `cdr' of
+the tuples in the form (LETTER . COUNT)."
+  (let ((letters (mapcar (lambda (letter)
+                           (cons letter
+                                 (length
+                                  (directory-files
+                                   (ezeka-id-directory
+                                    (ezeka-make-numerus (string letter) "0000"))
+                                   nil
+                                   (concat "\\." ezeka-file-extension "$")))))
+                         (number-sequence ?a ?z))))
+    (cl-sort letters (or sort-test #'<) :key (or sort-key #'car))))
+
+(defun ezeka-numerus-subdirectory-distribution (&optional sort-by-count)
+  "Displays distribution of notes in the numerus Kasten.
+With SORT-BY-COUNT (or \\[universal-argument]), sort by number of notes
+in ascending order."
+  (interactive "P")
+  (with-current-buffer (get-buffer-create "*Numerus Distribution*")
+    (erase-buffer)
+    (apply 'insert (mapcar (lambda (x) (format "%c: %d note(s)\n" (car x) (cdr x)))
+                           (ezeka--numerus-subdir-counts
+                            (when sort-by-count '<)
+                            (when sort-by-count 'cdr))))
+    (view-mode))
+  (pop-to-buffer "*Numerus Distribution*"))
+
+(defun ezeka--scantest-numerus-subdirs (&optional n counts)
+  "Return a list of numerus subdirs with Nth fewest number of notes.
+N can is an integer between 0 (fewest notes) and, depending
+on actual counts, some ceiling between 0 (every subdir has
+same number of notes) and M, total number of subdirs less
+one (every subdir has unique number of notes). If N is not
+an integer or is outside of 0..M range, return the subdirs
+with most notes. COUNTS are from `ezeka--numerus-subdir-counts'."
+  (let* ((counts (if counts
+                     (cl-sort (copy-sequence counts) #'< :key #'cdr)
+                   (ezeka--numerus-subdir-counts #'< #'cdr)))
+         (unique (cl-remove-duplicates (mapcar 'cdr counts)))
+         (n (cond ((not n) 0)
+                  ((and (integerp n) (< -1 n (length unique))) n)
+                  (t (1- (length unique))))))
+    (cl-remove-if-not
+     (lambda (x) (= (nth n unique) (cdr x)))
+     counts)))
+
+(defun ezeka--pregenerated-numerus (filename)
+  "Retrieve next numerus from FILENAME."
+  (with-current-buffer (find-file-noselect filename)
+    (let ((left (count-lines (point-min) (point-max)))
+          result)
+      (unwind-protect
+          (string-trim
+           (delete-and-extract-region
+            (point-min)
+            (search-forward-regexp "[[:space:]]" nil t)))
+        (let ((inhibit-message t))
+          (basic-save-buffer))
+        (message "%d pregenerated numer%s left"
+                 left
+                 (if (= left 1) "us" "i"))
+        nil))))
+
+(defun ezeka--read-new-numerus-currens-method ()
+  "Ask the user how to generate the new numeri currentes."
+  (pcase (completing-read "Generate a new numerus currens ..."
+                          '("automatically" "manually" "randomly" "selectively")
+                          nil
+                          t)
+    ("automatically" 'auto)
+    ("randomly" 'random)
+    ("manually" 'manual)
+    ("selectively" 'selective)))
+
+(defun ezeka-new-numerus-currens (&optional method)
+  "Return the next unused numerus currens.
+METHOD, if given, overrides `ezeka-new-numerus-currens-method'."
+  (interactive (list (ezeka--read-new-numerus-currens-method)))
+  (let* ((method (or method ezeka-new-numerus-currens-method))
+         (method (if (eq method 'ask)
+                     (ezeka--read-new-numerus-currens-method)
+                   method))
+         (method-desc (format "%s" method))
+         (error-msg "")
+         (auto-elevate 0)
+         (auto-counts (when (eq method 'auto) (ezeka--numerus-subdir-counts)))
+         auto-scantest
+         (_prompt (lambda (prompt)
+                    "Assemble a full prompt based on PROMPT."
+                    (format "%s%sMethod: %s\n%s"
+                            error-msg
+                            (if (string-empty-p error-msg) "" "\n")
+                            method-desc prompt)))
+         (_already-exists-p
+          (lambda (candidate)
+            "Returns non-nil if CANDIDATE does not already exists."
+            (ignore-errors
+              (ezeka-link-file (ezeka-make-link "numerus" candidate)))))
+         (_acceptablep
+          (lambda (candidate)
+            "Check if the CANDIDATE is unique and acceptable to the user."
+            (let ((choice
+                   (read-char-choice
+                    (funcall _prompt
+                             (format "Is %s acceptable? (y or n, N to elevate) "
+                                     candidate))
+                    '(?y ?Y ?n ?N))))
+              (cond ((member choice '(?y ?Y)) candidate)
+                    ((= choice ?N)
+                     (cl-incf auto-elevate)
+                     nil)
+                    (t nil)))))
+         (_random-numerus
+          (lambda (char)
+            "Generate a random numerus currens starting with CHAR."
+            (ezeka-make-numerus (string char) (format "%04d" (random 10000))))))
+    (catch 'success
+      (while t
+        (setq id (pcase method
+                   ((pred stringp)
+                    (setq method-desc "pregenerated")
+                    (ezeka--pregenerated-numerus method))
+                   ('manual
+                    (ezeka--read-id (funcall _prompt "New numerus currens: ")
+                                    :numerus))
+                   ('selective
+                    (funcall _random-numerus
+                             (read-char-choice (funcall _prompt "Starting letter (a-z): ")
+                                               (number-sequence ?a ?z))))
+                   ('auto
+                    (setq auto-scantest (cl-union
+                                         auto-scantest
+                                         (ezeka--scantest-numerus-subdirs
+                                          auto-elevate auto-counts))
+                          method-desc (format "auto [%s]"
+                                              (mapconcat (lambda (c)
+                                                           (string (car c)))
+                                                         auto-scantest
+                                                         ", ")))
+                    (funcall _random-numerus
+                             (car (elt auto-scantest
+                                       (random (length auto-scantest))))))
+                   ('random
+                    (funcall _random-numerus
+                             (seq-random-elt (number-sequence ?a ?z))))
+                   (_
+                    (signal 'ezeka-error
+                            (list "Don't know how to handle METHOD: %s" method)))))
+        (cond ((not (ezeka-id-valid-p id :numerus))
+               (setq error-msg
+                 (format "`%s' is not a valid numerus currens ID." id)))
+              ((funcall _already-exists-p id)
+               (setq error-msg
+                 (format "A file with ID `%s' already exists." id)))
+              ((funcall _acceptablep id)
+               (throw 'success id)))))))
+
+;; TODO: Somehow make this part of `ezeka-kasten'. Function?
+(defun ezeka--generate-id (kasten &optional batch)
+  "Return the next unused ID for the given KASTEN.
+If BATCH is non-nil, assume that the user cannot respond to
+interactive prompts."
+  (let ((type (ezeka-kasten-id-type (ezeka-kasten kasten))))
+    (pcase type
+      (':tempus (ezeka-tempus-currens))
+      (':numerus (ezeka-new-numerus-currens
+                  (when (and batch
+                             (member ezeka-new-numerus-currens-method
+                                     '(ask selective)))
+                    'auto)))
+      (':scriptum (ezeka-scriptum-id))
+      (_ (signal 'ezeka-error (list "Not implemented for ID type `%s'" type))))))
+
+;;------------------------------------------------------------------------------
+;; Tempus Currens
+;;------------------------------------------------------------------------------
+
+(defun ezeka-tempus-currens (&optional time)
+  "Return a tempus currens ID based on the given Emacs TIME object.
+If TIME is nil, default to current time."
+  (format-time-string "%Y%m%dT%H%M" time))
+
+(defun ezeka-tempus-currens-id-for (link-or-file &optional interactive)
+  "Return tempus currens ID for the given Zettel LINK-OR-FILE.
+INTERACTIVE is non-NIL when called interactively."
+  (interactive
+   (list (ezeka-file-link (ezeka--grab-dwim-file-target))
+         (prefix-numeric-value current-prefix-arg)))
+  (let ((link (if (ezeka-link-p link-or-file)
+                  link-or-file
+                (ezeka-file-link link-or-file)))
+        (file (if (file-exists-p link-or-file)
+                  link-or-file
+                (ezeka-link-file link-or-file))))
+    (if (eq (ezeka-kasten-id-type (ezeka-kasten (ezeka-link-kasten link)))
+            :tempus)
+        ;; If already tempus currens, just return that id
+        (ezeka-link-id link)
+      ;; Otherwise come up with an appropriate ID based on the metadata
+      (let* ((file (ezeka-link-file link))
+             (mdata (ezeka-file-metadata file))
+             oldname)
+        (cond ((setq oldname (ezeka--resurrectable-oldname file :tempus mdata))
+               ;; One of the old names was a tempus currens; just use that
+               (ezeka-link-id oldname))
+              ((alist-get 'created mdata)
+               (ezeka-tempus-currens
+                (ezeka--complete-time (alist-get 'created mdata))))
+              (t
+               ;; Can't figure out automatically; ask the user
+               (ezeka--read-id "No created metadata; make up your own name: "
+                               :tempus
+                               (ezeka--generate-id (ezeka-link-kasten link)
+                                                   interactive))))))))
+
+;;------------------------------------------------------------------------------
+;; Scriptum
+;;------------------------------------------------------------------------------
+
+(defun ezeka-scriptum-id (&optional project time)
+  "Return a scriptum ID based on PROJECT and Emacs TIME object.
+If TIME is nil, default to current time."
+  (let ((_scriptum-id
+         (lambda (project n)
+           "Return scriptum ID as a string based on PROJECT and N."
+           (format "%s~%02d" project n))))
+    (while (not project)
+      (setq project
+        (or (ezeka--select-file
+             (ezeka--directory-files (ezeka-kasten "numerus"))
+             "Select project: ")
+            (ezeka-link-file
+             (ezeka--read-id
+              "Scriptum project (numerus currens): "
+              :numerus)))))
+    (setq project (ezeka-file-link project))
+    ;; TODO: If this is first entry in scriptum project, create a project
+    ;; heading <numerus>~00 with caption for the project? Or a symbolic link
+    ;; to numerus?
+    (funcall _scriptum-id
+             project
+             (cl-find-if-not (lambda (n)
+                               (ezeka-link-file
+                                (funcall _scriptum-id project n)))
+                             (number-sequence 1 99)))))
 
 (provide 'ezeka-file)
 ;;; ezeka-file.el ends here
