@@ -191,13 +191,18 @@ TARGET and SOURCE."
   "Return a breadcrumbs string based on supplied keywords.
 TARGET and SOURCE are file paths to Zettel notes; COMMENT is
 a brief explanation; TIME is Emacs-encoded time."
-  (save-match-data
-    (ezeka--concat-strings " "
-      (when comment (format "%s" comment))
-      (when target (if (file-exists-p target)
-                       (ezeka-format-metadata "%t [[%i]]" (ezeka-file-metadata target))
-                     (ezeka-format-file-name "%c [[%i]]" target)))
-      (when time (format-time-string "@ [%F %a %R]" time)))))
+  (let ((t-file (ezeka--file target)))
+    (save-match-data
+      (ezeka--concat-strings " "
+        (when comment (format "%s" comment))
+        (cond ((null target) nil)
+              ((ezeka-file-p t-file 'file-exists)
+               (ezeka-format-metadata "%t [[%i]]" (ezeka-file-metadata t-file)))
+              ((ezeka-file-p target)
+               (ezeka-format-file-name "%c [[%i]]" t-file))
+              (t
+               (format "%s" target)))
+        (when time (format-time-string "@ [%F %a %R]" time))))))
 
 ;;;###autoload
 (defun ezeka-breadcrumbs-drop (&optional target source comment)
