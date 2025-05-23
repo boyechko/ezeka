@@ -790,6 +790,35 @@ update it unconditionally."
                         ezeka-metadata-fields))
           (ezeka--make-header-read-only (current-buffer)))))))
 
+(defun ezeka--update-metadata-values (filename metadata &rest args)
+  "Update FILENAME's header, replacing METADATA values with new ones.
+Afterwards, save the file while ignoring its read only status. If
+METADATA is not given, read it from file first. The rest of the ARGS
+should consist of KEY and VALUE pairs.
+
+\(fn FILENAME METADATA &REST KEY VAL KEY VAL ...)"
+  (declare (indent 2))
+  (when (/= (logand (length args) 1) 0)
+    (signal 'wrong-number-of-arguments (list 'setf (length args))))
+  (let* ((already-open (get-file-buffer filename))
+         (buf (or already-open (find-file-noselect filename))))
+    (save-excursion
+      (unwind-protect
+          (with-current-buffer buf
+            (let ((already-modified (buffer-modified-p))
+                  (metadata (or metadata (ezeka-file-metadata filename))))
+              (while args
+                (setq metadata
+                  (ezeka-set-metadata-value metadata (pop args) (pop args))))
+              (ezeka--replace-file-header filename metadata)
+              (when (and (not already-modified)
+                         (if (eq ezeka-save-after-metadata-updates 'confirm)
+                             (y-or-n-p "Save? ")
+                           ezeka-save-after-metadata-updates))
+                (save-buffer))))
+        (unless already-open
+          (kill-buffer-if-not-modified buf))))))
+
 (defun ezeka--metadata-equal-p (md1 md2)
   "Return non-nil if the values of MD1 and MD2 are equal."
   (and (= (length md1) (length md2))
