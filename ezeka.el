@@ -62,10 +62,6 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
   :options '(nil t confirm)
   :group 'ezeka)
 
-;;;=============================================================================
-;;; UI
-;;;=============================================================================
-
 (defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt history)
   "Edit NEW-STRING in minibuffer, showing it in parallel to OLD-STRING.
 If NEW-STRING is nil, default to OLD-STRING. If given,
@@ -217,6 +213,28 @@ with \\[universal-argument] \\[universal-argument]), ask for a new name interact
           (message "Symbolic link updated")))
     (user-error "This is not a symbolic link")))
 
+(defun ezeka-handle-symlink (file &optional same-window)
+  "Prompt how to handle FILE if it is a symlink.
+If SAME-WINDOW is non-NIL, open the file interactive he same
+window. Return T if an action was taken, nil otherwise."
+  (when-let* ((target (file-symlink-p file))
+              (action (intern-soft
+                       (completing-read "What to do with this symbolic link? "
+                                        '(follow create update delete)
+                                        nil t nil nil "follow"))))
+    (cond ((eq action 'follow) (ezeka-find-file file same-window))
+          ((eq action 'update) (ezeka--update-symbolic-link file))
+          ((eq action 'delete)
+           (when (y-or-n-p "Really delete this symbolic link? ")
+             (ezeka--add-to-system-log 'delete-symlink nil
+               'note (file-name-base file)
+               'target (file-name-base target))
+             (delete-file file)))
+          ((eq action 'create)
+           (when (y-or-n-p "Delete symlink and create a new note? ")
+             (ezeka-replace-placeholder file)))
+          (t (message "No action taken.")))
+    t))
 
 ;;;=============================================================================
 ;;; Zettel Links
@@ -263,29 +281,6 @@ enclosed in square brackets."
   "Return the Zettel link at point.
 Needs to be called after `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
-
-(defun ezeka-handle-symlink (file &optional same-window)
-  "Prompt how to handle FILE if it is a symlink.
-If SAME-WINDOW is non-NIL, open the file interactive he same
-window. Return T if an action was taken, nil otherwise."
-  (when-let* ((target (file-symlink-p file))
-              (action (intern-soft
-                       (completing-read "What to do with this symbolic link? "
-                                        '(follow create update delete)
-                                        nil t nil nil "follow"))))
-    (cond ((eq action 'follow) (ezeka-find-file file same-window))
-          ((eq action 'update) (ezeka--update-symbolic-link file))
-          ((eq action 'delete)
-           (when (y-or-n-p "Really delete this symbolic link? ")
-             (ezeka--add-to-system-log 'delete-symlink nil
-               'note (file-name-base file)
-               'target (file-name-base target))
-             (delete-file file)))
-          ((eq action 'create)
-           (when (y-or-n-p "Delete symlink and create a new note? ")
-             (ezeka-replace-placeholder file)))
-          (t (message "No action taken.")))
-    t))
 
 (defun ezeka-find-link (link &optional same-window)
   "Find the given LINK.
@@ -610,32 +605,6 @@ Called interactively, get the LINK at point or to current Zettel."
   (rgrep (string-replace " " ".*" string)
          "*.txt" (file-name-as-directory ezeka-directory) nil))
 
-;; To show the beginning of Zettel title in the mode-line,
-;; add the following to the user configuration:
-;;
-;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
-(defun ezeka-show-title-in-mode-line ()
-  "Change `mode-line-misc-info' to show Zettel's title from metadata."
-  (interactive)
-  (when (and (ezeka-file-p buffer-file-name)
-             (not (zerop (buffer-size))))
-    (save-excursion
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (let ((metadata
-               (ezeka-decode-rubric
-                (buffer-substring-no-properties
-                 (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
-                 (point-at-eol)))))
-          (when metadata
-            (let ((words (split-string (alist-get 'title metadata))))
-              (setq-local mode-line-misc-info
-                          (replace-regexp-in-string
-                           "/" "" (mapconcat #'identity
-                                    (cl-subseq words 0 (min 5 (length words)))
-                                    " "))))))))))
-
 (defun ezeka-update-link-description (&optional field delete)
   "Replace text from point to next Zettel link with its title.
 If given (or called with \\[universal-argument]), FIELD specifies a different
@@ -671,7 +640,7 @@ the text instead."
           (ezeka-insert-with-spaces text " "))))))
 
 ;;;=============================================================================
-;;; Link hints via overlays
+;;; Link hints
 ;;;=============================================================================
 
 (defcustom ezeka-make-help-echo-overlays t
@@ -718,6 +687,71 @@ the text instead."
         (when ezeka-make-help-echo-overlays
           (while (re-search-forward overlayable nil t)
             (ezeka--make-help-echo-overlay (match-data))))))))
+
+;; To show the beginning of Zettel title in the mode-line,
+;; add the following to the user configuration:
+;;
+;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
+(defun ezeka-show-title-in-mode-line ()
+  "Change `mode-line-misc-info' to show Zettel's title from metadata."
+  (interactive)
+  (when (and (ezeka-file-p buffer-file-name)
+             (not (zerop (buffer-size))))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (let ((metadata
+               (ezeka-decode-rubric
+                (buffer-substring-no-properties
+                 (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
+                 (point-at-eol)))))
+          (when metadata
+            (let ((words (split-string (alist-get 'title metadata))))
+              (setq-local mode-line-misc-info
+                          (replace-regexp-in-string
+                           "/" "" (mapconcat #'identity
+                                             (cl-subseq words 0 (min 5 (length words)))
+                                             " "))))))))))
+
+;; Add the following hook to enact:
+;;
+;; (add-hook 'post-command-hook 'ezeka-show-tooltip-with-link-title)
+;;
+;; Set absolute values for tooltip location
+;; (add-to-list 'tooltip-frame-parameters '(top . 1015))
+;; (add-to-list 'tooltip-frame-parameters '(left . 560))
+(defun ezeka-show-tooltip-with-link-title ()
+  "If the cursor is at a Zettel link, show a tooltip with its title."
+  (while-no-input
+    (redisplay)
+    (when-let* ((link (and (ezeka-link-at-point-p)
+                           (ezeka-link-at-point)))
+                (position (window-absolute-pixel-position))
+                (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
+      (tooltip-show
+       (format "%s%s%s" (alist-get 'title metadata)
+               (if (alist-get 'citekey metadata) " " "")
+               (or (alist-get 'citekey metadata) ""))))))
+
+;; Add the following hook to enact:
+;;
+;; (add-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
+;; (remove-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
+(defun ezeka-show-link-title-in-mode-line ()
+  "If the cursor is at a Zettel link, show the title in the mode line."
+  (while-no-input
+    (redisplay)
+    (if-let* ((link (and (ezeka-link-at-point-p)
+                         (ezeka-link-at-point)))
+              (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
+        (setq-local mode-line-misc-info
+                    (propertize
+                     (format "%s%s%s" (alist-get 'title metadata)
+                             (if (alist-get 'citekey metadata) " " "")
+                             (or (alist-get 'citekey metadata) ""))
+                     'face '(:slant italic :height 0.9)))
+      (setq-local mode-line-misc-info (symbol-value mode-line-misc-info)))))
 
 ;;;=============================================================================
 ;;; Genealogical
@@ -933,45 +967,6 @@ information for Zettelkasten work."
                         (alist-get 'kasten metadata)))
             "%b")))
 
-;; Add the following hook to enact:
-;;
-;; (add-hook 'post-command-hook 'ezeka-show-tooltip-with-link-title)
-;;
-;; Set absolute values for tooltip location
-;; (add-to-list 'tooltip-frame-parameters '(top . 1015))
-;; (add-to-list 'tooltip-frame-parameters '(left . 560))
-(defun ezeka-show-tooltip-with-link-title ()
-  "If the cursor is at a Zettel link, show a tooltip with its title."
-  (while-no-input
-    (redisplay)
-    (when-let* ((link (and (ezeka-link-at-point-p)
-                           (ezeka-link-at-point)))
-                (position (window-absolute-pixel-position))
-                (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-      (tooltip-show
-       (format "%s%s%s" (alist-get 'title metadata)
-               (if (alist-get 'citekey metadata) " " "")
-               (or (alist-get 'citekey metadata) ""))))))
-
-;; Add the following hook to enact:
-;;
-;; (add-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
-;; (remove-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
-(defun ezeka-show-link-title-in-mode-line ()
-  "If the cursor is at a Zettel link, show the title in the mode line."
-  (while-no-input
-    (redisplay)
-    (if-let* ((link (and (ezeka-link-at-point-p)
-                         (ezeka-link-at-point)))
-              (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-        (setq-local mode-line-misc-info
-                    (propertize
-                     (format "%s%s%s" (alist-get 'title metadata)
-                             (if (alist-get 'citekey metadata) " " "")
-                             (or (alist-get 'citekey metadata) ""))
-                     'face '(:slant italic :height 0.9)))
-      (setq-local mode-line-misc-info (symbol-value mode-line-misc-info)))))
-
 (defun ezeka-completion-table (files &optional get-metadata)
   "Turn list of FILES into completion table suitable for `completing-read'.
 If given, GET-METADATA specifies whether to get each file's
@@ -1161,56 +1156,6 @@ function."
   (if (eq :numerus (ezeka-kasten-id-type (ezeka-kasten kasten)))
       (ezeka--read-genus prompt special default)
     (ezeka--read-category prompt special default)))
-
-(defun ezeka--skip-line-and-insert (&rest args)
-  "Insert a blank line and insert ARGS."
-  (let ((pos (point)))
-    (when (re-search-backward "^[^\n]" nil 'noerror)
-      (end-of-line)
-      (delete-region (point) pos))
-    (apply #'insert "\n\n" args)))
-
-(defun ezeka-add-change-log-entry (filename entry &optional section)
-  "Add a change log ENTRY in FILENAME's SECTION.
-If SECTION is nil, default to `Change Log'."
-  (declare (indent 1))
-  (interactive (list buffer-file-name nil nil))
-  (let* ((section (or section "Change Log"))
-         (headline (org-find-exact-headline-in-buffer section))
-         (date-item (format "- [%s] :: " (ezeka-timestamp)))
-         entry-pos)
-    (save-restriction
-      (save-excursion
-        (if headline
-            (progn
-              (goto-char headline)
-              (end-of-line))
-          (goto-char (point-max))
-          (org-insert-heading nil nil 'top)
-          (insert section))
-        (org-narrow-to-subtree)
-        (org-back-to-heading-or-point-min)
-        (if (search-forward date-item nil 'noerror)
-            (let ((item-start (match-beginning 0)))
-              (org-end-of-item)         ; actually moves pt to next item
-              (when (re-search-backward "\\.\\(?1:\"\\)*" item-start t)
-                (replace-match "\\1"))
-              (insert "; ")
-              (when entry
-                (setq entry (concat (downcase (cl-subseq entry 0 1))
-                                    (cl-subseq entry 1)))))
-          (ezeka--skip-line-and-insert date-item))
-        (if (null entry)
-            (setq entry-pos (point))
-          (insert entry)
-          (org-fill-element))))
-    (when (numberp entry-pos)
-      (goto-char entry-pos))))
-
-(defun ezeka--demote-quotes (string)
-  "Demote double quotes in STRING to single quotes.
-Only ASCII double and single quotes are touched."
-  (string-replace "\"" "'" string))
 
 ;; TODO: Rewrite into two separate functions! title-and-caption could be
 ;; separate function.
@@ -1669,6 +1614,60 @@ With \\[universal-argument] ARG, asks for a different name."
        (ezeka-link-file
         (ezeka-make-link kasten (file-name-base file)))
      (call-interactively #'rb-rename-file-and-buffer))))
+
+;;;=============================================================================
+;;; Change Log
+;;;=============================================================================
+
+(defun ezeka--skip-line-and-insert (&rest args)
+  "Insert a blank line and insert ARGS."
+  (let ((pos (point)))
+    (when (re-search-backward "^[^\n]" nil 'noerror)
+      (end-of-line)
+      (delete-region (point) pos))
+    (apply #'insert "\n\n" args)))
+
+(defun ezeka--demote-quotes (string)
+  "Demote double quotes in STRING to single quotes.
+Only ASCII double and single quotes are touched."
+  (string-replace "\"" "'" string))
+
+(defun ezeka-add-change-log-entry (filename entry &optional section)
+  "Add a change log ENTRY in FILENAME's SECTION.
+If SECTION is nil, default to `Change Log'."
+  (declare (indent 1))
+  (interactive (list buffer-file-name nil nil))
+  (let* ((section (or section "Change Log"))
+         (headline (org-find-exact-headline-in-buffer section))
+         (date-item (format "- [%s] :: " (ezeka-timestamp)))
+         entry-pos)
+    (save-restriction
+      (save-excursion
+        (if headline
+            (progn
+              (goto-char headline)
+              (end-of-line))
+          (goto-char (point-max))
+          (org-insert-heading nil nil 'top)
+          (insert section))
+        (org-narrow-to-subtree)
+        (org-back-to-heading-or-point-min)
+        (if (search-forward date-item nil 'noerror)
+            (let ((item-start (match-beginning 0)))
+              (org-end-of-item)         ; actually moves pt to next item
+              (when (re-search-backward "\\.\\(?1:\"\\)*" item-start t)
+                (replace-match "\\1"))
+              (insert "; ")
+              (when entry
+                (setq entry (concat (downcase (cl-subseq entry 0 1))
+                                    (cl-subseq entry 1)))))
+          (ezeka--skip-line-and-insert date-item))
+        (if (null entry)
+            (setq entry-pos (point))
+          (insert entry)
+          (org-fill-element))))
+    (when (numberp entry-pos)
+      (goto-char entry-pos))))
 
 ;;;=============================================================================
 ;;; Org-Mode Intergration
