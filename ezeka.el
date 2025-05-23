@@ -1464,8 +1464,10 @@ clear the keywords without attempting to edit them."
 
 (defun ezeka-add-reading (filename &optional date)
   "Add DATE to the FILENAME's readings."
-  (interactive (list (ezeka--grab-dwim-file-target)
-                     (org-read-date nil nil nil nil nil nil 'inactive)))
+  (interactive
+   (list (ezeka--grab-dwim-file-target)
+         (let ((org-read-date-popup-calendar t))
+           (org-read-date nil nil nil "When did you read this? " nil nil 'inactive))))
   (let ((mdata (ezeka-file-metadata filename)))
     (ezeka--update-metadata-values filename mdata
       'readings (cons date (alist-get 'readings mdata)))))
