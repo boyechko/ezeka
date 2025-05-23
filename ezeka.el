@@ -554,7 +554,7 @@ With \\[universal-argument] \\[universal-argument], open the file in Finder with
                     (ezeka-file-link file))))
         (ezeka--kill-ring-clipboard-save link)
         (when (= arg 16)
-          (shell-command (format "open -R '%s' &" file)))))))
+          (shell-command (format "open -R \"%s\" &" file)))))))
 
 (defun ezeka-kill-ring-save-next-link ()
   "Save the first link at or after point (but before EOL)."
