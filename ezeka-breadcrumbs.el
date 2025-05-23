@@ -399,6 +399,9 @@ can be a short string."
                            ezeka-breadcrumbs-trail-headline)
                   (y-or-n-p "Drop breadcrumbs under this heading? ")))
          (call-interactively 'ezeka-breadcrumbs-start-trail))
+        ((= arg 1)
+         (or (ezeka-breadcrumbs-visit-trailhead)
+             (call-interactively 'ezeka-breadcrumbs-start-trail)))
         ((and (= arg 1)
               (ezeka--breadcrumbs-heading)
               (y-or-n-p (format "There is a %s heading in this buffer, switch to it? "
@@ -406,9 +409,6 @@ can be a short string."
          (save-excursion
            (call-interactively 'ezeka-breadcrumbs-start-trail)
            (goto-char (marker-position (ezeka--breadcrumbs-heading)))))
-        ((= arg 1)
-         (or (ezeka-breadcrumbs-visit-trailhead)
-             (call-interactively 'ezeka-breadcrumbs-start-trail)))
         ((= arg 4)
          (ezeka-breadcrumbs-stop-trail))))
 
