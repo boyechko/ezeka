@@ -1007,7 +1007,7 @@ See also `ezeka--read-only-region'."
       (if (cl-find-if (lambda (ol)
                         (overlay-get ol 'ezeka-text-type))
                       (overlays-at (car beg-end)))
-          (ezeka--writeable-region (car beg-end) (cdr beg-end))
+          (ezeka--writeable-region (car beg-end) (point-max))
         (ezeka--read-only-region (car beg-end) (cdr beg-end))))))
 
 ;;;=============================================================================
