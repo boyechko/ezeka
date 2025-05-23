@@ -393,15 +393,19 @@ destination kasten."
          :before)
       (ezeka--insert-link-with-spaces link))))
 
-(defun ezeka-octavo-insert-link-to-kasten (kasten &optional sort)
+(defun ezeka-octavo-insert-link-to-kasten (kasten &optional sort link-only)
   "Insert a link to KASTEN.
-If SORT is non-nil, set `vertico-sort-function' to it."
-  (interactive (list (ezeka--read-kasten)))
-  (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha)))
-    (ezeka-insert-link-with-metadata
-     (ezeka--select-file (ezeka--directory-files (ezeka-kasten kasten))
-                         "Insert link to: ")
-     (list (ezeka--read-metadata-field)))))
+If SORT is non-nil, set `vertico-sort-function' to it.
+If LINK-ONLY (or \\[universal-argument]) is non-nil, insert plain link."
+  (interactive (list (ezeka--read-kasten) nil current-prefix-arg))
+  (let ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
+        (target (ezeka--select-file
+                 (ezeka--directory-files (ezeka-kasten kasten))
+                 "Insert link to: ")))
+    (funcall-interactively 'ezeka-insert-link-with-metadata
+                           target
+                           (unless link-only
+                             (list (ezeka--read-metadata-field))))))
 
 (defun ezeka-octavo--link-context (&optional n)
   "Return a string of N words before point."
