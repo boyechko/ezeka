@@ -2224,6 +2224,7 @@ If QUIETLY is non-nil, don't add anything to the logs."
                        ezeka-placeholder-marker-format metadata)
                       " ")
               (org-insert-time-stamp nil 'with-hm 'inactive)
+              (org-set-tags '("placeholder"))
               (switch-to-buffer buf))
           t)))))
 
