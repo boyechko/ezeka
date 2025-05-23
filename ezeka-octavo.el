@@ -220,7 +220,7 @@ Return `ezeka-octavo-metadata-alist'."
                  file
                  (file-attribute-modification-time (file-attributes file))
                  metadata))))
-     (octavo--directory-files t))))
+     (ezeka--directory-files))))
 
 (defun ezeka-octavo-alist ()
   "See `octavo-alist-function'."
@@ -355,7 +355,7 @@ destination kasten."
                  current-prefix-arg)))
   (let ((lines (count-lines start end))
         (moved 1)
-        (octavo-alist (octavo--alist (octavo--directory-files))))
+        (octavo-alist (octavo--alist (ezeka--directory-files))))
     (goto-char start)
     (while (re-search-forward octavo-id-regexp end t)
       (let* ((id (match-string-no-properties 1))
@@ -459,14 +459,13 @@ If SORT is non-nil, set `vertico-sort-function' to it."
              kasten
            (ezeka--read-kasten))
          current-prefix-arg))
-  (ezeka-octavo-with-kasten kasten
-    (let* ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
-           (file (ezeka--select-file (octavo--directory-files 'full)
-                                     (if other-window
-                                         "Find note in other window: "
-                                       "Find note: "))))
-      (unless (ezeka-handle-symlink file (not other-window))
-        (ezeka-find-file file (not other-window))))))
+  (let* ((vertico-sort-function (or sort 'vertico-sort-history-alpha))
+         (file (ezeka--select-file (ezeka--directory-files kasten)
+                                   (if other-window
+                                       "Find note in other window: "
+                                     "Find note: "))))
+    (unless (ezeka-handle-symlink file (not other-window))
+      (ezeka-find-file file (not other-window)))))
 
 (defmacro ezeka-octavo--define-kasten-finders (kasten &optional sort)
   "Define a set of new commands for finding notes in KASTEN.
