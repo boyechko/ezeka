@@ -240,8 +240,7 @@ from. COMMENT can be added instead of TARGET."
                                                          :comment comment))
                       (message "Dropped breadcrumbs for `%s' as %s"
                                (ezeka-file-name-id t-file)
-                               status))
-                    (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail)))
+                               status)))
                    ((pred markerp)
                     (pop-to-buffer (overlay-buffer ezeka--breadcrumbs-trail))
                     (goto-char (marker-position status)))
