@@ -240,29 +240,6 @@ window. Return T if an action was taken, nil otherwise."
 ;;; Zettel Links
 ;;;=============================================================================
 
-(defvar ezeka--new-child-metadata nil
-  "An alist of new children and their metadata.")
-
-(defmacro ezeka--new-child-metadata (link)
-  "Return metadata alist for child LINK."
-  `(alist-get ,link ezeka--new-child-metadata nil nil #'string=))
-
-;; TODO Metadata really should be a `defstruct'
-(defun ezeka--set-new-child-metadata (link metadata &rest plist)
-  "Set the metadata property values for LINK.
-If METADATA is given, set the child metadata to that with
-modifications specified in PLIST."
-  (declare (indent 2))
-  (let ((mdata (or metadata (ezeka--new-child-metadata link))))
-    (cond ((null plist))
-          ((and plist (zerop (mod (length plist) 2)))
-           (while plist
-             (push (cons (car plist) (cadr plist)) mdata)
-             (setq plist (cddr plist)))
-           (setf (ezeka--new-child-metadata link) mdata))
-          (t
-           (signal 'wrong-type-argument (list 'key-value-pairs-p plist))))))
-
 (defun ezeka-link-at-point-p (&optional freeform)
   "Return non-nil if the thing at point is a wiki link (i.e. [[xxx#YYY]]).
 The first group is the Zettel ID for the target. The second
@@ -1503,10 +1480,6 @@ clear the keywords without attempting to edit them."
     (ezeka--update-metadata-values filename mdata
       'oldnames oldnames)))
 
-;;;=============================================================================
-;;; Populating Files
-;;;=============================================================================
-
 (defvar ezeka--read-title-history nil
   "History variable for Zettel titles.")
 
@@ -1534,73 +1507,6 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
                      (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))
                    nil
                    t))
-
-(defun ezeka-insert-header-template
-    (&optional link label title parent citekey metadata)
-  "Insert header template into the current buffer.
-If given, populate the header with the LINK, LABEL, TITLE, PARENT, and
-CITEKEY. Anything not specified is taken from METADATA, if available."
-  (interactive
-   (let* ((link (if buffer-file-name
-                    (ezeka-file-link buffer-file-name)
-                  (user-error "This command can only be called from a Zettel")))
-          (mdata (or (ezeka--new-child-metadata link)
-                     (ezeka-decode-rubric (file-name-base buffer-file-name)))))
-     (let-alist mdata
-       (list
-        link
-        (or .label
-            (setf (alist-get 'label mdata)
-                  (ezeka--read-label (ezeka-link-kasten link))))
-        (setf (alist-get 'title mdata)
-              (ezeka--read-title "Title: " (or .title .caption)))
-        (setf (alist-get 'parent mdata)
-              (ezeka--read-id "Parent? " nil .parent))
-        (setf (alist-get 'citekey mdata)
-              (ezeka--read-citekey "Citekey? " .citekey))
-        (prog1 mdata
-          (ezeka--set-new-child-metadata link mdata))))))
-  (let* ((link (or link (alist-get 'link metadata)))
-         (mdata (ezeka-metadata link
-                  'link link
-                  'id (or (alist-get 'id metadata) (ezeka-link-id link))
-                  'label (or label (alist-get 'label metadata))
-                  'title (or title
-                             (alist-get 'title metadata)
-                             (alist-get 'caption metadata)
-                             (ezeka-file-name-caption
-                              (alist-get 'rubric metadata)))
-                  'parent (or parent (alist-get 'parent metadata))
-                  'citekey (or citekey (alist-get 'citekey metadata))))
-         (inhibit-read-only t)
-         (content (buffer-substring-no-properties (point-min) (point-max))))
-    (let-alist mdata
-      (erase-buffer)
-      (goto-char (point-min))
-      (insert
-       (concat ezeka-header-rubric-key
-               ": "
-               (ezeka-encode-rubric mdata)))
-      (insert "\ntitle: " .title)
-      (insert (format "\ncreated: %s\n"
-                      ;; Insert creation time, making it match a tempus currens filename
-                      (ezeka-timestamp (when (eq :tempus (ezeka-id-type .id))
-                                         (ezeka--parse-time-string .id))
-                                       'full)))
-      (when (and .parent (not (string-empty-p .parent)))
-        (insert "parent: " (ezeka--format-link .parent) "\n"))
-      (insert "\n" content)
-      (add-hook 'after-save-hook 'ezeka--run-3f-hook nil 'local))))
-
-(defun ezeka--run-3f-hook ()
-  "Run hooks in `ezeka-find-file-functions'."
-  (let* ((mdata (ezeka-file-metadata buffer-file-name))
-         (parent (alist-get 'parent mdata)))
-    (run-hook-with-args 'ezeka-find-file-functions
-                        buffer-file-name
-                        (if parent
-                            (ezeka-link-file parent)
-                          this-command))))
 
 ;; FIXME: `rb-rename-file-and-buffer' is not local
 (defun ezeka-incorporate-file (file kasten &optional arg)
