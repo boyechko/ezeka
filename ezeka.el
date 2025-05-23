@@ -1781,8 +1781,9 @@ use the current KASTEN without asking."
                         head-title
                         " "
                         (ezeka--format-link (alist-get 'link mdata)))
-                (ezeka-add-change-log-entry (file-truename parent-file)
-                  (ezeka-format-metadata "Extract \"%R\" [[%i]]." mdata))))))))))
+                (when (y-or-n-p "Add change log entry in this file? ")
+                  (ezeka-add-change-log-entry (file-truename parent-file)
+                    (ezeka-format-metadata "Extract \"%R\" [[%i]]." mdata)))))))))))
 
 (defun ezeka-open-link-at-point (&optional same-window freeform)
   "Open a Zettel link at point even if it's not formatted as a link.
@@ -2045,7 +2046,10 @@ If METADATA is nil, read it from SOURCE."
           (with-current-buffer buf
             (ezeka--update-file-header target mdata)
             (ezeka-add-change-log-entry source
-              (format "Finish moving +%s+ to %s." source-link target-link))
+              (format "Move +%s+ to \"%s\" %s."
+                      source-rubric
+                      (alist-get 'rubric mdata)
+                      (ezeka--format-link target-link)))
             (setf (alist-get 'keywords mdata)
                   (cl-set-difference (alist-get 'keywords mdata)
                                      (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
@@ -2105,10 +2109,11 @@ afterwards. SOURCE can be a link or a file."
       'source (alist-get 'rubric s-mdata)
       'target (alist-get 'rubric t-mdata)
       'comment "Begin moving")
-    (ezeka-add-change-log-entry s-file
-      (format "Begin moving \"%s\" to \"%s.\""
-              (alist-get 'rubric s-mdata)
-              (alist-get 'rubric t-mdata)))
+    (when (y-or-n-p "Add change log entry? ")
+      (ezeka-add-change-log-entry s-file
+        (format "Begin moving \"%s\" to \"%s.\""
+                (alist-get 'rubric s-mdata)
+                (alist-get 'rubric t-mdata))))
     (ezeka--update-file-header s-file t-mdata 'force)
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))
