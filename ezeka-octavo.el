@@ -98,7 +98,9 @@ viewed index, if there are active ones. With CHOOSE (or
 \\[universal-argument]), offer a choice of Kasten regardless. If NOSELECT
 is non-nil (or \\[universal-argument] \\[universal-argument]), don't actually switch."
   (interactive
-   (let ((active (ezeka-octavo--current-active-indexes))
+   (let ((active (cl-remove-if-not #'ezeka-kasten
+                                   (ezeka-octavo--current-active-indexes)
+                                   :key #'car))
          (prefix (prefix-numeric-value current-prefix-arg)))
      (list
       (if (or (not active) (= prefix 4))
