@@ -464,7 +464,8 @@ Group 6 is the stable caption mark."
   "Return non-NIL if the FILE-OR-BUFFER is a Zettel.
 It is a Zettel if all of these conditions are met:
 1) its extension is `ezeka-file-extension';
-2) its filename matches `ezeka-file-name-regexp'; and, if STRICT is non-NIL,
+2) its filename matches `ezeka-file-name-regexp'.
+And, if STRICT is non-NIL,
 3) the file exists;
 4) the file is inside `ezeka-directory'."
   (interactive "f")
@@ -477,17 +478,17 @@ It is a Zettel if all of these conditions are met:
                           (signal 'wrong-type-argument
                                   (list 'file-or-buffer-p file-or-buffer)))
                          (t nil))))
-    (and (string-equal (file-name-extension file) ezeka-file-extension)
-         (string-match (concat "^" (ezeka-file-name-regexp) "$")
-                       (file-name-base file))
+    (and (ezeka-file-name-valid-p file)
          (or (not strict)
              (and (file-exists-p file)
-                  (string-prefix-p ezeka-directory file)))))) ; FIXME: Hack
+                  (file-in-directory-p file ezeka-directory))))))
 
 (defun ezeka-file-name-valid-p (filename)
   "Return non-nil if FILENAME is a valid Zettel filename."
   (save-match-data
-    (string-match (ezeka-file-name-regexp) (file-name-base filename))))
+    (and (string-equal (file-name-extension filename) ezeka-file-extension)
+         (string-match (concat "^" (ezeka-file-name-regexp) "$")
+                       (file-name-base filename)))))
 
 ;; FIXME: Hardcoded
 (defun ezeka--file-name-fields (filename)
