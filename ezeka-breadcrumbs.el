@@ -91,11 +91,12 @@ otherwise NIL."
   "Update the breadcrumb heading for TARGET (from SOURCE)."
   (save-excursion
     (beginning-of-line)
-    (when (re-search-forward "\\(?1:\\*+\\) \\(.*\\<nil\\>.*\\)$" (point-at-eol) 'noerror)
-      (replace-match
-       (format "%s %s"
-               (match-string-no-properties 1)
-               (ezeka--breadcrumbs-string :target target :source source))))))
+    (when (re-search-forward "\\(?1:\\*+\\|[-+]\\) \\(.*\\<nil\\>.*\\)$" (point-at-eol) 'noerror)
+      (let ((replacement
+             (format "%s %s"
+                     (match-string-no-properties 1)
+                     (ezeka--breadcrumbs-string :target target :source source))))
+        (ignore-errors (replace-match replacement))))))
 
 (defun ezeka-breadcrumbs-find-arboreal-trail (target source &optional allow-duplicates)
   "Find where to drop breadcrumbs in an arboreal trail.
