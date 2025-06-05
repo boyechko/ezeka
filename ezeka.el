@@ -123,7 +123,6 @@ entered text as a Zettel link. INITIAL-INPUT is passed to
                                 initial-input)
                table))))
 
-;; FIXME: Relies on ace-window
 (defun ezeka-find-file (file &optional same-window)
   "Edit the given FILE based on the value of `ezeka-number-of-frames'.
 If SAME-WINDOW is non-NIL, open the buffer visiting the file in the
@@ -134,20 +133,18 @@ same window."
                         (if (ezeka-file-p buffer-file-name)
                             buffer-file-name
                           'find-file))
-    (if same-window
-        (find-file truename)
-      (cl-case ezeka-number-of-frames
-        (two (if (< (length (frame-list)) 2)
-                 (find-file-other-frame truename)
-               (when (featurep 'ace-window)
-                 (select-window (ace-select-window)))
-               (find-file truename)))
-        (one (let ((pop-up-windows t))
-               (when (featurep 'ace-window)
-                 (select-window (ace-select-window)))
-               (find-file truename)))
-        (nil (find-file truename))
-        (t (find-file-other-frame truename))))))
+    (cond ((or (eq t ezeka-number-of-frames)
+               (and (eq 'two ezeka-number-of-frames)
+                    (< (length (frame-list)) 2)))
+           (find-file-other-frame truename))
+          ((and (eq 'one ezeka-number-of-frames)
+                (not same-window))
+           (let ((pop-up-windows t))
+             (if (featurep 'ace-window)
+                 (ace-select-window)
+               (other-window 1))
+             (find-file truename)))
+          (t (find-file truename)))))
 
 (defun ezeka--grab-dwim-file-target (&optional link-at-point interactive)
   "Return the do-what-I-mean Zettel file from a variety of modes.
