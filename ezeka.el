@@ -831,12 +831,17 @@ note."
   (interactive)
   (if (region-active-p)
       (buffer-substring-no-properties (region-beginning) (region-end))
-    (let ((context (buffer-substring-no-properties
-                    (point)
-                    (max (point-min)
-                         (save-excursion
-                           (forward-line -1)
-                           (point))))))
+    (let ((context
+           (if (org-at-heading-p)
+               (nth 4 (org-heading-components))
+             (buffer-substring-no-properties
+              (point)
+              (max (point-min)
+                   (save-excursion
+                     (if (cl-member :item (org-context) :key #'car)
+                         (org-beginning-of-item)
+                       (org-beginning-of-line -1))
+                     (point)))))))
       (string-trim-left
        (replace-regexp-in-string "[\t\n\r]+" " " context)
        "[ +*-]*"))))
