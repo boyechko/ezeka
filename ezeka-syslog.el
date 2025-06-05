@@ -153,12 +153,14 @@ Returns a list of plists: each contains :line and :entry keys."
 (defun ezeka--file (arg)
   "Return Ezeka file path from the fuzzy ARG.
 ARG can be file name, ID, or rubric."
-  (let ((arg (when (stringp arg)
-               (substring-no-properties arg))))
+  (let (path
+        mdata)
     (cond ((or (null arg) (string-empty-p arg))
            nil)
-          ((ezeka-id-valid-p arg)
-           (ezeka-link-file arg))
+          ((and (ezeka-id-valid-p arg)
+                (setq path (or (ezeka-link-file arg)
+                               (ezeka-link-path arg))))
+           path)
           ((ezeka-file-p arg)
            arg)
           ((setq mdata (ezeka-decode-rubric arg))
