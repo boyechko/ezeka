@@ -1992,7 +1992,7 @@ non-nil, do not offer to do a text search."
            nil)
           ((null trail)
            (when (y-or-n-p (format "No record of moving %s. Do text search? " note))
-             (ezeka-find-regexp note))
+             (ezeka-find-regexp (format "oldnames:.*%s" note)))
            nil)
           ((and (ezeka-link-p (alist-get 'target (car trail)))
                 (or (eq visit 'visit)
