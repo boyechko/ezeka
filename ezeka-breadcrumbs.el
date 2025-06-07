@@ -178,7 +178,7 @@ TARGET and SOURCE."
         (org-narrow-to-subtree)
         (cond ((search-forward target nil t)
                ;; Breadcrumbs already dropped for TARGET
-               (ezeka--update-breadcrumbs-heading t-file s-file)
+               (ezeka--update-breadcrumbs-heading target source)
                (message "Breadcrumbs already exist for %s" target)
                nil)
               (t
@@ -199,7 +199,7 @@ a brief explanation; TIME is Emacs-encoded time."
         (cond ((null target) nil)
               ((ezeka-file-p t-file 'file-exists)
                (ezeka-format-metadata "%t [[%i]]" (ezeka-file-metadata t-file)))
-              ((ezeka-file-p target)
+              ((ezeka-file-p t-file)
                (ezeka-format-file-name "%c [[%i]]" t-file))
               (t
                (format "%s" target)))
