@@ -255,6 +255,7 @@ from. COMMENT can be added instead of TARGET."
 ;;; dropping should perhaps be a minor mode?
 (add-hook 'ezeka-find-file-functions #'ezeka-breadcrumbs-drop)
 (add-hook 'ezeka-after-save-hook #'ezeka-breadcrumbs-drop)
+(add-hook 'ezeka-insert-link-functions #'ezeka-breadcrumbs-drop)
 
 (defvar ezeka--breadcrumbs-xref-format "Find Regexp: %s"
   "Format-like string for dropping bookmarks from *xref* buffer.
