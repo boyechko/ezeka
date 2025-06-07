@@ -395,7 +395,9 @@ can be a short string."
 (defun ezeka-breadcrumbs-trail-dispatch (arg)
   "Start, switch to, or reset breadcrumb trail based on ARG."
   (interactive "p")
-  (cond ((and (= arg 1)
+  (cond ((> arg 1)
+         (ezeka-breadcrumbs-stop-trail))
+        ((and (= arg 1)
               (org-at-heading-p)
               (or (string= (nth 4 (org-heading-components))
                            ezeka-breadcrumbs-trail-headline)
@@ -410,9 +412,7 @@ can be a short string."
                                 ezeka-breadcrumbs-trail-headline)))
          (save-excursion
            (call-interactively 'ezeka-breadcrumbs-start-trail)
-           (goto-char (marker-position (ezeka--breadcrumbs-heading)))))
-        ((= arg 4)
-         (ezeka-breadcrumbs-stop-trail))))
+           (goto-char (marker-position (ezeka--breadcrumbs-heading)))))))
 
 (provide 'ezeka-breadcrumbs)
 ;;; ezeka-breadcrumbs.el ends here
