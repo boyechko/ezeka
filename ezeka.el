@@ -328,6 +328,10 @@ between."
 
 (defvar ezeka-insert-link-hook nil
   "Normal hook that is run after `ezeka-insert-link' and friends.")
+(defvar ezeka-insert-link-functions nil
+  "Functions called target when a link is inserted.
+Each function should accept one argument, the link target.
+The return values are ignored.")
 
 (defun ezeka--insert-link-with-spaces (link &rest strings)
   "Insert LINK at point, confirming first if it exists already.
@@ -352,7 +356,8 @@ question."
                              t))))
     (cond ((or (not existing) (string= insert-how "insert anyway"))
            (apply #'ezeka-insert-with-spaces strings)
-           (run-hooks 'ezeka-insert-link-hook))
+           (run-hooks 'ezeka-insert-link-hook)
+           (run-hook-with-args 'ezeka-insert-link-functions link))
           ((string= insert-how "don't include the link")
            ;; FIXME: The link might not be the last element
            (apply #'ezeka-insert-with-spaces (butlast strings)))

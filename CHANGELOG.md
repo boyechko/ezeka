@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   relevant system log entries.
 - `ezeka--read-change-log-entry` to make adding change log entries more
   interactive.
+- `ezeka-insert-link-functions` hook that is run with the link being inserted.
 
 ### Refactored
 
