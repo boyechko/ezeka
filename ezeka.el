@@ -1542,6 +1542,20 @@ With \\[universal-argument] ARG, asks for a different name."
 Only ASCII double and single quotes are touched."
   (string-replace "\"" "'" string))
 
+(defvar ezeka--read-change-log-entry-history nil
+  "History variable for `ezeka--read-change-log-entry'.")
+
+(defun ezeka--read-change-log-entry (&optional initial-input prompt)
+  "Read a change log entry from the minibuffer.
+PROMPT (or reasonable default) and INITIAL-INPUT are passed to
+`read-string'. Return NIL if the user entered an empty string."
+  (let* ((prompt (or prompt "Change log entry (leave empty to skip): "))
+         (entry (read-string prompt
+                             initial-input
+                             'ezeka--read-change-log-entry-history)))
+    (unless (string-empty-p entry)
+      entry)))
+
 (defun ezeka-add-change-log-entry (filename entry &optional section)
   "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
@@ -2047,11 +2061,13 @@ If METADATA is nil, read it from SOURCE."
                    (mdata (ezeka--add-oldname mdata source-link)))
           (with-current-buffer buf
             (ezeka--update-file-header target mdata)
-            (ezeka-add-change-log-entry source
-              (format "Move +%s+ to \"%s\" %s."
-                      source-rubric
-                      (alist-get 'rubric mdata)
-                      (ezeka--format-link target-link)))
+            (let ((entry (ezeka--read-change-log-entry
+                          (format "Move +%s+ to \"%s\" %s."
+                                  source-rubric
+                                  (alist-get 'rubric mdata)
+                                  (ezeka--format-link target-link)))))
+              (when entry
+                (ezeka-add-change-log-entry source entry)))
             (setf (alist-get 'keywords mdata)
                   (cl-set-difference (alist-get 'keywords mdata)
                                      (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
@@ -2111,11 +2127,11 @@ afterwards. SOURCE can be a link or a file."
       'source (alist-get 'rubric s-mdata)
       'target (alist-get 'rubric t-mdata)
       'comment "Begin moving")
-    (when (y-or-n-p "Add change log entry? ")
-      (ezeka-add-change-log-entry s-file
-        (format "Begin moving \"%s\" to \"%s.\""
-                (alist-get 'rubric s-mdata)
-                (alist-get 'rubric t-mdata))))
+    (when-let* ((initial (format "Begin moving \"%s\" to \"%s.\""
+                                 (alist-get 'rubric s-mdata)
+                                 (alist-get 'rubric t-mdata)))
+                (entry (ezeka--read-change-log-entry initial)))
+      (ezeka-add-change-log-entry s-file entry))
     (ezeka--update-file-header s-file t-mdata 'force)
     (let ((t-file (ezeka-link-path target-link t-mdata)))
       (unless (file-exists-p (file-name-directory t-file))

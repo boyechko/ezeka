@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CHANGELOG.md` with major milestones.
 - `ezeka-system-log-trail` and `ezeka-view-system-log-entries` to display
   relevant system log entries.
+- `ezeka--read-change-log-entry` to make adding change log entries more
+  interactive.
 
 ### Refactored
 
