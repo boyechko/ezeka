@@ -197,13 +197,17 @@ insert the summary before the content."
                   (org-end-of-subtree)
                   (push (buffer-substring-no-properties content-start (point))
                         content)))
-              ;; Insert the copied subtrees and remove its headings and comments
+              ;; Insert the copied subtrees and remove extraneous stuff
               (apply #'insert (nreverse content))
               (goto-char start)
-              (while (re-search-forward "^[*]+ " nil t) ; remove headings
+              ;; Transform headings
+              (while (re-search-forward "^[*]+ " nil t)
                 (goto-char (match-beginning 0))
-                (ezeka--org-move-after-drawers)
-                (kill-region (match-beginning 0) (point)))
+                (replace-match (concat "*" (match-string 0)))
+                ;; Remove headings if desired
+                (when (cl-find "noheadings" our-tags :test #'string=)
+                  (ezeka--org-move-after-drawers)
+                  (kill-region (match-beginning 0) (point))))
               ;; Remove <<tags>>
               (goto-char start)
               (while (re-search-forward "<<[^>]+>>\n*" nil t)
