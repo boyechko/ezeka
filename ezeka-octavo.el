@@ -604,12 +604,6 @@ user before replacing."
                 'new replacement)
               (unless open-buffer
                 (kill-buffer (current-buffer)))))))
-      (setq message
-        (format "Replace %d link%s to %s" count (if (= count 1) "" "s") before))
-      (ezeka-add-change-log-entry (ezeka-link-file after)
-        message)
-      (kill-new message)
-      (message message)
       (cons count (length with-links)))))
 
 (defun ezeka--child-p (child parent &optional child-metadata)
