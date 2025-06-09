@@ -91,7 +91,7 @@ Return the new position; otherwise, nil."
     (save-excursion
       (goto-char (point-min))
       ;; HARDCODED Match the entire org-mode heading line
-      (when (re-search-forward (concat "^\\* .*"
+      (when (re-search-forward (concat "^\\*+ +"
                                        ezeka-snippet-heading
                                        ".*$"))
         (setq pos (match-end 0))))
