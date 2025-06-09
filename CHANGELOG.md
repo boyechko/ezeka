@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- `ezeka-breadcrumbs-find-linear-trail` fully works.
+- `ezeka-toggle-header-read-only` makes the full file content writeable.
+- Various bugs in `ezeka-header-rubric-regexp`, `ezeka-format-metadata`,
+  `ezeka-kill-ring-save-link`, `ezeka--breadcrumbs-string`, etc.
+
 ### Added
 
 - `README.md` with installation instructions and basic reference.
@@ -17,11 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interactive.
 - `ezeka-insert-link-functions` hook that is run with the link being inserted.
 - Breadcrumbs are dropped for the link being inserted.
+- `ezeka-insert-snippet-text` demotes headings, respects `:noheadings:` tag, and
+  puts content of Summary section in a block quote rather than comment block.
 
 ### Refactored
 
-- Begin modularizing `ezeka.el` (was 5361 lines) to improve maintainability.
-- Extract 2009 lines of code from `ezeka.el` into:
+- Begin modularizing `ezeka.el` (was 5361 lines) into:
   - `ezeka-base.el`
   - `ezeka-file.el`
   - `ezeka-meta.el`
