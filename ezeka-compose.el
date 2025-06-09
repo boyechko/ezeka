@@ -139,18 +139,20 @@ insert the summary before the content."
               (when-let ((snip-modified (org-entry-get (point) "SNIP_MODIFIED")))
                 (ezeka--parse-time-string snip-modified)))
              (current? (time-equal-p their-modified our-modified))
-             (local? (string-match-p "local"
-                                     (or (org-entry-get nil "TAGS")
-                                         "")))
+             (our-tags (org-get-tags))
+             (local? (cl-find "local" our-tags :test #'string=))
              (org-id (org-id-get-create)))
         (org-narrow-to-subtree)
         (when local?
           (user-error "There are local changes (or at least :local: tag)"))
-        (when (looking-at org-outline-regexp)
+        ;; Update the snippet title
+        (when (and nil
+                   (looking-at org-outline-regexp))
           (replace-regexp (regexp-quote (elt (org-heading-components) 4))
                           (ezeka-format-metadata "%t [[%i]]" snip-mdata)))
         (unless (string= link (org-entry-get (point) "SNIP_SOURCE"))
           (org-entry-put (point) "SNIP_SOURCE" link))
+        ;; Remove CHANGED tag, if present
         (org-set-tags (cl-remove "CHANGED" (org-get-tags) :test #'string=))
         (if (and current? (not force))
             (message "Snippet is up to date; leaving alone")
