@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breadcrumbs are dropped for the link being inserted.
 - `ezeka-insert-snippet-text` demotes headings, respects `:noheadings:` tag, and
   puts content of Summary section in a block quote rather than comment block.
+- `ezeka-pull-link-forward` and `ezeka-pull-link-backward` to more easily
+  manipulate links in writing.
 
 ### Refactored
 

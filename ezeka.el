@@ -618,6 +618,30 @@ the text instead."
         (unless delete
           (ezeka-insert-with-spaces text " "))))))
 
+(defun ezeka-pull-link-backward ()
+  "Find the next occurrence of an Ezeka link and move it to point."
+  (interactive)
+  (let ((pt (point)))
+    (save-excursion
+      (when (search-forward-regexp "\\[\\[\\([^]]+\\)\\]\\]" nil 'noerror)
+        (let ((link (match-string 0)))
+          (delete-region (match-beginning 0) (match-end 0))
+          (just-one-space)
+          (goto-char pt)
+          (ezeka-insert-with-spaces link))))))
+
+(defun ezeka-pull-link-forward ()
+  "Find the previous occurrence of an Ezeka link and move it to point."
+  (interactive)
+  (let ((pt (point)))
+    (save-excursion
+      (when (search-backward-regexp "\\[\\[\\([^]]+\\)\\]\\]" nil 'noerror)
+        (let ((link (match-string 0)))
+          (delete-region (match-beginning 0) (match-end 0))
+          (just-one-space)
+          (goto-char (- pt (length link)))
+          (ezeka-insert-with-spaces link))))))
+
 ;;;=============================================================================
 ;;; Link hints
 ;;;=============================================================================
