@@ -175,18 +175,34 @@ should be files. On success, return LINKNAME."
     (message (concat "File `" (file-name-base file) "'...\n"
                      (mapconcat #'identity (nreverse attribs) "\n")))))
 
-(defun ezeka--directory-files (&optional kasten regexp)
-  "Return a list of all Ezeka files in KASTEN matching REGEXP.
-Unless KASTEN is specified, return a list of all Ezeka
-files. The REGEXP should match the entire `base-file-name'
-of the desired file(s)."
-  (directory-files-recursively
-   (expand-file-name
-    (if kasten
-        (ezeka-kasten-directory (ezeka-kasten kasten))
-      "")
-    ezeka-directory)
-   (concat "^[^#.].*" regexp ezeka-file-extension "$")))
+(defun ezeka--directory-files (&optional kasten filter)
+  "Return a list of all Ezeka files in KASTEN matching FILTER.
+Unless KASTEN is specified, return a list of all Ezeka files.
+FILTER can be a string, in which case it is a regexp that should
+match the entire `base-file-name' of the desired file(s), or a
+function accepting a file and returning non-nil if it should be
+included."
+  (let ((all-files (directory-files-recursively
+                    (expand-file-name
+                     (if kasten
+                         (ezeka-kasten-directory (ezeka-kasten kasten))
+                       "")
+                     ezeka-directory)
+                    (concat "^[^#.].*"
+                            (when (stringp filter) filter)
+                            ezeka-file-extension
+                            "$"))))
+    (if (functionp filter)
+        (cl-remove-if-not filter all-files)
+      all-files)))
+
+(ert-deftest ezeka--directory-files ()
+  (let ((all-files (ezeka--directory-files "scriptum"))
+        (symlinks (ezeka--directory-files "scriptum"
+                                          (lambda (file)
+                                            (file-symlink-p file)))))
+   (should all-files)
+   (should (< (length symlinks) (length all-files)))))
 
 ;;;=============================================================================
 ;;; File Names
