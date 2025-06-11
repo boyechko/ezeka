@@ -210,10 +210,17 @@ if not a string (or with \\[universal-argument] \\[universal-argument]), ask for
           (message "Symbolic link updated")))
     (user-error "This is not a symbolic link")))
 
-(defun ezeka-handle-symlink (file &optional same-window)
+(defun ezeka-handle-symlink (file &optional arg)
   "Prompt how to handle FILE if it is a symlink.
-If SAME-WINDOW is non-NIL, open the file interactive he same
-window. Return T if an action was taken, nil otherwise."
+If ARG is non-NIL, differection actions are affected intelligently:
+- following: open the file in the same window;
+- updating: ask for Kasten;
+- deleting: do not confirm deletion; and
+- creating: do not confirm placeholder replacement.
+Return T if an action was taken, nil otherwise."
+  (interactive
+   (list (ezeka--select-file (ezeka--directory-files))
+         current-prefix-arg))
   (when-let* ((target (file-symlink-p file))
               (action (intern-soft
                        (completing-read "What to do with this symbolic link? "
@@ -221,18 +228,18 @@ window. Return T if an action was taken, nil otherwise."
                                         nil t nil nil "follow"))))
     (cond ((eq action 'follow)
            (if (file-exists-p (file-truename file))
-               (ezeka-find-file file same-window)
+               (ezeka-find-file file arg)
              (ezeka-note-moved-p (ezeka-file-link (file-truename file)))))
           ((eq action 'update)
-           (ezeka--update-symbolic-link file))
+           (ezeka--update-symbolic-link file arg))
           ((eq action 'delete)
-           (when (y-or-n-p "Really delete this symbolic link? ")
+           (when (or arg (y-or-n-p "Really delete this symbolic link? "))
              (ezeka--add-to-system-log 'delete-symlink nil
                'note (file-name-base file)
                'target (file-name-base target))
              (delete-file file)))
           ((eq action 'create)
-           (when (y-or-n-p "Delete symlink and create a new note? ")
+           (when (or arg (y-or-n-p "Delete symlink and create a new note? "))
              (ezeka-replace-placeholder file)))
           (t (message "No action taken.")))
     t))
