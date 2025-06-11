@@ -219,8 +219,12 @@ window. Return T if an action was taken, nil otherwise."
                        (completing-read "What to do with this symbolic link? "
                                         '(follow create update delete)
                                         nil t nil nil "follow"))))
-    (cond ((eq action 'follow) (ezeka-find-file file same-window))
-          ((eq action 'update) (ezeka--update-symbolic-link file))
+    (cond ((eq action 'follow)
+           (if (file-exists-p (file-truename file))
+               (ezeka-find-file file same-window)
+             (ezeka-note-moved-p (ezeka-file-link (file-truename file)))))
+          ((eq action 'update)
+           (ezeka--update-symbolic-link file))
           ((eq action 'delete)
            (when (y-or-n-p "Really delete this symbolic link? ")
              (ezeka--add-to-system-log 'delete-symlink nil
