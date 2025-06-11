@@ -219,7 +219,10 @@ If ARG is non-NIL, differection actions are affected intelligently:
 - creating: do not confirm placeholder replacement.
 Return T if an action was taken, nil otherwise."
   (interactive
-   (list (ezeka--select-file (ezeka--directory-files))
+   (list (ezeka--select-file
+          (ezeka--directory-files (ezeka--read-kasten)
+                                  (lambda (file)
+                                    (file-symlink-p file))))
          current-prefix-arg))
   (when-let* ((target (file-symlink-p file))
               (action (intern-soft
