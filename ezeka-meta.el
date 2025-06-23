@@ -1303,10 +1303,11 @@ If METADATA is given, set the child metadata to that with
 modifications specified in PLIST."
   (declare (indent 2))
   (let ((mdata (or metadata (ezeka--new-child-metadata link))))
-    (cond ((null plist))
+    (cond ((null plist)
+           (setf (ezeka--new-child-metadata link) mdata))
           ((and plist (zerop (mod (length plist) 2)))
            (while plist
-             (push (cons (car plist) (cadr plist)) mdata)
+             (setf (alist-get (car plist) mdata) (cadr plist))
              (setq plist (cddr plist)))
            (setf (ezeka--new-child-metadata link) mdata))
           (t
