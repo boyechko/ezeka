@@ -109,6 +109,38 @@ modification date."
              (org-set-property ezeka-snippet-modified-property
                                (alist-get 'created mdata))))))
 
+(defun ezeka--compose-extract-content (file summary org-id)
+  "Extract snippet subtree from FILE.
+If SUMMARY is non-nil, also extract summary. ORG-ID is the ID of
+where the content is to be inserted."
+  (let (content)
+    (with-current-buffer (get-file-buffer file)
+      ;; Include Summary section if present
+      (when (and (or summary ezeka-insert-snippet-summary)
+                 (org-find-exact-headline-in-buffer "Summary"))
+        (goto-char (org-find-exact-headline-in-buffer "Summary"))
+        (forward-line)
+        (let ((summary-start (point)))
+          (org-end-of-subtree)
+          (push "\n#+begin_quote" content)
+          (push (buffer-substring-no-properties summary-start (point))
+                content)
+          (push "\n#+end_quote\n" content)))
+      (or (ezeka--find-snippet-heading)
+          (signal 'ezeka-error (list "Can't find the Snippet or Content section")))
+      (if (not org-id)
+          (warn "No org-id added to file %s" file)
+        (org-entry-add-to-multivalued-property (point)
+                                               "USED_IN+"
+                                               (format "id:%s" org-id)))
+      (basic-save-buffer)
+      (ezeka--org-move-after-drawers)
+      (let ((content-start (point)))
+        (org-end-of-subtree)
+        (push (buffer-substring-no-properties content-start (point))
+              content)))
+    content))
+
 ;;; TODO:
 ;;; - if region is active, narrow to it rather than to subtree (allows # lines!)
 ;;; - don't copy subtrees marked with COMMENT
@@ -172,31 +204,8 @@ insert the summary before the content."
                   (content '()))
               (delete-region start (point-max))
               ;; Get the Summary and Snippet subtrees from snippet snip-file
-              (with-current-buffer snip-buf
-                ;; Include Summary section if present
-                (when (and (or summary ezeka-insert-snippet-summary)
-                           (org-find-exact-headline-in-buffer "Summary"))
-                  (goto-char (org-find-exact-headline-in-buffer "Summary"))
-                  (forward-line)
-                  (let ((summary-start (point)))
-                    (org-end-of-subtree)
-                    (push "\n#+begin_quote" content)
-                    (push (buffer-substring-no-properties summary-start (point))
-                          content)
-                    (push "\n#+end_quote\n" content)))
-                (or (ezeka--find-snippet-heading)
-                    (signal 'ezeka-error (list "Can't find the Snippet or Content section")))
-                (if (not org-id)
-                    (warn "No org-id added to file %s" snip-file)
-                  (org-entry-add-to-multivalued-property (point)
-                                                         "USED_IN+"
-                                                         (format "id:%s" org-id)))
-                (basic-save-buffer)
-                (ezeka--org-move-after-drawers)
-                (let ((content-start (point)))
-                  (org-end-of-subtree)
-                  (push (buffer-substring-no-properties content-start (point))
-                        content)))
+              (setq content (ezeka--compose-extract-content snip-file summary org-id))
+
               ;; Insert the copied subtrees and remove extraneous stuff
               (apply #'insert (nreverse content))
               (goto-char start)
