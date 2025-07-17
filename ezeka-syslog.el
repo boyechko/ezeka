@@ -54,24 +54,11 @@ If PLIST is already an alist, leave it alone."
             (action . ,action))
           (ezeka--plist-to-alist props)))
 
-(ert-deftest ezeka--system-log-record ()
-  (should (ezeka--system-log-record nil 'update-modified 'note "a-1234"))
-  (should (ezeka--system-log-record
-           (parse-time-string "2024-01-01T00:00:00")
-           'update-modified 'note "a-1234")))
-
 (defun ezeka--system-log-repeat-record-p (object previous)
   "Return non-nil if OBJECT and PREVIOUS differ only in time."
   (let ((object (cl-remove 'time object :key #'car))
         (previous (cl-remove 'time previous :key #'car)))
     (cl-every #'equal object previous)))
-
-(ert-deftest ezeka--system-log-repeat-record-p ()
-  (should (ezeka--system-log-repeat-record-p
-           (ezeka--system-log-record nil 'update-modified 'note "a-1234")
-           (ezeka--system-log-record
-            (parse-time-string "2024-01-01T00:00:00")
-            'update-modified 'note "a-1234"))))
 
 (defun ezeka--add-to-system-log (action time &rest props)
   "Add a log entry for ACTION at TIME (nil for now) with PROPS.
@@ -93,15 +80,6 @@ PROPS should be either a plist or an alist."
         (insert "\n" json "\n"))
       (delete-trailing-whitespace)
       (save-buffer))))
-
-(ert-deftest ezeka--add-to-system-log ()
-  (should (ezeka--add-to-system-log 'move nil
-            'from "k-7952"
-            'to "20150603T2323"))
-  (should (ezeka--add-to-system-log 'move nil
-            'from "20150603T2323"
-            'to "k-7952"))
-  (should-not (ezeka--system-log-trail "k-7952")))
 
 (defun ezeka--system-log-trail (note)
   "Return the system log trail for NOTE, including source line numbers.

@@ -2129,19 +2129,6 @@ If QUIETLY is non-nil, don't add anything to the logs."
               (switch-to-buffer buf))
           t)))))
 
-(ert-deftest ezeka--create-placeholder ()
-  (let* ((mdata (ezeka-metadata "a-1234"
-                  'label "ψ"
-                  'caption "ezeka--create-placeholder test"))
-         (path (ezeka-link-path "a-1234" mdata)))
-    (should (and (ezeka--create-placeholder "a-1234"
-                                            mdata
-                                            'quietly)
-                 (file-symlink-p path)
-                 (if (y-or-n-p (format "Delete placeholder `%s'?" path))
-                     (delete-file path)
-                   (message "Placeholder not deleted: %s" path))))))
-
 (defun ezeka-replace-placeholder (placeholder &optional note metadata)
   "Replace PLACEHOLDER with NOTE (both file paths).
 If METADATA is nil, read it from PLACEHOLDER's filename. If

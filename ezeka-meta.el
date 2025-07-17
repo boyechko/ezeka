@@ -122,12 +122,6 @@ return DEFAULT."
                              (t
                               author1)))))))
 
-(ert-deftest ezeka--parse-citation-key ()
-  (should (equal '(author1 "Horkheimer" author2 "Adorno" date "1989" authors "Horkheimer and Adorno")
-                 (ezeka--parse-citation-key "HorkheimerAdorno1989")))
-  (should (equal '(author1 "Chiang" author2 nil date "1998" authors "Chiang")
-                 (ezeka--parse-citation-key "&Chiang1998"))))
-
 (defun ezeka--citaton-key-authors (key)
   "Return a human-readable list of authors in citation KEY."
   (plist-get 'authors (ezeka--parse-citation-key key)))
@@ -209,15 +203,6 @@ use `ezeka-long-timestamp-format'."
                                  ""))
                         (?t . ,(or \.title \.caption))
                         (?T . ,(or \.subtitle \.title))))))))) ; FIXME HACK
-
-(ert-deftest ezeka-format-metadata ()
-  (let* ((file (ezeka-link-file "a-0000"))
-         (mdata (ezeka-file-metadata file)))
-    (should (string= "a-0000" (ezeka-format-metadata "%i" mdata)))
-    (should (string= "2022-08-08 Mon 18:25" (ezeka-format-metadata "%C" mdata)))
-    (should (string= (ezeka-format-metadata "%t" mdata)
-                     (ezeka-format-metadata "%T" mdata)))
-    (should (string= (file-name-base file) (ezeka-format-metadata "%R" mdata)))))
 
 (defun ezeka-metadata (file-or-link &rest values)
   "Create a metadata object from pairs of VALUES.

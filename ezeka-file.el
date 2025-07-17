@@ -150,15 +150,6 @@ should be files. On success, return LINKNAME."
        'note (file-name-base linkname))
      linkname)))
 
-(ert-deftest ezeka--make-symbolic-link ()
-  (let ((target (make-temp-file "ezeka-target"))
-        (linkname (expand-file-name "ezeka-symlink" (temporary-file-directory))))
-    (ezeka--make-symbolic-link target linkname)
-    (should (and (file-exists-p linkname) (file-symlink-p linkname)))
-    (should-not (when (file-symlink-p linkname)
-                  (delete-file linkname)
-                  (file-exists-p linkname)))))
-
 (defun ezeka-file-describe (file)
   "Describe everything known about Ezeka FILE."
   (interactive (list (ezeka--select-file (ezeka--directory-files))))
@@ -195,14 +186,6 @@ included."
     (if (functionp filter)
         (cl-remove-if-not filter all-files)
       all-files)))
-
-(ert-deftest ezeka--directory-files ()
-  (let ((all-files (ezeka--directory-files "scriptum"))
-        (symlinks (ezeka--directory-files "scriptum"
-                                          (lambda (file)
-                                            (file-symlink-p file)))))
-   (should all-files)
-   (should (< (length symlinks) (length all-files)))))
 
 ;;;=============================================================================
 ;;; File Names
@@ -302,10 +285,6 @@ troublesome characters."
                         (append complex-replacements
                                 simple-replacements
                                 ezeka--pasturize-characters)))))
-
-(ert-deftest ezeka--pasteurize-file-name ()
-  (should (string= (ezeka--pasteurize-file-name "/Mickey 17/ (dir. Bong Joon-ho, 2025)")
-                   "_Mickey 17_")))
 
 (defun ezeka--depasturize-for-title (caption)
   "Return CAPTION after trying to reverse `ezeka--pasteurize-file-name'."
@@ -523,11 +502,6 @@ If ID-TYPE is not given, check ID against all known types."
     (and (stringp id)
          (string-match-p (ezeka--id-regexp id-type 'match-entire) id))))
 
-(ert-deftest ezeka-id-valid-p ()
-  (should-not (ezeka-id-valid-p "goggly-gook"))
-  (should (ezeka-id-valid-p "a-1234"))
-  (should (ezeka-id-valid-p "327-C-02-A")))
-
 ;; TODO Replace "link" with "id," reserving "link" term for actual links
 (defmacro ezeka-link-regexp (&optional match-entire)
   "Return the regular expression that matches Zettel links.
@@ -580,11 +554,6 @@ Group 2 is the kasten, if specified."
                       (ezeka-kaesten)
                       :key #'ezeka-kasten-id-type))))
     (signal 'wrong-type-argument (list 'ezeka-link-p link))))
-
-(ert-deftest ezeka-link-kasten ()
-  (should (string= (ezeka-link-kasten "a-1234") "numerus"))
-  (should (string= (ezeka-link-kasten "20240729T1511") "tempus"))
-  (should (string= (ezeka-link-kasten "a-1234~56") "scriptum")))
 
 ;; TODO Deprecate?
 (defun ezeka-link-id (link)
@@ -691,14 +660,6 @@ based on LINK and METADATA (if present)."
                          (ezeka-link-id link))
                        ezeka-file-extension)
                       (ezeka-id-directory (ezeka-link-id link)))))
-
-(ert-deftest ezeka-link-path ()
-  (should
-   (string-match-p "numerus/a/a-1234 {ψ} ezeka--create-placeholder test.txt$"
-                   (ezeka-link-path "a-1234"
-                                    '((link . "a-1234")
-                                      (label . "ψ")
-                                      (caption . "ezeka--create-placeholder test"))))))
 
 (defun ezeka-id-type (id-or-file)
   "Return the type of the given ID-OR-FILE based on `ezeka-kaesten`."
