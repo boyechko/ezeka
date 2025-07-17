@@ -1611,7 +1611,10 @@ PROMPT (or reasonable default) and INITIAL-INPUT are passed to
   "Add a change log ENTRY in FILENAME's SECTION.
 If SECTION is nil, default to `Change Log'."
   (declare (indent 1))
-  (interactive (list buffer-file-name nil nil))
+  (interactive
+   (list buffer-file-name
+         (ezeka--read-change-log-entry)
+         nil))
   (let* ((section (or section "Change Log"))
          (headline (org-find-exact-headline-in-buffer section))
          (date-item (format "- [%s] :: " (ezeka-timestamp)))
