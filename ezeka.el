@@ -270,13 +270,16 @@ enclosed in square brackets."
 Needs to be called after `ezeka-link-at-point-p'."
   (match-string-no-properties 1))
 
-(defun ezeka-find-link (link &optional same-window)
+(defun ezeka-find-link (link &optional same-window visit-moved)
   "Find the given LINK.
-If SAME-WINDOW (or \\[universal-argument]) is non-NIL, opens
-the link in the same window. Return T if the link is a
-Zettel link."
-  (interactive (list (ezeka--read-id "Link to find: ")
-                     current-prefix-arg))
+If SAME-WINDOW (or \\[universal-argument]) is non-NIL, opens the link in the same
+window. Return T if the link is a Zettel link. If VISIT-MOVED
+\(or \\[universal-argument] \\[universal-argument]) is non-nil, offer to still visit the note even if
+it has been moved."
+  (interactive
+   (list (ezeka--read-id "Link to find: ")
+         (equal current-prefix-arg '(4))
+         (equal current-prefix-arg '(16))))
   (when (ezeka-link-p link)
     (let ((file (ezeka-link-file link))
           (buf (cl-find link (buffer-list)
@@ -287,7 +290,8 @@ Zettel link."
             (buf (if same-window
                      (pop-to-buffer-same-window buf)
                    (pop-to-buffer buf)))
-            ((ezeka-note-moved-p link nil 'ask 'nosearch))
+            ((and (not visit-moved)
+                  (ezeka-note-moved-p link nil 'ask 'nosearch)))
             ((or (eq ezeka-create-nonexistent-links t)
                  (and (eq ezeka-create-nonexistent-links 'confirm)
                       (y-or-n-p
