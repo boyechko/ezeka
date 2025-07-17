@@ -561,20 +561,24 @@ also insert the value at point."
         (when insert (insert text)))
     (user-error "Could not retrieve metadata for %s" (file-name-base file))))
 
-(defun ezeka-kill-ring-save-link (arg)
+(defun ezeka-kill-ring-save-link (&optional file-path)
   "Save in kill ring the Zettel link at point or in Zettel buffer.
-With \\[universal-argument] ARG, save the file name relative to `ezeka-directory'.
-With \\[universal-argument] \\[universal-argument], open the file in Finder with it selected."
-  (interactive "p")
-  (let ((file (ezeka--grab-dwim-file-target t)))
-    (when file
-      (let ((link (if (= arg 4)
-                      (file-relative-name (file-truename file)
-                                          (file-truename ezeka-directory))
-                    (ezeka-file-link file))))
-        (ezeka--kill-ring-clipboard-save link)
-        (when (= arg 16)
-          (shell-command (format "open -R \"%s\" &" file)))))))
+With FILE-PATH of 'RELATIVE (or \\[universal-argument]),
+save the file name relative to `ezeka-directory'. With
+FILE-PATH of 'ABSOLUTE (or \\[universal-argument]
+\\[universal-argument]), save the absolute file path."
+  (interactive
+   (list (cond ((equal current-prefix-arg '(4)) 'relative)
+               ((equal current-prefix-arg '(16)) 'absolute))))
+  (when-let* ((file (ezeka--grab-dwim-file-target t))
+              (text (cond ((eq file-path 'relative)
+                           (file-relative-name (file-truename file)
+                                               (file-truename ezeka-directory)))
+                          ((eq file-path 'absolute)
+                           (file-truename file))
+                          (t
+                           (ezeka-file-link file)))))
+    (ezeka--kill-ring-clipboard-save text)))
 
 (defun ezeka-kill-ring-save-next-link ()
   "Save the first link at or after point (but before EOL)."
