@@ -33,12 +33,6 @@
 (require 'ert)
 (require 'ezeka-meta)
 
-(ert-deftest ezeka--parse-citation-key ()
-  (should (equal '(author1 "Horkheimer" author2 "Adorno" date "1989" authors "Horkheimer and Adorno")
-                 (ezeka--parse-citation-key "HorkheimerAdorno1989")))
-  (should (equal '(author1 "Chiang" author2 nil date "1998" authors "Chiang")
-                 (ezeka--parse-citation-key "&Chiang1998"))))
-
 (ert-deftest ezeka-format-metadata ()
   (let* ((file (ezeka-link-file "a-0000"))
          (mdata (ezeka-file-metadata file)))
@@ -47,6 +41,39 @@
     (should (string= (ezeka-format-metadata "%t" mdata)
                      (ezeka-format-metadata "%T" mdata)))
     (should (string= (file-name-base file) (ezeka-format-metadata "%R" mdata)))))
+
+(ert-deftest ezeka--header-yamlify-value ()
+  (should (string= (ezeka--header-yamlify-value "one")
+                   "one"))
+  (should (string= (ezeka--header-yamlify-value '("one" "two" "three"))
+                   "[ one, two, three ]")))
+
+(ert-deftest ezeka--header-deyamlify-value ()
+  (should (equal (ezeka--header-deyamlify-value "2022-01-01")
+                 "2022-01-01"))
+  (should (equal (ezeka--header-deyamlify-value " 2022-01-01 ")
+                 "2022-01-01"))
+  (should (equal (ezeka--header-deyamlify-value "[ 2020-01-01, 2022-01-01 ]")
+                 '("2020-01-01" "2022-01-01"))))
+
+(ert-deftest ezeka--metadata-equal-p ()
+  (let ((md1 (ezeka-file-metadata (ezeka-link-file "x-1613")))
+        (md1a (nreverse (ezeka-file-metadata (ezeka-link-file "x-1613"))))
+        (md2 (ezeka-file-metadata (ezeka-link-file "q-8148"))))
+    (should (ezeka--metadata-equal-p md1 md1a))
+    (should-not (ezeka--metadata-equal-p md1 md2))))
+
+(ert-deftest ezeka--parse-citation-key ()
+  (should (equal '(author1 "Horkheimer" author2 "Adorno" date "1989" authors "Horkheimer and Adorno")
+                 (ezeka--parse-citation-key "HorkheimerAdorno1989")))
+  (should (equal '(author1 "Chiang" author2 nil date "1998" authors "Chiang")
+                 (ezeka--parse-citation-key "&Chiang1998"))))
+
+(ert-deftest ezeka--validate-citekey ()
+  (should (string= "@Blah1999" (ezeka--validate-citekey "Blah1999")))
+  (should (string= "&Blah1999" (ezeka--validate-citekey "&Blah1999")))
+  (should (string= "@Blah1999" (ezeka--validate-citekey "@Blah1999")))
+  (should-not (ezeka--validate-citekey "Zoomba Blah 1999")))
 
 (provide 'tests-ezeka-meta)
 ;;; tests-ezeka-meta.el ends here
