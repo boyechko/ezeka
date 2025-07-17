@@ -1647,6 +1647,14 @@ If SECTION is nil, default to `Change Log'."
     (when (numberp entry-pos)
       (goto-char entry-pos))))
 
+(defun ezeka-maybe-add-change-log-entry (filename &optional entry prompt)
+  "Allow the user to interactively add ENTRY to FILENAME.
+If ENTRY is non-nil, it will be suggested as the entry. PROMPT,
+if non-nil, will be used in place of the default prompt."
+  (let ((entry (ezeka--read-change-log-entry entry prompt)))
+    (when entry
+      (ezeka-add-change-log-entry filename entry))))
+
 ;;;=============================================================================
 ;;; Org-Mode Intergration
 ;;;=============================================================================
@@ -1840,7 +1848,7 @@ use the current KASTEN without asking."
                 (insert "\n" org-subtree-clip)
                 (set-visited-file-name (alist-get 'path mdata) t)
                 (basic-save-buffer)
-                (ezeka-add-change-log-entry (alist-get 'path mdata)
+                (ezeka-maybe-add-change-log-entry (alist-get 'path mdata)
                   (ezeka-format-metadata "Extract from [[%p]]." mdata)))
               (with-current-buffer (get-file-buffer (file-truename parent-file))
                 ;; Back in original buffer
@@ -1851,9 +1859,8 @@ use the current KASTEN without asking."
                         head-title
                         " "
                         (ezeka--format-link (alist-get 'link mdata)))
-                (when (y-or-n-p "Add change log entry in this file? ")
-                  (ezeka-add-change-log-entry (file-truename parent-file)
-                    (ezeka-format-metadata "Extract \"%R\" [[%i]]." mdata)))))))))))
+                (ezeka-maybe-add-change-log-entry (file-truename parent-file)
+                  (ezeka-format-metadata "Extract \"%R\" [[%i]]." mdata))))))))))
 
 (defun ezeka-open-link-at-point (&optional same-window freeform)
   "Open a Zettel link at point even if it's not formatted as a link.
@@ -2115,13 +2122,12 @@ If METADATA is nil, read it from SOURCE."
                    (mdata (ezeka--add-oldname mdata source-link)))
           (with-current-buffer buf
             (ezeka--update-file-header target mdata)
-            (let ((entry (ezeka--read-change-log-entry
-                          (format "Move +%s+ to \"%s\" %s."
-                                  source-rubric
-                                  (alist-get 'rubric mdata)
-                                  (ezeka--format-link target-link)))))
-              (when entry
-                (ezeka-add-change-log-entry source entry)))
+            (ezeka-maybe-add-change-log-entry
+             source
+             (format "Move +%s+ to \"%s\" %s."
+                     source-rubric
+                     (alist-get 'rubric mdata)
+                     (ezeka--format-link target-link)))
             (setf (alist-get 'keywords mdata)
                   (cl-set-difference (alist-get 'keywords mdata)
                                      (list ezeka-note-moving-keyword ezeka-rename-note-keyword)
