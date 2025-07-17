@@ -62,6 +62,10 @@ Functions affected are `ezeka-set-label', `ezeka-set-citekey', and
   :options '(nil t confirm)
   :group 'ezeka)
 
+;;;=============================================================================
+;;; Interacting With Minibuffer
+;;;=============================================================================
+
 (defun ezeka--minibuffer-edit-string (old-string &optional new-string prompt history)
   "Edit NEW-STRING in minibuffer, showing it in parallel to OLD-STRING.
 If NEW-STRING is nil, default to OLD-STRING. If given,
@@ -103,6 +107,10 @@ asking until a valid ID is entered."
                                   (concat (symbol-name id-type) " ")
                                 "")))))
     id))
+
+;;;=============================================================================
+;;; Working With Files
+;;;=============================================================================
 
 (defun ezeka--select-file (files &optional prompt require-match initial-input)
   "Select from among Zettel FILES, presenting optional PROMPT.
@@ -599,13 +607,6 @@ Called interactively, get the LINK at point or to current Zettel."
   (grep-compute-defaults)
   (rgrep link "*.txt" (file-name-as-directory ezeka-directory) nil))
 
-(defun ezeka-rgrep (string)
-  "Run a recursive grep (`rgrep') for the given STRING across all Zettel."
-  (interactive "sSearch for what? ")
-  (grep-compute-defaults)
-  (rgrep (string-replace " " ".*" string)
-         "*.txt" (file-name-as-directory ezeka-directory) nil))
-
 (defun ezeka-update-link-description (&optional field delete)
   "Replace text from point to next Zettel link with its title.
 If given (or called with \\[universal-argument]), FIELD specifies a different
@@ -673,21 +674,6 @@ the text instead."
   :group 'ezeka
   :type 'boolean)
 
-(defun ezeka--make-help-echo-overlay-at-pos (&optional pos)
-  "Make a help-echo overlay at POS (or `point')."
-  (save-match-data
-    (save-excursion
-      (goto-char (or pos (point)))
-      (when-let* ((_ (or (thing-at-point-looking-at (ezeka-link-regexp))
-                         (and (backward-to-word 1)
-                              (thing-at-point-looking-at (ezeka-link-regexp)))))
-                  (file (ezeka-link-file (match-string 1)))
-                  (overlay (make-overlay (match-beginning 1) (match-end 1))))
-        (overlay-put overlay 'type 'ezeka-help-echo)
-        (overlay-put overlay 'face '(:underline "purple"))
-        (overlay-put overlay 'help-echo (file-name-base file))))))
-;; (add-hook 'ezeka-octavo-insert-link-hook 'ezeka--make-help-echo-overlay-at-pos)
-
 (defun ezeka--make-help-echo-overlay (match-data)
   "Make a help-echo overlay for Zettel ID based on MATCH-DATA."
   (save-match-data
@@ -712,71 +698,6 @@ the text instead."
         (when ezeka-make-help-echo-overlays
           (while (re-search-forward overlayable nil t)
             (ezeka--make-help-echo-overlay (match-data))))))))
-
-;; To show the beginning of Zettel title in the mode-line,
-;; add the following to the user configuration:
-;;
-;; (add-hook 'ezeka-mode-hook 'ezeka-show-title-in-mode-line)
-(defun ezeka-show-title-in-mode-line ()
-  "Change `mode-line-misc-info' to show Zettel's title from metadata."
-  (interactive)
-  (when (and (ezeka-file-p buffer-file-name)
-             (not (zerop (buffer-size))))
-    (save-excursion
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (let ((metadata
-               (ezeka-decode-rubric
-                (buffer-substring-no-properties
-                 (or (re-search-forward ezeka-header-rubric-key nil t) (point-min))
-                 (point-at-eol)))))
-          (when metadata
-            (let ((words (split-string (alist-get 'title metadata))))
-              (setq-local mode-line-misc-info
-                          (replace-regexp-in-string
-                           "/" "" (mapconcat #'identity
-                                             (cl-subseq words 0 (min 5 (length words)))
-                                             " "))))))))))
-
-;; Add the following hook to enact:
-;;
-;; (add-hook 'post-command-hook 'ezeka-show-tooltip-with-link-title)
-;;
-;; Set absolute values for tooltip location
-;; (add-to-list 'tooltip-frame-parameters '(top . 1015))
-;; (add-to-list 'tooltip-frame-parameters '(left . 560))
-(defun ezeka-show-tooltip-with-link-title ()
-  "If the cursor is at a Zettel link, show a tooltip with its title."
-  (while-no-input
-    (redisplay)
-    (when-let* ((link (and (ezeka-link-at-point-p)
-                           (ezeka-link-at-point)))
-                (position (window-absolute-pixel-position))
-                (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-      (tooltip-show
-       (format "%s%s%s" (alist-get 'title metadata)
-               (if (alist-get 'citekey metadata) " " "")
-               (or (alist-get 'citekey metadata) ""))))))
-
-;; Add the following hook to enact:
-;;
-;; (add-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
-;; (remove-hook 'post-command-hook 'ezeka-show-link-title-in-mode-line)
-(defun ezeka-show-link-title-in-mode-line ()
-  "If the cursor is at a Zettel link, show the title in the mode line."
-  (while-no-input
-    (redisplay)
-    (if-let* ((link (and (ezeka-link-at-point-p)
-                         (ezeka-link-at-point)))
-              (metadata (ezeka-file-metadata (ezeka-link-file link) t)))
-        (setq-local mode-line-misc-info
-                    (propertize
-                     (format "%s%s%s" (alist-get 'title metadata)
-                             (if (alist-get 'citekey metadata) " " "")
-                             (or (alist-get 'citekey metadata) ""))
-                     'face '(:slant italic :height 0.9)))
-      (setq-local mode-line-misc-info (symbol-value mode-line-misc-info)))))
 
 ;;;=============================================================================
 ;;; Genealogical
@@ -1085,21 +1006,8 @@ to buffers visiting files."
   (switch-to-buffer buffer-or-name norecord force-same-window))
 
 ;;;=============================================================================
-;;; Labels
-;;
-;; A label is either a genus (for numerus currens notes) or category (for tempus
-;; currens notes). By default, it is the value shown between curly brackets
-;; {...} in the note's rubric.
+;;; Setting Metadata
 ;;;=============================================================================
-
-(defun ezeka--validate-label (label)
-  "Return the validated LABEL when it is, or NIL otherwise."
-  (rx-let ((genus (eval (cons 'any (mapcar #'cadr ezeka-genera)))))
-    (when (string-match-p (rx string-start
-                              (or genus (one-or-more alpha))
-                              string-end)
-                          label)
-      label)))
 
 (defvar ezeka--read-category-history nil
   "History of manually entered categories.")
@@ -1314,48 +1222,6 @@ show genera verbosely or type custom category."
             filename
           (format "Change label from {%s} to {%s}." old-val label))))))
 
-;; Any way to make this more general without re-implementing half of BibTeX?
-(defun ezeka--citekey-from-note-title (title)
-  "Parse note's TITLE into a citekey suggestion or NIL."
-  (save-match-data
-    (let* ((given-name '(1+ (in "A-Z" "a-z" "." "-" " ")))
-           (family-name '(1+ (in "A-Za-z-")))
-           (title-delimiters '(in "/\"'_"))
-           (work-title `(seq ,title-delimiters
-                             (1+ anychar)
-                             ,title-delimiters))
-           (date '(>= 4 (in "0-9" "-" ",")))
-           ;; Common patterns
-           (first-edition
-            (rx-to-string `(seq ,given-name
-                                " " word-start
-                                (group-n 1 ,family-name)
-                                "'s "
-                                (group-n 2 ,work-title)
-                                " "
-                                "(" (group-n 3 ,date) ")")
-                          'no-group))
-           (republished
-            (rx-to-string `(seq ,given-name
-                                " " word-start
-                                (group-n 1 ,family-name)
-                                "'s "
-                                (group-n 2 ,work-title)
-                                "(" (group-n 3 ,date) ")")
-                          'no-group)))
-      (when (or (string-match first-edition title)
-                (string-match republished title))
-        (concat (match-string 1 title) (match-string 3 title))))))
-
-(defun ezeka--validate-citekey (citekey)
-  "Return validated version of the CITEKEY or NIL.
-If CITEKEY is a string that does not start with @ or &,
-prepend @ to it."
-  (save-match-data
-    (when (string-match "\\`\\(?1:[@&]\\)*\\(?2:[A-Za-z0-9-]+\\)\\'" citekey)
-      (concat (or (match-string 1 citekey) "@")
-              (match-string 2 citekey)))))
-
 (defun ezeka-set-citekey (filename &optional citekey degree)
   "Set CITEKEY in the Zettel note in FILENAME.
 If CITEKEY is not given, get it from the parent, leting the
@@ -1410,36 +1276,6 @@ prefix arg), trace genealogy further than parent."
   (if (not (ezeka-file-p filename))
       (user-error "Not a Zettel note")
     (ezeka--update-metadata-values filename nil 'author author)))
-
-(defvar ezeka--dynamic-keywords-cache nil
-  "A list of keywords present in the current `ezeka-directory'.
-This list is generated once per session and then just referenced.")
-
-(defun ezeka--all-keywords ()
-  "Return `ezeka-keywords' with optional dynamic keywords.
-See `ezeka-dynamic-keywords'."
-  (if ezeka-dynamic-keywords
-      (setq ezeka--dynamic-keywords-cache
-        (cl-union ezeka--dynamic-keywords-cache
-                  ezeka-keywords
-                  :test #'string=))
-    ezeka-keywords))
-
-(defun ezeka--keyword-list (keys)
-  "Return a proper list of keywords from KEYS.
-KEYS can be a string of space and/or comma-separated keys,
-or a list of strings that are then assumed to be keywords."
-  (mapcar (lambda (s)
-            (if (= ?# (elt s 0))
-                s
-              (concat "#" s)))
-          (pcase keys
-            ((pred stringp)
-             (split-string keys "[ ,]+" 'omit-nulls "[^a-z0-9-]+"))
-            ((pred listp)
-             keys)
-            (_
-             (signal 'wrong-type-argument (list 'string-or-list-p keys))))))
 
 (defun ezeka--add-to-keywords-cache (keys)
   "Add keywords from KEYS to keyword history.
@@ -1562,19 +1398,6 @@ PROMPT and INITIAL-INPUT are passed to `read-string'."
                      (signal 'ezeka-error (list "No `ezeka-kaesten' defined")))
                    nil
                    t))
-
-;; FIXME: `rb-rename-file-and-buffer' is not local
-(defun ezeka-incorporate-file (file kasten &optional arg)
-  "Move FILE (defaults to one in current buffer) to KASTEN.
-With \\[universal-argument] ARG, asks for a different name."
-  (interactive (list (buffer-file-name)
-                     (completing-read "Zettel kasten: " (ezeka-kaesten))
-                     current-prefix-arg))
-  (rb-rename-file-and-buffer
-   (if (not arg)
-       (ezeka-link-file
-        (ezeka-make-link kasten (file-name-base file)))
-     (call-interactively #'rb-rename-file-and-buffer))))
 
 ;;;=============================================================================
 ;;; Change Log

@@ -361,7 +361,7 @@ If cannot decode, return NIL."
   (symbol-name key))
 
 ;;;=============================================================================
-;;; Categories, Genera, Keywords
+;;; Categories, Genera, Keywords, Citekeys
 ;;;=============================================================================
 
 (defcustom ezeka-categories nil
@@ -415,6 +415,103 @@ See `ezeka-move-to-another-kasten' for details."
 The list is then merged with `ezeka-keywords'."
   :type 'boolean
   :group 'ezeka)
+
+;;;=============================================================================
+;;; Labels
+;;
+;; A Label Is Either A Genus (For Numerus Currens Notes) Or Category (For Tempus
+;; Currens Notes). By Default, It Is The Value Shown Between Curly Brackets
+;; {...} In The Note'S Rubric.
+;;;=============================================================================
+
+(defun ezeka--validate-label (label)
+  "Return the validated LABEL when it is, or NIL otherwise."
+  (rx-let ((genus (eval (cons 'any (mapcar #'cadr ezeka-genera)))))
+    (when (string-match-p (rx string-start
+                              (or genus (one-or-more alpha))
+                              string-end)
+                          label)
+      label)))
+
+;;;=============================================================================
+;;; Citation Keys
+;;;=============================================================================
+
+;; Any way to make this more general without re-implementing half of BibTeX?
+(defun ezeka--citekey-from-note-title (title)
+  "Parse note's TITLE into a citekey suggestion or NIL."
+  (save-match-data
+    (let* ((given-name '(1+ (in "A-Z" "a-z" "." "-" " ")))
+           (family-name '(1+ (in "A-Za-z-")))
+           (title-delimiters '(in "/\"'_"))
+           (work-title `(seq ,title-delimiters
+                             (1+ anychar)
+                             ,title-delimiters))
+           (date '(>= 4 (in "0-9" "-" ",")))
+           ;; Common patterns
+           (first-edition
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                " "
+                                "(" (group-n 3 ,date) ")")
+                          'no-group))
+           (republished
+            (rx-to-string `(seq ,given-name
+                                " " word-start
+                                (group-n 1 ,family-name)
+                                "'s "
+                                (group-n 2 ,work-title)
+                                "(" (group-n 3 ,date) ")")
+                          'no-group)))
+      (when (or (string-match first-edition title)
+                (string-match republished title))
+        (concat (match-string 1 title) (match-string 3 title))))))
+
+(defun ezeka--validate-citekey (citekey)
+  "Return validated version of the CITEKEY or NIL.
+If CITEKEY is a string that does not start with @ or &,
+prepend @ to it."
+  (save-match-data
+    (when (string-match "\\`\\(?1:[@&]\\)*\\(?2:[A-Za-z0-9-]+\\)\\'" citekey)
+      (concat (or (match-string 1 citekey) "@")
+              (match-string 2 citekey)))))
+
+;;;=============================================================================
+;;; Keywords
+;;;=============================================================================
+
+(defvar ezeka--dynamic-keywords-cache nil
+  "A list of keywords present in the current `ezeka-directory'.
+This list is generated once per session and then just referenced.")
+
+(defun ezeka--all-keywords ()
+  "Return `ezeka-keywords' with optional dynamic keywords.
+See `ezeka-dynamic-keywords'."
+  (if ezeka-dynamic-keywords
+      (setq ezeka--dynamic-keywords-cache
+        (cl-union ezeka--dynamic-keywords-cache
+                  ezeka-keywords
+                  :test #'string=))
+    ezeka-keywords))
+
+(defun ezeka--keyword-list (keys)
+  "Return a proper list of keywords from KEYS.
+KEYS can be a string of space and/or comma-separated keys,
+or a list of strings that are then assumed to be keywords."
+  (mapcar (lambda (s)
+            (if (= ?# (elt s 0))
+                s
+              (concat "#" s)))
+          (pcase keys
+            ((pred stringp)
+             (split-string keys "[ ,]+" 'omit-nulls "[^a-z0-9-]+"))
+            ((pred listp)
+             keys)
+            (_
+             (signal 'wrong-type-argument (list 'string-or-list-p keys))))))
 
 ;;;=============================================================================
 ;;; File Names
