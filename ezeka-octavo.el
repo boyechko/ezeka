@@ -389,12 +389,13 @@ destination kasten."
          :before)
       (ezeka--insert-link-with-spaces link))))
 
-(defun ezeka-octavo--setup-vertico ()
-  "Definie `vertico-sort-history-alpha' sort if not already defined."
-  (put 'vertico-sort--define 'lisp-indent-function 1)
-  (unless (fboundp 'vertico-sort-reverse-alpha)
-    (vertico-sort--define (reverse-alpha)
-      32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>)))
+(eval-after-load 'vertico
+  (defun ezeka-octavo--setup-vertico ()
+    "Define `vertico-sort-history-alpha' sort if not already defined."
+    (put 'vertico-sort--define 'lisp-indent-function 1)
+    (unless (fboundp 'vertico-sort-reverse-alpha)
+      (vertico-sort--define (reverse-alpha)
+                            32 (if (eq % "") 0 (/ (aref % 0) 4)) string> string>))))
 
 (defun ezeka-octavo-insert-link-to-kasten (kasten &optional link-only sort)
   "Insert a link to KASTEN.
