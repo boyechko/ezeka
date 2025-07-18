@@ -67,6 +67,7 @@ only once. WHERE can be 'before, 'after, or 'both."
                    (if (member ,where '(after both)) " " ""))
          ""))))
 
+;; FIXME No references as of [2025-07-18 Fri]
 (defun ezeka--ordinal-suffix (n)
   "Ordinal suffix for N, a number or string.
 \(That is, `st', `nd', `rd', or `th', as appropriate.)
@@ -128,6 +129,7 @@ See `format-time-string' for details about details."
 See `format-time-string' for details about details."
   :type 'string
   :group 'ezeka)
+
 (defvar ezeka-iso8601-date-regexp
   (rx word-boundary
       (group (repeat 4 digit))
