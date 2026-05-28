@@ -85,6 +85,13 @@ Return the resulting point."
     (unless (zerop (forward-line))
       (insert "\n"))))
 
+(defun ezeka--snippet-heading-p (heading)
+  "Return non-nil if HEADING is a snippet heading."
+  (member heading
+          (if (stringp ezeka-snippet-heading)
+              (list ezeka-snippet-heading)
+            ezeka-snippet-heading)))
+
 (defun ezeka--find-snippet-heading ()
   "Go to the first snippet heading in the current buffer.
 Return the new position; otherwise, nil."
@@ -206,20 +213,9 @@ insert the summary before the content."
             (when (org-at-comment-p)
               (org-insert-subheading nil))
             (ezeka--org-move-after-drawers)
-            (let ((start (point))
-                  (removed-elements '(comments 0 footnotes 0))
-                  (snip-buf (find-file-noselect snip-file))
-                  (content '()))
-              (delete-region start (point-max))
-              ;; Get the Summary and Snippet subtrees from snippet snip-file
-              (setq content (ezeka--compose-extract-content snip-file summary org-id))
-
-              ;; Insert the copied subtrees and remove extraneous stuff
-              (apply #'insert (nreverse content))
-              (goto-char start)
-              (setq removed-elements
-                (ezeka--clean-inserted-content start our-tags))
-
+            (let ((removed-elements
+                   (ezeka--replace-content-with-snippet
+                    (point) snip-file summary org-id our-tags)))
               (org-indent-region (point-min) (point-max))
               (goto-char (point-max))
               (insert "\n")
@@ -229,6 +225,16 @@ insert the summary before the content."
                        (plist-get removed-elements 'footnotes))
               t)))))))
 
+(defun ezeka--replace-content-with-snippet (start snip-file summary org-id our-tags)
+  "Replace current content with snippet content, returning stats.
+See `ezeka-insert-snippet-text' about START, SNIP-FILE, SUMMARY,
+ORG-ID, and OUR-TAGS."
+  (let ((content (ezeka--compose-extract-content snip-file summary org-id))
+        (removed-elements '(comments 0 footnotes 0)))
+    (delete-region start (point-max))
+    (apply #'insert (nreverse content))
+    (ezeka--clean-inserted-content start our-tags)))
+
 (defun ezeka--clean-inserted-content (start our-tags)
   "Clean up inserted content in `ezeka-insert-snippet-text'.
 START is buffer position where to start. OUR-TAGS are the
@@ -237,6 +243,7 @@ removed elements."
   (let ((comments-removed 0)
         (footnotes-removed 0))
     ;; Transform headings
+    (goto-char start)
     (while (re-search-forward "^[*]+ " nil t)
       (goto-char (match-beginning 0))
       (replace-match (concat "*" (match-string 0)))
@@ -361,12 +368,11 @@ heading matches `ezeka-snippet-heading' or if the command was called
 with \\[universal-argument] ARG. With double \\[universal-argument],
 offer additional options."
   (interactive "P")
-  (let ((snippet? (string= ezeka-snippet-heading
-                          (save-excursion
-                            (org-back-to-heading-or-point-min t)
-                            (and (org-context)
-                                 (nth 4 (org-heading-components)))))))
-    (if (or snippet? arg)
+  (let ((heading (save-excursion
+                   (org-back-to-heading-or-point-min t)
+                   (and (org-context)
+                        (nth 4 (org-heading-components))))))
+    (if (or arg (ezeka--snippet-heading-p heading))
         (let ((org-footnote-section nil)
               (org-footnote-auto-label nil)
               (org-footnote-define-inline nil)
