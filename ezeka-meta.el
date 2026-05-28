@@ -753,7 +753,7 @@ PREDICATE, if given, overrides `ezeka-metadata-fields'."
              (read-string
               (format "Value `%s' for %s doesn't satisfy `%s'; fix it: "
                       value field pred)
-              value
+              (format "%s" value)
               'ezeka--validate-metadata-field-history))
             pred))
           ((listp pred)
