@@ -91,15 +91,6 @@
   (should (string= (ezeka-link-kasten "20240729T1511") "tempus"))
   (should (string= (ezeka-link-kasten "a-1234~56") "scriptum")))
 
-(ert-deftest ezeka-link-kasten ()
-  (let ((numerus "q-8148")
-        (tempus-with-kasten "os:20160313T2228")
-        (tempus-no-kasten "20160313T2228"))
-    (should (string= "numerus" (ezeka-link-kasten numerus)))
-    (should (string= "os" (ezeka-link-kasten tempus-with-kasten)))
-    (should (string= "tempus" (ezeka-link-kasten tempus-no-kasten)))
-    (should-not (ezeka-link-kasten tempus-no-kasten t))))
-
 (ert-deftest ezeka-link-p ()
   (should (ezeka-link-p "a-1234"))
   (should (ezeka-link-p "20221029T1534"))
