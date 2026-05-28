@@ -892,6 +892,55 @@ as the current note. With \\[universal-argument] \\[universal-argument], ask for
            (ezeka-find-link child-link)))))
 
 ;;;=============================================================================
+;;; Sequential
+;;;=============================================================================
+
+(defun ezeka-trace-sequence (file-or-link &optional degree)
+  "Return FILE-OR-LINK's next sequential link.
+If cannot figure it out, return NIL. With the optional DEGREE, try to
+find the Nth link (i.e. second next if DEGREE is 2, previous if DEGREE is
+-1, and so on), returning the most remote link that could be found."
+  (let ((degree (or degree 1)))
+    (when file-or-link
+      (if (= (abs degree) 0)
+          file-or-link
+        (ezeka-trace-sequence (alist-get (if (> degree 0)
+                                             'next
+                                           'previous)
+                                         (ezeka-file-metadata
+                                          (if (ezeka-link-p file-or-link)
+                                              (ezeka-link-file file-or-link)
+                                            file-or-link)))
+                              (if (> degree 0)
+                                  (1- degree)
+                                (1+ degree)))))))
+
+(defun ezeka-find-previous (n &optional same-window)
+  "Open the current Zettel's previous item in sequence.
+With a prefix argument, try to find the Nth previous item. With
+\\[universal-argument] or SAME-WINDOW non-nil, open in the same
+window."
+  (interactive (list (if (integerp current-prefix-arg)
+                         current-prefix-arg
+                       1)
+                     (equal current-prefix-arg '(4))))
+  (when (ezeka-file-p buffer-file-name)
+    (let ((previous (ezeka-trace-sequence buffer-file-name (- n))))
+      (if previous
+          (ezeka-find-link previous same-window)
+        (message "No previous item of degree %d found" n)))))
+
+(defun ezeka-find-next (n)
+  "Open the current Zettel's next item in sequence.
+With a prefix argument, try to find the Nth next item."
+  (interactive "p")
+  (when (ezeka-file-p buffer-file-name)
+    (let ((next (ezeka-trace-sequence buffer-file-name n)))
+      (if next
+          (ezeka-find-link next)
+        (message "No next item found")))))
+
+;;;=============================================================================
 ;;; Buffers and Frames
 ;;;=============================================================================
 
@@ -2407,7 +2456,7 @@ END."
           ;; reserved for major modes, leaving the following:
           ;;
           ;; ` ~ ! @ # $ % ^ & * ( ) - _ = + [ ] | \ ' " , . / ?
-          ;; X X   X X X X X           X X X X X X X X X X X X X
+          ;; X X z X X X X X   z     z X X X X X X X z X X X X X
           ;;------------------------------------------------------------------
           '(
             ("C-c `" . ezeka-toggle-header-read-only) ; `org-table-edit-field'
@@ -2415,13 +2464,13 @@ END."
             ;; ("C-c !" . ) ; `org-time-stamp-inactive'
             ("C-c @" . ezeka-set-citekey)
             ("C-c #" . ezeka-edit-keywords)
-            ;; ("C-c $" . ) ; `flyspell-correct-word-before-point'
+            ("C-c $" . ezeka-set-label)
             ("C-c %" . ezeka-kill-ring-save-link)
             ("C-c ^" . ezeka-find-ancestor)
-            ;; ("C-c &" . ) ; yasnippet
+            ("C-c &" . ezeka-set-title-or-caption)
             ;; ("C-c *" . ) ; `org-ctrl-c-star'
-            ("C-c (" . ezeka-harmonize-file-name)
-            ("C-c )" . ezeka-set-title-or-caption)
+            ("C-c (" . ezeka-find-previous)
+            ("C-c )" . ezeka-find-next)
             ;; ("C-c -" . ) ; `org-ctrl-c-minus' that turns region into list
             ("C-c _" . ezeka-find-descendant)
             ("C-c =" . ezeka-kill-ring-save-metadata-field) ; `org-table-eval-formula'
@@ -2429,14 +2478,12 @@ END."
             ("C-c [" . ezeka-update-link-description) ; `org-agenda-file-to-front'
             ("C-c ]" . ezeka-add-reading)
             ("C-c |" . ezeka-toggle-update-header-modified) ; `org-table-create-or-convert-from-region'
-            ("C-c ;" . ezeka-set-label)
-            ("C-c :" . ezeka-set-author)
             ;; ("C-c '" . ) ; `org-edit-special'
             ("C-c \"" . ezeka-insert-ancestor-link)
             ("C-c ," . ezeka-insert-new-child-with-title)
             ("C-c ." . ezeka-octavo-insert-contextual-link) ; `org-table-eval-formula'
             ("C-c /" . ezeka-convert-timestamp) ; `org-sparse-tree'
-            ("C-c ?" . ezeka-links-to) ; `org-table-field-info'
+            ("C-c ?" . ezeka-octavo-insert-link-to-numerus) ; `org-table-field-info'
 
             ;; shadows `org-open-at-mouse', but allows opening in same window with C-u
             ([S-mouse-1] . ezeka-open-link-at-mouse-same-window))) ; end of :keymap

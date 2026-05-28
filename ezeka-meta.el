@@ -55,6 +55,8 @@
     (modified  :format ?M :predicate ezeka--timep)
     (parent    :format ?p :predicate ezeka-id-valid-p)
     (firstborn :format ?f :predicate ezeka-id-valid-p)
+    (previous  :format ?< :predicate ezeka-id-valid-p)
+    (next      :format ?> :predicate ezeka-id-valid-p)
     (oldnames  :format ?o :predicate (ezeka-id-valid-p))
     (readings  :format ?r :predicate listp)
     (keywords  :format ?k :predicate listp))
