@@ -613,13 +613,13 @@ otherwise."
       (cond ((zerop (length matches)) nil)
             ((not (cdr matches)) (car matches))
             (t
-             (warn "Found multiple matches for `%s':\n- %s"
-                   link
-                   (mapconcat (lambda (f)
-                                (if (file-symlink-p f)
-                                    (format "<SYMLINK> (delete-file \"%s\")" f)
-                                  (file-name-base f)))
-                              matches "\n- "))
+             ;; (warn "Found multiple matches for `%s':\n- %s"
+             ;;       link
+             ;;       (mapconcat (lambda (f)
+             ;;                    (if (file-symlink-p f)
+             ;;                        (format "<SYMLINK> (delete-file \"%s\")" f)
+             ;;                      (file-name-base f)))
+             ;;                  matches "\n- "))
              (ezeka--select-file matches
                                  "Multiple matches found. Select one: "
                                  'require-match))))))
