@@ -162,8 +162,10 @@ file interactively."
   (cond ((and link-at-point (ezeka-link-at-point-p))
          (ezeka-link-file (ezeka-link-at-point)))
         ((and buffer-file-name
-              (or ezeka-mode (ezeka-file-p buffer-file-name t)))
+              (ezeka-file-p buffer-file-name 'strict))
          buffer-file-name)
+        (ezeka-mode
+         (current-buffer))
         ((eq major-mode 'magit-status-mode)
          (magit-file-at-point))
         ((eq major-mode 'xref--xref-buffer-mode)
@@ -405,7 +407,8 @@ interactively edit the text."
          (intern-soft (completing-read "Where? " '(":before" ":after") nil t))))
   (let* ((file (pcase zettel
                  ((pred ezeka-link-p) (ezeka-link-file zettel))
-                 ((pred bufferp) (buffer-file-name zettel))
+                 ((pred bufferp) (or (buffer-file-name zettel)
+                                     zettel))
                  ((pred ezeka-file-p) zettel)
                  (_ (signal 'wrong-type-argument (list 'link-file-or-buffer zettel)))))
          (link (ezeka-file-link file)))
@@ -417,7 +420,7 @@ interactively edit the text."
                                               :format)))
                          fields
                          " "))
-              (mdata (if (file-symlink-p file)
+              (mdata (if (and file (file-symlink-p file))
                          (ezeka-decode-rubric (file-name-base file))
                        (ezeka-file-metadata file)))
               (desc-string (ezeka-format-metadata
@@ -453,23 +456,27 @@ already inside a link, replace it instead."
 
 (defun ezeka--note-in-other-window ()
   "Return the file name to the Zettel note in the other window.
-If there is no other window or the file is not a Zettel
-note, return nil."
-  (when-let* ((other-win (cond ((one-window-p t 'visible)
-                                nil)
-                               ((and (> (count-windows nil 'visible) 2)
-                                     (featurep 'ace-window))
-                                (aw-select " Ace - Window"))
-                               ((> (count-windows nil 'visible) 2)
-                                (user-error "There are more than one `other-window's"))
-                               (t
-                                (other-window-for-scrolling))))
-              (other-buf (window-buffer other-win))
-              (file (or (buffer-file-name other-buf)
-                        (with-current-buffer other-buf
-                          (ezeka--grab-dwim-file-target))))
-              (_ (ezeka-file-p file)))
-    file))
+If the other window shows an unsaved file, return its buffer
+object. If there is no other window or the file is not a
+Zettel note, return nil."
+  (let* ((other-win (cond ((one-window-p t 'visible)
+                           nil)
+                          ((and (> (count-windows nil 'visible) 2)
+                                (featurep 'ace-window))
+                           (aw-select " Ace - Window"))
+                          ((> (count-windows nil 'visible) 2)
+                           (user-error "There are more than one `other-window's"))
+                          (t
+                           (other-window-for-scrolling))))
+         (other-buf (window-buffer other-win))
+         (file (or (buffer-file-name other-buf)
+                   (with-current-buffer other-buf
+                     (ezeka--grab-dwim-file-target)))))
+    (if (ezeka-file-p file 'strict)
+        file
+      (with-current-buffer other-buf
+        (and ezeka-mode
+             (ezeka--grab-dwim-file-target))))))
 
 (defun ezeka-insert-link-to-other-window (&optional link-only rubric)
   "Insert the link to the Zettel note in the other window.

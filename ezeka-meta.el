@@ -257,11 +257,14 @@ If HEADER-ONLY is non-nil, only get the header."
              (insert-file-contents file-or-buffer)
              (funcall _retrieve-content))))))
 
-(defun ezeka-file-metadata (file)
-  "Return an alist of metadata for FILE."
+(defun ezeka-file-metadata (source)
+  "Return an alist of metadata for SOURCE.
+SOURCE can be a filename or a buffer object."
   (save-match-data
-    (if-let* ((file (expand-file-name file ezeka-directory))
-              (header (ezeka-file-content file 'just-header))
+    (if-let* ((file (if (bufferp source)
+                        (buffer-file-name source)
+                      (expand-file-name source ezeka-directory)))
+              (header (ezeka-file-content source 'just-header))
               (mdata (ezeka--decode-header header file))
               (rubric (ezeka-decode-rubric (file-name-base file))))
         (let-alist mdata
