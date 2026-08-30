@@ -51,7 +51,8 @@
 (defun ezeka-octavo-initialize-kasten (name)
   "Set necessary variables for long-term work in Kasten with given NAME."
   (let ((kasten (ezeka-kasten name)))
-    (setq octavo-directory (ezeka-kasten-directory kasten)
+    (setq octavo-directory (expand-file-name (ezeka-kasten-directory kasten)
+                                             ezeka-directory)
           octavo-id-regexp (ezeka--id-regexp))
     (if (eq (ezeka-kasten-id-type kasten) :numerus)
         (setq octavo-index-format "%i {%l} %c"

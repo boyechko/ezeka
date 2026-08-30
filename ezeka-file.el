@@ -354,8 +354,7 @@ and SUBDIR-FUNC. DIRECTORY, if relative, will be expanded in
   (let* ((directory (or directory ""))
          (directory (if (file-name-absolute-p directory)
                         directory
-                      (file-name-as-directory
-                       (expand-file-name directory ezeka-directory))))
+                      (file-name-as-directory directory)))
          (id-style (ezeka-id-style--create
                     :description (format "Used in %s Kasten; ex. %s" name minimal-id)
                     :regexp id-regexp
