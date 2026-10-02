@@ -1151,8 +1151,6 @@ Return the new metadata."
                               (ezeka-format-metadata "%i {%l} %t" mdata)
                               (ezeka-timestamp last-modified 'full 'brackets)))))
         (setf (alist-get 'modified mdata) now)
-        (ezeka--add-to-system-log 'update-modified nil
-          'note (ezeka-encode-rubric metadata))
         (run-hooks 'ezeka-modified-updated-hook)))
     mdata))
 
