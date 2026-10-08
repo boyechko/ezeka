@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'ezeka-base)
+(require 'rx)
 
 ;;;=============================================================================
 ;;; Directories
@@ -504,9 +505,10 @@ string.
 
 Group 1 is the ID.
 Group 2 is the kasten, if specified."
+  ;; The registry is runtime configuration, not a macro-expansion dependency.
   `(rx ,(if match-entire 'string-start 'word-start)
        (optional (group-n 2 (one-or-more alpha)) ":")
-       (group-n 1 (regexp ,(ezeka--id-regexp)))
+       (group-n 1 (regexp (ezeka--id-regexp)))
        ,(if match-entire 'string-end 'word-end)))
 
 ;; TODO Replace with `ezeka-file-name-id'?

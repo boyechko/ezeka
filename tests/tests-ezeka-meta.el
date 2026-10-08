@@ -31,7 +31,21 @@
 ;;; Code:
 
 (require 'ert)
+(require 'bytecomp)
 (require 'ezeka-meta)
+
+(ert-deftest ezeka--validate-label-compiled-configuration ()
+  "Compiled label validation must use the current genera."
+  (let* ((ezeka-genera nil)
+         (validator (symbol-function 'ezeka--validate-label)))
+    (unless (byte-code-function-p validator)
+      (setq validator (byte-compile validator)))
+    (should (equal (funcall validator "Class") "Class"))
+    (should-not (funcall validator "★"))
+    (let ((ezeka-genera '((?s ?★ "star"))))
+      (should (equal (funcall validator "★") "★"))
+      (should-not (funcall validator "★★"))
+      (should-not (funcall validator "Class42")))))
 
 (ert-deftest ezeka-format-metadata ()
   (let* ((file (ezeka-link-file "a-0000"))

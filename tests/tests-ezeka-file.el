@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'bytecomp)
 (require 'ezeka-file)
 
 (ert-deftest ezeka-id-valid-p ()
@@ -95,6 +96,20 @@
   (should (ezeka-link-p "a-1234"))
   (should (ezeka-link-p "20221029T1534"))
   (should-not (ezeka-link-p "abc-1234")))
+
+(ert-deftest ezeka-link-regexp-compiled-configuration ()
+  "Compiled link matching must use the current Kasten registry."
+  (let ((ezeka--kaesten (copy-sequence ezeka--kaesten))
+        (matcher (byte-compile
+                  '(lambda (link)
+                     (string-match-p (ezeka-link-regexp 'match-entire) link)))))
+    (should-not (funcall matcher "custom-42"))
+    (ezeka-kasten-new "custom"
+                      :id-regexp "custom-[0-9]+"
+                      :minimal-id "custom-1")
+    (should (funcall matcher "custom-42"))
+    (should (funcall matcher "custom:custom-42"))
+    (should-not (funcall matcher "custom-42-extra"))))
 
 (ert-deftest ezeka-link-path ()
   (should

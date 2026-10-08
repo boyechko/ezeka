@@ -31,6 +31,49 @@
 ;;; Code:
 
 (require 'ezeka-base)
+(require 'rx)
+
+(eval-when-compile
+  (require 'ezeka-file))               ; `ezeka-link-regexp'
+
+;;;=============================================================================
+;;; Macros
+;;;=============================================================================
+
+(defmacro ezeka-encode-rubric (metadata &optional stable-mark)
+  "Return a string that encodes the given METADATA into the rubric.
+The rubric consist of `ezeka-file-name-format', preceded by
+`ezeka-header-rubric-stable-mark' if STABLE-MARK is given."
+  `(concat (when ,stable-mark ezeka-header-rubric-stable-mark)
+           (ezeka-format-metadata ezeka-file-name-format ,metadata)))
+
+;; TODO See `ezeka-header-rubric-regexp' about how to unhardcode this.
+(defmacro ezeka-file-name-regexp ()     ; HARDCODED
+  "Return regexp matching Zettel base file names (i.e. rubrics).
+It should match the result of `ezeka-file-name-format`.
+
+Group 1 is the ID.
+Group 2 is the kasten.
+Group 3 is the label (genus or category).
+Group 4 is the caption (i.e. short title).
+Group 5 is the citation key.
+Group 6 is the stable caption mark."
+  `(concat (ezeka-link-regexp)          ; \1 and \2
+           ezeka-file-name-separator
+           "\\(?:"                      ; everything else is optional
+           "\\(?:\\.\\)*"               ; FIXME: optional historic period
+           "\\(?:{\\(?3:[^}]+\\)} \\)*" ; \3
+           "\\(?4:.+?\\)"               ; \4
+           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
+           "\\)*"                          ; end of everything else
+           ))
+
+(defvar ezeka--new-child-metadata nil
+  "An alist of new children and their metadata.")
+
+(defmacro ezeka--new-child-metadata (link)
+  "Return metadata alist for child LINK."
+  `(alist-get ,link ezeka--new-child-metadata nil nil #'string=))
 
 ;;;=============================================================================
 ;;; Metadata: Internal
@@ -312,13 +355,6 @@ SOURCE can be a filename or a buffer object."
             (file-attribute-modification-time (file-attributes file)))
       rubric)))
 
-(defmacro ezeka-encode-rubric (metadata &optional stable-mark)
-  "Return a string that encodes the given METADATA into the rubric.
-The rubric consist of `ezeka-file-name-format', preceded by
-`ezeka-header-rubric-stable-mark' if STABLE-MARK is given."
-  `(concat (when ,stable-mark ezeka-header-rubric-stable-mark)
-           (ezeka-format-metadata ezeka-file-name-format ,metadata)))
-
 ;; TODO It would be useful to generate the regexp based on
 ;; `ezeka-encode-rubric' output, perhaps by passing METADATA consisting
 ;; of %-sequences from `ezeka-format-metadata'. The fields in
@@ -422,12 +458,14 @@ The list is then merged with `ezeka-keywords'."
 
 (defun ezeka--validate-label (label)
   "Return the validated LABEL when it is, or NIL otherwise."
-  (rx-let ((genus (eval (cons 'any (mapcar #'cadr ezeka-genera)))))
-    (when (string-match-p (rx string-start
-                              (or genus (one-or-more alpha))
-                              string-end)
-                          label)
-      label)))
+  ;; Read user-defined genera at runtime, including in byte-compiled code.
+  (when (string-match-p
+         (rx-to-string `(seq string-start
+                             (or (any ,@(mapcar #'cadr ezeka-genera))
+                                 (one-or-more alpha))
+                             string-end))
+         label)
+    label))
 
 ;;;=============================================================================
 ;;; Citation Keys
@@ -531,27 +569,6 @@ is optional. See `ezeka-format-metadata' for details. This
 should match `ezeka-file-name-regexp'."
   :type 'string
   :group 'ezeka)
-
-;; TODO See `ezeka-header-rubric-regexp' about how to unhardcode this.
-(defmacro ezeka-file-name-regexp ()     ; HARDCODED
-  "Return regexp matching Zettel base file names (i.e. rubrics).
-It should match the result of `ezeka-file-name-format`.
-
-Group 1 is the ID.
-Group 2 is the kasten.
-Group 3 is the label (genus or category).
-Group 4 is the caption (i.e. short title).
-Group 5 is the citation key.
-Group 6 is the stable caption mark."
-  `(concat (ezeka-link-regexp)          ; \1 and \2
-           ezeka-file-name-separator
-           "\\(?:"                      ; everything else is optional
-           "\\(?:\\.\\)*"               ; FIXME: optional historic period
-           "\\(?:{\\(?3:[^}]+\\)} \\)*" ; \3
-           "\\(?4:.+?\\)"               ; \4
-           "\\(?: \\(?5:[@&]\\S-+\\)\\)*$" ; \5
-           "\\)*"                          ; end of everything else
-           ))
 
 (defun ezeka-file-p (file-or-buffer &optional strict)
   "Return non-NIL if the FILE-OR-BUFFER is a Zettel.
@@ -1379,13 +1396,6 @@ overrides `ezeka-harmonize-file-name-preference'."
 ;;;=============================================================================
 ;;; Child Metadata
 ;;;=============================================================================
-
-(defvar ezeka--new-child-metadata nil
-  "An alist of new children and their metadata.")
-
-(defmacro ezeka--new-child-metadata (link)
-  "Return metadata alist for child LINK."
-  `(alist-get ,link ezeka--new-child-metadata nil nil #'string=))
 
 ;; TODO Metadata really should be a `defstruct'
 (defun ezeka--set-new-child-metadata (link metadata &rest plist)
