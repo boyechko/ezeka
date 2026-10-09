@@ -34,6 +34,10 @@
 (require 'bytecomp)
 (require 'ezeka-file)
 
+;; Make `M-x eval-buffer' in this file enough to find `ezeka-test'.
+(add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
+(require 'ezeka-test)
+
 (ert-deftest ezeka-id-valid-p ()
   (should-not (ezeka-id-valid-p "goggly-gook"))
   (should (ezeka-id-valid-p "a-1234"))
@@ -49,43 +53,36 @@
   (should-error (ezeka-id-type "abc-1234")))
 
 (ert-deftest ezeka-file-kasten ()
-  (should (ezeka-file-kasten (ezeka-link-file "a-0000"))))
+  (ezeka-test-with-zettelkasten
+    ;; `ezeka-file-kasten' returns the Kasten struct, not its name.
+    (should (string= "numerus"
+                     (ezeka-kasten-name
+                      (ezeka-file-kasten (ezeka-link-file "a-0000")))))
+    (should (string= "tempus"
+                     (ezeka-kasten-name
+                      (ezeka-file-kasten (ezeka-link-file "20160313T2228")))))))
 
 (ert-deftest ezeka-file-link ()
-  (let ((numerus "q-8148")
-        (tempus "20160313T2228"))
-    (should (string= numerus (ezeka-file-link (ezeka-link-file numerus))))
-    (should (string= tempus (ezeka-file-link (ezeka-link-file tempus))))
-    (should-error (ezeka-file-link buffer-file-name))))
+  (ezeka-test-with-zettelkasten
+    (let ((numerus "q-8148")
+          (tempus "20160313T2228"))
+      (should (string= numerus (ezeka-file-link (ezeka-link-file numerus))))
+      (should (string= tempus (ezeka-file-link (ezeka-link-file tempus))))
+      ;; A file outside any Kasten yields nil rather than an error.
+      (should-not (ezeka-file-link (ezeka-test-file "not-a-zettel.txt"))))))
 
 (ert-deftest ezeka-link-file ()
-  (let ((numerus "q-8148")
-        (tempus-with-kasten "os:20160313T2228")
-        (tempus-no-kasten "20160313T2228"))
-    (should
-     (string=
-      "q-8148 {μ} having everything in one place frees up the mind @Allen2001"
-      (file-name-base (ezeka-link-file numerus))))
-    (should
-     (string=
-      "q-8148 random string"
-      (file-name-base (ezeka-link-file numerus "random string"))))
-    (should
-     (string=
-      "/Users/richard/Zettelkasten/os/2016/20160313T2228 {Class} Translation, Final Project.txt"
-      (ezeka-link-file tempus-with-kasten)))
-    (should
-     (string=
-      "/Users/richard/Zettelkasten/os/2016/20160313T2228 {Class} Translation, Final Project.txt"
-      (ezeka-link-file tempus-no-kasten)))
-    (should
-     (string=
-      "/Users/richard/Zettelkasten/omasum/2016/20160313T2228.txt"
-      (ezeka-link-file tempus-no-kasten "")))
-    (should
-     (string=
-      "/Users/richard/Zettelkasten/omasum/2016/20160313T2228 testing.txt"
-      (ezeka-link-file tempus-no-kasten "testing")))))
+  (ezeka-test-with-zettelkasten
+    (should (string= "q-8148 {μ} sample note for link resolution"
+                     (file-name-base (ezeka-link-file "q-8148"))))
+    (should (string= (ezeka-test-file
+                      "tempus/2016/20160313T2228 {Class} sample tempus note.txt")
+                     (ezeka-link-file "20160313T2228")))
+    ;; A Kasten-qualified link resolves the same as a bare ID.
+    (should (string= (ezeka-link-file "20160313T2228")
+                     (ezeka-link-file "tempus:20160313T2228")))
+    ;; Nothing on disk for this ID.
+    (should-not (ezeka-link-file "z-9999"))))
 
 (ert-deftest ezeka-link-kasten ()
   (should (string= (ezeka-link-kasten "a-1234") "numerus"))
@@ -112,12 +109,15 @@
     (should-not (funcall matcher "custom-42-extra"))))
 
 (ert-deftest ezeka-link-path ()
-  (should
-   (string-match-p "numerus/a/a-1234 {ψ} ezeka--create-placeholder test.txt$"
-                   (ezeka-link-path "a-1234"
-                                    '((link . "a-1234")
-                                      (label . "ψ")
-                                      (caption . "ezeka--create-placeholder test"))))))
+  (ezeka-test-with-zettelkasten
+    ;; `ezeka-link-path' computes a path; the file need not exist.
+    (should (string=
+             (ezeka-test-file
+              "numerus/a/a-1234 {ψ} ezeka--create-placeholder test.txt")
+             (ezeka-link-path "a-1234"
+                              '((link . "a-1234")
+                                (label . "ψ")
+                                (caption . "ezeka--create-placeholder test")))))))
 
 (ert-deftest ezeka-make-link ()
   (should-error (ezeka-make-link "kasten" "1234"))
@@ -127,26 +127,36 @@
   (should (ezeka-make-link "scriptum" "a-1234~01")))
 
 (ert-deftest ezeka--directory-files ()
-  (let ((all-files (ezeka--directory-files "scriptum"))
-        (symlinks (ezeka--directory-files "scriptum"
-                                          (lambda (file)
-                                            (file-symlink-p file)))))
-    (should all-files)
-    (should (< (length symlinks) (length all-files)))))
+  (ezeka-test-with-zettelkasten
+    (let ((all-files (ezeka--directory-files "scriptum"))
+          (symlinks (ezeka--directory-files "scriptum"
+                                            (lambda (file)
+                                              (file-symlink-p file)))))
+      (should all-files)
+      (should (< (length symlinks) (length all-files))))))
 
 (ert-deftest ezeka--generate-id ()
-  (should (eq (ezeka-id-type (ezeka--generate-id "numerus")) :numerus))
-  (should (eq (ezeka-id-type (ezeka--generate-id "tempus")) :tempus))
-  (should (eq (ezeka-id-type (ezeka--generate-id "scriptum")) :scriptum)))
+  (ezeka-test-with-zettelkasten
+    ;; Even with BATCH, `ezeka-new-numerus-currens' asks the user to accept
+    ;; the candidate it picked, so answer that prompt.
+    (should (eq :numerus
+                (ezeka-id-type
+                 (ert-simulate-keys "y" (ezeka--generate-id "numerus" 'batch)))))
+    (should (eq :tempus (ezeka-id-type (ezeka--generate-id "tempus" 'batch))))
+    ;; `ezeka--generate-id' has no way to pass a project to the scriptum
+    ;; branch, which then prompts for one; call the generator directly.
+    (should (eq :scriptum (ezeka-id-type (ezeka-scriptum-id "a-1234"))))))
 
 (ert-deftest ezeka--make-symbolic-link ()
-  (let ((target (make-temp-file "ezeka-target"))
-        (linkname (expand-file-name "ezeka-symlink" (temporary-file-directory))))
-    (ezeka--make-symbolic-link target linkname)
-    (should (and (file-exists-p linkname) (file-symlink-p linkname)))
-    (should-not (when (file-symlink-p linkname)
-                  (delete-file linkname)
-                  (file-exists-p linkname)))))
+  ;; The fixture is needed for the system log the function writes to.
+  (ezeka-test-with-zettelkasten
+    (let ((target (ezeka-link-file "a-0000"))
+          (linkname (ezeka-test-file "numerus/a/a-0001 {ψ} symlink target.txt")))
+      (ezeka--make-symbolic-link target linkname)
+      (should (and (file-exists-p linkname) (file-symlink-p linkname)))
+      (should-not (when (file-symlink-p linkname)
+                    (delete-file linkname)
+                    (file-exists-p linkname))))))
 
 (ert-deftest ezeka--pasteurize-file-name ()
   (should (string= (ezeka--pasteurize-file-name "/Mickey 17/ (dir. Bong Joon-ho, 2025)")

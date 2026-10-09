@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Headless tests prefer newer source over stale bytecode and accept quoted
+  ERT selectors without shell quoting errors.
 - Core modules byte-compile without preloading Ezeka; compiled link matching
   and label validation use the current Kasten registry and genera.
+
+### Changed
+
+- Headless tests use a dedicated Lisp runner and ERT's standard backtraces;
+  `make test VERBOSE=1` shows untruncated backtraces.
 
 ## [0.2.0] - 2025-07-18
 

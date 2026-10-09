@@ -1,0 +1,7 @@
+rubric: q-8148 {μ} sample note for link resolution
+title: sample note for link resolution
+created: 2016-03-13 Sun 22:28
+modified: 2025-04-08 Tue 12:21
+parent: a-0000
+
+Fixture note. Contents are synthetic and exist only for the test suite.

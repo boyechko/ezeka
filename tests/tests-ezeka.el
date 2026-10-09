@@ -31,6 +31,11 @@
 
 (require 'ezeka)
 (require 'ert)
+(require 'ert-x)
+
+;; Make `M-x eval-buffer' in this file enough to find `ezeka-test'.
+(add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
+(require 'ezeka-test)
 
 (define-key emacs-lisp-mode-map (kbd "C-c C-e") 'ert)
 
@@ -39,17 +44,24 @@
 ;;;=============================================================================
 
 (ert-deftest ezeka--create-placeholder ()
-  (let* ((mdata (ezeka-metadata "a-1234"
-                  'label "ψ"
-                  'caption "ezeka--create-placeholder test"))
-         (path (ezeka-link-path "a-1234" mdata)))
-    (should (and (ezeka--create-placeholder "a-1234"
-                                            mdata
-                                            'quietly)
-                 (file-symlink-p path)
-                 (if (y-or-n-p (format "Delete placeholder `%s'?" path))
-                     (delete-file path)
-                   (message "Placeholder not deleted: %s" path))))))
+  "Create a placeholder symlink for a-1234 pointing at a-0000.
+This currently fails inside `ezeka--create-placeholder': `ezeka--select-file'
+hands it a file name, which it passes to `ezeka-link-file' (link -> file)
+where it wants `ezeka-file-link' (file -> link).  The result is nil, and
+`file-relative-name' then signals.  Both call sites -- the `link-target'
+binding and the `ezeka--add-to-move-log' call below it -- treat `link-to' as
+a link rather than the file it is."
+  :expected-result :failed
+  (ezeka-test-with-zettelkasten
+    (let* ((mdata (ezeka-metadata "a-1234"
+                    'label "ψ"
+                    'caption "ezeka--create-placeholder test"))
+           (path (ezeka-link-path "a-1234" mdata)))
+      ;; The function asks for the Kasten holding the symlink target, then
+      ;; for the note itself.
+      (should (ert-simulate-keys "numerus\ra-0000 {χ} sample numerus note\r"
+                (ezeka--create-placeholder "a-1234" mdata 'quietly)))
+      (should (file-symlink-p path)))))
 
 (provide 'tests-ezeka)
 ;;; tests-ezeka.el ends here

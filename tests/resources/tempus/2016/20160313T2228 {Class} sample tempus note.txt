@@ -1,0 +1,6 @@
+rubric: 20160313T2228 {Class} sample tempus note
+title: sample tempus note
+created: 2016-03-13 Sun 22:28
+modified: 2016-03-14 Mon 09:02
+
+Fixture note. Contents are synthetic and exist only for the test suite.

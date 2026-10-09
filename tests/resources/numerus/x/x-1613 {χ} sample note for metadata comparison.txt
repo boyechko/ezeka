@@ -1,0 +1,6 @@
+rubric: x-1613 {χ} sample note for metadata comparison
+title: sample note for metadata comparison
+created: 2019-11-19 Tue 17:19
+modified: 2024-07-29 Mon 15:11
+
+Fixture note. Contents are synthetic and exist only for the test suite.

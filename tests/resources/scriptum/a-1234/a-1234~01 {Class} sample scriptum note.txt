@@ -1,0 +1,7 @@
+rubric: a-1234~01 {Class} sample scriptum note
+title: sample scriptum note
+created: 2022-07-05 Tue 11:50
+modified: 2022-07-18 Mon 16:08
+parent: a-1234
+
+Fixture note. Contents are synthetic and exist only for the test suite.

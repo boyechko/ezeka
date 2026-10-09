@@ -34,6 +34,10 @@
 (require 'bytecomp)
 (require 'ezeka-meta)
 
+;; Make `M-x eval-buffer' in this file enough to find `ezeka-test'.
+(add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
+(require 'ezeka-test)
+
 (ert-deftest ezeka--validate-label-compiled-configuration ()
   "Compiled label validation must use the current genera."
   (let* ((ezeka-genera nil)
@@ -48,13 +52,14 @@
       (should-not (funcall validator "Class42")))))
 
 (ert-deftest ezeka-format-metadata ()
-  (let* ((file (ezeka-link-file "a-0000"))
-         (mdata (ezeka-file-metadata file)))
-    (should (string= "a-0000" (ezeka-format-metadata "%i" mdata)))
-    (should (string= "2022-08-08 Mon 18:25" (ezeka-format-metadata "%C" mdata)))
-    (should (string= (ezeka-format-metadata "%t" mdata)
-                     (ezeka-format-metadata "%T" mdata)))
-    (should (string= (file-name-base file) (ezeka-format-metadata "%R" mdata)))))
+  (ezeka-test-with-zettelkasten
+    (let* ((file (ezeka-link-file "a-0000"))
+           (mdata (ezeka-file-metadata file)))
+      (should (string= "a-0000" (ezeka-format-metadata "%i" mdata)))
+      (should (string= "2022-08-08 Mon 18:25" (ezeka-format-metadata "%C" mdata)))
+      (should (string= (ezeka-format-metadata "%t" mdata)
+                       (ezeka-format-metadata "%T" mdata)))
+      (should (string= (file-name-base file) (ezeka-format-metadata "%R" mdata))))))
 
 (ert-deftest ezeka--header-yamlify-value ()
   (should (string= (ezeka--header-yamlify-value "one")
@@ -71,11 +76,12 @@
                  '("2020-01-01" "2022-01-01"))))
 
 (ert-deftest ezeka--metadata-equal-p ()
-  (let ((md1 (ezeka-file-metadata (ezeka-link-file "x-1613")))
-        (md1a (nreverse (ezeka-file-metadata (ezeka-link-file "x-1613"))))
-        (md2 (ezeka-file-metadata (ezeka-link-file "q-8148"))))
-    (should (ezeka--metadata-equal-p md1 md1a))
-    (should-not (ezeka--metadata-equal-p md1 md2))))
+  (ezeka-test-with-zettelkasten
+    (let ((md1 (ezeka-file-metadata (ezeka-link-file "x-1613")))
+          (md1a (nreverse (ezeka-file-metadata (ezeka-link-file "x-1613"))))
+          (md2 (ezeka-file-metadata (ezeka-link-file "q-8148"))))
+      (should (ezeka--metadata-equal-p md1 md1a))
+      (should-not (ezeka--metadata-equal-p md1 md2)))))
 
 (ert-deftest ezeka--parse-citation-key ()
   (should (equal '(author1 "Horkheimer" author2 "Adorno" date "1989" authors "Horkheimer and Adorno")

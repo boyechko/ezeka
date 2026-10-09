@@ -1,0 +1,6 @@
+rubric: §a-0000 {χ} sample numerus note
+title: sample numerus note
+created: 2022-08-08 Mon 18:25
+modified: 2025-04-12 Sat 13:37
+
+Fixture note. Contents are synthetic and exist only for the test suite.

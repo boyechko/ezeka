@@ -10,21 +10,33 @@ EMACS ?= emacs
 SRC = ezeka-base.el ezeka-file.el ezeka-meta.el ezeka-syslog.el \
       ezeka-compose.el ezeka.el ezeka-breadcrumbs.el ezeka-virtual.el
 
-# Test files. tests-ezeka.el is omitted on purpose: it is interactive
-# (prompts with y-or-n-p, creates real files) and cannot run headless yet.
+# Test files. All run headless: anything touching the filesystem goes through
+# `ezeka-test-with-zettelkasten' (tests/ezeka-test.el), which copies the
+# fixture Kasten in tests/resources to a temporary directory, so no test reads
+# or writes the live Zettelkasten.
 TESTS = tests/tests-ezeka-base.el tests/tests-ezeka-file.el \
-        tests/tests-ezeka-meta.el tests/tests-ezeka-syslog.el
+        tests/tests-ezeka-meta.el tests/tests-ezeka-syslog.el \
+        tests/tests-ezeka.el
 
 LOAD_TESTS = $(foreach t,$(TESTS),-l $(t))
 
+# ERT selector as Lisp data, optionally quoted:
+#   make test SELECTOR='"^ezeka-link"'
+#   make test SELECTOR="'(member ezeka-link-p)"
+SELECTOR ?= t
+# Preserve literal dollar signs too, rather than expanding them as Make code.
+unexport SELECTOR
+export EZEKA_TEST_SELECTOR = $(value SELECTOR)
+
+# Keep ERT's standard reporter; VERBOSE=1 removes backtrace truncation.
+export EZEKA_TEST_VERBOSE = $(VERBOSE)
+
 .PHONY: test compile clean
 
-# Run the headless ERT suite. The package is loaded first because the test
-# files assume the functions they exercise are already defined.
+# The runner selects fresh source/bytecode and loads Ezeka before the tests.
 test:
-	$(EMACS) -Q --batch -L . -L tests -l ert -l ezeka \
-	  $(LOAD_TESTS) \
-	  -f ert-run-tests-batch-and-exit
+	$(EMACS) -Q --batch -L . -L tests -l tests/ezeka-test-runner.el \
+	  $(LOAD_TESTS) -f ezeka-test-run-batch
 
 # Byte-compile the core files; acts as a linter (unused vars, bad arglists,
 # obsolete functions, etc.).
